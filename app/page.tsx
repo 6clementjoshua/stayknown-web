@@ -36,8 +36,7 @@ export default function Page() {
   );
 
   return (
-    // ✅ pb gives room for the fixed footer on mobile
-    <main className="min-h-screen bg-black flex flex-col pb-[190px] md:pb-0">
+    <main className="min-h-screen bg-black flex flex-col">
       {/* Brand */}
       <header className="pt-7">
         <div className="mx-auto max-w-6xl px-4 flex items-center justify-center">
@@ -63,12 +62,10 @@ export default function Page() {
         </div>
       </section>
 
-      {/* ✅ keep a little spacing for desktop only */}
-      <section className="hidden md:block h-24 md:h-32 lg:h-40" />
+      <section className="h-24 md:h-32 lg:h-40" />
 
-      {/* ✅ FIXED POLICY FOOTER (MOBILE ONLY) */}
-      {/* FOOTER (DESKTOP ONLY) */}
-      <footer className="hidden md:block w-full">
+      {/* ✅ Show on tablets + desktop, hide on phones */}
+      <footer className="hidden sm:block w-full">
         <div className="mx-auto max-w-6xl px-4 pb-10">
           <div className="h-px bg-white/[0.08]" />
 
@@ -174,10 +171,11 @@ export default function Page() {
               </a>
             </div>
 
-            {/* Trademark dim */}
             <div className="text-[12px] font-semibold text-white/50">
               A 6 Clement Joshua service
-              <span className="text-white/25 ml-1 align-super text-[10px]">™</span>
+              <span className="text-white/25 ml-1 align-super text-[10px]">
+                ™
+              </span>
             </div>
 
             <div className="text-[11px] font-semibold text-white/30">

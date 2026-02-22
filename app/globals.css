@@ -1,9 +1,10 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* app/globals.css */
+
+/* ✅ Tailwind v4 single-import flow */
+@import "tailwindcss";
 
 /* =====================================================
-   ROOT TOKENS
+   ROOT TOKENS (premium dark)
 ===================================================== */
 
 :root {
@@ -20,11 +21,31 @@
   --panelSoft: rgba(255, 255, 255, 0.035);
 
   --accent: rgba(255, 255, 255, 0.9);
+
+  /* Sheet / light panel */
+  --sheet: rgba(255, 255, 255, 0.96);
+  --sheet2: rgba(255, 255, 255, 0.92);
+  --sheetStroke: rgba(0, 0, 0, 0.08);
+  --sheetInk: rgba(0, 0, 0, 0.9);
+}
+
+/* ✅ Tailwind v4 theme mapping (optional but nice) */
+@theme inline {
+  --color-background: var(--bg);
+  --color-foreground: var(--fg);
+  --font-sans: var(--font-space), var(--font-inter), ui-sans-serif, system-ui,
+    -apple-system, Segoe UI, Roboto, Arial;
 }
 
 /* =====================================================
-   GLOBAL BASE
+   GLOBAL BASE (stable + premium)
 ===================================================== */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
 
 html,
 body {
@@ -41,14 +62,30 @@ body {
     Segoe UI, Roboto, Arial;
 }
 
-/* Smooth anchor scroll */
 html {
   scroll-behavior: smooth;
 }
 
-/* Remove default focus blue */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+img {
+  image-rendering: -webkit-optimize-contrast;
+}
+
+/* =====================================================
+   FOCUS (don’t kill focus — replace with premium ring)
+===================================================== */
+
 :focus {
   outline: none;
+}
+
+:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.28);
+  outline-offset: 3px;
+  border-radius: 12px;
 }
 
 /* =====================================================
@@ -91,7 +128,6 @@ html {
   color: var(--muted);
 }
 
-/* Lists */
 .policy-list {
   margin-left: 1.25rem;
   list-style: disc;
@@ -101,7 +137,6 @@ html {
   color: var(--muted);
 }
 
-/* Anchor offset for fixed headers */
 .scroll-offset {
   scroll-margin-top: 120px;
 }
@@ -120,7 +155,6 @@ a:hover {
   color: rgba(255, 255, 255, 0.92);
 }
 
-/* Optional underline link */
 .link {
   text-decoration: underline;
   text-underline-offset: 4px;
@@ -161,7 +195,7 @@ a:hover {
 }
 
 /* =====================================================
-   PREMIUM PILLS (FIXED)
+   PREMIUM PILLS
 ===================================================== */
 
 .pill {
@@ -201,7 +235,6 @@ a:hover {
   transform: translateY(1px) scale(0.98);
 }
 
-/* Smaller nav chip style */
 .pill-soft {
   border-radius: 999px;
   padding: 6px 12px;
@@ -258,7 +291,7 @@ a:hover {
 }
 
 /* =====================================================
-   CALLOUT BOXES (POLICY)
+   CALLOUT BOXES
 ===================================================== */
 
 .callout {
@@ -289,13 +322,6 @@ a:hover {
 /* =====================================================
    SHEET / LIGHT PANEL
 ===================================================== */
-
-:root {
-  --sheet: rgba(255, 255, 255, 0.96);
-  --sheet2: rgba(255, 255, 255, 0.92);
-  --sheetStroke: rgba(0, 0, 0, 0.08);
-  --sheetInk: rgba(0, 0, 0, 0.9);
-}
 
 .bevelSheet {
   border-radius: 26px;
