@@ -220,9 +220,9 @@ export default function LearnVisitLiveSosPage() {
 
                 <div className="mx-auto max-w-6xl px-4 pt-8 pb-8 sm:pb-10">
                     {/* ✅ L-shape layout: device LEFT, text RIGHT on desktop */}
-                    <div className="grid grid-cols-1 lg:grid-cols-[0.95fr_1.05fr] items-center gap-10">
+                    <div className="grid grid-cols-1 lg:grid-cols-[0.95fr_1.05fr] items-start gap-10">
                         {/* Device (LEFT on desktop) — NO glass container */}
-                        <div className="order-2 lg:order-1 flex items-center justify-center lg:justify-start">
+                        <div className="order-2 lg:order-1 flex items-start justify-center lg:justify-start lg:pt-[6px]">
                             <img
                                 src="/hero/visit-live-sos.png"
                                 alt="Live Visit + SOS Ready"
