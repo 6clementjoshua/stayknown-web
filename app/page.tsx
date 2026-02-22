@@ -60,6 +60,9 @@ export default function Page() {
         <div className="mx-auto max-w-6xl px-4 pt-5">
           <HeroSlider slides={slides} intervalMs={6000} />
         </div>
+
+        {/* ✅ Mobile safety spacing (prevents device hitting footer) */}
+        <div className="h-12 sm:h-0" />
       </section>
 
       {/* ✅ Reduced gap so footer is closer (helps chevrons sit centered visually) */}

@@ -127,7 +127,7 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
         else next();
     };
 
-    // Smooth + directional transitions (no flicker feel)
+    // Smooth + directional transitions
     const TEXT = {
         enter: { opacity: 0, x: 18, y: 2, scale: 0.965, filter: "blur(2px)" },
         center: { opacity: 1, x: 0, y: 0, scale: 1, filter: "blur(0px)" },
@@ -145,7 +145,7 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
         ease: [0.22, 1, 0.36, 1] as const,
     };
 
-    // ✅ text first, device slightly after (makes it feel intentional + smooth)
+    // text first, device slightly after
     const TRANSITION_DEVICE = {
         duration: 0.62,
         ease: [0.22, 1, 0.36, 1] as const,
@@ -158,6 +158,39 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
 
     const learnHref = `/learn/${slide.id}`; // placeholder route (wire later)
 
+    // Shared CTA (glassy bevel + shimmer + hover glow + tap flicker)
+    const LearnMoreCta = ({ size }: { size: "mobile" | "desktop" }) => (
+        <Link
+            href={learnHref}
+            className={[
+                "relative inline-flex items-center justify-center select-none overflow-hidden",
+                "rounded-full border backdrop-blur-xl transition duration-200",
+                "shadow-[0_18px_40px_rgba(0,0,0,0.55)]",
+                // shimmer layer anim
+                "before:content-[''] before:absolute before:inset-0",
+                "before:bg-[linear-gradient(110deg,transparent,rgba(255,255,255,0.18),transparent)]",
+                "before:-translate-x-[120%] hover:before:translate-x-[120%] before:transition before:duration-700",
+                // bevel highlight
+                "after:content-[''] after:absolute after:inset-0",
+                "after:bg-[radial-gradient(circle_at_30%_25%,rgba(255,255,255,0.20),transparent_58%)]",
+                // hover glow + black flip
+                "hover:bg-black hover:text-white hover:border-white/20",
+                // tap flicker (mobile/tablet)
+                "active:bg-black active:border-white/25 active:brightness-110",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30",
+                size === "mobile"
+                    ? "h-9 px-4 text-[12px] border-white/14 bg-white/[0.06] text-white/88"
+                    : "h-11 px-5 text-[13px] border-white/14 bg-white/[0.07] text-white/90",
+            ].join(" ")}
+        >
+            <span className="relative">Learn more</span>
+            <span className="relative ml-2 text-white/70">→</span>
+
+            {/* tiny “flicker” overlay on active */}
+            <span className="pointer-events-none absolute inset-0 opacity-0 active:opacity-100 transition duration-75 bg-white/[0.06]" />
+        </Link>
+    );
+
     return (
         <div
             className="relative w-full group"
@@ -169,7 +202,7 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
             <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_40%,rgba(255,255,255,0.06),transparent_55%)]" />
 
             <div className="relative w-full min-h-[520px] md:min-h-[600px] lg:min-h-[620px]">
-                {/* ✅ Desktop tap layer ONLY on desktop */}
+                {/* Desktop tap layer ONLY on desktop */}
                 {!isCoarsePointer && (
                     <div
                         className="absolute inset-0 z-10 select-none"
@@ -182,12 +215,12 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
                 <div
                     className="
             relative grid grid-cols-1 lg:grid-cols-[0.98fr_1.02fr]
-            items-center gap-8 md:gap-10
-            h-[62vh] max-h-[640px] min-h-[460px]
-            pb-12 md:pb-14
+            items-center gap-7 sm:gap-8 md:gap-10
+            h-[68vh] max-h-[680px] min-h-[520px]
+            pb-10 sm:pb-12 md:pb-14
           "
                 >
-                    {/* ✅ Caption FIRST on mobile/tablet */}
+                    {/* Caption FIRST (mobile + tablet), stays right on desktop */}
                     <div className="relative flex items-center justify-center lg:justify-start order-1 lg:order-2">
                         <AnimatePresence mode="wait" initial={false}>
                             <motion.div
@@ -202,48 +235,24 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
                                 <div className="pointer-events-none absolute -inset-y-10 -inset-x-10 bg-[radial-gradient(circle_at_50%_35%,rgba(0,0,0,0.58),transparent_68%)]" />
 
                                 <div className="relative">
-                                    <div className="text-white/95 font-black tracking-[-0.03em] text-[40px] sm:text-[52px] md:text-[62px] leading-[0.98]">
+                                    <div className="text-white/95 font-black tracking-[-0.03em] text-[38px] sm:text-[52px] md:text-[62px] leading-[0.98]">
                                         {slide.title}
                                     </div>
 
-                                    <div className="mt-4 text-white/58 font-semibold text-[13.5px] sm:text-[14px] md:text-[14.5px] leading-relaxed mx-auto lg:mx-0 max-w-[64ch]">
+                                    <div className="mt-4 text-white/58 font-semibold text-[13px] sm:text-[14px] md:text-[14.5px] leading-relaxed mx-auto lg:mx-0 max-w-[64ch]">
                                         {slide.teaser}
                                     </div>
 
-                                    <div className="mt-7 flex items-center justify-center lg:justify-start">
-                                        <Link
-                                            href={learnHref}
-                                            className="
-                        relative inline-flex items-center justify-center
-                        h-11 px-5 rounded-full
-                        border border-white/14
-                        bg-white/[0.07]
-                        backdrop-blur-xl
-                        text-white/90 font-semibold text-[13px]
-                        shadow-[0_18px_40px_rgba(0,0,0,0.55)]
-                        transition
-                        duration-200
-                        hover:bg-black hover:text-white
-                        hover:border-white/20
-                        active:scale-[0.99]
-                        select-none
-                        overflow-hidden
-                      "
-                                        >
-                                            {/* subtle bevel highlight */}
-                                            <span className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_30%_25%,rgba(255,255,255,0.22),transparent_55%)]" />
-                                            {/* hover flicker to black */}
-                                            <span className="pointer-events-none absolute inset-0 opacity-0 hover:opacity-100 transition duration-150 bg-black" />
-                                            <span className="relative">Learn more</span>
-                                            
-                                        </Link>
+                                    {/* ✅ Desktop/tablet CTA stays here */}
+                                    <div className="mt-7 hidden sm:flex items-center justify-center lg:justify-start">
+                                        <LearnMoreCta size="desktop" />
                                     </div>
                                 </div>
                             </motion.div>
                         </AnimatePresence>
                     </div>
 
-                    {/* LEFT image */}
+                    {/* Device */}
                     <div className="relative flex items-center justify-center lg:justify-start lg:pl-2 order-2 lg:order-1">
                         <AnimatePresence mode="wait" initial={false}>
                             <motion.div
@@ -290,48 +299,55 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
                                         alt={slide.title}
                                         draggable={false}
                                         className="
-                      block w-auto
-                      max-w-[92vw]
-                      sm:max-w-[540px]
-                      md:max-w-[600px]
-                      lg:max-w-[620px]
-                      xl:max-w-[660px]
-                      max-h-[72vh]
-                      object-contain select-none
+                      block w-auto object-contain select-none
                       drop-shadow-[0_22px_80px_rgba(0,0,0,0.75)]
+
+                      /* ✅ Mobile: smaller device so it doesn't collide with footer */
+                      max-w-[82vw] max-h-[40vh]
+
+                      /* ✅ sm+ scales up again */
+                      sm:max-w-[520px] sm:max-h-[56vh]
+                      md:max-w-[560px] md:max-h-[62vh]
+                      lg:max-w-[620px] lg:max-h-[68vh]
+                      xl:max-w-[660px]
                     "
                                     />
                                 </motion.div>
+
+                                {/* ✅ Mobile CTA UNDER device */}
+                                <div className="mt-5 flex sm:hidden items-center justify-center">
+                                    <LearnMoreCta size="mobile" />
+                                </div>
                             </motion.div>
                         </AnimatePresence>
                     </div>
                 </div>
 
-                {/* ✅ Manual arrows — pushed to edges, centered vertically, mobile-friendly */}
-                <div className="pointer-events-none absolute inset-y-0 left-0 right-0 flex items-center justify-between">
+                {/* ✅ Mobile arrows: keep them away from device/caption (anchor around device zone) */}
+                <div
+                    className="
+            pointer-events-none absolute left-0 right-0
+            top-[56%] -translate-y-1/2
+            sm:top-1/2
+            flex items-center justify-between
+          "
+                >
                     {/* LEFT */}
                     <button
                         onClick={prev}
                         aria-label="Previous slide"
                         className="
-              pointer-events-auto
-              rounded-full
-              border border-white/12
-              bg-white/[0.06]
-              backdrop-blur-md
-              text-white/80
-              hover:bg-white/[0.12]
-              hover:text-white
-              transition
-              flex items-center justify-center
-              font-black
-              select-none
+              pointer-events-auto select-none
+              rounded-full border border-white/12
+              bg-white/[0.06] backdrop-blur-md
+              text-white/80 hover:bg-white/[0.12] hover:text-white
+              transition font-black
 
               w-8 h-8 text-[18px]
               sm:w-10 sm:h-10 sm:text-[20px]
               md:w-12 md:h-12 md:text-[22px]
 
-              ml-2 sm:ml-3 md:ml-4
+              ml-3 sm:ml-4
               lg:ml-0 lg:-translate-x-5 xl:-translate-x-10
 
               opacity-100 sm:opacity-0 sm:group-hover:opacity-100
@@ -346,24 +362,17 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
                         onClick={next}
                         aria-label="Next slide"
                         className="
-              pointer-events-auto
-              rounded-full
-              border border-white/12
-              bg-white/[0.06]
-              backdrop-blur-md
-              text-white/80
-              hover:bg-white/[0.12]
-              hover:text-white
-              transition
-              flex items-center justify-center
-              font-black
-              select-none
+              pointer-events-auto select-none
+              rounded-full border border-white/12
+              bg-white/[0.06] backdrop-blur-md
+              text-white/80 hover:bg-white/[0.12] hover:text-white
+              transition font-black
 
               w-8 h-8 text-[18px]
               sm:w-10 sm:h-10 sm:text-[20px]
               md:w-12 md:h-12 md:text-[22px]
 
-              mr-2 sm:mr-3 md:mr-4
+              mr-3 sm:mr-4
               lg:mr-0 lg:translate-x-5 xl:translate-x-10
 
               opacity-100 sm:opacity-0 sm:group-hover:opacity-100
@@ -375,7 +384,7 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
                 </div>
 
                 {/* bottom fade */}
-                <div className="pointer-events-none absolute inset-x-0 bottom-0 h-36 sm:h-40 bg-gradient-to-t from-black/70 via-black/25 to-transparent" />
+                <div className="pointer-events-none absolute inset-x-0 bottom-0 h-32 sm:h-40 bg-gradient-to-t from-black/70 via-black/25 to-transparent" />
             </div>
         </div>
     );
