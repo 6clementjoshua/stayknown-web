@@ -149,15 +149,20 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
                 "group relative inline-flex items-center justify-center select-none overflow-hidden",
                 "rounded-full border backdrop-blur-xl transition duration-200",
                 "shadow-[0_18px_40px_rgba(0,0,0,0.55)]",
+
+                // base
                 "border-white/14 bg-white/[0.07]",
                 "text-white",
-                "hover:bg-white hover:border-white/25",
-                "active:bg-black active:border-white/20",
-                "active:scale-[0.99]",
+
+                // hover (desktop): white pill + black text
+                "hover:bg-white hover:border-white/25 hover:text-black",
+
+                // active/tap: black pill + white text
+                "active:bg-black active:border-white/20 active:text-white active:scale-[0.99]",
+
                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30",
-                size === "mobile"
-                    ? "h-9 px-4 text-[12px]"
-                    : "h-11 px-5 text-[13px]",
+
+                size === "mobile" ? "h-9 px-4 text-[12px]" : "h-11 px-5 text-[13px]",
             ].join(" ")}
         >
             {/* bevel highlight */}
@@ -166,24 +171,9 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
             {/* shimmer */}
             <span className="pointer-events-none absolute inset-0 bg-[linear-gradient(110deg,transparent,rgba(255,255,255,0.18),transparent)] -translate-x-[120%] group-hover:translate-x-[120%] transition duration-700" />
 
-            {/* TEXT */}
-            <span className="
-      relative
-      transition-colors duration-200
-      group-hover:text-black
-      group-active:text-white
-    ">
-                Learn more
-            </span>
-
-            <span className="
-      relative ml-2 opacity-70
-      transition-colors duration-200
-      group-hover:text-black
-      group-active:text-white
-    ">
-                →
-            </span>
+            {/* IMPORTANT: no forced colors here — inherit from parent */}
+            <span className="relative">Learn more</span>
+            <span className="relative ml-2 opacity-70">→</span>
 
             {/* tap flicker overlay */}
             <span className="pointer-events-none absolute inset-0 opacity-0 active:opacity-100 transition duration-75 bg-white/[0.06]" />
