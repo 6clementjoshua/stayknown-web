@@ -36,8 +36,7 @@ export default function Page() {
   );
 
   return (
-    // ✅ pb-[160px] gives space so fixed footer won't cover content on mobile
-    <main className="min-h-screen bg-black flex flex-col pb-[160px] md:pb-0">
+    <main className="min-h-screen bg-black flex flex-col">
       {/* Brand */}
       <header className="pt-7">
         <div className="mx-auto max-w-6xl px-4 flex items-center justify-center">
@@ -63,254 +62,124 @@ export default function Page() {
         </div>
       </section>
 
-      {/* ✅ smaller spacer on mobile so title doesn't collide */}
-      <section className="h-10 md:h-32 lg:h-40" />
+      <section className="h-24 md:h-32 lg:h-40" />
 
       {/* FOOTER */}
       <footer className="w-full">
-        {/* ✅ Mobile fixed bar */}
-        <div className="md:hidden fixed bottom-0 left-0 right-0 z-50">
-          <div className="mx-auto max-w-6xl px-4 pb-4">
-            {/* glass backing so it looks premium and doesn't clash */}
-            <div className="rounded-2xl border border-white/[0.08] bg-black/70 backdrop-blur-xl">
-              <div className="px-4 pt-4">
-                <div className="h-px bg-white/[0.08]" />
+        <div className="mx-auto max-w-6xl px-4 pb-10">
+          <div className="h-px bg-white/[0.08]" />
 
-                <div className="mt-4 flex flex-col items-center gap-3 text-center">
-                  <div className="flex flex-wrap justify-center gap-x-4 gap-y-2 text-[12px] font-semibold text-white/45 leading-relaxed">
-                    <a
-                      href="/privacy"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="hover:text-white/75 transition"
-                    >
-                      Privacy Policy
-                    </a>
-                    <span className="text-white/18">•</span>
+          <div className="mt-8 flex flex-col items-center gap-3 text-center">
+            <div className="flex flex-wrap justify-center gap-x-4 gap-y-2 text-[12px] font-semibold text-white/45 leading-relaxed">
+              <a
+                href="/privacy"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-white/75 transition"
+              >
+                Privacy Policy
+              </a>
+              <span className="text-white/18">•</span>
 
-                    <a
-                      href="/terms"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="hover:text-white/75 transition"
-                    >
-                      Terms of Use
-                    </a>
-                    <span className="text-white/18">•</span>
+              <a
+                href="/terms"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-white/75 transition"
+              >
+                Terms of Use
+              </a>
+              <span className="text-white/18">•</span>
 
-                    <a
-                      href="/acceptable-use"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="hover:text-white/75 transition"
-                    >
-                      Acceptable Use
-                    </a>
-                    <span className="text-white/18">•</span>
+              <a
+                href="/acceptable-use"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-white/75 transition"
+              >
+                Acceptable Use
+              </a>
+              <span className="text-white/18">•</span>
 
-                    <a
-                      href="/safety"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="hover:text-white/75 transition"
-                    >
-                      Safety &amp; Anti-Stalking
-                    </a>
-                    <span className="text-white/18">•</span>
+              <a
+                href="/safety"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-white/75 transition"
+              >
+                Safety &amp; Anti-Stalking
+              </a>
+              <span className="text-white/18">•</span>
 
-                    <a
-                      href="/emergency"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="hover:text-white/75 transition"
-                    >
-                      Emergency Disclaimer
-                    </a>
-                    <span className="text-white/18">•</span>
+              <a
+                href="/emergency"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-white/75 transition"
+              >
+                Emergency Disclaimer
+              </a>
+              <span className="text-white/18">•</span>
 
-                    <a
-                      href="/minors"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="hover:text-white/75 transition"
-                    >
-                      Child Safety &amp; Minor Use
-                    </a>
-                    <span className="text-white/18">•</span>
+              <a
+                href="/minors"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-white/75 transition"
+              >
+                Child Safety &amp; Minor Use
+              </a>
+              <span className="text-white/18">•</span>
 
-                    <a
-                      href="/abuse"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="hover:text-white/75 transition"
-                    >
-                      Abuse Reporting
-                    </a>
-                    <span className="text-white/18">•</span>
+              {/* ✅ FIX: must be #abuse */}
+              <a
+                href="/abuse"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-white/75 transition"
+              >
+                Abuse Reporting
+              </a>
+              <span className="text-white/18">•</span>
 
-                    <a
-                      href="/retention"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="hover:text-white/75 transition"
-                    >
-                      Data Retention
-                    </a>
-                    <span className="text-white/18">•</span>
+              <a
+                href="/retention"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-white/75 transition"
+              >
+                Data Retention
+              </a>
+              <span className="text-white/18">•</span>
 
-                    <a
-                      href="/law"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="hover:text-white/75 transition"
-                    >
-                      Law Enforcement
-                    </a>
-                    <span className="text-white/18">•</span>
+              <a
+                href="/law"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-white/75 transition"
+              >
+                Law Enforcement
+              </a>
+              <span className="text-white/18">•</span>
 
-                    <a
-                      href="/security"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="hover:text-white/75 transition"
-                    >
-                      Security Disclosure
-                    </a>
-                  </div>
-
-                  <div className="text-[12px] font-semibold text-white/50">
-                    A 6 Clement Joshua service
-                    <span className="text-white/25 ml-1 align-super text-[10px]">
-                      ™
-                    </span>
-                  </div>
-
-                  <div className="text-[11px] font-semibold text-white/30 pb-3">
-                    {new Date().getFullYear()} • stay-known.com
-                  </div>
-                </div>
-              </div>
+              <a
+                href="/security"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-white/75 transition"
+              >
+                Security Disclosure
+              </a>
             </div>
-          </div>
-        </div>
 
-        {/* ✅ Desktop/footer stays normal (your original) */}
-        <div className="hidden md:block">
-          <div className="mx-auto max-w-6xl px-4 pb-10">
-            <div className="h-px bg-white/[0.08]" />
+            {/* Trademark dim */}
+            <div className="text-[12px] font-semibold text-white/50">
+              A 6 Clement Joshua service
+              <span className="text-white/25 ml-1 align-super text-[10px]">™</span>
+            </div>
 
-            <div className="mt-8 flex flex-col items-center gap-3 text-center">
-              <div className="flex flex-wrap justify-center gap-x-4 gap-y-2 text-[12px] font-semibold text-white/45 leading-relaxed">
-                <a
-                  href="/privacy"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="hover:text-white/75 transition"
-                >
-                  Privacy Policy
-                </a>
-                <span className="text-white/18">•</span>
-
-                <a
-                  href="/terms"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="hover:text-white/75 transition"
-                >
-                  Terms of Use
-                </a>
-                <span className="text-white/18">•</span>
-
-                <a
-                  href="/acceptable-use"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="hover:text-white/75 transition"
-                >
-                  Acceptable Use
-                </a>
-                <span className="text-white/18">•</span>
-
-                <a
-                  href="/safety"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="hover:text-white/75 transition"
-                >
-                  Safety &amp; Anti-Stalking
-                </a>
-                <span className="text-white/18">•</span>
-
-                <a
-                  href="/emergency"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="hover:text-white/75 transition"
-                >
-                  Emergency Disclaimer
-                </a>
-                <span className="text-white/18">•</span>
-
-                <a
-                  href="/minors"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="hover:text-white/75 transition"
-                >
-                  Child Safety &amp; Minor Use
-                </a>
-                <span className="text-white/18">•</span>
-
-                <a
-                  href="/abuse"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="hover:text-white/75 transition"
-                >
-                  Abuse Reporting
-                </a>
-                <span className="text-white/18">•</span>
-
-                <a
-                  href="/retention"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="hover:text-white/75 transition"
-                >
-                  Data Retention
-                </a>
-                <span className="text-white/18">•</span>
-
-                <a
-                  href="/law"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="hover:text-white/75 transition"
-                >
-                  Law Enforcement
-                </a>
-                <span className="text-white/18">•</span>
-
-                <a
-                  href="/security"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="hover:text-white/75 transition"
-                >
-                  Security Disclosure
-                </a>
-              </div>
-
-              <div className="text-[12px] font-semibold text-white/50">
-                A 6 Clement Joshua service
-                <span className="text-white/25 ml-1 align-super text-[10px]">
-                  ™
-                </span>
-              </div>
-
-              <div className="text-[11px] font-semibold text-white/30">
-                {new Date().getFullYear()} • stay-known.com
-              </div>
+            <div className="text-[11px] font-semibold text-white/30">
+              {new Date().getFullYear()} • stay-known.com
             </div>
           </div>
         </div>
