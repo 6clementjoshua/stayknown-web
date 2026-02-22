@@ -146,18 +146,17 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
         <Link
             href={learnHref}
             className={[
-                "group relative inline-flex items-center justify-center select-none overflow-hidden",
-                "rounded-full border backdrop-blur-xl transition duration-200",
+                "relative inline-flex items-center justify-center select-none overflow-hidden",
+                "rounded-full border backdrop-blur-xl transition-colors duration-200",
                 "shadow-[0_18px_40px_rgba(0,0,0,0.55)]",
 
-                // base
-                "border-white/14 bg-white/[0.07]",
-                "text-white",
+                // base state
+                "border-white/14 bg-white/[0.07] text-white",
 
-                // hover (desktop): white pill + black text
+                // hover state (desktop)
                 "hover:bg-white hover:border-white/25 hover:text-black",
 
-                // active/tap: black pill + white text
+                // active/tap state
                 "active:bg-black active:border-white/20 active:text-white active:scale-[0.99]",
 
                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30",
@@ -169,13 +168,18 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
             <span className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_30%_25%,rgba(255,255,255,0.20),transparent_58%)]" />
 
             {/* shimmer */}
-            <span className="pointer-events-none absolute inset-0 bg-[linear-gradient(110deg,transparent,rgba(255,255,255,0.18),transparent)] -translate-x-[120%] group-hover:translate-x-[120%] transition duration-700" />
+            <span className="pointer-events-none absolute inset-0 bg-[linear-gradient(110deg,transparent,rgba(255,255,255,0.18),transparent)] -translate-x-[120%] hover:translate-x-[120%] transition duration-700" />
 
-            {/* IMPORTANT: no forced colors here — inherit from parent */}
-            <span className="relative">Learn more</span>
-            <span className="relative ml-2 opacity-70">→</span>
+            {/* TEXT (inherits from parent safely) */}
+            <span className="relative">
+                Learn more
+            </span>
 
-            {/* tap flicker overlay */}
+            <span className="relative ml-2 opacity-70">
+                →
+            </span>
+
+            {/* subtle tap flicker */}
             <span className="pointer-events-none absolute inset-0 opacity-0 active:opacity-100 transition duration-75 bg-white/[0.06]" />
         </Link>
     );
