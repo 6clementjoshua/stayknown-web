@@ -62,7 +62,8 @@ export default function Page() {
         </div>
       </section>
 
-      <section className="h-24 md:h-32 lg:h-40" />
+      {/* ✅ MOBILE: add more breathing room before footer so caption never overlaps */}
+      <section className="h-44 sm:h-28 md:h-32 lg:h-40" />
 
       {/* FOOTER */}
       <footer className="w-full">
@@ -131,7 +132,6 @@ export default function Page() {
               </a>
               <span className="text-white/18">•</span>
 
-              {/* ✅ FIX: must be #abuse */}
               <a
                 href="/abuse"
                 target="_blank"
@@ -175,7 +175,9 @@ export default function Page() {
             {/* Trademark dim */}
             <div className="text-[12px] font-semibold text-white/50">
               A 6 Clement Joshua service
-              <span className="text-white/25 ml-1 align-super text-[10px]">™</span>
+              <span className="text-white/25 ml-1 align-super text-[10px]">
+                ™
+              </span>
             </div>
 
             <div className="text-[11px] font-semibold text-white/30">
