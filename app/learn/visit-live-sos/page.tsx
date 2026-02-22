@@ -177,7 +177,6 @@ export default function LearnVisitLiveSosPage() {
         return {
             Starter: [
                 "Start a Visit with live sharing only while the Visit is active.",
-                "SOS stays available as a fast escalation entry point.",
                 "Simple flow with core safety signals and clean messaging.",
             ],
             Pro: [
