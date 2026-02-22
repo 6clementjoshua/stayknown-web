@@ -67,19 +67,12 @@ export default function Page() {
       <section className="hidden md:block h-24 md:h-32 lg:h-40" />
 
       {/* ✅ FIXED POLICY FOOTER (MOBILE ONLY) */}
-      <footer
-        className="
-          fixed inset-x-0 bottom-0 z-50
-          md:static
-          bg-black/92 md:bg-transparent
-          backdrop-blur-xl md:backdrop-blur-0
-          border-t border-white/[0.08]
-        "
-      >
-        <div className="mx-auto max-w-6xl px-4 pb-5 pt-4 md:pb-10 md:pt-0">
-          <div className="hidden md:block h-px bg-white/[0.08]" />
+      {/* FOOTER (DESKTOP ONLY) */}
+      <footer className="hidden md:block w-full">
+        <div className="mx-auto max-w-6xl px-4 pb-10">
+          <div className="h-px bg-white/[0.08]" />
 
-          <div className="flex flex-col items-center gap-3 text-center">
+          <div className="mt-8 flex flex-col items-center gap-3 text-center">
             <div className="flex flex-wrap justify-center gap-x-4 gap-y-2 text-[12px] font-semibold text-white/45 leading-relaxed">
               <a
                 href="/privacy"
@@ -181,6 +174,7 @@ export default function Page() {
               </a>
             </div>
 
+            {/* Trademark dim */}
             <div className="text-[12px] font-semibold text-white/50">
               A 6 Clement Joshua service
               <span className="text-white/25 ml-1 align-super text-[10px]">™</span>
