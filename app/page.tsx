@@ -57,20 +57,21 @@ export default function Page() {
 
       {/* HERO */}
       <section className="w-full">
-        <div className="mx-auto max-w-6xl px-4 pt-6">
+        <div className="mx-auto max-w-6xl px-4 pt-5">
           <HeroSlider slides={slides} intervalMs={6000} />
         </div>
       </section>
 
-      <section className="h-24 md:h-32 lg:h-40" />
+      {/* ✅ Reduced gap so footer is closer (helps chevrons sit centered visually) */}
+      <section className="h-8 sm:h-10 md:h-12 lg:h-14" />
 
-      {/* ✅ Show on tablets + desktop, hide on phones */}
-      <footer className="hidden sm:block w-full">
-        <div className="mx-auto max-w-6xl px-4 pb-10">
+      {/* ✅ Footer now visible on mobile too */}
+      <footer className="w-full">
+        <div className="mx-auto max-w-6xl px-4 pb-7 sm:pb-10">
           <div className="h-px bg-white/[0.08]" />
 
-          <div className="mt-8 flex flex-col items-center gap-3 text-center">
-            <div className="flex flex-wrap justify-center gap-x-4 gap-y-2 text-[12px] font-semibold text-white/45 leading-relaxed">
+          <div className="mt-6 sm:mt-8 flex flex-col items-center gap-3 text-center">
+            <div className="flex flex-wrap justify-center gap-x-4 gap-y-2 text-[11px] sm:text-[12px] font-semibold text-white/45 leading-relaxed">
               <a
                 href="/privacy"
                 target="_blank"
