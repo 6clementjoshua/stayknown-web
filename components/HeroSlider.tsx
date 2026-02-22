@@ -105,7 +105,7 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
         };
     }, [items.length, intervalMs, next]);
 
-    // keyboard
+    // keyboard (optional: keep)
     useEffect(() => {
         const onKey = (e: KeyboardEvent) => {
             if (e.key === "ArrowRight") next();
@@ -117,15 +117,6 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
 
     const slide = items[idx];
     if (!slide) return null;
-
-    // Desktop tap: left half = prev, right half = next
-    const onDesktopTap = (e: React.PointerEvent<HTMLDivElement>) => {
-        if (isCoarsePointer) return;
-        const rect = e.currentTarget.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        if (x < rect.width / 2) prev();
-        else next();
-    };
 
     // Smooth + directional transitions
     const TEXT = {
@@ -145,7 +136,6 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
         ease: [0.22, 1, 0.36, 1] as const,
     };
 
-    // text first, device slightly after
     const TRANSITION_DEVICE = {
         duration: 0.62,
         ease: [0.22, 1, 0.36, 1] as const,
@@ -156,9 +146,8 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
     const SWIPE_OFFSET = 60;
     const SWIPE_VELOCITY = 500;
 
-    const learnHref = `/learn/${slide.id}`; // placeholder route (wire later)
+    const learnHref = `/learn/${slide.id}`;
 
-    // Shared CTA (glassy bevel + shimmer + hover glow + tap flicker)
     const LearnMoreCta = ({ size }: { size: "mobile" | "desktop" }) => (
         <Link
             href={learnHref}
@@ -166,17 +155,13 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
                 "relative inline-flex items-center justify-center select-none overflow-hidden",
                 "rounded-full border backdrop-blur-xl transition duration-200",
                 "shadow-[0_18px_40px_rgba(0,0,0,0.55)]",
-                // shimmer layer anim
                 "before:content-[''] before:absolute before:inset-0",
                 "before:bg-[linear-gradient(110deg,transparent,rgba(255,255,255,0.18),transparent)]",
                 "before:-translate-x-[120%] hover:before:translate-x-[120%] before:transition before:duration-700",
-                // bevel highlight
                 "after:content-[''] after:absolute after:inset-0",
                 "after:bg-[radial-gradient(circle_at_30%_25%,rgba(255,255,255,0.20),transparent_58%)]",
-                // hover glow + black flip
-                "hover:bg-black hover:text-white hover:border-white/20",
-                // tap flicker (mobile/tablet)
-                "active:bg-black active:border-white/25 active:brightness-110",
+                "hover:bg-white hover:text-black hover:border-white/25",
+                "active:scale-[0.99] active:brightness-110",
                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30",
                 size === "mobile"
                     ? "h-9 px-4 text-[12px] border-white/14 bg-white/[0.06] text-white/88"
@@ -184,10 +169,8 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
             ].join(" ")}
         >
             <span className="relative">Learn more</span>
-            <span className="relative ml-2 text-white/70">→</span>
-
-            {/* tiny “flicker” overlay on active */}
-            <span className="pointer-events-none absolute inset-0 opacity-0 active:opacity-100 transition duration-75 bg-white/[0.06]" />
+            <span className="relative ml-2 opacity-70">→</span>
+            <span className="pointer-events-none absolute inset-0 opacity-0 active:opacity-100 transition duration-75 bg-black/[0.08]" />
         </Link>
     );
 
@@ -202,14 +185,7 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
             <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_40%,rgba(255,255,255,0.06),transparent_55%)]" />
 
             <div className="relative w-full min-h-[520px] md:min-h-[600px] lg:min-h-[620px]">
-                {/* Desktop tap layer ONLY on desktop */}
-                {!isCoarsePointer && (
-                    <div
-                        className="absolute inset-0 z-10 select-none"
-                        onPointerUp={onDesktopTap}
-                        style={{ touchAction: "none" }}
-                    />
-                )}
+                {/* ✅ Removed the full-screen tap layer entirely */}
 
                 {/* layout */}
                 <div
@@ -220,7 +196,7 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
             pb-10 sm:pb-12 md:pb-14
           "
                 >
-                    {/* Caption FIRST (mobile + tablet), stays right on desktop */}
+                    {/* Caption first */}
                     <div className="relative flex items-center justify-center lg:justify-start order-1 lg:order-2">
                         <AnimatePresence mode="wait" initial={false}>
                             <motion.div
@@ -243,7 +219,7 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
                                         {slide.teaser}
                                     </div>
 
-                                    {/* ✅ Desktop/tablet CTA stays here */}
+                                    {/* Desktop/tablet CTA here */}
                                     <div className="mt-7 hidden sm:flex items-center justify-center lg:justify-start">
                                         <LearnMoreCta size="desktop" />
                                     </div>
@@ -263,6 +239,7 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
                                 exit="exit"
                                 transition={TRANSITION_DEVICE}
                                 className="relative"
+                                // ✅ swipe only (mobile)
                                 drag={isCoarsePointer ? "x" : false}
                                 dragConstraints={{ left: 0, right: 0 }}
                                 dragElastic={0.18}
@@ -288,7 +265,6 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
                                     touchAction: isCoarsePointer ? "pan-y" : "auto",
                                 }}
                             >
-                                {/* micro float */}
                                 <motion.div
                                     animate={{ y: [0, -1.5, 0, 1.5, 0] }}
                                     transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
@@ -302,10 +278,7 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
                       block w-auto object-contain select-none
                       drop-shadow-[0_22px_80px_rgba(0,0,0,0.75)]
 
-                      /* ✅ Mobile: smaller device so it doesn't collide with footer */
                       max-w-[82vw] max-h-[40vh]
-
-                      /* ✅ sm+ scales up again */
                       sm:max-w-[520px] sm:max-h-[56vh]
                       md:max-w-[560px] md:max-h-[62vh]
                       lg:max-w-[620px] lg:max-h-[68vh]
@@ -314,7 +287,7 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
                                     />
                                 </motion.div>
 
-                                {/* ✅ Mobile CTA UNDER device */}
+                                {/* Mobile CTA under device */}
                                 <div className="mt-5 flex sm:hidden items-center justify-center">
                                     <LearnMoreCta size="mobile" />
                                 </div>
@@ -323,7 +296,7 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
                     </div>
                 </div>
 
-                {/* ✅ Mobile arrows: keep them away from device/caption (anchor around device zone) */}
+                {/* Manual arrows only */}
                 <div
                     className="
             pointer-events-none absolute left-0 right-0
@@ -332,7 +305,6 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
             flex items-center justify-between
           "
                 >
-                    {/* LEFT */}
                     <button
                         onClick={prev}
                         aria-label="Previous slide"
@@ -357,7 +329,6 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
                         ‹
                     </button>
 
-                    {/* RIGHT */}
                     <button
                         onClick={next}
                         aria-label="Next slide"
