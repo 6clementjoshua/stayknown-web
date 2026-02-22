@@ -1,65 +1,189 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import Image from "next/image";
+import { useMemo } from "react";
+import HeroSlider, { type HeroSlide } from "../components/HeroSlider";
+
+export default function Page() {
+  const slides: HeroSlide[] = useMemo(
+    () => [
+      {
+        id: "visit-live-sos",
+        src: "/hero/visit-live-sos.png",
+        kind: "device",
+        title: "Live Visit + SOS Ready",
+        teaser:
+          "When a visit starts, Live mode turns on — with SOS on standby to escalate quickly if needed.",
+      },
+      {
+        id: "visit-live",
+        src: "/hero/visit-live.png",
+        kind: "device",
+        title: "Live Location Emitter",
+        teaser:
+          "Live updates occur only during an active visit. End the visit and sharing stops immediately.",
+      },
+      {
+        id: "promax-shell",
+        src: "/hero/promax-shell.png",
+        kind: "device",
+        title: "ProMax MainShell",
+        teaser:
+          "A collapsed premium shell — calmer navigation that feels like hardware, while keeping safety one tap away.",
+      },
+    ],
+    []
+  );
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
+    <main className="min-h-screen bg-black flex flex-col">
+      {/* Brand */}
+      <header className="pt-7">
+        <div className="mx-auto max-w-6xl px-4 flex items-center justify-center">
+          <div className="flex flex-col items-center gap-2">
             <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
+              src="/6logo.png"
+              alt="StayKnown"
+              width={34}
+              height={34}
+              priority
             />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+            <div className="text-white font-extrabold tracking-[0.28em] text-[12px]">
+              STAYKNOWN
+            </div>
+          </div>
         </div>
-      </main>
-    </div>
+      </header>
+
+      {/* HERO */}
+      <section className="w-full">
+        <div className="mx-auto max-w-6xl px-4 pt-6">
+          <HeroSlider slides={slides} intervalMs={6000} />
+        </div>
+      </section>
+
+      <section className="h-24 md:h-32 lg:h-40" />
+
+      {/* FOOTER */}
+      <footer className="w-full">
+        <div className="mx-auto max-w-6xl px-4 pb-10">
+          <div className="h-px bg-white/[0.08]" />
+
+          <div className="mt-8 flex flex-col items-center gap-3 text-center">
+            <div className="flex flex-wrap justify-center gap-x-4 gap-y-2 text-[12px] font-semibold text-white/45 leading-relaxed">
+              <a
+                href="/privacy"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-white/75 transition"
+              >
+                Privacy Policy
+              </a>
+              <span className="text-white/18">•</span>
+
+              <a
+                href="/terms"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-white/75 transition"
+              >
+                Terms of Use
+              </a>
+              <span className="text-white/18">•</span>
+
+              <a
+                href="/acceptable-use"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-white/75 transition"
+              >
+                Acceptable Use
+              </a>
+              <span className="text-white/18">•</span>
+
+              <a
+                href="/safety"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-white/75 transition"
+              >
+                Safety &amp; Anti-Stalking
+              </a>
+              <span className="text-white/18">•</span>
+
+              <a
+                href="/emergency"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-white/75 transition"
+              >
+                Emergency Disclaimer
+              </a>
+              <span className="text-white/18">•</span>
+
+              <a
+                href="/minors"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-white/75 transition"
+              >
+                Child Safety &amp; Minor Use
+              </a>
+              <span className="text-white/18">•</span>
+
+              {/* ✅ FIX: must be #abuse */}
+              <a
+                href="/abuse"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-white/75 transition"
+              >
+                Abuse Reporting
+              </a>
+              <span className="text-white/18">•</span>
+
+              <a
+                href="/retention"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-white/75 transition"
+              >
+                Data Retention
+              </a>
+              <span className="text-white/18">•</span>
+
+              <a
+                href="/law"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-white/75 transition"
+              >
+                Law Enforcement
+              </a>
+              <span className="text-white/18">•</span>
+
+              <a
+                href="/security"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-white/75 transition"
+              >
+                Security Disclosure
+              </a>
+            </div>
+
+            {/* Trademark dim */}
+            <div className="text-[12px] font-semibold text-white/50">
+              A 6 Clement Joshua service
+              <span className="text-white/25 ml-1 align-super text-[10px]">™</span>
+            </div>
+
+            <div className="text-[11px] font-semibold text-white/30">
+              {new Date().getFullYear()} • stay-known.com
+            </div>
+          </div>
+        </div>
+      </footer>
+    </main>
   );
 }
