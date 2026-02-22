@@ -264,7 +264,56 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
                         </AnimatePresence>
                     </div>
                 </div>
+                {/* Manual arrows (desktop visible, subtle on mobile) */}
+                <div className="pointer-events-none absolute inset-y-0 left-0 right-0 flex items-center justify-between px-4 md:px-6">
+                    {/* LEFT */}
+                    <button
+                        onClick={prev}
+                        aria-label="Previous slide"
+                        className="
+      pointer-events-auto
+      w-10 h-10 md:w-12 md:h-12
+      rounded-full
+      border border-white/12
+      bg-white/[0.06]
+      backdrop-blur-md
+      text-white/80
+      hover:bg-white/[0.12]
+      hover:text-white
+      transition
+      flex items-center justify-center
+      text-[20px] font-black
+      opacity-0 group-hover:opacity-100
+      duration-300
+    "
+                    >
+                        ‹
+                    </button>
 
+                    {/* RIGHT */}
+                    <button
+                        onClick={next}
+                        aria-label="Next slide"
+                        className="
+      pointer-events-auto
+      w-10 h-10 md:w-12 md:h-12
+      rounded-full
+      border border-white/12
+      bg-white/[0.06]
+      backdrop-blur-md
+      text-white/80
+      hover:bg-white/[0.12]
+      hover:text-white
+      transition
+      flex items-center justify-center
+      text-[20px] font-black
+      opacity-0 group-hover:opacity-100
+      duration-300
+    "
+                    >
+                        ›
+                    </button>
+                </div>
                 {/* bottom fade */}
                 <div className="pointer-events-none absolute inset-x-0 bottom-0 h-44 bg-gradient-to-t from-black/70 via-black/25 to-transparent" />
             </div>
