@@ -42,7 +42,6 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
     const timerRef = useRef<number | null>(null);
     const hoverRef = useRef(false);
 
-    // detect mobile-ish input
     const [isCoarsePointer, setIsCoarsePointer] = useState(false);
 
     useEffect(() => {
@@ -53,7 +52,6 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
         return () => mq.removeEventListener?.("change", apply);
     }, []);
 
-    // keep idx in bounds if slides change
     useEffect(() => {
         if (!items.length) return;
         setIdx((i) => Math.min(i, items.length - 1));
@@ -90,7 +88,6 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
         [next, prev, go]
     );
 
-    // autoplay (pause on hover / touch)
     useEffect(() => {
         if (items.length <= 1) return;
 
@@ -105,7 +102,6 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
         };
     }, [items.length, intervalMs, next]);
 
-    // keyboard (optional: keep)
     useEffect(() => {
         const onKey = (e: KeyboardEvent) => {
             if (e.key === "ArrowRight") next();
@@ -118,7 +114,6 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
     const slide = items[idx];
     if (!slide) return null;
 
-    // Smooth + directional transitions
     const TEXT = {
         enter: { opacity: 0, x: 18, y: 2, scale: 0.965, filter: "blur(2px)" },
         center: { opacity: 1, x: 0, y: 0, scale: 1, filter: "blur(0px)" },
@@ -142,7 +137,6 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
         delay: 0.08,
     };
 
-    // Swipe threshold tuning
     const SWIPE_OFFSET = 60;
     const SWIPE_VELOCITY = 500;
 
@@ -152,24 +146,34 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
         <Link
             href={learnHref}
             className={[
-                "relative inline-flex items-center justify-center select-none overflow-hidden",
+                "group relative inline-flex items-center justify-center select-none overflow-hidden",
                 "rounded-full border backdrop-blur-xl transition duration-200",
                 "shadow-[0_18px_40px_rgba(0,0,0,0.55)]",
-                "before:content-[''] before:absolute before:inset-0",
-                "before:bg-[linear-gradient(110deg,transparent,rgba(255,255,255,0.18),transparent)]",
-                "before:-translate-x-[120%] hover:before:translate-x-[120%] before:transition before:duration-700",
-                "after:content-[''] after:absolute after:inset-0",
-                "after:bg-[radial-gradient(circle_at_30%_25%,rgba(255,255,255,0.20),transparent_58%)]",
-                "hover:bg-white hover:text-black hover:border-white/25",
+                "border-white/14 bg-white/[0.07] text-white",
+                "hover:bg-white hover:border-white/25",
                 "active:scale-[0.99] active:brightness-110",
                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30",
                 size === "mobile"
-                    ? "h-9 px-4 text-[12px] border-white/14 bg-white/[0.06] text-white/88"
-                    : "h-11 px-5 text-[13px] border-white/14 bg-white/[0.07] text-white/90",
+                    ? "h-9 px-4 text-[12px]"
+                    : "h-11 px-5 text-[13px]",
             ].join(" ")}
         >
-            <span className="relative">Learn more</span>
-            <span className="relative ml-2 opacity-70">→</span>
+            {/* bevel highlight */}
+            <span className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_30%_25%,rgba(255,255,255,0.20),transparent_58%)]" />
+
+            {/* shimmer */}
+            <span className="pointer-events-none absolute inset-0 bg-[linear-gradient(110deg,transparent,rgba(255,255,255,0.18),transparent)] -translate-x-[120%] group-hover:translate-x-[120%] transition duration-700" />
+
+            {/* FIXED TEXT COLOR */}
+            <span className="relative transition-colors duration-200 group-hover:text-black">
+                Learn more
+            </span>
+
+            <span className="relative ml-2 transition-colors duration-200 opacity-70 group-hover:text-black">
+                →
+            </span>
+
+            {/* tap flicker */}
             <span className="pointer-events-none absolute inset-0 opacity-0 active:opacity-100 transition duration-75 bg-black/[0.08]" />
         </Link>
     );
@@ -181,13 +185,10 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
             onMouseLeave={() => (hoverRef.current = false)}
             style={{ WebkitTapHighlightColor: "transparent" }}
         >
-            {/* vignette */}
             <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_40%,rgba(255,255,255,0.06),transparent_55%)]" />
 
             <div className="relative w-full min-h-[520px] md:min-h-[600px] lg:min-h-[620px]">
-                {/* ✅ Removed the full-screen tap layer entirely */}
 
-                {/* layout */}
                 <div
                     className="
             relative grid grid-cols-1 lg:grid-cols-[0.98fr_1.02fr]
@@ -196,7 +197,7 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
             pb-10 sm:pb-12 md:pb-14
           "
                 >
-                    {/* Caption first */}
+                    {/* Caption */}
                     <div className="relative flex items-center justify-center lg:justify-start order-1 lg:order-2">
                         <AnimatePresence mode="wait" initial={false}>
                             <motion.div
@@ -208,8 +209,6 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
                                 transition={TRANSITION_TEXT}
                                 className="w-full max-w-[760px] pr-0 lg:pr-2 text-center lg:text-left"
                             >
-                                <div className="pointer-events-none absolute -inset-y-10 -inset-x-10 bg-[radial-gradient(circle_at_50%_35%,rgba(0,0,0,0.58),transparent_68%)]" />
-
                                 <div className="relative">
                                     <div className="text-white/95 font-black tracking-[-0.03em] text-[38px] sm:text-[52px] md:text-[62px] leading-[0.98]">
                                         {slide.title}
@@ -219,7 +218,6 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
                                         {slide.teaser}
                                     </div>
 
-                                    {/* Desktop/tablet CTA here */}
                                     <div className="mt-7 hidden sm:flex items-center justify-center lg:justify-start">
                                         <LearnMoreCta size="desktop" />
                                     </div>
@@ -239,7 +237,6 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
                                 exit="exit"
                                 transition={TRANSITION_DEVICE}
                                 className="relative"
-                                // ✅ swipe only (mobile)
                                 drag={isCoarsePointer ? "x" : false}
                                 dragConstraints={{ left: 0, right: 0 }}
                                 dragElastic={0.18}
@@ -248,27 +245,13 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
                                     hoverRef.current = false;
                                     if (!isCoarsePointer) return;
 
-                                    const offset = info.offset.x;
-                                    const velocity = info.velocity.x;
-
-                                    if (offset < -SWIPE_OFFSET || velocity < -SWIPE_VELOCITY) {
-                                        next();
-                                        return;
-                                    }
-                                    if (offset > SWIPE_OFFSET || velocity > SWIPE_VELOCITY) {
-                                        prev();
-                                        return;
-                                    }
-                                }}
-                                style={{
-                                    WebkitTapHighlightColor: "transparent",
-                                    touchAction: isCoarsePointer ? "pan-y" : "auto",
+                                    if (info.offset.x < -SWIPE_OFFSET || info.velocity.x < -SWIPE_VELOCITY) next();
+                                    if (info.offset.x > SWIPE_OFFSET || info.velocity.x > SWIPE_VELOCITY) prev();
                                 }}
                             >
                                 <motion.div
                                     animate={{ y: [0, -1.5, 0, 1.5, 0] }}
                                     transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
-                                    className="relative"
                                 >
                                     <img
                                         src={slide.src}
@@ -277,7 +260,6 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
                                         className="
                       block w-auto object-contain select-none
                       drop-shadow-[0_22px_80px_rgba(0,0,0,0.75)]
-
                       max-w-[82vw] max-h-[40vh]
                       sm:max-w-[520px] sm:max-h-[56vh]
                       md:max-w-[560px] md:max-h-[62vh]
@@ -287,7 +269,6 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
                                     />
                                 </motion.div>
 
-                                {/* Mobile CTA under device */}
                                 <div className="mt-5 flex sm:hidden items-center justify-center">
                                     <LearnMoreCta size="mobile" />
                                 </div>
@@ -296,65 +277,23 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
                     </div>
                 </div>
 
-                {/* Manual arrows only */}
-                <div
-                    className="
-            pointer-events-none absolute left-0 right-0
-            top-[56%] -translate-y-1/2
-            sm:top-1/2
-            flex items-center justify-between
-          "
-                >
+                {/* Arrows */}
+                <div className="pointer-events-none absolute left-0 right-0 top-[56%] -translate-y-1/2 sm:top-1/2 flex items-center justify-between">
                     <button
                         onClick={prev}
-                        aria-label="Previous slide"
-                        className="
-              pointer-events-auto select-none
-              rounded-full border border-white/12
-              bg-white/[0.06] backdrop-blur-md
-              text-white/80 hover:bg-white/[0.12] hover:text-white
-              transition font-black
-
-              w-8 h-8 text-[18px]
-              sm:w-10 sm:h-10 sm:text-[20px]
-              md:w-12 md:h-12 md:text-[22px]
-
-              ml-3 sm:ml-4
-              lg:ml-0 lg:-translate-x-5 xl:-translate-x-10
-
-              opacity-100 sm:opacity-0 sm:group-hover:opacity-100
-              duration-300
-            "
+                        className="pointer-events-auto rounded-full border border-white/12 bg-white/[0.06] backdrop-blur-md text-white/80 hover:bg-white/[0.12] transition font-black w-8 h-8 sm:w-10 sm:h-10"
                     >
                         ‹
                     </button>
 
                     <button
                         onClick={next}
-                        aria-label="Next slide"
-                        className="
-              pointer-events-auto select-none
-              rounded-full border border-white/12
-              bg-white/[0.06] backdrop-blur-md
-              text-white/80 hover:bg-white/[0.12] hover:text-white
-              transition font-black
-
-              w-8 h-8 text-[18px]
-              sm:w-10 sm:h-10 sm:text-[20px]
-              md:w-12 md:h-12 md:text-[22px]
-
-              mr-3 sm:mr-4
-              lg:mr-0 lg:translate-x-5 xl:translate-x-10
-
-              opacity-100 sm:opacity-0 sm:group-hover:opacity-100
-              duration-300
-            "
+                        className="pointer-events-auto rounded-full border border-white/12 bg-white/[0.06] backdrop-blur-md text-white/80 hover:bg-white/[0.12] transition font-black w-8 h-8 sm:w-10 sm:h-10"
                     >
                         ›
                     </button>
                 </div>
 
-                {/* bottom fade */}
                 <div className="pointer-events-none absolute inset-x-0 bottom-0 h-32 sm:h-40 bg-gradient-to-t from-black/70 via-black/25 to-transparent" />
             </div>
         </div>
