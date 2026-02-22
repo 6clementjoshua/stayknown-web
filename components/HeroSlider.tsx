@@ -150,14 +150,14 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
                 "rounded-full border backdrop-blur-xl transition-colors duration-200",
                 "shadow-[0_18px_40px_rgba(0,0,0,0.55)]",
 
-                // base state
+                // base
                 "border-white/14 bg-white/[0.07] text-white",
 
-                // hover state (desktop)
-                "hover:bg-white hover:border-white/25 hover:text-black",
+                // hover: white pill + FORCE black text
+                "hover:bg-white hover:border-white/25 hover:!text-black",
 
-                // active/tap state
-                "active:bg-black active:border-white/20 active:text-white active:scale-[0.99]",
+                // active/tap: black pill + FORCE white text
+                "active:bg-black active:border-white/20 active:!text-white active:scale-[0.99]",
 
                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30",
 
@@ -170,14 +170,9 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
             {/* shimmer */}
             <span className="pointer-events-none absolute inset-0 bg-[linear-gradient(110deg,transparent,rgba(255,255,255,0.18),transparent)] -translate-x-[120%] hover:translate-x-[120%] transition duration-700" />
 
-            {/* TEXT (inherits from parent safely) */}
-            <span className="relative">
-                Learn more
-            </span>
-
-            <span className="relative ml-2 opacity-70">
-                →
-            </span>
+            {/* inherit parent color (now forced correctly on hover/active) */}
+            <span className="relative">Learn more</span>
+            <span className="relative ml-2 opacity-70">→</span>
 
             {/* subtle tap flicker */}
             <span className="pointer-events-none absolute inset-0 opacity-0 active:opacity-100 transition duration-75 bg-white/[0.06]" />
