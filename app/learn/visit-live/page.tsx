@@ -6,6 +6,66 @@ import { useMemo, useState } from "react";
 
 type Tier = "Starter" | "Pro" | "ProMax";
 
+/* -------------------------
+   Mobile header/inline links (NO pill feel)
+-------------------------- */
+function MobileNavLink({ href, label }: { href: string; label: string }) {
+    return (
+        <Link
+            href={href}
+            className="
+        relative inline-flex items-center gap-2
+        px-0 py-2
+        text-[12px] font-semibold tracking-[-0.01em]
+        text-white/70
+        transition
+        hover:text-white/90
+        active:text-white
+        select-none
+      "
+        >
+            <span>{label}</span>
+            {/* ✅ consistent direction arrow */}
+            <span className="opacity-60">›</span>
+
+            {/* tap flicker only */}
+            <span className="pointer-events-none absolute inset-0 opacity-0 active:opacity-100 transition duration-75 bg-white/[0.06]" />
+        </Link>
+    );
+}
+
+/* -------------------------
+   Desktop CTA (smaller pill than before)
+-------------------------- */
+function CTA({ href, label }: { href: string; label: string }) {
+    return (
+        <Link
+            href={href}
+            className="
+        relative hidden sm:inline-flex items-center justify-center
+        h-9 md:h-10 px-4 md:px-5 rounded-full
+        border border-white/14
+        bg-white/[0.06]
+        text-white
+        font-semibold text-[12px] md:text-[13px] tracking-[-0.01em]
+        shadow-[0_16px_36px_rgba(0,0,0,0.55)]
+        transition-all duration-200
+        hover:bg-white hover:border-white/25 hover:!text-black
+        active:bg-black active:border-white/20 active:!text-white active:scale-[0.99]
+        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30
+        select-none overflow-hidden
+      "
+        >
+            <span className="pointer-events-none absolute inset-0 bg-[linear-gradient(110deg,transparent,rgba(255,255,255,0.14),transparent)] -translate-x-[120%] hover:translate-x-[120%] transition duration-700" />
+            <span className="relative">{label}</span>
+            <span className="relative ml-2 opacity-70">→</span>
+        </Link>
+    );
+}
+
+/* -------------------------
+   Monochrome icon chip
+-------------------------- */
 function MonoIcon({ glyph }: { glyph: string }) {
     return (
         <div
@@ -26,60 +86,82 @@ function MonoIcon({ glyph }: { glyph: string }) {
     );
 }
 
-function Pill({
-    children,
-    active,
-    onClick,
+/* -------------------------
+   Plan tabs:
+   - Mobile: text tabs (no pill feel)
+   - Desktop: pills (smaller)
+-------------------------- */
+function PlanTabs({
+    tier,
+    setTier,
 }: {
-    children: React.ReactNode;
-    active?: boolean;
-    onClick?: () => void;
+    tier: Tier;
+    setTier: (t: Tier) => void;
 }) {
+    const Tab = ({ t }: { t: Tier }) => {
+        const active = tier === t;
+        return (
+            <button
+                onClick={() => setTier(t)}
+                className={[
+                    "relative px-0 py-2 text-[12px] font-semibold tracking-[-0.01em] transition select-none",
+                    active ? "text-white" : "text-white/55 hover:text-white/80",
+                ].join(" ")}
+            >
+                {t}
+                <span
+                    className={[
+                        "pointer-events-none absolute left-0 -bottom-[2px] h-[2px] rounded-full transition",
+                        active ? "w-full bg-white/60" : "w-0 bg-white/0",
+                    ].join(" ")}
+                />
+                <span className="pointer-events-none absolute inset-0 opacity-0 active:opacity-100 transition duration-75 bg-white/[0.06]" />
+            </button>
+        );
+    };
+
+    const Pill = ({ t }: { t: Tier }) => {
+        const active = tier === t;
+        return (
+            <button
+                onClick={() => setTier(t)}
+                className={[
+                    "relative inline-flex items-center justify-center select-none",
+                    "rounded-full border transition-all duration-200",
+                    "px-3.5 md:px-4 h-8 md:h-9 text-[12px] md:text-[13px]",
+                    active
+                        ? "border-white/24 bg-white/[0.10] text-white"
+                        : "border-white/14 bg-white/[0.05] text-white/80 hover:text-white hover:bg-white/[0.08]",
+                ].join(" ")}
+            >
+                <span className="pointer-events-none absolute inset-0 rounded-full bg-[radial-gradient(circle_at_30%_25%,rgba(255,255,255,0.18),transparent_55%)]" />
+                <span className="relative font-semibold tracking-[-0.01em]">{t}</span>
+            </button>
+        );
+    };
+
     return (
-        <button
-            onClick={onClick}
-            className={[
-                "relative inline-flex items-center justify-center select-none",
-                "rounded-full border transition-all duration-200",
-                "px-4 h-9 sm:h-10 text-[12px] sm:text-[13px]",
-                active
-                    ? "border-white/24 bg-white/[0.10] text-white"
-                    : "border-white/14 bg-white/[0.05] text-white/80 hover:text-white hover:bg-white/[0.08]",
-            ].join(" ")}
-        >
-            <span className="pointer-events-none absolute inset-0 rounded-full bg-[radial-gradient(circle_at_30%_25%,rgba(255,255,255,0.18),transparent_55%)]" />
-            <span className="relative font-semibold tracking-[-0.01em]">{children}</span>
-        </button>
+        <>
+            {/* Mobile tabs */}
+            <div className="sm:hidden flex items-center justify-center gap-5">
+                <Tab t="Starter" />
+                <Tab t="Pro" />
+                <Tab t="ProMax" />
+            </div>
+
+            {/* Desktop pills */}
+            <div className="hidden sm:flex flex-wrap gap-2">
+                <Pill t="Starter" />
+                <Pill t="Pro" />
+                <Pill t="ProMax" />
+            </div>
+        </>
     );
 }
 
-function CTA({ href, label }: { href: string; label: string }) {
-    return (
-        <Link
-            href={href}
-            className="
-        relative inline-flex items-center justify-center
-        h-10 sm:h-11 px-5 rounded-full
-        border border-white/14
-        bg-white/[0.07]
-        text-white
-        font-semibold text-[13px] tracking-[-0.01em]
-        shadow-[0_18px_40px_rgba(0,0,0,0.55)]
-        transition-all duration-200
-        hover:bg-white hover:border-white/25 hover:!text-black
-        active:bg-black active:border-white/20 active:!text-white active:scale-[0.99]
-        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30
-        select-none overflow-hidden
-      "
-        >
-            <span className="pointer-events-none absolute inset-0 bg-[linear-gradient(110deg,transparent,rgba(255,255,255,0.14),transparent)] -translate-x-[120%] hover:translate-x-[120%] transition duration-700" />
-            <span className="relative">{label}</span>
-            <span className="relative ml-2 opacity-70">→</span>
-            <span className="pointer-events-none absolute inset-0 opacity-0 active:opacity-100 transition duration-75 bg-white/[0.06]" />
-        </Link>
-    );
-}
-
+/* -------------------------
+   Feature card
+-------------------------- */
 function FeatureCard({
     glyph,
     title,
@@ -194,7 +276,14 @@ export default function LearnVisitLivePage() {
                         <div className="text-white/40 font-medium text-[11px]">Learn • Live Location Emitter</div>
                     </div>
 
-                    <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
+                    {/* Mobile nav row (small links, no pills) */}
+                    <div className="sm:hidden mt-3 flex items-center justify-between">
+                        <MobileNavLink href="/learn/visit-live-sos" label="Previous: Live + SOS" />
+                        <MobileNavLink href="/learn/promax-shell" label="Next: ProMax Shell" />
+                    </div>
+
+                    {/* Desktop CTA row (smaller pills) */}
+                    <div className="hidden sm:flex mt-5 flex-wrap items-center justify-center gap-3">
                         <CTA href="/" label="Back to Home" />
                         <CTA href="/learn/visit-live-sos" label="Previous: Live + SOS" />
                         <CTA href="/learn/promax-shell" label="Next: ProMax MainShell" />
@@ -207,27 +296,10 @@ export default function LearnVisitLivePage() {
                 <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_18%,rgba(255,255,255,0.06),transparent_58%)]" />
 
                 <div className="mx-auto max-w-6xl px-4 pt-8 pb-8 sm:pb-10">
-                    {/* ✅ Device aligns with caption start line (items-start + small top pad) */}
-                    <div className="grid grid-cols-1 lg:grid-cols-[0.95fr_1.05fr] items-start gap-10">
-                        {/* Device LEFT — no background container */}
-                        <div className="order-2 lg:order-1 flex items-start justify-center lg:justify-start lg:pt-[6px]">
-                            <img
-                                src="/hero/visit-live.png"
-                                alt="Live Location Emitter"
-                                draggable={false}
-                                className="
-                  block object-contain select-none
-                  drop-shadow-[0_22px_80px_rgba(0,0,0,0.75)]
-                  max-w-[86vw] max-h-[46vh]
-                  sm:max-w-[560px] sm:max-h-[62vh]
-                  lg:max-w-[760px] lg:max-h-[74vh]
-                  xl:max-w-[820px]
-                "
-                            />
-                        </div>
-
-                        {/* Caption RIGHT */}
-                        <div className="order-1 lg:order-2">
+                    {/* Mobile order: caption -> device -> plan -> links */}
+                    <div className="grid grid-cols-1 lg:grid-cols-[0.95fr_1.05fr] items-start gap-8 lg:gap-10">
+                        {/* Caption */}
+                        <div className="lg:col-start-2 lg:row-start-1">
                             <div className="text-white/95 font-semibold tracking-[-0.03em] text-[40px] sm:text-[54px] lg:text-[58px] leading-[0.98]">
                                 Live Location Emitter
                             </div>
@@ -236,21 +308,50 @@ export default function LearnVisitLivePage() {
                                 Live updates occur only during an active Visit. End the Visit and sharing stops immediately —
                                 built to keep safety focused and reduce misuse.
                             </div>
+                        </div>
 
-                            <div className="mt-8">
-                                <div className="text-white/45 font-medium text-[11px] tracking-[0.22em]">EXPERIENCE BY PLAN</div>
-                                <div className="mt-3 flex flex-wrap gap-2">
-                                    <Pill active={tier === "Starter"} onClick={() => setTier("Starter")}>Starter</Pill>
-                                    <Pill active={tier === "Pro"} onClick={() => setTier("Pro")}>Pro</Pill>
-                                    <Pill active={tier === "ProMax"} onClick={() => setTier("ProMax")}>ProMax</Pill>
-                                </div>
+                        {/* Device */}
+                        <div className="lg:col-start-1 lg:row-start-1 flex items-start justify-center lg:justify-start lg:pt-[6px]">
+                            <img
+                                src="/hero/visit-live.png"
+                                alt="Live Location Emitter"
+                                draggable={false}
+                                className="
+                  block object-contain select-none
+                  drop-shadow-[0_22px_80px_rgba(0,0,0,0.75)]
+                  max-w-[86vw] max-h-[44vh]
+                  sm:max-w-[560px] sm:max-h-[62vh]
+                  lg:max-w-[760px] lg:max-h-[74vh]
+                  xl:max-w-[820px]
+                "
+                            />
+                        </div>
 
-                                <div className="mt-4">
-                                    <TierBlock tier={tier} highlight={tier === "ProMax"} bullets={tierCopy[tier]} />
-                                </div>
+                        {/* Plan block */}
+                        <div className="lg:col-start-2 lg:row-start-2">
+                            <div className="text-white/45 font-medium text-[11px] tracking-[0.22em] text-center sm:text-left">
+                                EXPERIENCE BY PLAN
                             </div>
 
-                            <div className="mt-8 flex flex-wrap gap-3">
+                            <div className="mt-3">
+                                <PlanTabs tier={tier} setTier={setTier} />
+                            </div>
+
+                            <div className="mt-4">
+                                <TierBlock tier={tier} highlight={tier === "ProMax"} bullets={tierCopy[tier]} />
+                            </div>
+                        </div>
+
+                        {/* Learn/Explore row */}
+                        <div className="lg:col-start-2 lg:row-start-3">
+                            {/* Mobile: one-line, space-between */}
+                            <div className="sm:hidden flex items-center justify-between gap-3">
+                                <MobileNavLink href="/learn/visit-live-sos" label="Learn: Live + SOS" />
+                                <MobileNavLink href="/learn/promax-shell" label="Explore: ProMax Shell" />
+                            </div>
+
+                            {/* Desktop: smaller pills */}
+                            <div className="hidden sm:flex flex-wrap gap-3">
                                 <CTA href="/learn/visit-live-sos" label="Learn: Live + SOS" />
                                 <CTA href="/learn/promax-shell" label="Explore: ProMax MainShell" />
                             </div>
@@ -264,23 +365,23 @@ export default function LearnVisitLivePage() {
                 <div className="mx-auto max-w-6xl px-4 pb-10 sm:pb-14">
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-6">
                         <FeatureCard glyph="▣" title="What the emitter does">
-                            During a Visit, the app shares live presence updates so your trusted people can understand
-                            your status. It’s designed to be simple: active Visit = sharing on, end Visit = sharing off.
+                            During a Visit, the app shares live presence updates so your trusted people can understand your status.
+                            It’s designed to be simple: active Visit = sharing on, end Visit = sharing off.
                         </FeatureCard>
 
                         <FeatureCard glyph="⌁" title="Why it only runs during a Visit">
-                            Always-on tracking can be abused. StayKnown keeps Live sharing scoped to a Visit so safety
-                            is intentional, time-bounded, and easier to trust.
+                            Always-on tracking can be abused. StayKnown keeps Live sharing scoped to a Visit so safety is intentional,
+                            time-bounded, and easier to trust.
                         </FeatureCard>
 
                         <FeatureCard glyph="⟂" title="Real-world example">
-                            You’re meeting someone for the first time. Start a Visit. Your chosen people can see updates
-                            while you’re in that situation. When you’re safe, end the Visit — everything stops.
+                            You’re meeting someone for the first time. Start a Visit. Your chosen people can see updates while you’re
+                            in that situation. When you’re safe, end the Visit — everything stops.
                         </FeatureCard>
 
                         <FeatureCard glyph="!" title="Where SOS fits">
-                            SOS is an escalation action when things feel unsafe. On StayKnown it’s available to Pro and
-                            ProMax. Starter users will see SOS as locked/upgrade.
+                            SOS is an escalation action when things feel unsafe. On StayKnown it’s available to Pro and ProMax.
+                            Starter users will see SOS as locked/upgrade.
                         </FeatureCard>
                     </div>
                 </div>
