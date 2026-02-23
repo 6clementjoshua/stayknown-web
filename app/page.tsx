@@ -70,29 +70,6 @@ export default function Page() {
         <div className="h-10 sm:h-0" />
       </section>
 
-      {/* CTA (only button on page) */}
-      <section className="w-full">
-        <div className="mx-auto max-w-6xl px-4">
-          <div className="mt-2 sm:mt-4 flex items-center justify-center">
-            <Link
-              href="/learn-more"
-              className={[
-                "inline-flex items-center justify-center select-none",
-                "h-10 px-5 rounded-full",
-                "border border-white/14 bg-white/[0.06] backdrop-blur-md",
-                "text-[12px] sm:text-[13px] font-semibold tracking-[0.14em] uppercase",
-                "text-white/85 hover:text-white hover:border-white/24 hover:bg-white/[0.09]",
-                "transition-all duration-200",
-                "shadow-[0_10px_30px_rgba(0,0,0,0.55)]",
-              ].join(" ")}
-              aria-label="Learn more about verification and secure chat flows"
-            >
-              Learn More
-            </Link>
-          </div>
-        </div>
-      </section>
-
       {/* Gap before footer */}
       <section className="h-8 sm:h-10 md:h-12 lg:h-14" />
 
