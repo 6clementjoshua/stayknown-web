@@ -23,9 +23,9 @@ const SITE_URL = "https://stay-known.com";
 
 // Brand
 const APP_NAME = "StayKnown";
-const TITLE = "StayKnown — Personal safety visits, live sharing, and SOS escalation";
+const TITLE = "StayKnown — Personal safety visits, live sharing, Secure Chats and SOS escalation";
 const DESCRIPTION =
-  "StayKnown helps you share location during active visits, keep SOS off-by-default, and escalate emergencies fast. Safety tools activate only when you initiate them.";
+  "StayKnown helps you share live locations during active visits to places,people and environments your not familiar with, keep SOS off-by-default, and escalate emergencies fast. Safety tools activate only when you initiate them.";
 
 const OG_IMAGE = "/og-stayknown.png";
 const TW_IMAGE = "/twitter-stayknown.png";
