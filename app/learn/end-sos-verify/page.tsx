@@ -26,8 +26,6 @@ function MobileNavLink({ href, label }: { href: string; label: string }) {
         >
             <span>{label}</span>
             <span className="opacity-60">›</span>
-
-            {/* tap flicker only */}
             <span className="pointer-events-none absolute inset-0 opacity-0 active:opacity-100 transition duration-75 bg-white/[0.06]" />
         </Link>
     );
@@ -35,7 +33,6 @@ function MobileNavLink({ href, label }: { href: string; label: string }) {
 
 /* -------------------------
    Desktop CTA (smaller pill + white hover)
-   FIX: force ALL inner text/icons to black on hover (so nothing disappears)
 -------------------------- */
 function CTA({ href, label }: { href: string; label: string }) {
     return (
@@ -56,7 +53,6 @@ function CTA({ href, label }: { href: string; label: string }) {
         select-none overflow-hidden
       "
         >
-            {/* micro shimmer */}
             <span className="pointer-events-none absolute inset-0 bg-[linear-gradient(110deg,transparent,rgba(255,255,255,0.14),transparent)] -translate-x-[120%] hover:translate-x-[120%] transition duration-700" />
             <span className="relative">{label}</span>
             <span className="relative ml-2 opacity-70">→</span>
@@ -88,9 +84,7 @@ function MonoIcon({ glyph }: { glyph: string }) {
 }
 
 /* -------------------------
-   Plan tabs:
-   - Mobile: text tabs (no pill feel)
-   - Desktop: pills (white hover)
+   Plan tabs
 -------------------------- */
 function PlanTabs({
     tier,
@@ -280,30 +274,31 @@ function TintedCallout({
 }
 
 /* -------------------------
-   Page
+   Page (FIRST of the 3 learn routes)
+   Route: /learn/end-sos-verify
 -------------------------- */
-export default function LearnVisitLiveSosPage() {
+export default function LearnEndSosVerifyPage() {
     const [tier, setTier] = useState<Tier>("Starter");
 
     const tierCopy = useMemo(() => {
         return {
             Starter: [
-                "Start a Visit and share LIVE only while the Visit is active — when you end it, sharing stops immediately.",
-                "Contacts receive clear, readable updates (what’s happening + session context).",
-                "SOS is locked on Starter. You can still use Visits for everyday check-ins.",
-                "Designed for low-friction safety — simple, clean, and easy to explain to a trusted person.",
+                "You can view SOS education, but SOS activation/management is locked on Starter.",
+                "Visits still end instantly when you tap End Visit (no SOS context).",
+                "You can enable basic app protection (PIN/biometrics) for privacy.",
+                "Upgrade inside the app for SOS features and verified stop behaviors.",
             ],
             Pro: [
-                "Unlock SOS for urgent escalation during a Visit — one action triggers a stronger alert posture.",
-                "Richer context for your trusted people (more detail, clearer status, better continuity).",
-                "Ideal for frequent users who rely on Visits daily and need SOS standby.",
-                "Adds more premium safety guidance and stronger “what to do next” messaging for recipients.",
+                "End SOS can require verification (biometric/PIN) if you toggle it on in settings.",
+                "Prevents accidental taps and reduces forced/unauthorized SOS termination.",
+                "Clear ‘verify to stop’ step helps you keep control during high-stress moments.",
+                "Recommended for anyone who uses SOS standby regularly.",
             ],
             ProMax: [
-                "Fastest access and strongest “always-ready” safety posture for serious situations.",
-                "Premium shell behaviors + full SOS readiness for rapid escalation.",
-                "Built for maximum confidence: more clarity, more control, and the most complete safety context.",
-                "Best for high-stakes mobility routines (night travel, long routes, unfamiliar locations).",
+                "Strongest ‘verified stop’ posture: fastest, clearest, most deliberate end flow.",
+                "Designed for serious scenarios (night travel, unfamiliar places, high-risk routines).",
+                "Maximum clarity for recipients: they can trust ‘SOS ended’ only after verified stop.",
+                "Best paired with full App Lock + Biometrics apply-to coverage.",
             ],
         } as Record<Tier, string[]>;
     }, []);
@@ -311,12 +306,12 @@ export default function LearnVisitLiveSosPage() {
     const tierNote: Record<Tier, string> = useMemo(
         () => ({
             Starter:
-                "For upgrades, use the in-app plan page so your plan status stays verified and consistent across devices.",
-            Pro: "SOS is meant for real safety concerns. Use it responsibly and only with people you trust.",
+                "For SOS features, upgrade in-app so plan status stays verified across devices.",
+            Pro: "Verification is optional — enable it in settings if you want extra protection.",
             ProMax:
-                "ProMax is the most complete safety setup — built for maximum clarity in urgent moments.",
+                "Verified stop helps prevent ‘forced stop’ situations. Keep your lock methods updated.",
         }),
-        [],
+        []
     );
 
     return (
@@ -325,25 +320,37 @@ export default function LearnVisitLiveSosPage() {
             <header className="pt-7">
                 <div className="mx-auto max-w-6xl px-4">
                     <div className="flex flex-col items-center gap-2">
-                        <Image src="/6logo.png" alt="StayKnown" width={34} height={34} priority />
+                        <Image
+                            src="/6logo.png"
+                            alt="StayKnown"
+                            width={34}
+                            height={34}
+                            priority
+                        />
                         <div className="text-white font-semibold tracking-[0.28em] text-[12px]">
                             STAYKNOWN
                         </div>
                         <div className="text-white/40 font-medium text-[11px]">
-                            Learn • Live Visit + SOS
+                            Learn • End SOS (Verified Stop)
                         </div>
                     </div>
 
                     {/* Mobile header nav (small, no pill) */}
                     <div className="sm:hidden mt-3 flex items-center justify-between">
                         <MobileNavLink href="/" label="Back to Home" />
-                        <MobileNavLink href="/learn/visit-live" label="Next: Live Emitter" />
+                        <MobileNavLink
+                            href="/learn/end-visit-verify"
+                            label="Next: End Visit Verify"
+                        />
                     </div>
 
                     {/* Desktop header nav (smaller pills) */}
                     <div className="hidden sm:flex mt-5 items-center justify-center gap-3">
                         <CTA href="/" label="Back to Home" />
-                        <CTA href="/learn/visit-live" label="Next: Live Emitter" />
+                        <CTA
+                            href="/learn/end-visit-verify"
+                            label="Next: End Visit Verify"
+                        />
                     </div>
                 </div>
             </header>
@@ -357,23 +364,22 @@ export default function LearnVisitLiveSosPage() {
                         {/* Caption (mobile row 1, desktop right) */}
                         <div className="order-1 lg:order-none lg:col-start-2">
                             <div className="text-white/95 font-semibold tracking-[-0.03em] text-[40px] sm:text-[54px] lg:text-[58px] leading-[0.98]">
-                                Live Visit + SOS Ready
+                                End SOS — Verified Stop
                             </div>
 
                             <div className="mt-4 text-white/62 font-normal text-[13.5px] sm:text-[14.5px] leading-relaxed max-w-[72ch]">
-                                When a Visit starts, LIVE mode turns on — and SOS stays on standby for{" "}
-                                <span className="text-white/78 font-medium">Pro</span> and{" "}
-                                <span className="text-white/78 font-medium">ProMax</span>, so you can
-                                escalate in <span className="text-white/78 font-medium">one tap</span> if
-                                something feels wrong.
+                                If you enable verification in settings, ending an SOS requires a{" "}
+                                <span className="text-white/78 font-medium">
+                                    secure confirmation
+                                </span>{" "}
+                                (biometric or PIN). This helps prevent accidental taps and reduces
+                                the risk of someone forcing you to stop an SOS.
                             </div>
 
-                            <TintedCallout title="What this means in real life">
-                                You start a Visit when you’re heading somewhere — your trusted contacts
-                                receive clear updates while it’s active. If a situation turns urgent, SOS
-                                escalates the tone and clarity of the alert so recipients instantly
-                                understand it’s not a normal update.{" "}
-                                <em>Visits are for safety sharing — not public tracking.</em>
+                            <TintedCallout title="What “Verified Stop” protects">
+                                In urgent moments, a single tap can be risky. Verified Stop adds a
+                                deliberate “prove it’s you” step before the SOS can be ended — so
+                                your safety state can’t be casually dismissed.
                             </TintedCallout>
 
                             <div className="mt-7">
@@ -397,13 +403,25 @@ export default function LearnVisitLiveSosPage() {
 
                             <div className="mt-6">
                                 <div className="sm:hidden flex items-center justify-between gap-3">
-                                    <MobileNavLink href="/learn/visit-live" label="Learn: Live Emitter" />
-                                    <MobileNavLink href="/learn/promax-shell" label="Explore: ProMax Shell" />
+                                    <MobileNavLink
+                                        href="/learn/end-visit-verify"
+                                        label="Learn: End Visit Verify"
+                                    />
+                                    <MobileNavLink
+                                        href="/learn/secure-chat-passcode"
+                                        label="Explore: Secure Chat"
+                                    />
                                 </div>
 
                                 <div className="hidden sm:flex flex-wrap gap-3">
-                                    <CTA href="/learn/visit-live" label="Learn: Live Location Emitter" />
-                                    <CTA href="/learn/promax-shell" label="Explore: ProMax MainShell" />
+                                    <CTA
+                                        href="/learn/end-visit-verify"
+                                        label="Learn: End Visit Verify"
+                                    />
+                                    <CTA
+                                        href="/learn/secure-chat-passcode"
+                                        label="Explore: Secure Chat Passcode"
+                                    />
                                 </div>
                             </div>
                         </div>
@@ -411,19 +429,19 @@ export default function LearnVisitLiveSosPage() {
                         {/* Device (mobile row 2, desktop left) */}
                         <div className="order-2 lg:order-none lg:col-start-1 flex items-start justify-center lg:justify-start">
                             <img
-                                src="/hero/visit-live-sos.png"
-                                alt="Live Visit + SOS Ready"
+                                src="/hero/end-sos-verify.png"
+                                alt="End SOS — Verified Stop"
                                 draggable={false}
                                 className="
-  block object-contain select-none
-  drop-shadow-[0_22px_80px_rgba(0,0,0,0.75)]
-  max-w-[86vw] max-h-[44vh]
-  sm:max-w-[560px] sm:max-h-[62vh]
-  lg:max-w-[720px] lg:max-h-[74vh]
-  xl:max-w-[780px]
- transform-gpu
-lg:-translate-y-[800px] xl:-translate-y-[980px] 2xl:-translate-y-[1150px]
-"
+                  block object-contain select-none
+                  drop-shadow-[0_22px_80px_rgba(0,0,0,0.75)]
+                  max-w-[86vw] max-h-[44vh]
+                  sm:max-w-[560px] sm:max-h-[62vh]
+                  lg:max-w-[720px] lg:max-h-[74vh]
+                  xl:max-w-[780px]
+                  transform-gpu
+                  lg:-translate-y-[800px] xl:-translate-y-[980px] 2xl:-translate-y-[1150px]
+                "
                             />
                         </div>
                     </div>
@@ -434,102 +452,97 @@ lg:-translate-y-[800px] xl:-translate-y-[980px] 2xl:-translate-y-[1150px]
             <section className="w-full">
                 <div className="mx-auto max-w-6xl px-4 pb-10 sm:pb-14">
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-6">
-                        <FeatureCard glyph="▶" title="How a Visit works (simple timeline)">
+                        <FeatureCard glyph="✔" title="How Verified Stop works (sequence)">
                             <div className="space-y-2">
                                 <div>
-                                    <span className="text-white/75 font-medium">1)</span> Tap{" "}
-                                    <span className="text-white/85 font-medium">Start Visit</span>. LIVE activates
-                                    automatically for the session.
+                                    <span className="text-white/75 font-medium">1)</span> You tap{" "}
+                                    <span className="text-white/85 font-medium">End SOS</span>.
                                 </div>
                                 <div>
-                                    <span className="text-white/75 font-medium">2)</span> Your trusted people
-                                    receive updates while the Visit is active.
-                                    <span className="text-white/45">
-                                        {" "}
-                                        <em>(They see context, not just a random ping.)</em>
+                                    <span className="text-white/75 font-medium">2)</span> If
+                                    verification is enabled, StayKnown prompts{" "}
+                                    <span className="text-white/85 font-medium">
+                                        biometrics or PIN
                                     </span>
+                                    .
                                 </div>
                                 <div>
-                                    <span className="text-white/75 font-medium">3)</span> Tap{" "}
-                                    <span className="text-white/85 font-medium">End Visit</span>. Sharing stops
-                                    immediately.
+                                    <span className="text-white/75 font-medium">3)</span> On
+                                    success, SOS ends and recipients can see a clear “ended” state.
                                 </div>
                             </div>
                             <div className="mt-3 text-white/45">
-                                Example: <em>“Heading home.”</em> → updates continue until you end the Visit.
+                                If verification is OFF, it ends immediately (one-tap).
                             </div>
                         </FeatureCard>
 
-                        <FeatureCard glyph="!" title="When SOS applies (Pro / ProMax)">
-                            SOS is for moments when you feel unsafe or need urgent attention. It’s designed to
-                            be fast:{" "}
-                            <span className="text-white/78 font-medium">one clear action</span> that triggers a
-                            stronger alert flow.
-                            <div className="mt-3 text-white/45">
-                                Example phrases: <em>“I’m being followed.”</em> <em>“I’m in trouble.”</em>{" "}
-                                <em>“Check on me now.”</em>
+                        <FeatureCard glyph="⟡" title="Where verification settings come from">
+                            Verified Stop mirrors the same security system you already have:
+                            <div className="mt-3 space-y-2 text-white/62">
+                                <div>
+                                    • <span className="text-white/80 font-medium">App Lock</span>:
+                                    apply-to can include “Stop Visit / End Visit” and “SOS”.
+                                </div>
+                                <div>
+                                    • <span className="text-white/80 font-medium">Biometrics</span>:
+                                    enable fingerprint/face ID and apply-to SOS actions.
+                                </div>
+                                <div>
+                                    • <span className="text-white/80 font-medium">PIN</span>: fallback
+                                    passcode for protected areas.
+                                </div>
                             </div>
+                        </FeatureCard>
+
+                        <FeatureCard glyph="!" title="Why this matters in real emergencies">
+                            In a panic moment, people mis-tap. In a coercion moment, someone may
+                            attempt to stop your SOS. Verified Stop makes it harder to end SOS
+                            unless it’s really you.
                             <div className="mt-3 text-white/45">
-                                <span className="text-white/65 font-semibold">Tip:</span>{" "}
                                 <em>
-                                    If you’re on Starter, use Visits for safety check-ins and upgrade inside the app
-                                    if you need SOS standby.
+                                    It doesn’t replace real emergency services — it’s a safety-first
+                                    product control.
                                 </em>
                             </div>
                         </FeatureCard>
 
-                        <FeatureCard glyph="▣" title="What your contacts receive">
-                            Contacts get a readable message with context: who it’s from, what’s happening (Visit
-                            vs SOS), and what you want them to do next.
-                            <div className="mt-3 text-white/45">
-                                Examples: <em>“Visit started — LIVE updates active.”</em> /{" "}
-                                <em>“SOS triggered — please act now.”</em>
-                            </div>
-                            <div className="mt-3 text-white/45">
-                                <span className="text-white/65 font-semibold">Why it matters:</span> clarity reduces
-                                hesitation — recipients know whether it’s routine sharing or urgent escalation.
-                            </div>
-                        </FeatureCard>
-
-                        <FeatureCard glyph="⌁" title="Privacy & anti-stalking posture">
-                            Live sharing is scoped to safety: it’s meant for trusted people and emergency use —
-                            not tracking. Visits end → sharing ends immediately to reduce misuse.
-                            <div className="mt-3 text-white/45">
-                                <em>
-                                    StayKnown is designed to be safety-first. If something feels wrong, do not share
-                                    alerts publicly — keep it within trusted recipients.
-                                </em>
-                            </div>
-                        </FeatureCard>
-
-                        <FeatureCard glyph="✦" title="Signals the UI makes obvious">
-                            You’ll see clear states so you can understand what’s active at a glance:{" "}
-                            <span className="text-white/78 font-medium">Idle</span> (nothing shared),{" "}
-                            <span className="text-white/78 font-medium">LIVE</span> (Visit is actively sharing),
-                            and <span className="text-white/78 font-medium">SOS</span> (urgent escalation).
-                            <div className="mt-3 text-white/45">
-                                If you enabled <em>Visual Severity</em> in settings, these states become even more
-                                distinct visually (purely visual — no behavior change).
-                            </div>
-                        </FeatureCard>
-
-                        <FeatureCard glyph="⟡" title="Plan gating, explained clearly">
-                            <div className="space-y-2">
+                        <FeatureCard glyph="▣" title="What recipients see">
+                            Recipients should get clear state transitions:
+                            <div className="mt-3 text-white/62 space-y-2">
                                 <div>
-                                    <span className="text-white/78 font-medium">Starter</span>: Visits for everyday
-                                    safety check-ins.
+                                    • <span className="text-white/80 font-medium">SOS Active</span>:
+                                    urgent posture.
                                 </div>
                                 <div>
-                                    <span className="text-white/78 font-medium">Pro</span>: Adds SOS escalation during
-                                    unsafe moments + richer safety guidance.
-                                </div>
-                                <div>
-                                    <span className="text-white/78 font-medium">ProMax</span>: Most complete posture —
-                                    maximum clarity + premium safety context.
+                                    • <span className="text-white/80 font-medium">SOS Ended</span>:
+                                    shown only after the stop action completes (and verification if
+                                    enabled).
                                 </div>
                             </div>
                             <div className="mt-3 text-white/45">
-                                <em>Upgrades are handled inside the app</em> to keep entitlements consistent and
+                                This reduces confusion and improves trust in what the app is
+                                signaling.
+                            </div>
+                        </FeatureCard>
+
+                        <FeatureCard glyph="⌁" title="Safety posture & misuse resistance">
+                            Verified Stop helps reduce:
+                            <div className="mt-3 space-y-2 text-white/62">
+                                <div>• accidental endings</div>
+                                <div>• forced endings</div>
+                                <div>• “phone grabbed” disruption</div>
+                            </div>
+                            <div className="mt-3 text-white/45">
+                                Combine with device lock + StayKnown App Lock for best results.
+                            </div>
+                        </FeatureCard>
+
+                        <FeatureCard glyph="✦" title="Pro / ProMax gating (clear)">
+                            Verified Stop is part of the SOS posture and is intended for Pro /
+                            ProMax use. Starter can still learn the flow and use Visits for
+                            everyday safety check-ins.
+                            <div className="mt-3 text-white/45">
+                                <em>Upgrades are handled inside the app</em> to keep entitlements
                                 verified.
                             </div>
                         </FeatureCard>
@@ -544,50 +557,102 @@ lg:-translate-y-[800px] xl:-translate-y-[980px] 2xl:-translate-y-[1150px]
 
                     <div className="mt-8 flex flex-col items-center gap-3 text-center">
                         <div className="flex flex-wrap justify-center gap-x-4 gap-y-2 text-[11px] sm:text-[12px] font-semibold text-white/45 leading-relaxed">
-                            <a href="/privacy" target="_blank" rel="noopener noreferrer" className="hover:text-white/75 transition">
+                            <a
+                                href="/privacy"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="hover:text-white/75 transition"
+                            >
                                 Privacy Policy
                             </a>
                             <span className="text-white/18">•</span>
-                            <a href="/terms" target="_blank" rel="noopener noreferrer" className="hover:text-white/75 transition">
+                            <a
+                                href="/terms"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="hover:text-white/75 transition"
+                            >
                                 Terms of Use
                             </a>
                             <span className="text-white/18">•</span>
-                            <a href="/acceptable-use" target="_blank" rel="noopener noreferrer" className="hover:text-white/75 transition">
+                            <a
+                                href="/acceptable-use"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="hover:text-white/75 transition"
+                            >
                                 Acceptable Use
                             </a>
                             <span className="text-white/18">•</span>
-                            <a href="/safety" target="_blank" rel="noopener noreferrer" className="hover:text-white/75 transition">
+                            <a
+                                href="/safety"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="hover:text-white/75 transition"
+                            >
                                 Safety &amp; Anti-Stalking
                             </a>
                             <span className="text-white/18">•</span>
-                            <a href="/emergency" target="_blank" rel="noopener noreferrer" className="hover:text-white/75 transition">
+                            <a
+                                href="/emergency"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="hover:text-white/75 transition"
+                            >
                                 Emergency Disclaimer
                             </a>
                             <span className="text-white/18">•</span>
-                            <a href="/minors" target="_blank" rel="noopener noreferrer" className="hover:text-white/75 transition">
+                            <a
+                                href="/minors"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="hover:text-white/75 transition"
+                            >
                                 Child Safety &amp; Minor Use
                             </a>
                             <span className="text-white/18">•</span>
-                            <a href="/abuse" target="_blank" rel="noopener noreferrer" className="hover:text-white/75 transition">
+                            <a
+                                href="/abuse"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="hover:text-white/75 transition"
+                            >
                                 Abuse Reporting
                             </a>
                             <span className="text-white/18">•</span>
-                            <a href="/retention" target="_blank" rel="noopener noreferrer" className="hover:text-white/75 transition">
+                            <a
+                                href="/retention"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="hover:text-white/75 transition"
+                            >
                                 Data Retention
                             </a>
                             <span className="text-white/18">•</span>
-                            <a href="/law" target="_blank" rel="noopener noreferrer" className="hover:text-white/75 transition">
+                            <a
+                                href="/law"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="hover:text-white/75 transition"
+                            >
                                 Law Enforcement
                             </a>
                             <span className="text-white/18">•</span>
-                            <a href="/security" target="_blank" rel="noopener noreferrer" className="hover:text-white/75 transition">
+                            <a
+                                href="/security"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="hover:text-white/75 transition"
+                            >
                                 Security Disclosure
                             </a>
                         </div>
 
                         <div className="text-[12px] font-semibold text-white/50">
                             A 6 Clement Joshua service
-                            <span className="text-white/25 ml-1 align-super text-[10px]">™</span>
+                            <span className="text-white/25 ml-1 align-super text-[10px]">
+                                ™
+                            </span>
                         </div>
 
                         <div className="text-[11px] font-semibold text-white/30">

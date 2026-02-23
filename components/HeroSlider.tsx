@@ -10,7 +10,7 @@ import React, {
     useState,
 } from "react";
 import Link from "next/link";
-import { motion, AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 
 export type SlideKind = "pill" | "device";
 export type HeroSlide = {
@@ -19,6 +19,12 @@ export type HeroSlide = {
     kind: SlideKind;
     title: string;
     teaser: string;
+
+    /**
+     * Optional: override the Learn More route per slide.
+     * If not provided, we’ll use `${learnBasePath}/${id}`.
+     */
+    learnHref?: string;
 };
 
 export type HeroSliderHandle = {
@@ -30,10 +36,21 @@ export type HeroSliderHandle = {
 type Props = {
     slides: HeroSlide[];
     intervalMs?: number;
+
+    /**
+     * Base path for Learn More links.
+     * Example: "/learn" => /learn/{slide.id}
+     */
+    learnBasePath?: string;
+
+    /**
+     * Optional: pause auto-advance (useful when embedded in other carousels).
+     */
+    autoplay?: boolean;
 };
 
 const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
-    { slides, intervalMs = 6000 },
+    { slides, intervalMs = 6000, learnBasePath = "/learn", autoplay = true },
     ref
 ) {
     const items = useMemo(() => slides.slice(0, 6), [slides]);
@@ -42,16 +59,31 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
     const timerRef = useRef<number | null>(null);
     const hoverRef = useRef(false);
 
+    const prefersReducedMotion = useReducedMotion();
+
     const [isCoarsePointer, setIsCoarsePointer] = useState(false);
 
+    // Pointer detection (touch vs mouse)
     useEffect(() => {
+        if (typeof window === "undefined") return;
+
         const mq = window.matchMedia("(hover: none) and (pointer: coarse)");
-        const apply = () => setIsCoarsePointer(!!mq.matches);
-        apply();
-        mq.addEventListener?.("change", apply);
-        return () => mq.removeEventListener?.("change", apply);
+
+        const apply = (e?: MediaQueryList | MediaQueryListEvent) => {
+            const matches = "matches" in (e ?? mq) ? (e ?? mq).matches : mq.matches;
+            setIsCoarsePointer(matches);
+        };
+
+        apply(mq);
+
+        mq.addEventListener("change", apply);
+
+        return () => {
+            mq.removeEventListener("change", apply);
+        };
     }, []);
 
+    // Clamp idx when slides change
     useEffect(() => {
         if (!items.length) return;
         setIdx((i) => Math.min(i, items.length - 1));
@@ -88,21 +120,42 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
         [next, prev, go]
     );
 
+    // Autoplay (pauses on hover + when tab hidden)
     useEffect(() => {
+        if (!autoplay) return;
         if (items.length <= 1) return;
+        if (typeof window === "undefined") return;
 
-        if (timerRef.current) window.clearInterval(timerRef.current);
-        timerRef.current = window.setInterval(() => {
-            if (!hoverRef.current) next();
-        }, intervalMs);
-
-        return () => {
+        const clear = () => {
             if (timerRef.current) window.clearInterval(timerRef.current);
             timerRef.current = null;
         };
-    }, [items.length, intervalMs, next]);
 
+        const start = () => {
+            clear();
+            timerRef.current = window.setInterval(() => {
+                if (!hoverRef.current && !document.hidden) next();
+            }, intervalMs);
+        };
+
+        start();
+
+        const onVis = () => {
+            // restart to avoid drift when returning to tab
+            start();
+        };
+        document.addEventListener("visibilitychange", onVis);
+
+        return () => {
+            document.removeEventListener("visibilitychange", onVis);
+            clear();
+        };
+    }, [autoplay, items.length, intervalMs, next]);
+
+    // Keyboard nav
     useEffect(() => {
+        if (typeof window === "undefined") return;
+
         const onKey = (e: KeyboardEvent) => {
             if (e.key === "ArrowRight") next();
             if (e.key === "ArrowLeft") prev();
@@ -140,7 +193,7 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
     const SWIPE_OFFSET = 60;
     const SWIPE_VELOCITY = 500;
 
-    const learnHref = `/learn/${slide.id}`;
+    const learnHref = slide.learnHref ?? `${learnBasePath}/${slide.id}`;
 
     const LearnMoreCta = ({ size }: { size: "mobile" | "desktop" }) => (
         <Link
@@ -149,46 +202,36 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
                 "relative inline-flex items-center justify-center select-none overflow-hidden",
                 "rounded-full border backdrop-blur-xl transition-colors duration-200",
                 "shadow-[0_18px_40px_rgba(0,0,0,0.55)]",
-
-                // base
                 "border-white/14 bg-white/[0.07] text-white",
-
-                // hover: white pill + FORCE black text
                 "hover:bg-white hover:border-white/25 hover:!text-black",
-
-                // active/tap: black pill + FORCE white text
                 "active:bg-black active:border-white/20 active:!text-white active:scale-[0.99]",
-
                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30",
-
                 size === "mobile" ? "h-9 px-4 text-[12px]" : "h-11 px-5 text-[13px]",
             ].join(" ")}
+            aria-label="Learn more"
         >
-            {/* bevel highlight */}
             <span className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_30%_25%,rgba(255,255,255,0.20),transparent_58%)]" />
-
-            {/* shimmer */}
             <span className="pointer-events-none absolute inset-0 bg-[linear-gradient(110deg,transparent,rgba(255,255,255,0.18),transparent)] -translate-x-[120%] hover:translate-x-[120%] transition duration-700" />
-
-            {/* inherit parent color (now forced correctly on hover/active) */}
             <span className="relative">Learn more</span>
             <span className="relative ml-2 opacity-70">→</span>
-
-            {/* subtle tap flicker */}
             <span className="pointer-events-none absolute inset-0 opacity-0 active:opacity-100 transition duration-75 bg-white/[0.06]" />
         </Link>
     );
+
     return (
         <div
             className="relative w-full group"
             onMouseEnter={() => (hoverRef.current = true)}
             onMouseLeave={() => (hoverRef.current = false)}
+            onFocusCapture={() => (hoverRef.current = true)}
+            onBlurCapture={() => (hoverRef.current = false)}
             style={{ WebkitTapHighlightColor: "transparent" }}
+            aria-roledescription="carousel"
+            aria-label="StayKnown hero slider"
         >
             <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_40%,rgba(255,255,255,0.06),transparent_55%)]" />
 
             <div className="relative w-full min-h-[520px] md:min-h-[600px] lg:min-h-[620px]">
-
                 <div
                     className="
             relative grid grid-cols-1 lg:grid-cols-[0.98fr_1.02fr]
@@ -245,13 +288,29 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
                                     hoverRef.current = false;
                                     if (!isCoarsePointer) return;
 
-                                    if (info.offset.x < -SWIPE_OFFSET || info.velocity.x < -SWIPE_VELOCITY) next();
-                                    if (info.offset.x > SWIPE_OFFSET || info.velocity.x > SWIPE_VELOCITY) prev();
+                                    if (
+                                        info.offset.x < -SWIPE_OFFSET ||
+                                        info.velocity.x < -SWIPE_VELOCITY
+                                    )
+                                        next();
+                                    if (
+                                        info.offset.x > SWIPE_OFFSET ||
+                                        info.velocity.x > SWIPE_VELOCITY
+                                    )
+                                        prev();
                                 }}
                             >
                                 <motion.div
-                                    animate={{ y: [0, -1.5, 0, 1.5, 0] }}
-                                    transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
+                                    animate={
+                                        prefersReducedMotion
+                                            ? { y: 0 }
+                                            : { y: [0, -1.5, 0, 1.5, 0] }
+                                    }
+                                    transition={
+                                        prefersReducedMotion
+                                            ? { duration: 0 }
+                                            : { duration: 10, repeat: Infinity, ease: "easeInOut" }
+                                    }
                                 >
                                     <img
                                         src={slide.src}
@@ -282,6 +341,8 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
                     <button
                         onClick={prev}
                         className="pointer-events-auto rounded-full border border-white/12 bg-white/[0.06] backdrop-blur-md text-white/80 hover:bg-white/[0.12] transition font-black w-8 h-8 sm:w-10 sm:h-10"
+                        aria-label="Previous slide"
+                        type="button"
                     >
                         ‹
                     </button>
@@ -289,6 +350,8 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
                     <button
                         onClick={next}
                         className="pointer-events-auto rounded-full border border-white/12 bg-white/[0.06] backdrop-blur-md text-white/80 hover:bg-white/[0.12] transition font-black w-8 h-8 sm:w-10 sm:h-10"
+                        aria-label="Next slide"
+                        type="button"
                     >
                         ›
                     </button>

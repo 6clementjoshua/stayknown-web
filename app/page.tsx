@@ -1,35 +1,40 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useMemo } from "react";
 import HeroSlider, { type HeroSlide } from "../components/HeroSlider";
 
 export default function Page() {
+  // ✅ Put these 3 new images in: /public/hero/
+  //   1) /public/hero/end-sos-verify.png
+  //   2) /public/hero/end-visit-verify.png
+  //   3) /public/hero/secure-chat-passcode.png
   const slides: HeroSlide[] = useMemo(
     () => [
       {
-        id: "visit-live-sos",
-        src: "/hero/visit-live-sos.png",
+        id: "end-sos-verify",
+        src: "/hero/end-sos-verify.png",
         kind: "device",
-        title: "Live Visit + SOS Ready",
+        title: "End SOS — Verified Stop (Pro / ProMax)",
         teaser:
-          "When a visit starts, Live mode turns on — with SOS on standby to escalate quickly if needed.",
+          "If verification is enabled, ending SOS requires confirmation (biometric/PIN or your chosen lock) to prevent accidental or forced stops.",
       },
       {
-        id: "visit-live",
-        src: "/hero/visit-live.png",
+        id: "end-visit-verify",
+        src: "/hero/end-visit-verify.png",
         kind: "device",
-        title: "Live Location Emitter",
+        title: "End Visit — Verified Stop",
         teaser:
-          "Live updates occur only during an active visit. End the visit and sharing stops immediately.",
+          "Same protection for normal visits: when verification is enabled, Live sharing can only be stopped after a secure confirmation.",
       },
       {
-        id: "promax-shell",
-        src: "/hero/promax-shell.png",
+        id: "secure-chat-passcode",
+        src: "/hero/secure-chat-passcode.png",
         kind: "device",
-        title: "ProMax MainShell",
+        title: "Secure Chat Access",
         teaser:
-          "A collapsed premium shell — calmer navigation that feels like hardware, while keeping safety one tap away.",
+          "New chats require a time-boxed passcode sent to the recipient’s email. Requests include identity + safety context, plus a labeled image (Live Capture or Gallery).",
       },
     ],
     []
@@ -61,14 +66,37 @@ export default function Page() {
           <HeroSlider slides={slides} intervalMs={6000} />
         </div>
 
-        {/* ✅ Mobile safety spacing (prevents device hitting footer) */}
-        <div className="h-12 sm:h-0" />
+        {/* ✅ Mobile safety spacing (prevents device hitting CTA/footer) */}
+        <div className="h-10 sm:h-0" />
       </section>
 
-      {/* ✅ Reduced gap so footer is closer (helps chevrons sit centered visually) */}
+      {/* CTA (only button on page) */}
+      <section className="w-full">
+        <div className="mx-auto max-w-6xl px-4">
+          <div className="mt-2 sm:mt-4 flex items-center justify-center">
+            <Link
+              href="/learn-more"
+              className={[
+                "inline-flex items-center justify-center select-none",
+                "h-10 px-5 rounded-full",
+                "border border-white/14 bg-white/[0.06] backdrop-blur-md",
+                "text-[12px] sm:text-[13px] font-semibold tracking-[0.14em] uppercase",
+                "text-white/85 hover:text-white hover:border-white/24 hover:bg-white/[0.09]",
+                "transition-all duration-200",
+                "shadow-[0_10px_30px_rgba(0,0,0,0.55)]",
+              ].join(" ")}
+              aria-label="Learn more about verification and secure chat flows"
+            >
+              Learn More
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* Gap before footer */}
       <section className="h-8 sm:h-10 md:h-12 lg:h-14" />
 
-      {/* ✅ Footer now visible on mobile too */}
+      {/* Footer */}
       <footer className="w-full">
         <div className="mx-auto max-w-6xl px-4 pb-7 sm:pb-10">
           <div className="h-px bg-white/[0.08]" />

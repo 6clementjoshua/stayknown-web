@@ -26,8 +26,6 @@ function MobileNavLink({ href, label }: { href: string; label: string }) {
         >
             <span>{label}</span>
             <span className="opacity-60">›</span>
-
-            {/* tap flicker only */}
             <span className="pointer-events-none absolute inset-0 opacity-0 active:opacity-100 transition duration-75 bg-white/[0.06]" />
         </Link>
     );
@@ -35,7 +33,6 @@ function MobileNavLink({ href, label }: { href: string; label: string }) {
 
 /* -------------------------
    Desktop CTA (smaller pill + white hover)
-   FIX: force ALL inner text/icons to black on hover (so nothing disappears)
 -------------------------- */
 function CTA({ href, label }: { href: string; label: string }) {
     return (
@@ -56,7 +53,6 @@ function CTA({ href, label }: { href: string; label: string }) {
         select-none overflow-hidden
       "
         >
-            {/* micro shimmer */}
             <span className="pointer-events-none absolute inset-0 bg-[linear-gradient(110deg,transparent,rgba(255,255,255,0.14),transparent)] -translate-x-[120%] hover:translate-x-[120%] transition duration-700" />
             <span className="relative">{label}</span>
             <span className="relative ml-2 opacity-70">→</span>
@@ -88,9 +84,7 @@ function MonoIcon({ glyph }: { glyph: string }) {
 }
 
 /* -------------------------
-   Plan tabs:
-   - Mobile: text tabs (no pill feel)
-   - Desktop: pills (white hover)
+   Plan tabs
 -------------------------- */
 function PlanTabs({
     tier,
@@ -280,30 +274,42 @@ function TintedCallout({
 }
 
 /* -------------------------
-   Page
+   Small inline badge
 -------------------------- */
-export default function LearnVisitLiveSosPage() {
+function InlineBadge({ label }: { label: string }) {
+    return (
+        <span className="inline-flex items-center rounded-full border border-white/14 bg-white/[0.05] px-2 py-0.5 text-[11px] font-semibold text-white/70">
+            {label}
+        </span>
+    );
+}
+
+/* -------------------------
+   Page (THIRD of the 3 learn routes)
+   Route: /learn/secure-chat-passcode
+-------------------------- */
+export default function LearnSecureChatPasscodePage() {
     const [tier, setTier] = useState<Tier>("Starter");
 
     const tierCopy = useMemo(() => {
         return {
             Starter: [
-                "Start a Visit and share LIVE only while the Visit is active — when you end it, sharing stops immediately.",
-                "Contacts receive clear, readable updates (what’s happening + session context).",
-                "SOS is locked on Starter. You can still use Visits for everyday check-ins.",
-                "Designed for low-friction safety — simple, clean, and easy to explain to a trusted person.",
+                "Chats are not available on Starter.",
+                "You can still use Visits for trusted check-ins and safety sharing.",
+                "Starter focuses on low-friction safety basics (simple, clear, minimal surface area).",
+                "Upgrade in-app to unlock secure chat access controls.",
             ],
             Pro: [
-                "Unlock SOS for urgent escalation during a Visit — one action triggers a stronger alert posture.",
-                "Richer context for your trusted people (more detail, clearer status, better continuity).",
-                "Ideal for frequent users who rely on Visits daily and need SOS standby.",
-                "Adds more premium safety guidance and stronger “what to do next” messaging for recipients.",
+                "Chats are protected by a recipient-issued passcode (valid for 5 minutes).",
+                "New chat openings require the correct passcode before messaging is allowed.",
+                "Passcodes are delivered to the recipient’s email to reduce impersonation risk.",
+                "Users can request a passcode with a safety-forward request card (identity + context).",
             ],
             ProMax: [
-                "Fastest access and strongest “always-ready” safety posture for serious situations.",
-                "Premium shell behaviors + full SOS readiness for rapid escalation.",
-                "Built for maximum confidence: more clarity, more control, and the most complete safety context.",
-                "Best for high-stakes mobility routines (night travel, long routes, unfamiliar locations).",
+                "Most complete secure-chat posture + strongest context for requests.",
+                "Enhanced request clarity (more safety fields, clearer labeling, stronger guidance).",
+                "Built for users who chat with new people and want consistent verification friction.",
+                "Ideal for high-trust family groups and cautious new connections.",
             ],
         } as Record<Tier, string[]>;
     }, []);
@@ -311,12 +317,12 @@ export default function LearnVisitLiveSosPage() {
     const tierNote: Record<Tier, string> = useMemo(
         () => ({
             Starter:
-                "For upgrades, use the in-app plan page so your plan status stays verified and consistent across devices.",
-            Pro: "SOS is meant for real safety concerns. Use it responsibly and only with people you trust.",
+                "Chats are intentionally gated. Safety-first communication requires stronger controls.",
+            Pro: "Never share your chat passcode publicly. Treat it like a one-time door key.",
             ProMax:
-                "ProMax is the most complete safety setup — built for maximum clarity in urgent moments.",
+                "Use Live Capture when possible for highest trust. Only approve requests you recognize.",
         }),
-        [],
+        []
     );
 
     return (
@@ -325,25 +331,34 @@ export default function LearnVisitLiveSosPage() {
             <header className="pt-7">
                 <div className="mx-auto max-w-6xl px-4">
                     <div className="flex flex-col items-center gap-2">
-                        <Image src="/6logo.png" alt="StayKnown" width={34} height={34} priority />
+                        <Image
+                            src="/6logo.png"
+                            alt="StayKnown"
+                            width={34}
+                            height={34}
+                            priority
+                        />
                         <div className="text-white font-semibold tracking-[0.28em] text-[12px]">
                             STAYKNOWN
                         </div>
                         <div className="text-white/40 font-medium text-[11px]">
-                            Learn • Live Visit + SOS
+                            Learn • Secure Chat Passcode
                         </div>
                     </div>
 
                     {/* Mobile header nav (small, no pill) */}
                     <div className="sm:hidden mt-3 flex items-center justify-between">
                         <MobileNavLink href="/" label="Back to Home" />
-                        <MobileNavLink href="/learn/visit-live" label="Next: Live Emitter" />
+                        <MobileNavLink
+                            href="/learn/end-sos-verify"
+                            label="Previous: End SOS"
+                        />
                     </div>
 
                     {/* Desktop header nav (smaller pills) */}
                     <div className="hidden sm:flex mt-5 items-center justify-center gap-3">
                         <CTA href="/" label="Back to Home" />
-                        <CTA href="/learn/visit-live" label="Next: Live Emitter" />
+                        <CTA href="/learn/end-sos-verify" label="Previous: End SOS" />
                     </div>
                 </div>
             </header>
@@ -357,23 +372,24 @@ export default function LearnVisitLiveSosPage() {
                         {/* Caption (mobile row 1, desktop right) */}
                         <div className="order-1 lg:order-none lg:col-start-2">
                             <div className="text-white/95 font-semibold tracking-[-0.03em] text-[40px] sm:text-[54px] lg:text-[58px] leading-[0.98]">
-                                Live Visit + SOS Ready
+                                Secure Chat — Passcode Gate
                             </div>
 
                             <div className="mt-4 text-white/62 font-normal text-[13.5px] sm:text-[14.5px] leading-relaxed max-w-[72ch]">
-                                When a Visit starts, LIVE mode turns on — and SOS stays on standby for{" "}
-                                <span className="text-white/78 font-medium">Pro</span> and{" "}
-                                <span className="text-white/78 font-medium">ProMax</span>, so you can
-                                escalate in <span className="text-white/78 font-medium">one tap</span> if
-                                something feels wrong.
+                                Secure Chat is designed to show users that StayKnown applies real,
+                                visible safety procedures in communication. A new chat isn’t
+                                “open” by default — the recipient controls access using a{" "}
+                                <span className="text-white/78 font-medium">
+                                    time-limited passcode
+                                </span>{" "}
+                                sent to their email.
                             </div>
 
-                            <TintedCallout title="What this means in real life">
-                                You start a Visit when you’re heading somewhere — your trusted contacts
-                                receive clear updates while it’s active. If a situation turns urgent, SOS
-                                escalates the tone and clarity of the alert so recipients instantly
-                                understand it’s not a normal update.{" "}
-                                <em>Visits are for safety sharing — not public tracking.</em>
+                            <TintedCallout title="Safety posture: recipient-controlled access">
+                                If someone tries to message you without your permission, they
+                                can’t “force-open” the chat. The recipient issues a passcode that
+                                expires in <InlineBadge label="5 minutes" /> and can be rotated
+                                anytime.
                             </TintedCallout>
 
                             <div className="mt-7">
@@ -397,13 +413,16 @@ export default function LearnVisitLiveSosPage() {
 
                             <div className="mt-6">
                                 <div className="sm:hidden flex items-center justify-between gap-3">
-                                    <MobileNavLink href="/learn/visit-live" label="Learn: Live Emitter" />
-                                    <MobileNavLink href="/learn/promax-shell" label="Explore: ProMax Shell" />
+                                    <MobileNavLink
+                                        href="/learn/end-visit-verify"
+                                        label="Previous: End Visit"
+                                    />
+                                    <MobileNavLink href="/learn/promax-shell" label="Explore: Shell" />
                                 </div>
 
                                 <div className="hidden sm:flex flex-wrap gap-3">
-                                    <CTA href="/learn/visit-live" label="Learn: Live Location Emitter" />
-                                    <CTA href="/learn/promax-shell" label="Explore: ProMax MainShell" />
+                                    <CTA href="/learn/end-visit-verify" label="Previous: End Visit" />
+                                    <CTA href="/learn/promax-shell" label="Explore: ProMax Shell" />
                                 </div>
                             </div>
                         </div>
@@ -411,19 +430,19 @@ export default function LearnVisitLiveSosPage() {
                         {/* Device (mobile row 2, desktop left) */}
                         <div className="order-2 lg:order-none lg:col-start-1 flex items-start justify-center lg:justify-start">
                             <img
-                                src="/hero/visit-live-sos.png"
-                                alt="Live Visit + SOS Ready"
+                                src="/hero/secure-chat-passcode.png"
+                                alt="Secure Chat — Passcode Gate"
                                 draggable={false}
                                 className="
-  block object-contain select-none
-  drop-shadow-[0_22px_80px_rgba(0,0,0,0.75)]
-  max-w-[86vw] max-h-[44vh]
-  sm:max-w-[560px] sm:max-h-[62vh]
-  lg:max-w-[720px] lg:max-h-[74vh]
-  xl:max-w-[780px]
- transform-gpu
-lg:-translate-y-[800px] xl:-translate-y-[980px] 2xl:-translate-y-[1150px]
-"
+                  block object-contain select-none
+                  drop-shadow-[0_22px_80px_rgba(0,0,0,0.75)]
+                  max-w-[86vw] max-h-[44vh]
+                  sm:max-w-[560px] sm:max-h-[62vh]
+                  lg:max-w-[720px] lg:max-h-[74vh]
+                  xl:max-w-[780px]
+                  transform-gpu
+                  lg:-translate-y-[800px] xl:-translate-y-[980px] 2xl:-translate-y-[1150px]
+                "
                             />
                         </div>
                     </div>
@@ -434,103 +453,104 @@ lg:-translate-y-[800px] xl:-translate-y-[980px] 2xl:-translate-y-[1150px]
             <section className="w-full">
                 <div className="mx-auto max-w-6xl px-4 pb-10 sm:pb-14">
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-6">
-                        <FeatureCard glyph="▶" title="How a Visit works (simple timeline)">
+                        <FeatureCard glyph="⌁" title="The access model (simple)">
                             <div className="space-y-2">
                                 <div>
-                                    <span className="text-white/75 font-medium">1)</span> Tap{" "}
-                                    <span className="text-white/85 font-medium">Start Visit</span>. LIVE activates
-                                    automatically for the session.
+                                    <span className="text-white/75 font-medium">1)</span> A user tries
+                                    to start a new chat with you.
                                 </div>
                                 <div>
-                                    <span className="text-white/75 font-medium">2)</span> Your trusted people
-                                    receive updates while the Visit is active.
-                                    <span className="text-white/45">
-                                        {" "}
-                                        <em>(They see context, not just a random ping.)</em>
-                                    </span>
+                                    <span className="text-white/75 font-medium">2)</span> StayKnown
+                                    blocks messaging until the{" "}
+                                    <span className="text-white/85 font-medium">recipient-issued</span>{" "}
+                                    passcode is provided.
                                 </div>
                                 <div>
-                                    <span className="text-white/75 font-medium">3)</span> Tap{" "}
-                                    <span className="text-white/85 font-medium">End Visit</span>. Sharing stops
-                                    immediately.
+                                    <span className="text-white/75 font-medium">3)</span> The passcode
+                                    is sent to your email and expires in{" "}
+                                    <span className="text-white/85 font-medium">5 minutes</span>.
+                                </div>
+                                <div>
+                                    <span className="text-white/75 font-medium">4)</span> Once entered,
+                                    the chat becomes active (for that session / window).
                                 </div>
                             </div>
                             <div className="mt-3 text-white/45">
-                                Example: <em>“Heading home.”</em> → updates continue until you end the Visit.
+                                This makes “who can talk to me” a deliberate choice, not an
+                                assumption.
                             </div>
                         </FeatureCard>
 
-                        <FeatureCard glyph="!" title="When SOS applies (Pro / ProMax)">
-                            SOS is for moments when you feel unsafe or need urgent attention. It’s designed to
-                            be fast:{" "}
-                            <span className="text-white/78 font-medium">one clear action</span> that triggers a
-                            stronger alert flow.
-                            <div className="mt-3 text-white/45">
-                                Example phrases: <em>“I’m being followed.”</em> <em>“I’m in trouble.”</em>{" "}
-                                <em>“Check on me now.”</em>
-                            </div>
-                            <div className="mt-3 text-white/45">
-                                <span className="text-white/65 font-semibold">Tip:</span>{" "}
-                                <em>
-                                    If you’re on Starter, use Visits for safety check-ins and upgrade inside the app
-                                    if you need SOS standby.
-                                </em>
-                            </div>
-                        </FeatureCard>
-
-                        <FeatureCard glyph="▣" title="What your contacts receive">
-                            Contacts get a readable message with context: who it’s from, what’s happening (Visit
-                            vs SOS), and what you want them to do next.
-                            <div className="mt-3 text-white/45">
-                                Examples: <em>“Visit started — LIVE updates active.”</em> /{" "}
-                                <em>“SOS triggered — please act now.”</em>
-                            </div>
-                            <div className="mt-3 text-white/45">
-                                <span className="text-white/65 font-semibold">Why it matters:</span> clarity reduces
-                                hesitation — recipients know whether it’s routine sharing or urgent escalation.
-                            </div>
-                        </FeatureCard>
-
-                        <FeatureCard glyph="⌁" title="Privacy & anti-stalking posture">
-                            Live sharing is scoped to safety: it’s meant for trusted people and emergency use —
-                            not tracking. Visits end → sharing ends immediately to reduce misuse.
-                            <div className="mt-3 text-white/45">
-                                <em>
-                                    StayKnown is designed to be safety-first. If something feels wrong, do not share
-                                    alerts publicly — keep it within trusted recipients.
-                                </em>
-                            </div>
-                        </FeatureCard>
-
-                        <FeatureCard glyph="✦" title="Signals the UI makes obvious">
-                            You’ll see clear states so you can understand what’s active at a glance:{" "}
-                            <span className="text-white/78 font-medium">Idle</span> (nothing shared),{" "}
-                            <span className="text-white/78 font-medium">LIVE</span> (Visit is actively sharing),
-                            and <span className="text-white/78 font-medium">SOS</span> (urgent escalation).
-                            <div className="mt-3 text-white/45">
-                                If you enabled <em>Visual Severity</em> in settings, these states become even more
-                                distinct visually (purely visual — no behavior change).
-                            </div>
-                        </FeatureCard>
-
-                        <FeatureCard glyph="⟡" title="Plan gating, explained clearly">
-                            <div className="space-y-2">
+                        <FeatureCard glyph="▣" title="What a passcode request contains">
+                            When someone requests access, the recipient receives a clear request
+                            card with safety context:
+                            <div className="mt-3 space-y-2 text-white/62">
                                 <div>
-                                    <span className="text-white/78 font-medium">Starter</span>: Visits for everyday
-                                    safety check-ins.
+                                    • Requester identity: name + username (and verification badge if any)
                                 </div>
                                 <div>
-                                    <span className="text-white/78 font-medium">Pro</span>: Adds SOS escalation during
-                                    unsafe moments + richer safety guidance.
+                                    • Current location context (when available and allowed)
                                 </div>
                                 <div>
-                                    <span className="text-white/78 font-medium">ProMax</span>: Most complete posture —
-                                    maximum clarity + premium safety context.
+                                    • Safety notes (why they’re requesting / what they want)
+                                </div>
+                                <div>
+                                    • A photo attachment labeled clearly:
+                                    <div className="mt-2 flex flex-wrap gap-2">
+                                        <InlineBadge label="Live image capture" />
+                                        <InlineBadge label="From device gallery" />
+                                    </div>
                                 </div>
                             </div>
                             <div className="mt-3 text-white/45">
-                                <em>Upgrades are handled inside the app</em> to keep entitlements consistent and
-                                verified.
+                                The label matters: it tells the recipient if the image was captured
+                                “right now” vs selected from a device library.
+                            </div>
+                        </FeatureCard>
+
+                        <FeatureCard glyph="!" title="Why email delivery matters">
+                            Email is harder to intercept than in-app UI alone, and it gives the
+                            recipient a separate channel to confirm the code. This reduces:
+                            <div className="mt-3 space-y-2 text-white/62">
+                                <div>• impersonation attempts</div>
+                                <div>• unwanted chat openings</div>
+                                <div>• pressure to respond instantly in-app</div>
+                            </div>
+                            <div className="mt-3 text-white/45">
+                                Treat the passcode like a temporary door key—share only when you’re sure.
+                            </div>
+                        </FeatureCard>
+
+                        <FeatureCard glyph="✦" title="Pro/ProMax guardrails (recommended)">
+                            Suggested guardrails you can enforce in the app:
+                            <div className="mt-3 space-y-2 text-white/62">
+                                <div>• Rate-limit passcode generation (spam protection)</div>
+                                <div>• Allow “block requester” or “report” from the request card</div>
+                                <div>• Require “Live capture” for first-time chats (optional ProMax rule)</div>
+                                <div>• Auto-expire unapproved requests and delete attachments after a short window</div>
+                            </div>
+                        </FeatureCard>
+
+                        <FeatureCard glyph="⟡" title="User-visible trust signals">
+                            Secure Chat is designed to make safety obvious. Examples:
+                            <div className="mt-3 space-y-2 text-white/62">
+                                <div>• “Chat locked” state until passcode is verified</div>
+                                <div>• “Verified access granted” state after correct code</div>
+                                <div>• Clear timestamps: request time, code sent time, expiry time</div>
+                                <div>• Recipient-controlled “revoke access” / “rotate code” action</div>
+                            </div>
+                        </FeatureCard>
+
+                        <FeatureCard glyph="▶" title="Good behavior guidance (built into UI)">
+                            Keep users safe with in-app guidance:
+                            <div className="mt-3 space-y-2 text-white/62">
+                                <div>• Don’t share passcodes publicly or in group chats</div>
+                                <div>• Prefer Live Capture for first-time contacts</div>
+                                <div>• If anything feels wrong, decline and report</div>
+                                <div>• For urgent danger, use local emergency services</div>
+                            </div>
+                            <div className="mt-3 text-white/45">
+                                Safety-first messaging reduces misuse and sets the right expectation.
                             </div>
                         </FeatureCard>
                     </div>
@@ -544,50 +564,102 @@ lg:-translate-y-[800px] xl:-translate-y-[980px] 2xl:-translate-y-[1150px]
 
                     <div className="mt-8 flex flex-col items-center gap-3 text-center">
                         <div className="flex flex-wrap justify-center gap-x-4 gap-y-2 text-[11px] sm:text-[12px] font-semibold text-white/45 leading-relaxed">
-                            <a href="/privacy" target="_blank" rel="noopener noreferrer" className="hover:text-white/75 transition">
+                            <a
+                                href="/privacy"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="hover:text-white/75 transition"
+                            >
                                 Privacy Policy
                             </a>
                             <span className="text-white/18">•</span>
-                            <a href="/terms" target="_blank" rel="noopener noreferrer" className="hover:text-white/75 transition">
+                            <a
+                                href="/terms"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="hover:text-white/75 transition"
+                            >
                                 Terms of Use
                             </a>
                             <span className="text-white/18">•</span>
-                            <a href="/acceptable-use" target="_blank" rel="noopener noreferrer" className="hover:text-white/75 transition">
+                            <a
+                                href="/acceptable-use"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="hover:text-white/75 transition"
+                            >
                                 Acceptable Use
                             </a>
                             <span className="text-white/18">•</span>
-                            <a href="/safety" target="_blank" rel="noopener noreferrer" className="hover:text-white/75 transition">
+                            <a
+                                href="/safety"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="hover:text-white/75 transition"
+                            >
                                 Safety &amp; Anti-Stalking
                             </a>
                             <span className="text-white/18">•</span>
-                            <a href="/emergency" target="_blank" rel="noopener noreferrer" className="hover:text-white/75 transition">
+                            <a
+                                href="/emergency"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="hover:text-white/75 transition"
+                            >
                                 Emergency Disclaimer
                             </a>
                             <span className="text-white/18">•</span>
-                            <a href="/minors" target="_blank" rel="noopener noreferrer" className="hover:text-white/75 transition">
+                            <a
+                                href="/minors"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="hover:text-white/75 transition"
+                            >
                                 Child Safety &amp; Minor Use
                             </a>
                             <span className="text-white/18">•</span>
-                            <a href="/abuse" target="_blank" rel="noopener noreferrer" className="hover:text-white/75 transition">
+                            <a
+                                href="/abuse"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="hover:text-white/75 transition"
+                            >
                                 Abuse Reporting
                             </a>
                             <span className="text-white/18">•</span>
-                            <a href="/retention" target="_blank" rel="noopener noreferrer" className="hover:text-white/75 transition">
+                            <a
+                                href="/retention"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="hover:text-white/75 transition"
+                            >
                                 Data Retention
                             </a>
                             <span className="text-white/18">•</span>
-                            <a href="/law" target="_blank" rel="noopener noreferrer" className="hover:text-white/75 transition">
+                            <a
+                                href="/law"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="hover:text-white/75 transition"
+                            >
                                 Law Enforcement
                             </a>
                             <span className="text-white/18">•</span>
-                            <a href="/security" target="_blank" rel="noopener noreferrer" className="hover:text-white/75 transition">
+                            <a
+                                href="/security"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="hover:text-white/75 transition"
+                            >
                                 Security Disclosure
                             </a>
                         </div>
 
                         <div className="text-[12px] font-semibold text-white/50">
                             A 6 Clement Joshua service
-                            <span className="text-white/25 ml-1 align-super text-[10px]">™</span>
+                            <span className="text-white/25 ml-1 align-super text-[10px]">
+                                ™
+                            </span>
                         </div>
 
                         <div className="text-[11px] font-semibold text-white/30">
