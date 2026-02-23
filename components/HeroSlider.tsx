@@ -60,7 +60,6 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
     const hoverRef = useRef(false);
 
     const prefersReducedMotion = useReducedMotion();
-
     const [isCoarsePointer, setIsCoarsePointer] = useState(false);
 
     // Pointer detection (touch vs mouse)
@@ -75,12 +74,8 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
         };
 
         apply(mq);
-
         mq.addEventListener("change", apply);
-
-        return () => {
-            mq.removeEventListener("change", apply);
-        };
+        return () => mq.removeEventListener("change", apply);
     }, []);
 
     // Clamp idx when slides change
@@ -140,10 +135,7 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
 
         start();
 
-        const onVis = () => {
-            // restart to avoid drift when returning to tab
-            start();
-        };
+        const onVis = () => start();
         document.addEventListener("visibilitychange", onVis);
 
         return () => {
@@ -199,7 +191,8 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
         <Link
             href={learnHref}
             className={[
-                "relative inline-flex items-center justify-center select-none overflow-hidden",
+                // ✅ z-index ensures CTA stays in FRONT of any device image
+                "relative z-[60] inline-flex items-center justify-center select-none overflow-hidden",
                 "rounded-full border backdrop-blur-xl transition-colors duration-200",
                 "shadow-[0_18px_40px_rgba(0,0,0,0.55)]",
                 "border-white/14 bg-white/[0.07] text-white",
@@ -279,7 +272,8 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
                                 animate="center"
                                 exit="exit"
                                 transition={TRANSITION_DEVICE}
-                                className="relative"
+                                // ✅ important: create stacking context and keep image BELOW CTA
+                                className="relative z-[10]"
                                 drag={isCoarsePointer ? "x" : false}
                                 dragConstraints={{ left: 0, right: 0 }}
                                 dragElastic={0.18}
@@ -288,23 +282,13 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
                                     hoverRef.current = false;
                                     if (!isCoarsePointer) return;
 
-                                    if (
-                                        info.offset.x < -SWIPE_OFFSET ||
-                                        info.velocity.x < -SWIPE_VELOCITY
-                                    )
-                                        next();
-                                    if (
-                                        info.offset.x > SWIPE_OFFSET ||
-                                        info.velocity.x > SWIPE_VELOCITY
-                                    )
-                                        prev();
+                                    if (info.offset.x < -SWIPE_OFFSET || info.velocity.x < -SWIPE_VELOCITY) next();
+                                    if (info.offset.x > SWIPE_OFFSET || info.velocity.x > SWIPE_VELOCITY) prev();
                                 }}
                             >
                                 <motion.div
                                     animate={
-                                        prefersReducedMotion
-                                            ? { y: 0 }
-                                            : { y: [0, -1.5, 0, 1.5, 0] }
+                                        prefersReducedMotion ? { y: 0 } : { y: [0, -1.5, 0, 1.5, 0] }
                                     }
                                     transition={
                                         prefersReducedMotion
@@ -316,7 +300,9 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
                                         src={slide.src}
                                         alt={slide.title}
                                         draggable={false}
+                                        // ✅ keep image from covering overlays by ensuring it's not higher z
                                         className="
+                      relative z-[10]
                       block w-auto object-contain select-none
                       drop-shadow-[0_22px_80px_rgba(0,0,0,0.75)]
                       max-w-[82vw] max-h-[40vh]
@@ -328,7 +314,8 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
                                     />
                                 </motion.div>
 
-                                <div className="mt-5 flex sm:hidden items-center justify-center">
+                                {/* ✅ MOBILE CTA: force it in front even if the image overlaps */}
+                                <div className="relative z-[60] mt-5 flex sm:hidden items-center justify-center">
                                     <LearnMoreCta size="mobile" />
                                 </div>
                             </motion.div>

@@ -1,40 +1,62 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
 import { useMemo } from "react";
 import HeroSlider, { type HeroSlide } from "../components/HeroSlider";
 
 export default function Page() {
-  // ✅ Put these 3 new images in: /public/hero/
-  //   1) /public/hero/end-sos-verify.png
-  //   2) /public/hero/end-visit-verify.png
-  //   3) /public/hero/secure-chat-passcode.png
   const slides: HeroSlide[] = useMemo(
     () => [
+      // ✅ existing 3
+      {
+        id: "visit-live-sos",
+        src: "/hero/visit-live-sos.png",
+        kind: "device",
+        title: "Live Visit + SOS Ready",
+        teaser:
+          "When a visit starts, Live mode turns on — with SOS on standby to escalate quickly if needed.",
+      },
+      {
+        id: "visit-live",
+        src: "/hero/visit-live.png",
+        kind: "device",
+        title: "Live Location Emitter",
+        teaser:
+          "Live updates occur only during an active visit. End the visit and sharing stops immediately.",
+      },
+      {
+        id: "promax-shell",
+        src: "/hero/promax-shell.png",
+        kind: "device",
+        title: "ProMax MainShell",
+        teaser:
+          "A collapsed premium shell — calmer navigation that feels like hardware, while keeping safety one tap away.",
+      },
+
+      // ✅ NEW 3 (make sure these images exist in /public/hero/)
       {
         id: "end-sos-verify",
         src: "/hero/end-sos-verify.png",
         kind: "device",
         title: "End SOS — Verified Stop (Pro / ProMax)",
         teaser:
-          "If verification is enabled, ending SOS requires confirmation (biometric/PIN or your chosen lock) to prevent accidental or forced stops.",
+          "If verification is enabled, ending SOS requires a secure confirmation to prevent accidental or forced stops.",
       },
       {
         id: "end-visit-verify",
         src: "/hero/end-visit-verify.png",
         kind: "device",
-        title: "End Visit — Verified Stop",
+        title: "End Visit — Confirmed Finish",
         teaser:
-          "Same protection for normal visits: when verification is enabled, Live sharing can only be stopped after a secure confirmation.",
+          "For normal safety visits, enable confirmation so ending a Visit requires biometrics or PIN when your toggle is on.",
       },
       {
         id: "secure-chat-passcode",
         src: "/hero/secure-chat-passcode.png",
         kind: "device",
-        title: "Secure Chat Access",
+        title: "Secure Chat — Passcode Gate (Pro / ProMax)",
         teaser:
-          "New chats require a time-boxed passcode sent to the recipient’s email. Requests include identity + safety context, plus a labeled image (Live Capture or Gallery).",
+          "New chats require a 5-minute passcode delivered to email. Requests include identity + safety context and a labeled image (Live Capture or Gallery).",
       },
     ],
     []
@@ -66,14 +88,14 @@ export default function Page() {
           <HeroSlider slides={slides} intervalMs={6000} />
         </div>
 
-        {/* ✅ Mobile safety spacing (prevents device hitting CTA/footer) */}
-        <div className="h-10 sm:h-0" />
+        {/* ✅ Mobile safety spacing (prevents device hitting footer) */}
+        <div className="h-12 sm:h-0" />
       </section>
 
-      {/* Gap before footer */}
+      {/* ✅ Reduced gap so footer is closer (helps chevrons sit centered visually) */}
       <section className="h-8 sm:h-10 md:h-12 lg:h-14" />
 
-      {/* Footer */}
+      {/* ✅ Footer now visible on mobile too */}
       <footer className="w-full">
         <div className="mx-auto max-w-6xl px-4 pb-7 sm:pb-10">
           <div className="h-px bg-white/[0.08]" />
