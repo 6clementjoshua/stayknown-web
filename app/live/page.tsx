@@ -2,12 +2,12 @@ import crypto from "crypto";
 import LiveClient from "./live-client";
 
 function verifySignature(params: URLSearchParams) {
-  const sid = params.get("sid") || "";
-  const exp = params.get("exp") || "";
-  const uid = params.get("uid") || "";
-  const aud = params.get("aud") || "";
-  const sig = params.get("sig") || "";
-  const secret = process.env.TRACKING_SIGNING_SECRET || "";
+  const sid = (params.get("sid") || "").trim();
+  const exp = (params.get("exp") || "").trim();
+  const uid = (params.get("uid") || "").trim();
+  const aud = (params.get("aud") || "").trim();
+  const sig = (params.get("sig") || "").trim();
+  const secret = (process.env.TRACKING_SIGNING_SECRET || "").trim();
 
   if (!sid || !exp || !sig || !secret) return false;
 
@@ -24,9 +24,28 @@ function verifySignature(params: URLSearchParams) {
     .digest("base64")
     .replace(/\+/g, "-")
     .replace(/\//g, "_")
-    .replace(/=/g, "");
+    .replace(/=+$/g, "");
 
   return expected === sig;
+}
+
+function InvalidState() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-black text-white">
+      <div className="text-center px-6 max-w-md">
+        <div className="mx-auto mb-5 h-14 w-14 rounded-full border border-white/15 bg-white/10 backdrop-blur-xl flex items-center justify-center text-xl font-black shadow-2xl">
+          6
+        </div>
+        <h1 className="text-xl font-bold tracking-tight">
+          Invalid or Expired Link
+        </h1>
+        <p className="opacity-60 mt-2 text-sm leading-6">
+          This live tracking session is no longer available. Please ask the user
+          for a fresh link if tracking is still active.
+        </p>
+      </div>
+    </div>
+  );
 }
 
 export default function LivePage({
@@ -37,24 +56,24 @@ export default function LivePage({
   const params = new URLSearchParams();
 
   for (const [k, v] of Object.entries(searchParams)) {
-    if (typeof v === "string") params.set(k, v);
+    if (typeof v === "string") {
+      params.set(k, v);
+    } else if (Array.isArray(v) && typeof v[0] === "string") {
+      params.set(k, v[0]);
+    }
   }
 
   const valid = verifySignature(params);
 
   if (!valid) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-black text-white">
-        <div className="text-center px-6">
-          <h1 className="text-xl font-bold">Invalid or Expired Link</h1>
-          <p className="opacity-60 mt-2">
-            This tracking session is no longer valid.
-          </p>
-        </div>
-      </div>
-    );
+    return <InvalidState />;
   }
 
-  const sid = params.get("sid")!;
+  const sid = (params.get("sid") || "").trim();
+
+  if (!sid) {
+    return <InvalidState />;
+  }
+
   return <LiveClient sessionId={sid} />;
 }

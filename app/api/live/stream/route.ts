@@ -4,25 +4,54 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 function admin() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { persistSession: false } },
-  );
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceRole = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!url || !serviceRole) {
+    throw new Error("Live tracking is not fully configured yet.");
+  }
+
+  return createClient(url, serviceRole, {
+    auth: { persistSession: false },
+  });
 }
 
 export async function GET(req: Request) {
   const url = new URL(req.url);
-  const sid = url.searchParams.get("sid") || "";
+  const sid = (url.searchParams.get("sid") || "").trim();
 
   if (!sid) {
-    return new Response(JSON.stringify({ ok: false, error: "missing_sid" }), {
-      status: 400,
-      headers: { "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({
+        ok: false,
+        error: "This live tracking link is missing its session details.",
+      }),
+      {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      },
+    );
   }
 
-  const sb = admin();
+  let sb;
+  try {
+    sb = admin();
+  } catch (e) {
+    return new Response(
+      JSON.stringify({
+        ok: false,
+        error:
+          e instanceof Error
+            ? e.message
+            : "Live tracking is not available right now.",
+      }),
+      {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      },
+    );
+  }
+
   const encoder = new TextEncoder();
 
   let closed = false;
@@ -30,6 +59,18 @@ export async function GET(req: Request) {
   let ch1: ReturnType<typeof sb.channel> | null = null;
   let ch2: ReturnType<typeof sb.channel> | null = null;
   let ch3: ReturnType<typeof sb.channel> | null = null;
+
+  const sendChunk = (
+    controller: ReadableStreamDefaultController<Uint8Array>,
+    obj: unknown,
+  ) => {
+    if (closed) return;
+    try {
+      controller.enqueue(encoder.encode(`data: ${JSON.stringify(obj)}\n\n`));
+    } catch {
+      closed = true;
+    }
+  };
 
   const cleanup = async () => {
     if (closed) return;
@@ -55,15 +96,14 @@ export async function GET(req: Request) {
 
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
-      const send = (obj: unknown) => {
-        if (closed) return;
-        controller.enqueue(encoder.encode(`data: ${JSON.stringify(obj)}\n\n`));
-      };
-
-      send({ type: "ready", session_id: sid, t: Date.now() });
+      sendChunk(controller, {
+        type: "ready",
+        session_id: sid,
+        t: Date.now(),
+      });
 
       keepAlive = setInterval(() => {
-        send({ type: "ka", t: Date.now() });
+        sendChunk(controller, { type: "ka", t: Date.now() });
       }, 15000);
 
       ch1 = sb
@@ -86,7 +126,7 @@ export async function GET(req: Request) {
             };
 
             if (typeof row?.lat === "number" && typeof row?.lng === "number") {
-              send({
+              sendChunk(controller, {
                 type: "location",
                 lat: row.lat,
                 lng: row.lng,
@@ -97,7 +137,15 @@ export async function GET(req: Request) {
             }
           },
         )
-        .subscribe();
+        .subscribe((status) => {
+          if (status === "CHANNEL_ERROR") {
+            sendChunk(controller, {
+              type: "warning",
+              message:
+                "The live location channel had a brief issue. Reconnecting…",
+            });
+          }
+        });
 
       ch2 = sb
         .channel(`live-visit-${sid}-${Date.now()}`)
@@ -113,29 +161,73 @@ export async function GET(req: Request) {
             const row = payload.new as { ended_at?: string | null };
 
             if (row?.ended_at) {
-              send({ type: "ended", ended_at: row.ended_at });
+              sendChunk(controller, {
+                type: "ended",
+                ended_at: row.ended_at,
+              });
             }
           },
         )
-        .subscribe();
+        .subscribe((status) => {
+          if (status === "CHANNEL_ERROR") {
+            sendChunk(controller, {
+              type: "warning",
+              message: "Visit status updates paused for a moment.",
+            });
+          }
+        });
 
-      ch3 = sb
-        .channel(`live-sos-${sid}-${Date.now()}`)
-        .on(
-          "postgres_changes",
-          {
-            event: "*",
-            schema: "public",
-            table: "sos_sessions",
-            filter: `session_id=eq.${sid}`,
-          },
-          (payload) => {
-            const row = payload.new as { ended_at?: string | null } | null;
-            const active = row ? !Boolean(row.ended_at) : false;
-            send({ type: "sos", active });
-          },
-        )
-        .subscribe();
+      const visitOwnerRes = await sb
+        .from("visits")
+        .select("user_id")
+        .eq("id", sid)
+        .maybeSingle();
+
+      const visitOwnerId = (
+        visitOwnerRes.data as { user_id?: string | null } | null
+      )?.user_id;
+
+      if (visitOwnerId) {
+        ch3 = sb
+          .channel(`live-sos-${sid}-${Date.now()}`)
+          .on(
+            "postgres_changes",
+            {
+              event: "*",
+              schema: "public",
+              table: "sos_sessions",
+              filter: `user_id=eq.${visitOwnerId}`,
+            },
+            (payload) => {
+              const row = payload.new as {
+                ended_at?: string | null;
+                payload?: { session_id?: string | null } | null;
+              } | null;
+
+              const payloadSessionId =
+                typeof row?.payload === "object" && row?.payload
+                  ? String(row.payload.session_id || "").trim()
+                  : "";
+
+              if (payloadSessionId !== sid) return;
+
+              const active = row ? !Boolean(row.ended_at) : false;
+
+              sendChunk(controller, {
+                type: "sos",
+                active,
+              });
+            },
+          )
+          .subscribe((status) => {
+            if (status === "CHANNEL_ERROR") {
+              sendChunk(controller, {
+                type: "warning",
+                message: "SOS status updates paused for a moment.",
+              });
+            }
+          });
+      }
 
       req.signal.addEventListener("abort", async () => {
         await cleanup();
