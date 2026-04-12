@@ -47,7 +47,6 @@ function formatLiveTime(v?: string) {
 function isInAppBrowser() {
   if (typeof navigator === "undefined") return false;
   const ua = navigator.userAgent || "";
-
   return (
     /Gmail/i.test(ua) ||
     /FBAN|FBAV|Instagram|Line|MicroMessenger|wv/i.test(ua) ||
@@ -55,10 +54,15 @@ function isInAppBrowser() {
   );
 }
 
+function prefersDarkTheme() {
+  if (typeof window === "undefined") return false;
+  return window.matchMedia("(prefers-color-scheme: dark)").matches;
+}
+
 function buildMarkerEl() {
   const wrap = document.createElement("div");
-  wrap.style.width = "64px";
-  wrap.style.height = "78px";
+  wrap.style.width = "68px";
+  wrap.style.height = "82px";
   wrap.style.display = "flex";
   wrap.style.flexDirection = "column";
   wrap.style.alignItems = "center";
@@ -68,15 +72,15 @@ function buildMarkerEl() {
   const pulse = document.createElement("div");
   pulse.style.position = "absolute";
   pulse.style.top = "8px";
-  pulse.style.width = "46px";
-  pulse.style.height = "46px";
+  pulse.style.width = "48px";
+  pulse.style.height = "48px";
   pulse.style.borderRadius = "9999px";
   pulse.style.background = "rgba(17,17,17,0.08)";
-  pulse.style.boxShadow = "0 0 0 8px rgba(17,17,17,0.05)";
+  pulse.style.boxShadow = "0 0 0 10px rgba(17,17,17,0.05)";
 
   const pin = document.createElement("div");
-  pin.style.width = "46px";
-  pin.style.height = "46px";
+  pin.style.width = "48px";
+  pin.style.height = "48px";
   pin.style.borderRadius = "9999px";
   pin.style.display = "flex";
   pin.style.alignItems = "center";
@@ -84,7 +88,7 @@ function buildMarkerEl() {
   pin.style.background = "rgba(255,255,255,0.98)";
   pin.style.border = "1px solid rgba(0,0,0,0.08)";
   pin.style.boxShadow =
-    "0 14px 28px rgba(0,0,0,0.14), inset 0 1px 0 rgba(255,255,255,0.96)";
+    "0 14px 28px rgba(0,0,0,0.16), inset 0 1px 0 rgba(255,255,255,0.96)";
   pin.style.position = "relative";
   pin.style.zIndex = "2";
 
@@ -114,15 +118,23 @@ function buildMarkerEl() {
   return wrap;
 }
 
-function PremiumSpinner() {
+function PremiumSpinner({ dark = false }: { dark?: boolean }) {
   return (
-    <div className="relative h-4 w-4">
+    <div className="relative h-5 w-5">
       <div
-        className="absolute inset-0 rounded-full border border-black/25 border-t-black animate-spin"
+        className={`absolute inset-0 rounded-full border ${
+          dark
+            ? "border-white/25 border-t-white"
+            : "border-black/20 border-t-black"
+        } animate-spin`}
         style={{ animationDuration: "900ms" }}
       />
       <div
-        className="absolute inset-[2px] rounded-full border border-[#bfc5cc]/60 border-b-[#5b6168] animate-spin"
+        className={`absolute inset-[2px] rounded-full border ${
+          dark
+            ? "border-[#bfc5cc]/45 border-b-[#ffffff]"
+            : "border-[#c7ccd2]/70 border-b-[#5b6168]"
+        } animate-spin`}
         style={{ animationDuration: "1300ms", animationDirection: "reverse" }}
       />
     </div>
@@ -139,6 +151,8 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
   );
   const bootedRef = React.useRef(false);
   const renderModeRef = React.useRef<RenderMode>("map");
+  const hasCenteredRef = React.useRef(false);
+  const startYRef = React.useRef<number | null>(null);
 
   const [status, setStatus] = React.useState<LiveStatus>("loading");
   const [renderMode, setRenderMode] = React.useState<RenderMode>("map");
@@ -154,13 +168,27 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
   );
   const [destinationLabel, setDestinationLabel] = React.useState("Live visit");
   const [browserHint, setBrowserHint] = React.useState("");
+  const [sheetExpanded, setSheetExpanded] = React.useState(true);
+  const [darkTheme, setDarkTheme] = React.useState(false);
+
+  React.useEffect(() => {
+    setDarkTheme(prefersDarkTheme());
+
+    const mq =
+      typeof window !== "undefined"
+        ? window.matchMedia("(prefers-color-scheme: dark)")
+        : null;
+
+    const onChange = (e: MediaQueryListEvent) => setDarkTheme(e.matches);
+    mq?.addEventListener?.("change", onChange);
+    return () => mq?.removeEventListener?.("change", onChange);
+  }, []);
 
   React.useEffect(() => {
     if (bootedRef.current) return;
     bootedRef.current = true;
 
     let closed = false;
-    let hasCenteredOnFirstLivePoint = false;
 
     const clearReconnect = () => {
       if (reconnectTimerRef.current) {
@@ -206,12 +234,12 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
           marker.setLngLat(nextLngLat);
         }
 
-        if (!hasCenteredOnFirstLivePoint) {
+        if (!hasCenteredRef.current) {
           mapRef.current.jumpTo({
             center: nextLngLat,
             zoom: 16,
           });
-          hasCenteredOnFirstLivePoint = true;
+          hasCenteredRef.current = true;
         } else {
           mapRef.current.easeTo({
             center: nextLngLat,
@@ -290,6 +318,8 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
           if (data.type === "ended") {
             setStatus("ended");
             setLoadingNote("This visit has ended.");
+            clearReconnect();
+            closeStream();
           }
         } catch {}
       };
@@ -297,7 +327,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
       ev.onerror = () => {
         closeStream();
 
-        if (closed) return;
+        if (closed || status === "ended") return;
 
         setLoadingNote("Reconnecting to live location…");
         reconnectTimerRef.current = setTimeout(connectStream, 2000);
@@ -362,7 +392,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
         setMapHref("");
       }
 
-      connectStream();
+      if (!seed.ended) connectStream();
     }
 
     async function bootMap() {
@@ -378,7 +408,9 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
 
       mapRef.current = new mapboxgl.Map({
         container: mapDivRef.current,
-        style: "mapbox://styles/mapbox/light-v11",
+        style: darkTheme
+          ? "mapbox://styles/mapbox/dark-v11"
+          : "mapbox://styles/mapbox/light-v11",
         center: [8.6753, 9.082],
         zoom: 5,
         attributionControl: false,
@@ -452,60 +484,149 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
       mapRef.current?.remove();
       mapRef.current = null;
     };
-  }, [sessionId]);
+  }, [darkTheme, sessionId, status]);
 
   const headerTitle = status === "ended" ? "Ended" : sosActive ? "SOS" : "Live";
 
+  const cardBg = darkTheme ? "bg-black/78" : "bg-white/90";
+  const cardBorder = darkTheme ? "border-white/10" : "border-black/8";
+  const cardText = darkTheme ? "text-white" : "text-black";
+  const mutedText = darkTheme ? "text-white/45" : "text-black/45";
+  const innerBg = darkTheme ? "bg-white/5" : "bg-[#f6f7f8]";
+  const coordText = darkTheme ? "text-white/80" : "text-black/70";
+  const expandedHeight = sheetExpanded ? "max-h-[72vh]" : "max-h-[118px]";
+
+  const showSpinner = status === "loading";
+  const showFallbackHint = renderMode === "fallback" && status !== "ended";
+
+  const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    startYRef.current = e.clientY;
+  };
+
+  const onPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (startYRef.current === null) return;
+    const delta = e.clientY - startYRef.current;
+
+    if (delta > 24) {
+      setSheetExpanded(false);
+    } else if (delta < -24) {
+      setSheetExpanded(true);
+    }
+    startYRef.current = null;
+  };
+
   return (
-    <div className="h-screen w-screen bg-[#f3f4f6] relative overflow-hidden">
+    <div
+      className={`h-screen w-screen relative overflow-hidden ${
+        darkTheme ? "bg-[#090909]" : "bg-[#f3f4f6]"
+      }`}
+      onClick={() => setSheetExpanded(false)}
+    >
       {renderMode === "map" ? (
         <div ref={mapDivRef} className="absolute inset-0" />
       ) : (
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.98),rgba(242,243,245,1)_48%,rgba(235,237,240,1))]" />
+        <div
+          className={`absolute inset-0 ${
+            darkTheme
+              ? "bg-[radial-gradient(circle_at_top,rgba(32,32,32,1),rgba(15,15,15,1)_48%,rgba(8,8,8,1))]"
+              : "bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.98),rgba(242,243,245,1)_48%,rgba(235,237,240,1))]"
+          }`}
+        />
       )}
 
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-20 bg-gradient-to-b from-white/75 to-transparent" />
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-64 bg-gradient-to-t from-white/95 via-white/70 to-transparent" />
+      <div
+        className={`pointer-events-none absolute inset-x-0 top-0 h-20 ${
+          darkTheme
+            ? "bg-gradient-to-b from-black/65 to-transparent"
+            : "bg-gradient-to-b from-white/75 to-transparent"
+        }`}
+      />
+      <div
+        className={`pointer-events-none absolute inset-x-0 bottom-0 h-64 ${
+          darkTheme
+            ? "bg-gradient-to-t from-black/88 via-black/45 to-transparent"
+            : "bg-gradient-to-t from-white/95 via-white/70 to-transparent"
+        }`}
+      />
 
       <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20">
-        <div className="rounded-[24px] bg-white/88 border border-black/8 shadow-lg px-4 py-2.5 backdrop-blur-xl min-w-[132px]">
+        <div
+          className={`rounded-[22px] ${cardBg} border ${cardBorder} shadow-lg px-3.5 py-2 backdrop-blur-xl min-w-[116px]`}
+        >
           <div className="flex flex-col items-center justify-center">
             <img
               src="/6logo.png"
               alt="StayKnown"
-              className="h-6 w-6 object-contain"
+              className="h-5 w-5 object-contain"
             />
-            <div className="mt-1 text-[8px] uppercase tracking-[0.24em] text-black/50 font-black text-center">
+            <div
+              className={`mt-1 text-[8px] uppercase tracking-[0.24em] font-black text-center ${mutedText}`}
+            >
               StayKnown
             </div>
           </div>
         </div>
       </div>
 
-      {renderMode === "fallback" && (
-        <div className="absolute top-[56px] left-1/2 -translate-x-1/2 z-20">
-          <div className="rounded-full bg-white/82 border border-black/8 shadow-md backdrop-blur-xl px-3 py-1.5 flex items-center gap-2">
-            <PremiumSpinner />
-            <span className="text-[10px] uppercase tracking-[0.20em] text-black/55 font-bold">
+      {showSpinner && (
+        <div className="absolute top-[74px] left-1/2 -translate-x-1/2 z-20">
+          <div
+            className={`rounded-full ${darkTheme ? "bg-black/45 border-white/10" : "bg-white/72 border-black/8"} border shadow-md backdrop-blur-xl px-3 py-2 flex items-center gap-2`}
+          >
+            <PremiumSpinner dark={darkTheme} />
+            <span
+              className={`text-[10px] uppercase tracking-[0.18em] font-bold ${darkTheme ? "text-white/70" : "text-black/55"}`}
+            >
               Opening live view
             </span>
           </div>
         </div>
       )}
 
-      <div className="absolute inset-x-0 bottom-0 z-20 px-3 pb-4">
-        <div className="mx-auto w-full max-w-xl rounded-[28px] bg-white/90 border border-black/8 shadow-[0_18px_50px_rgba(0,0,0,0.12)] backdrop-blur-2xl overflow-hidden">
-          <div className="px-4 pt-2.5 pb-2">
-            <div className="mx-auto h-1.5 w-12 rounded-full bg-black/10" />
+      {showFallbackHint && !showSpinner && (
+        <div className="absolute top-[74px] left-1/2 -translate-x-1/2 z-20">
+          <div
+            className={`rounded-full ${darkTheme ? "bg-black/45 border-white/10" : "bg-white/72 border-black/8"} border shadow-md backdrop-blur-xl px-3 py-2 flex items-center gap-2`}
+          >
+            <PremiumSpinner dark={darkTheme} />
+            <span
+              className={`text-[10px] uppercase tracking-[0.18em] font-bold ${darkTheme ? "text-white/70" : "text-black/55"}`}
+            >
+              Live updates active
+            </span>
+          </div>
+        </div>
+      )}
+
+      <div
+        className="absolute inset-x-0 bottom-0 z-20 px-3 pb-4"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div
+          className={`mx-auto w-full max-w-xl rounded-[28px] ${cardBg} border ${cardBorder} shadow-[0_18px_50px_rgba(0,0,0,0.12)] backdrop-blur-2xl overflow-hidden transition-all duration-300 ${expandedHeight}`}
+        >
+          <div
+            className="px-4 pt-2.5 pb-2 cursor-grab active:cursor-grabbing"
+            onPointerDown={onPointerDown}
+            onPointerUp={onPointerUp}
+            onDoubleClick={() => setSheetExpanded((v) => !v)}
+          >
+            <div
+              className={`mx-auto h-1.5 w-12 rounded-full ${darkTheme ? "bg-white/12" : "bg-black/10"}`}
+            />
           </div>
 
           <div className="px-4 pb-4">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <div className="text-[10px] uppercase tracking-[0.24em] text-black/45 font-bold">
+                <div
+                  className={`text-[10px] uppercase tracking-[0.24em] font-bold ${mutedText}`}
+                >
                   Current area
                 </div>
-                <div className="mt-1.5 text-[20px] leading-[1.12] font-black text-black break-words">
+                <div
+                  className={`mt-1.5 text-[20px] leading-[1.12] font-black break-words ${cardText}`}
+                >
                   {placeLabel}
                 </div>
               </div>
@@ -516,7 +637,9 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
                     sosActive
                       ? "bg-black text-white"
                       : status === "ended"
-                        ? "bg-black/10 text-black"
+                        ? darkTheme
+                          ? "bg-white/12 text-white"
+                          : "bg-black/10 text-black"
                         : "bg-[#dff5ee] text-[#169873]"
                   }`}
                 >
@@ -525,88 +648,121 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
               </div>
             </div>
 
-            <div className="mt-3 grid grid-cols-2 gap-3">
-              <div className="rounded-[20px] border border-black/6 bg-[#f6f7f8] px-3 py-3">
-                <div className="text-[10px] uppercase tracking-[0.20em] text-black/40 font-bold">
-                  Last update
-                </div>
-                <div className="mt-1 text-sm font-bold text-black leading-6">
-                  {lastUpdatedLabel}
-                </div>
-              </div>
-
-              <div className="rounded-[20px] border border-black/6 bg-[#f6f7f8] px-3 py-3">
-                <div className="text-[10px] uppercase tracking-[0.20em] text-black/40 font-bold">
-                  Session
-                </div>
-                <div className="mt-1 text-sm font-bold text-black leading-6">
-                  {destinationLabel}
-                </div>
-              </div>
-            </div>
-
-            {!!coordsLabel && !!mapHref && (
-              <div className="mt-3 rounded-[20px] border border-black/6 bg-[#f6f7f8] px-3 py-3">
-                <div className="text-[10px] uppercase tracking-[0.20em] text-black/40 font-bold">
-                  Coordinates
-                </div>
-                <a
-                  href={mapHref}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="mt-1 block text-sm font-bold text-black/70 underline underline-offset-4 break-all"
-                >
-                  {coordsLabel}
-                </a>
-              </div>
-            )}
-
-            {renderMode === "fallback" && (
-              <div className="mt-3 rounded-[20px] border border-black/6 bg-[#f6f7f8] px-3 py-3">
-                <div className="flex items-start gap-3">
-                  <div className="pt-0.5">
-                    <PremiumSpinner />
-                  </div>
-                  <div>
-                    <div className="text-[10px] uppercase tracking-[0.20em] text-black/40 font-bold">
-                      Live view
+            {sheetExpanded && (
+              <>
+                <div className="mt-3 grid grid-cols-2 gap-3">
+                  <div
+                    className={`rounded-[20px] border ${cardBorder} ${innerBg} px-3 py-3`}
+                  >
+                    <div
+                      className={`text-[10px] uppercase tracking-[0.20em] font-bold ${darkTheme ? "text-white/40" : "text-black/40"}`}
+                    >
+                      Last update
                     </div>
-                    <div className="mt-1 text-sm font-semibold text-black/70 leading-6">
-                      {browserHint}
+                    <div
+                      className={`mt-1 text-sm font-bold leading-6 ${cardText}`}
+                    >
+                      {lastUpdatedLabel}
+                    </div>
+                  </div>
+
+                  <div
+                    className={`rounded-[20px] border ${cardBorder} ${innerBg} px-3 py-3`}
+                  >
+                    <div
+                      className={`text-[10px] uppercase tracking-[0.20em] font-bold ${darkTheme ? "text-white/40" : "text-black/40"}`}
+                    >
+                      Session
+                    </div>
+                    <div
+                      className={`mt-1 text-sm font-bold leading-6 ${cardText}`}
+                    >
+                      {destinationLabel}
                     </div>
                   </div>
                 </div>
-              </div>
-            )}
 
-            {!!mapHref && renderMode === "fallback" && (
-              <div className="mt-3">
-                <a
-                  href={mapHref}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="block rounded-full bg-black text-white text-center font-black px-5 py-3 shadow-lg"
-                >
-                  Open location in Google Maps
-                </a>
-              </div>
-            )}
+                {!!coordsLabel && !!mapHref && (
+                  <div
+                    className={`mt-3 rounded-[20px] border ${cardBorder} ${innerBg} px-3 py-3`}
+                  >
+                    <div
+                      className={`text-[10px] uppercase tracking-[0.20em] font-bold ${darkTheme ? "text-white/40" : "text-black/40"}`}
+                    >
+                      Coordinates
+                    </div>
+                    <a
+                      href={mapHref}
+                      target="_blank"
+                      rel="noreferrer"
+                      className={`mt-1 block text-sm font-bold underline underline-offset-4 break-all ${coordText}`}
+                    >
+                      {coordsLabel}
+                    </a>
+                  </div>
+                )}
 
-            {status === "error" && (
-              <div className="mt-3 rounded-[20px] border border-red-200 bg-red-50 px-3 py-3">
-                <div className="text-[10px] uppercase tracking-[0.20em] text-red-500 font-bold">
-                  Live status
-                </div>
-                <div className="mt-1 text-sm font-bold text-red-700">
-                  {loadingNote}
-                </div>
-              </div>
-            )}
+                {showFallbackHint && (
+                  <div
+                    className={`mt-3 rounded-[20px] border ${cardBorder} ${innerBg} px-3 py-3`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="pt-0.5">
+                        <PremiumSpinner dark={darkTheme} />
+                      </div>
+                      <div>
+                        <div
+                          className={`text-[10px] uppercase tracking-[0.20em] font-bold ${darkTheme ? "text-white/40" : "text-black/40"}`}
+                        >
+                          Live view
+                        </div>
+                        <div
+                          className={`mt-1 text-sm font-semibold leading-6 ${darkTheme ? "text-white/70" : "text-black/70"}`}
+                        >
+                          {browserHint}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
-            {status === "ended" && (
-              <div className="mt-3 rounded-[20px] border border-black/6 bg-[#f6f7f8] px-3 py-3 text-sm font-medium text-black/65">
-                This visit has ended. The last known live point is shown here.
-              </div>
+                {!!mapHref && renderMode === "fallback" && (
+                  <div className="mt-3">
+                    <a
+                      href={mapHref}
+                      target="_blank"
+                      rel="noreferrer"
+                      className={`block rounded-full text-center font-black px-5 py-3 shadow-lg ${
+                        darkTheme
+                          ? "bg-white text-black"
+                          : "bg-black text-white"
+                      }`}
+                    >
+                      Open location in Google Maps
+                    </a>
+                  </div>
+                )}
+
+                {status === "error" && (
+                  <div className="mt-3 rounded-[20px] border border-red-200 bg-red-50 px-3 py-3">
+                    <div className="text-[10px] uppercase tracking-[0.20em] text-red-500 font-bold">
+                      Live status
+                    </div>
+                    <div className="mt-1 text-sm font-bold text-red-700">
+                      {loadingNote}
+                    </div>
+                  </div>
+                )}
+
+                {status === "ended" && (
+                  <div
+                    className={`mt-3 rounded-[20px] border ${cardBorder} ${innerBg} px-3 py-3 text-sm font-medium ${darkTheme ? "text-white/65" : "text-black/65"}`}
+                  >
+                    This visit has ended. The last known live point is shown
+                    here.
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>
