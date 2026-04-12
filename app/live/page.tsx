@@ -84,20 +84,32 @@ function InvalidState({ reason }: { reason?: string }) {
   );
 }
 
-export default function LivePage({
+export default async function LivePage({
   searchParams,
 }: {
-  searchParams: Record<string, string | string[] | undefined>;
+  searchParams:
+    | Promise<Record<string, string | string[] | undefined>>
+    | Record<string, string | string[] | undefined>;
 }) {
+  const resolvedSearchParams = await searchParams;
   const params = new URLSearchParams();
 
-  for (const [k, v] of Object.entries(searchParams)) {
+  for (const [k, v] of Object.entries(resolvedSearchParams ?? {})) {
     if (typeof v === "string") {
       params.set(k, v);
     } else if (Array.isArray(v) && typeof v[0] === "string") {
       params.set(k, v[0]);
     }
   }
+
+  console.log("[live-page.searchParams]", {
+    entries: Array.from(params.entries()),
+    sid: params.get("sid"),
+    exp: params.get("exp"),
+    uid: params.get("uid"),
+    aud: params.get("aud"),
+    sig_present: Boolean(params.get("sig")),
+  });
 
   const verified = verifySignature(params);
 
@@ -108,7 +120,7 @@ export default function LivePage({
   const sid = (params.get("sid") || "").trim();
 
   if (!sid) {
-    return <InvalidState />;
+    return <InvalidState reason="missing_sid_after_verify" />;
   }
 
   return <LiveClient sessionId={sid} />;
