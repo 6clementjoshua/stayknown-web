@@ -620,6 +620,8 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
   }, [sessionId, darkTheme, applyPoint, status]);
 
   const headerTitle = status === "ended" ? "Ended" : sosActive ? "SOS" : "Live";
+  const locationHeading =
+    status === "ended" ? "Last seen location" : "Current area";
 
   const cardBg = darkTheme ? "bg-black/78" : "bg-white/92";
   const cardBorder = darkTheme ? "border-white/10" : "border-black/10";
@@ -747,7 +749,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
                 <div
                   className={`text-[10px] uppercase tracking-[0.24em] font-bold ${mutedText}`}
                 >
-                  Current area
+                  {locationHeading}
                 </div>
                 <div
                   className={`mt-1.5 text-[20px] leading-[1.12] font-black break-words ${cardText}`}
@@ -797,7 +799,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
                     <div
                       className={`text-[10px] uppercase tracking-[0.20em] font-bold ${darkTheme ? "text-white/40" : "text-black/40"}`}
                     >
-                      Session
+                      Last session
                     </div>
                     <div
                       className={`mt-1 text-sm font-bold leading-6 ${cardText}`}
@@ -883,8 +885,8 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
                   <div
                     className={`mt-3 rounded-[20px] border ${cardBorder} ${innerBg} px-3 py-3 text-sm font-medium ${darkTheme ? "text-white/65" : "text-black/65"}`}
                   >
-                    This visit has ended. The last known live point is shown
-                    here.
+                    This visit has ended. This page now shows the last known
+                    location from that session.
                   </div>
                 )}
               </>
