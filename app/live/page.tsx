@@ -33,8 +33,12 @@ function InvalidState() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-black text-white">
       <div className="text-center px-6 max-w-md">
-        <div className="mx-auto mb-5 h-14 w-14 rounded-full border border-white/15 bg-white/10 backdrop-blur-xl flex items-center justify-center text-xl font-black shadow-2xl">
-          6
+        <div className="mx-auto mb-5 h-14 w-14 rounded-full border border-white/15 bg-white/10 backdrop-blur-xl flex items-center justify-center shadow-2xl">
+          <img
+            src="/6logo.png"
+            alt="StayKnown"
+            className="h-7 w-7 object-contain"
+          />
         </div>
         <h1 className="text-xl font-bold tracking-tight">
           Invalid or Expired Link

@@ -45,14 +45,17 @@ function buildMarkerEl() {
     "0 14px 38px rgba(0,0,0,0.40), inset 0 1px 0 rgba(255,255,255,0.18)";
   el.style.backdropFilter = "blur(10px)";
   (el.style as any).webkitBackdropFilter = "blur(10px)";
-  el.style.color = "#ffffff";
-  el.style.fontWeight = "900";
-  el.style.fontSize = "18px";
-  el.style.letterSpacing = "0.02em";
-  el.textContent = "6";
+
+  const img = document.createElement("img");
+  img.src = "/6logo.png";
+  img.alt = "StayKnown";
+  img.style.width = "22px";
+  img.style.height = "22px";
+  img.style.objectFit = "contain";
+
+  el.appendChild(img);
   return el;
 }
-
 export default function LiveClient({ sessionId }: { sessionId: string }) {
   const mapDivRef = React.useRef<HTMLDivElement | null>(null);
   const mapRef = React.useRef<mapboxgl.Map | null>(null);
