@@ -29,6 +29,10 @@ type VisitRow = {
   id?: string | null;
   user_id?: string | null;
   ended_at?: string | null;
+  destination_name?: string | null;
+  destination_address?: string | null;
+  end_lat?: number | null;
+  end_lng?: number | null;
 };
 
 type SosSessionRow = {
@@ -73,7 +77,9 @@ export async function GET(req: Request) {
 
     const visitResPromise = sb
       .from("visits")
-      .select("id,user_id,ended_at")
+      .select(
+        "id,user_id,ended_at,destination_name,destination_address,end_lat,end_lng",
+      )
       .eq("id", sid)
       .maybeSingle();
 
@@ -107,9 +113,19 @@ export async function GET(req: Request) {
     const latest = (latestRes.data as VisitLocationRow | null) ?? null;
     const visit = (visitRes.data as VisitRow | null) ?? null;
 
+    if (!visit?.id) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "This live tracking session could not be found.",
+        },
+        { status: 404 },
+      );
+    }
+
     let sos: SosSessionRow | null = null;
 
-    if (visit?.user_id) {
+    if (visit.user_id) {
       const sosRes = await sb
         .from("sos_sessions")
         .select("ended_at,started_at,payload")
@@ -128,19 +144,33 @@ export async function GET(req: Request) {
       }
 
       const rows = (sosRes.data ?? []) as SosSessionRow[];
-
       sos = rows.find((row) => payloadSessionId(row.payload) === sid) ?? null;
     }
 
-    const ended = Boolean(visit?.ended_at);
+    const ended = Boolean(visit.ended_at);
     const sos_active = sos ? !Boolean(sos.ended_at) : false;
+
+    const latestPoint =
+      latest && typeof latest.lat === "number" && typeof latest.lng === "number"
+        ? latest
+        : typeof visit.end_lat === "number" && typeof visit.end_lng === "number"
+          ? {
+              lat: visit.end_lat,
+              lng: visit.end_lng,
+              accuracy: null,
+              place: latest?.place ?? null,
+              created_at: visit.ended_at ?? latest?.created_at ?? null,
+            }
+          : null;
 
     return NextResponse.json({
       ok: true,
       session_id: sid,
-      latest,
+      latest: latestPoint,
       ended,
       sos_active,
+      destination_name: visit.destination_name ?? null,
+      destination_address: visit.destination_address ?? null,
     });
   } catch (e) {
     return NextResponse.json(
