@@ -9,12 +9,21 @@ function verifySignature(params: URLSearchParams) {
   const sig = (params.get("sig") || "").trim();
   const secret = (process.env.TRACKING_SIGNING_SECRET || "").trim();
 
-  if (!sid || !exp || !sig || !secret) return false;
+  if (!sid) return { ok: false, reason: "missing_sid" as const };
+  if (!exp) return { ok: false, reason: "missing_exp" as const };
+  if (!sig) return { ok: false, reason: "missing_sig" as const };
+  if (!secret) return { ok: false, reason: "missing_secret" as const };
 
   const now = Math.floor(Date.now() / 1000);
   const expNum = Number(exp);
 
-  if (!Number.isFinite(expNum) || expNum < now) return false;
+  if (!Number.isFinite(expNum)) {
+    return { ok: false, reason: "bad_exp" as const };
+  }
+
+  if (expNum < now) {
+    return { ok: false, reason: "expired" as const };
+  }
 
   const message = `sid=${sid}&exp=${expNum}&uid=${uid}&aud=${aud}`;
 
@@ -26,27 +35,50 @@ function verifySignature(params: URLSearchParams) {
     .replace(/\//g, "_")
     .replace(/=+$/g, "");
 
-  return expected === sig;
+  const ok = expected === sig;
+
+  console.log("[live-verify]", {
+    ok,
+    reason: ok ? "ok" : "bad_signature",
+    sid_present: Boolean(sid),
+    uid_present: Boolean(uid),
+    aud,
+    exp,
+    now,
+    sig_prefix: sig.slice(0, 12),
+    expected_prefix: expected.slice(0, 12),
+    secret_present: Boolean(secret),
+  });
+
+  return { ok, reason: ok ? "ok" : ("bad_signature" as const) };
 }
 
-function InvalidState() {
+function InvalidState({ reason }: { reason?: string }) {
   return (
     <div className="min-h-screen flex items-center justify-center bg-black text-white">
       <div className="text-center px-6 max-w-md">
-        <div className="mx-auto mb-5 h-14 w-14 rounded-full border border-white/15 bg-white/10 backdrop-blur-xl flex items-center justify-center shadow-2xl">
+        <div className="mx-auto mb-5 flex items-center justify-center">
           <img
             src="/6logo.png"
             alt="StayKnown"
-            className="h-7 w-7 object-contain"
+            className="h-10 w-10 object-contain"
           />
         </div>
+
         <h1 className="text-xl font-bold tracking-tight">
           Invalid or Expired Link
         </h1>
+
         <p className="opacity-60 mt-2 text-sm leading-6">
           This live tracking session is no longer available. Please ask the user
           for a fresh link if tracking is still active.
         </p>
+
+        {reason ? (
+          <p className="opacity-40 mt-3 text-[11px] uppercase tracking-[0.18em]">
+            Reason: {reason}
+          </p>
+        ) : null}
       </div>
     </div>
   );
@@ -67,10 +99,10 @@ export default function LivePage({
     }
   }
 
-  const valid = verifySignature(params);
+  const verified = verifySignature(params);
 
-  if (!valid) {
-    return <InvalidState />;
+  if (!verified.ok) {
+    return <InvalidState reason={verified.reason} />;
   }
 
   const sid = (params.get("sid") || "").trim();
