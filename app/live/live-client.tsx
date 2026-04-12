@@ -223,6 +223,11 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
           throw new Error("Missing NEXT_PUBLIC_MAPBOX_TOKEN");
         }
 
+        console.log("[live-map.token]", {
+          present: Boolean(publicMapToken),
+          prefix: publicMapToken.slice(0, 12),
+        });
+
         mapboxgl.accessToken = publicMapToken;
 
         setLoadingNote("Opening live map…");
@@ -237,10 +242,18 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
 
         await new Promise<void>((resolve, reject) => {
           const map = mapRef.current!;
-          map.on("load", () => resolve());
-          map.on("error", () =>
-            reject(new Error("The live map could not be rendered.")),
-          );
+          const timeout = setTimeout(() => {
+            reject(new Error("The live map could not be rendered."));
+          }, 12000);
+
+          map.once("load", () => {
+            clearTimeout(timeout);
+            resolve();
+          });
+
+          map.on("error", (e) => {
+            console.error("[live-map.error]", e);
+          });
         });
 
         if (closed) return;
@@ -250,13 +263,27 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
         const ac = new AbortController();
         const timeout = setTimeout(() => ac.abort(), 8000);
 
-        const seed = await fetch(
+        const seedRes = await fetch(
           `/api/live/seed?sid=${encodeURIComponent(sessionId)}`,
           {
             cache: "no-store",
             signal: ac.signal,
           },
-        ).then((r) => r.json() as Promise<SeedResp>);
+        );
+
+        const seed = (await seedRes.json()) as SeedResp;
+
+        console.log("[live-map.seed]", {
+          status: seedRes.status,
+          ok: seed?.ok,
+          ended: seed?.ended,
+          sos_active: seed?.sos_active,
+          has_latest:
+            typeof seed?.latest?.lat === "number" &&
+            typeof seed?.latest?.lng === "number",
+          error: seed?.error,
+          detail: seed?.detail,
+        });
 
         clearTimeout(timeout);
 
