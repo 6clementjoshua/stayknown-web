@@ -126,7 +126,7 @@ function buildMarkerEl() {
 
 function PremiumSpinner() {
   return (
-    <div className="relative h-6 w-6 shrink-0">
+    <div className="relative h-5 w-5 shrink-0">
       <div className="absolute inset-0 rounded-full bg-white/75 backdrop-blur-xl shadow-[0_8px_24px_rgba(0,0,0,0.16)] border border-white/80" />
       <div
         className="absolute inset-[3px] rounded-full border border-black/15 border-t-black/80 animate-spin"
@@ -183,6 +183,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
   const [browserHint, setBrowserHint] = React.useState("");
   const [sheetSnap, setSheetSnap] = React.useState<SheetSnap>("collapsed");
   const [darkTheme, setDarkTheme] = React.useState(false);
+  const [mapLoadError, setMapLoadError] = React.useState("");
 
   const applyPoint = React.useCallback(
     (
@@ -208,6 +209,13 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
           markerRef.current.setLngLat(nextLngLat);
         }
 
+        const padding = {
+          top: 104,
+          right: 16,
+          bottom: sheetSnap === "expanded" ? 318 : 154,
+          left: 16,
+        };
+
         if (!hasCenteredRef.current) {
           mapRef.current.jumpTo({
             center: nextLngLat,
@@ -217,12 +225,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
           mapRef.current.easeTo({
             center: nextLngLat,
             zoom: 16.2,
-            padding: {
-              top: 110,
-              right: 16,
-              bottom: sheetSnap === "expanded" ? 320 : 156,
-              left: 16,
-            },
+            padding,
             duration: 0,
             essential: true,
           });
@@ -232,16 +235,12 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
           mapRef.current.easeTo({
             center: nextLngLat,
             zoom: Math.max(mapRef.current.getZoom(), 16.2),
-            padding: {
-              top: 110,
-              right: 16,
-              bottom: sheetSnap === "expanded" ? 320 : 156,
-              left: 16,
-            },
+            padding,
             duration: 900,
             essential: true,
           });
         }
+
         window.requestAnimationFrame(() => {
           mapRef.current?.resize();
         });
@@ -302,22 +301,22 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
   React.useEffect(() => {
     if (!mapRef.current) return;
 
-    const bottomPadding = sheetSnap === "expanded" ? 320 : 156;
+    const bottomPadding = sheetSnap === "expanded" ? 318 : 154;
 
     mapRef.current.easeTo({
       padding: {
-        top: 110,
+        top: 104,
         right: 16,
         bottom: bottomPadding,
         left: 16,
       },
-      duration: 250,
+      duration: 240,
       essential: true,
     });
 
     const t = setTimeout(() => {
       mapRef.current?.resize();
-    }, 260);
+    }, 250);
 
     return () => clearTimeout(t);
   }, [sheetSnap]);
@@ -359,8 +358,8 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
           if (data.type === "ready") {
             setLoadingNote(
               renderModeRef.current === "map"
-                ? "Live connection established…"
-                : "Live updates established…",
+                ? "Connected…"
+                : "Live updates ready…",
             );
             return;
           }
@@ -400,13 +399,14 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
             setLoadingNote("This visit has ended.");
             clearReconnect();
             closeStream();
+            return;
           }
         } catch {}
       };
 
       ev.onerror = () => {
         closeStream();
-        if (closed) return;
+        if (closed || status === "ended") return;
 
         setLoadingNote("Reconnecting to live location…");
         reconnectTimerRef.current = setTimeout(connectStream, 1500);
@@ -445,7 +445,8 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
       }
 
       mapboxgl.accessToken = publicMapToken;
-      setLoadingNote("Opening live map…");
+      setLoadingNote("Opening…");
+      setMapLoadError("");
 
       mapRef.current = new mapboxgl.Map({
         container: mapDivRef.current,
@@ -471,10 +472,10 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
 
       await new Promise<void>((resolve, reject) => {
         const map = mapRef.current!;
-        const timeout = setTimeout(
-          () => reject(new Error("The live map could not be rendered.")),
-          9000,
-        );
+        const timeout = setTimeout(() => {
+          setMapLoadError("The live map could not be rendered.");
+          reject(new Error("The live map could not be rendered."));
+        }, 9000);
 
         map.once("load", () => {
           clearTimeout(timeout);
@@ -484,6 +485,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
 
         map.on("error", (e) => {
           console.error("[live-map.error]", e);
+          setMapLoadError("Map style failed to load.");
         });
       });
 
@@ -518,7 +520,9 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
         setMapHref("");
       }
 
-      if (!seed.ended) connectStream();
+      if (!seed.ended) {
+        connectStream();
+      }
     }
 
     async function bootFallback(seed: SeedResp) {
@@ -550,7 +554,9 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
         setMapHref("");
       }
 
-      if (!seed.ended) connectStream();
+      if (!seed.ended) {
+        connectStream();
+      }
     }
 
     async function boot() {
@@ -558,6 +564,10 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
         setLoadingNote("Loading latest live location…");
         const seed = await fetchSeed();
         if (!seed) return;
+
+        if (seed.ended) {
+          setStatus("ended");
+        }
 
         if (isInAppBrowser()) {
           renderModeRef.current = "fallback";
@@ -607,7 +617,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
       mapRef.current?.remove();
       mapRef.current = null;
     };
-  }, [sessionId, darkTheme, applyPoint]);
+  }, [sessionId, darkTheme, applyPoint, status]);
 
   const headerTitle = status === "ended" ? "Ended" : sosActive ? "SOS" : "Live";
 
@@ -622,7 +632,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
   const showFallbackHint = renderMode === "fallback" && status !== "ended";
 
   const sheetHeightClass =
-    sheetSnap === "expanded" ? "h-[36vh] sm:h-[34vh]" : "h-[138px]";
+    sheetSnap === "expanded" ? "h-[36vh] sm:h-[34vh]" : "h-[136px]";
 
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     startYRef.current = e.clientY;
@@ -630,6 +640,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
 
   const onPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
     if (startYRef.current === null) return;
+
     const delta = e.clientY - startYRef.current;
 
     if (delta > 28) {
@@ -686,10 +697,20 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
 
       {showSpinner && (
         <div className="absolute top-[84px] left-1/2 -translate-x-1/2 z-20">
-          <div className="rounded-full bg-white/72 border border-white/80 shadow-[0_10px_26px_rgba(0,0,0,0.12)] backdrop-blur-2xl px-3.5 py-2 flex items-center gap-2.5">
+          <div className="rounded-full bg-white/72 border border-white/80 shadow-[0_10px_26px_rgba(0,0,0,0.12)] backdrop-blur-2xl px-3 py-1.5 flex items-center gap-2">
             <PremiumSpinner />
-            <span className="text-[10px] uppercase tracking-[0.18em] font-bold text-black/60">
-              Opening live view
+            <span className="text-[9px] tracking-[0.08em] font-bold text-black/60 whitespace-nowrap">
+              Opening…
+            </span>
+          </div>
+        </div>
+      )}
+
+      {mapLoadError && (
+        <div className="absolute top-[118px] left-1/2 -translate-x-1/2 z-20">
+          <div className="rounded-full bg-red-50 border border-red-200 shadow-md px-3 py-2">
+            <span className="text-[10px] tracking-[0.12em] font-bold text-red-600 whitespace-nowrap">
+              {mapLoadError}
             </span>
           </div>
         </div>
@@ -697,9 +718,9 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
 
       {showFallbackHint && !showSpinner && (
         <div className="absolute top-[84px] left-1/2 -translate-x-1/2 z-20">
-          <div className="rounded-full bg-white/72 border border-white/80 shadow-[0_10px_26px_rgba(0,0,0,0.12)] backdrop-blur-2xl px-3.5 py-2 flex items-center gap-2.5">
+          <div className="rounded-full bg-white/72 border border-white/80 shadow-[0_10px_26px_rgba(0,0,0,0.12)] backdrop-blur-2xl px-3 py-1.5 flex items-center gap-2">
             <PremiumSpinner />
-            <span className="text-[10px] uppercase tracking-[0.18em] font-bold text-black/60">
+            <span className="text-[9px] tracking-[0.08em] font-bold text-black/60 whitespace-nowrap">
               Live updates active
             </span>
           </div>
@@ -711,12 +732,9 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
           className={`mx-auto w-full max-w-xl rounded-[30px] ${cardBg} border ${cardBorder} shadow-[0_18px_50px_rgba(0,0,0,0.18)] backdrop-blur-2xl overflow-hidden transition-[height] duration-300 ${sheetHeightClass}`}
         >
           <div
-            className="px-4 pt-2.5 pb-2 cursor-grab active:cursor-grabbing select-none"
+            className="px-4 pt-2.5 pb-2 cursor-grab active:cursor-grabbing select-none touch-none"
             onPointerDown={onPointerDown}
             onPointerUp={onPointerUp}
-            onClick={() =>
-              setSheetSnap((v) => (v === "expanded" ? "collapsed" : "expanded"))
-            }
           >
             <div
               className={`mx-auto h-1.5 w-12 rounded-full ${darkTheme ? "bg-white/14" : "bg-black/12"}`}

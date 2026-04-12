@@ -119,9 +119,11 @@ export async function GET(req: Request) {
 
     const latest = (latestRes.data as VisitLocationRow | null) ?? null;
 
+    const ended = Boolean(visit.ended_at);
+
     let sos: SosSessionRow | null = null;
 
-    if (visit.user_id) {
+    if (!ended && visit.user_id) {
       const sosRes = await sb
         .from("sos_sessions")
         .select("ended_at,started_at,payload")
@@ -144,8 +146,7 @@ export async function GET(req: Request) {
       sos = rows.find((row) => payloadSessionId(row.payload) === sid) ?? null;
     }
 
-    const ended = Boolean(visit.ended_at);
-    const sos_active = sos ? !Boolean(sos.ended_at) : false;
+    const sos_active = ended ? false : sos ? !Boolean(sos.ended_at) : false;
 
     const latestPoint =
       latest && typeof latest.lat === "number" && typeof latest.lng === "number"

@@ -108,7 +108,9 @@ export async function GET(req: Request) {
 
       const visitRes = await sb
         .from("visits")
-        .select("id,user_id,ended_at,destination_name,destination_address")
+        .select(
+          "id,user_id,ended_at,destination_name,destination_address,end_lat,end_lng",
+        )
         .eq("id", sid)
         .maybeSingle();
 
@@ -118,6 +120,8 @@ export async function GET(req: Request) {
         ended_at?: string | null;
         destination_name?: string | null;
         destination_address?: string | null;
+        end_lat?: number | null;
+        end_lng?: number | null;
       } | null;
 
       const latestRes = await sb
@@ -148,6 +152,19 @@ export async function GET(req: Request) {
             visit?.destination_address ??
             null,
           created_at: latest.created_at ?? null,
+          initial: true,
+        });
+      } else if (
+        typeof visit?.end_lat === "number" &&
+        typeof visit?.end_lng === "number"
+      ) {
+        sendChunk(controller, {
+          type: "location",
+          lat: visit.end_lat,
+          lng: visit.end_lng,
+          accuracy: null,
+          place: visit.destination_name ?? visit.destination_address ?? null,
+          created_at: visit.ended_at ?? null,
           initial: true,
         });
       }
@@ -212,7 +229,27 @@ export async function GET(req: Request) {
             filter: `id=eq.${sid}`,
           },
           (payload) => {
-            const row = payload.new as { ended_at?: string | null };
+            const row = payload.new as {
+              ended_at?: string | null;
+              end_lat?: number | null;
+              end_lng?: number | null;
+              destination_name?: string | null;
+              destination_address?: string | null;
+            };
+
+            if (
+              typeof row?.end_lat === "number" &&
+              typeof row?.end_lng === "number"
+            ) {
+              sendChunk(controller, {
+                type: "location",
+                lat: row.end_lat,
+                lng: row.end_lng,
+                accuracy: null,
+                place: row.destination_name ?? row.destination_address ?? null,
+                created_at: row.ended_at ?? null,
+              });
+            }
 
             if (row?.ended_at) {
               sendChunk(controller, {
