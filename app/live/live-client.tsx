@@ -16,12 +16,15 @@ type SeedResp = {
   } | null;
   sos_active?: boolean;
   ended?: boolean;
+  destination_name?: string | null;
+  destination_address?: string | null;
   error?: string;
   detail?: string;
 };
 
 type LiveStatus = "loading" | "live" | "ended" | "error";
 type RenderMode = "map" | "fallback";
+type SheetSnap = "expanded" | "collapsed";
 
 function formatCoords(lat: number, lng: number) {
   return `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
@@ -61,8 +64,8 @@ function prefersDarkTheme() {
 
 function buildMarkerEl() {
   const wrap = document.createElement("div");
-  wrap.style.width = "68px";
-  wrap.style.height = "82px";
+  wrap.style.width = "74px";
+  wrap.style.height = "88px";
   wrap.style.display = "flex";
   wrap.style.flexDirection = "column";
   wrap.style.alignItems = "center";
@@ -71,24 +74,26 @@ function buildMarkerEl() {
 
   const pulse = document.createElement("div");
   pulse.style.position = "absolute";
-  pulse.style.top = "8px";
-  pulse.style.width = "48px";
-  pulse.style.height = "48px";
+  pulse.style.top = "10px";
+  pulse.style.width = "54px";
+  pulse.style.height = "54px";
   pulse.style.borderRadius = "9999px";
-  pulse.style.background = "rgba(17,17,17,0.08)";
-  pulse.style.boxShadow = "0 0 0 10px rgba(17,17,17,0.05)";
+  pulse.style.background = "rgba(255,255,255,0.22)";
+  pulse.style.boxShadow = "0 0 0 12px rgba(255,255,255,0.10)";
+  pulse.style.backdropFilter = "blur(8px)";
 
   const pin = document.createElement("div");
-  pin.style.width = "48px";
-  pin.style.height = "48px";
+  pin.style.width = "50px";
+  pin.style.height = "50px";
   pin.style.borderRadius = "9999px";
   pin.style.display = "flex";
   pin.style.alignItems = "center";
   pin.style.justifyContent = "center";
-  pin.style.background = "rgba(255,255,255,0.98)";
-  pin.style.border = "1px solid rgba(0,0,0,0.08)";
+  pin.style.background =
+    "linear-gradient(180deg, rgba(255,255,255,0.98), rgba(244,246,248,0.94))";
+  pin.style.border = "1px solid rgba(255,255,255,0.95)";
   pin.style.boxShadow =
-    "0 14px 28px rgba(0,0,0,0.16), inset 0 1px 0 rgba(255,255,255,0.96)";
+    "0 16px 34px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,1), inset 0 -8px 20px rgba(0,0,0,0.04)";
   pin.style.position = "relative";
   pin.style.zIndex = "2";
 
@@ -101,12 +106,13 @@ function buildMarkerEl() {
 
   const label = document.createElement("div");
   label.textContent = "StayKnown";
-  label.style.marginTop = "5px";
+  label.style.marginTop = "6px";
   label.style.fontSize = "8px";
   label.style.fontWeight = "900";
   label.style.letterSpacing = "0.12em";
-  label.style.color = "#111111";
+  label.style.color = "#ffffff";
   label.style.textTransform = "uppercase";
+  label.style.textShadow = "0 1px 8px rgba(0,0,0,0.45)";
   label.style.position = "relative";
   label.style.zIndex = "2";
 
@@ -118,27 +124,34 @@ function buildMarkerEl() {
   return wrap;
 }
 
-function PremiumSpinner({ dark = false }: { dark?: boolean }) {
+function PremiumSpinner() {
   return (
-    <div className="relative h-5 w-5">
+    <div className="relative h-6 w-6 shrink-0">
+      <div className="absolute inset-0 rounded-full bg-white/75 backdrop-blur-xl shadow-[0_8px_24px_rgba(0,0,0,0.16)] border border-white/80" />
       <div
-        className={`absolute inset-0 rounded-full border ${
-          dark
-            ? "border-white/25 border-t-white"
-            : "border-black/20 border-t-black"
-        } animate-spin`}
+        className="absolute inset-[3px] rounded-full border border-black/15 border-t-black/80 animate-spin"
         style={{ animationDuration: "900ms" }}
       />
       <div
-        className={`absolute inset-[2px] rounded-full border ${
-          dark
-            ? "border-[#bfc5cc]/45 border-b-[#ffffff]"
-            : "border-[#c7ccd2]/70 border-b-[#5b6168]"
-        } animate-spin`}
+        className="absolute inset-[7px] rounded-full border border-[#cfd5dc] border-b-[#6b7280] animate-spin"
         style={{ animationDuration: "1300ms", animationDirection: "reverse" }}
       />
     </div>
   );
+}
+
+function sessionLabelFromSeed(seed: SeedResp) {
+  const destinationName =
+    typeof seed.destination_name === "string"
+      ? seed.destination_name.trim()
+      : "";
+
+  const destinationAddress =
+    typeof seed.destination_address === "string"
+      ? seed.destination_address.trim()
+      : "";
+
+  return destinationName || destinationAddress || "Live visit";
 }
 
 export default function LiveClient({ sessionId }: { sessionId: string }) {
@@ -168,8 +181,85 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
   );
   const [destinationLabel, setDestinationLabel] = React.useState("Live visit");
   const [browserHint, setBrowserHint] = React.useState("");
-  const [sheetExpanded, setSheetExpanded] = React.useState(true);
+  const [sheetSnap, setSheetSnap] = React.useState<SheetSnap>("collapsed");
   const [darkTheme, setDarkTheme] = React.useState(false);
+
+  const applyPoint = React.useCallback(
+    (
+      lat: number,
+      lng: number,
+      place?: string,
+      nextStatus: LiveStatus = "live",
+      createdAt?: string,
+    ) => {
+      const nextLngLat: [number, number] = [lng, lat];
+
+      if (mapRef.current) {
+        if (!markerRef.current) {
+          markerRef.current = new mapboxgl.Marker({
+            element: buildMarkerEl(),
+            anchor: "bottom",
+          });
+        }
+
+        if (!markerRef.current.getElement().isConnected) {
+          markerRef.current.setLngLat(nextLngLat).addTo(mapRef.current);
+        } else {
+          markerRef.current.setLngLat(nextLngLat);
+        }
+
+        if (!hasCenteredRef.current) {
+          mapRef.current.jumpTo({
+            center: nextLngLat,
+            zoom: 16.2,
+          });
+
+          mapRef.current.easeTo({
+            center: nextLngLat,
+            zoom: 16.2,
+            padding: {
+              top: 110,
+              right: 16,
+              bottom: sheetSnap === "expanded" ? 320 : 156,
+              left: 16,
+            },
+            duration: 0,
+            essential: true,
+          });
+
+          hasCenteredRef.current = true;
+        } else {
+          mapRef.current.easeTo({
+            center: nextLngLat,
+            zoom: Math.max(mapRef.current.getZoom(), 16.2),
+            padding: {
+              top: 110,
+              right: 16,
+              bottom: sheetSnap === "expanded" ? 320 : 156,
+              left: 16,
+            },
+            duration: 900,
+            essential: true,
+          });
+        }
+        window.requestAnimationFrame(() => {
+          mapRef.current?.resize();
+        });
+      }
+
+      const cleanPlace =
+        typeof place === "string" && place.trim()
+          ? place.trim()
+          : "Live location available";
+
+      setPlaceLabel(cleanPlace);
+      setCoordsLabel(formatCoords(lat, lng));
+      setMapHref(googleMapsHref(lat, lng));
+      setLastUpdatedLabel(formatLiveTime(createdAt));
+      setStatus(nextStatus);
+    },
+    [sheetSnap],
+  );
 
   React.useEffect(() => {
     setDarkTheme(prefersDarkTheme());
@@ -183,6 +273,54 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
     mq?.addEventListener?.("change", onChange);
     return () => mq?.removeEventListener?.("change", onChange);
   }, []);
+
+  React.useEffect(() => {
+    if (!mapRef.current) return;
+    mapRef.current.setStyle(
+      darkTheme
+        ? "mapbox://styles/mapbox/dark-v11"
+        : "mapbox://styles/mapbox/light-v11",
+    );
+    mapRef.current.once("style.load", () => {
+      window.requestAnimationFrame(() => {
+        mapRef.current?.resize();
+      });
+    });
+  }, [darkTheme]);
+
+  React.useEffect(() => {
+    if (!mapRef.current) return;
+    const onResize = () => mapRef.current?.resize();
+    window.addEventListener("resize", onResize);
+    const t = setTimeout(onResize, 120);
+    return () => {
+      clearTimeout(t);
+      window.removeEventListener("resize", onResize);
+    };
+  }, [sheetSnap]);
+
+  React.useEffect(() => {
+    if (!mapRef.current) return;
+
+    const bottomPadding = sheetSnap === "expanded" ? 320 : 156;
+
+    mapRef.current.easeTo({
+      padding: {
+        top: 110,
+        right: 16,
+        bottom: bottomPadding,
+        left: 16,
+      },
+      duration: 250,
+      essential: true,
+    });
+
+    const t = setTimeout(() => {
+      mapRef.current?.resize();
+    }, 260);
+
+    return () => clearTimeout(t);
+  }, [sheetSnap]);
 
   React.useEffect(() => {
     if (bootedRef.current) return;
@@ -202,64 +340,6 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
         eventSourceRef.current?.close();
       } catch {}
       eventSourceRef.current = null;
-    };
-
-    const ensureMarker = () => {
-      if (!mapRef.current) return null;
-
-      if (!markerRef.current) {
-        markerRef.current = new mapboxgl.Marker({
-          element: buildMarkerEl(),
-          anchor: "bottom",
-        });
-      }
-
-      return markerRef.current;
-    };
-
-    const applyPoint = (
-      lat: number,
-      lng: number,
-      place?: string,
-      nextStatus: LiveStatus = "live",
-      createdAt?: string,
-    ) => {
-      const nextLngLat: [number, number] = [lng, lat];
-      const marker = ensureMarker();
-
-      if (renderModeRef.current === "map" && marker && mapRef.current) {
-        if (!marker.getElement().isConnected) {
-          marker.setLngLat(nextLngLat).addTo(mapRef.current);
-        } else {
-          marker.setLngLat(nextLngLat);
-        }
-
-        if (!hasCenteredRef.current) {
-          mapRef.current.jumpTo({
-            center: nextLngLat,
-            zoom: 16,
-          });
-          hasCenteredRef.current = true;
-        } else {
-          mapRef.current.easeTo({
-            center: nextLngLat,
-            zoom: Math.max(mapRef.current.getZoom(), 16),
-            duration: 1200,
-            essential: true,
-          });
-        }
-      }
-
-      const cleanPlace =
-        typeof place === "string" && place.trim()
-          ? place.trim()
-          : "Live location available";
-
-      setPlaceLabel(cleanPlace);
-      setCoordsLabel(formatCoords(lat, lng));
-      setMapHref(googleMapsHref(lat, lng));
-      setLastUpdatedLabel(formatLiveTime(createdAt));
-      setStatus(nextStatus);
     };
 
     const connectStream = () => {
@@ -326,19 +406,16 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
 
       ev.onerror = () => {
         closeStream();
-
-        if (closed || status === "ended") return;
+        if (closed) return;
 
         setLoadingNote("Reconnecting to live location…");
-        reconnectTimerRef.current = setTimeout(connectStream, 2000);
+        reconnectTimerRef.current = setTimeout(connectStream, 1500);
       };
     };
 
-    async function bootSeedOnly() {
-      setLoadingNote("Loading latest live location…");
-
+    async function fetchSeed() {
       const ac = new AbortController();
-      const timeout = setTimeout(() => ac.abort(), 8000);
+      const timeout = setTimeout(() => ac.abort(), 7000);
 
       const seedRes = await fetch(
         `/api/live/seed?sid=${encodeURIComponent(sessionId)}`,
@@ -355,21 +432,70 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
         throw new Error(seed?.error || "seed_failed");
       }
 
-      if (closed) return;
+      if (closed) return null;
+      return seed;
+    }
+
+    async function bootMapWithSeed(seed: SeedResp) {
+      if (!mapDivRef.current) throw new Error("Map container missing");
+
+      const publicMapToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
+      if (!publicMapToken) {
+        throw new Error("Missing NEXT_PUBLIC_MAPBOX_TOKEN");
+      }
+
+      mapboxgl.accessToken = publicMapToken;
+      setLoadingNote("Opening live map…");
+
+      mapRef.current = new mapboxgl.Map({
+        container: mapDivRef.current,
+        style: darkTheme
+          ? "mapbox://styles/mapbox/dark-v11"
+          : "mapbox://styles/mapbox/light-v11",
+        center:
+          seed.latest &&
+          typeof seed.latest.lng === "number" &&
+          typeof seed.latest.lat === "number"
+            ? [seed.latest.lng, seed.latest.lat]
+            : [8.6753, 9.082],
+        zoom:
+          seed.latest &&
+          typeof seed.latest.lng === "number" &&
+          typeof seed.latest.lat === "number"
+            ? 16.2
+            : 5,
+        attributionControl: false,
+        dragRotate: false,
+        pitchWithRotate: false,
+      });
+
+      await new Promise<void>((resolve, reject) => {
+        const map = mapRef.current!;
+        const timeout = setTimeout(
+          () => reject(new Error("The live map could not be rendered.")),
+          9000,
+        );
+
+        map.once("load", () => {
+          clearTimeout(timeout);
+          map.resize();
+          resolve();
+        });
+
+        map.on("error", (e) => {
+          console.error("[live-map.error]", e);
+        });
+      });
 
       setSosActive(Boolean(seed.sos_active));
-      setDestinationLabel("Live visit");
+      setDestinationLabel(sessionLabelFromSeed(seed));
 
       if (seed.ended) {
         setStatus("ended");
         setLoadingNote("This visit has ended.");
       } else {
         setStatus("live");
-        setLoadingNote(
-          renderModeRef.current === "map"
-            ? "Connected to live tracking."
-            : "Connected to live updates.",
-        );
+        setLoadingNote("Connected to live tracking.");
       }
 
       if (
@@ -395,73 +521,70 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
       if (!seed.ended) connectStream();
     }
 
-    async function bootMap() {
-      if (!mapDivRef.current) return;
+    async function bootFallback(seed: SeedResp) {
+      setSosActive(Boolean(seed.sos_active));
+      setDestinationLabel(sessionLabelFromSeed(seed));
 
-      const publicMapToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
-      if (!publicMapToken) {
-        throw new Error("Missing NEXT_PUBLIC_MAPBOX_TOKEN");
+      if (seed.ended) {
+        setStatus("ended");
+        setLoadingNote("This visit has ended.");
+      } else {
+        setStatus("live");
+        setLoadingNote("Connected to live updates.");
       }
 
-      mapboxgl.accessToken = publicMapToken;
-      setLoadingNote("Opening live map…");
+      if (
+        seed.latest &&
+        typeof seed.latest.lat === "number" &&
+        typeof seed.latest.lng === "number"
+      ) {
+        setPlaceLabel(seed.latest.place?.trim() || "Live location available");
+        setCoordsLabel(formatCoords(seed.latest.lat, seed.latest.lng));
+        setMapHref(googleMapsHref(seed.latest.lat, seed.latest.lng));
+        setLastUpdatedLabel(formatLiveTime(seed.latest.created_at));
+      } else {
+        setPlaceLabel(
+          seed.ended ? "Visit ended" : "Waiting for first live update…",
+        );
+        setCoordsLabel("");
+        setMapHref("");
+      }
 
-      mapRef.current = new mapboxgl.Map({
-        container: mapDivRef.current,
-        style: darkTheme
-          ? "mapbox://styles/mapbox/dark-v11"
-          : "mapbox://styles/mapbox/light-v11",
-        center: [8.6753, 9.082],
-        zoom: 5,
-        attributionControl: false,
-        dragRotate: false,
-        pitchWithRotate: false,
-      });
-
-      await new Promise<void>((resolve, reject) => {
-        const map = mapRef.current!;
-        const timeout = setTimeout(() => {
-          reject(new Error("The live map could not be rendered."));
-        }, 9000);
-
-        map.once("load", () => {
-          clearTimeout(timeout);
-          resolve();
-        });
-
-        map.on("error", (e) => {
-          console.error("[live-map.error]", e);
-        });
-      });
-
-      await bootSeedOnly();
+      if (!seed.ended) connectStream();
     }
 
     async function boot() {
       try {
+        setLoadingNote("Loading latest live location…");
+        const seed = await fetchSeed();
+        if (!seed) return;
+
         if (isInAppBrowser()) {
           renderModeRef.current = "fallback";
           setRenderMode("fallback");
           setBrowserHint(
-            "Your email browser is using the lighter live view. Updates still continue in real time below.",
+            "Your browser is using the lighter live view. Updates still continue in real time below.",
           );
-          await bootSeedOnly();
+          await bootFallback(seed);
           return;
         }
 
         renderModeRef.current = "map";
         setRenderMode("map");
-        await bootMap();
+        await bootMapWithSeed(seed);
       } catch (error) {
         console.error("[live-client.boot]", error);
 
         try {
+          const seed = await fetchSeed();
+          if (!seed) return;
+
           renderModeRef.current = "fallback";
           setRenderMode("fallback");
           setBrowserHint(
             "The premium map could not open in this browser. Live updates are still active below.",
           );
-          await bootSeedOnly();
+          await bootFallback(seed);
         } catch (fallbackError) {
           if (closed) return;
           setStatus("error");
@@ -484,20 +607,22 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
       mapRef.current?.remove();
       mapRef.current = null;
     };
-  }, [darkTheme, sessionId, status]);
+  }, [sessionId, darkTheme, applyPoint]);
 
   const headerTitle = status === "ended" ? "Ended" : sosActive ? "SOS" : "Live";
 
-  const cardBg = darkTheme ? "bg-black/78" : "bg-white/90";
-  const cardBorder = darkTheme ? "border-white/10" : "border-black/8";
+  const cardBg = darkTheme ? "bg-black/78" : "bg-white/92";
+  const cardBorder = darkTheme ? "border-white/10" : "border-black/10";
   const cardText = darkTheme ? "text-white" : "text-black";
   const mutedText = darkTheme ? "text-white/45" : "text-black/45";
   const innerBg = darkTheme ? "bg-white/5" : "bg-[#f6f7f8]";
   const coordText = darkTheme ? "text-white/80" : "text-black/70";
-  const expandedHeight = sheetExpanded ? "max-h-[72vh]" : "max-h-[118px]";
 
   const showSpinner = status === "loading";
   const showFallbackHint = renderMode === "fallback" && status !== "ended";
+
+  const sheetHeightClass =
+    sheetSnap === "expanded" ? "h-[36vh] sm:h-[34vh]" : "h-[138px]";
 
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     startYRef.current = e.clientY;
@@ -507,11 +632,14 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
     if (startYRef.current === null) return;
     const delta = e.clientY - startYRef.current;
 
-    if (delta > 24) {
-      setSheetExpanded(false);
-    } else if (delta < -24) {
-      setSheetExpanded(true);
+    if (delta > 28) {
+      setSheetSnap("collapsed");
+    } else if (delta < -28) {
+      setSheetSnap("expanded");
+    } else {
+      setSheetSnap((prev) => (prev === "expanded" ? "collapsed" : "expanded"));
     }
+
     startYRef.current = null;
   };
 
@@ -520,13 +648,12 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
       className={`h-screen w-screen relative overflow-hidden ${
         darkTheme ? "bg-[#090909]" : "bg-[#f3f4f6]"
       }`}
-      onClick={() => setSheetExpanded(false)}
     >
       {renderMode === "map" ? (
-        <div ref={mapDivRef} className="absolute inset-0" />
+        <div ref={mapDivRef} className="absolute inset-0 z-0" />
       ) : (
         <div
-          className={`absolute inset-0 ${
+          className={`absolute inset-0 z-0 ${
             darkTheme
               ? "bg-[radial-gradient(circle_at_top,rgba(32,32,32,1),rgba(15,15,15,1)_48%,rgba(8,8,8,1))]"
               : "bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.98),rgba(242,243,245,1)_48%,rgba(235,237,240,1))]"
@@ -535,33 +662,22 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
       )}
 
       <div
-        className={`pointer-events-none absolute inset-x-0 top-0 h-20 ${
+        className={`pointer-events-none absolute inset-x-0 top-0 h-24 z-10 ${
           darkTheme
-            ? "bg-gradient-to-b from-black/65 to-transparent"
-            : "bg-gradient-to-b from-white/75 to-transparent"
-        }`}
-      />
-      <div
-        className={`pointer-events-none absolute inset-x-0 bottom-0 h-64 ${
-          darkTheme
-            ? "bg-gradient-to-t from-black/88 via-black/45 to-transparent"
-            : "bg-gradient-to-t from-white/95 via-white/70 to-transparent"
+            ? "bg-gradient-to-b from-black/55 to-transparent"
+            : "bg-gradient-to-b from-white/70 to-transparent"
         }`}
       />
 
-      <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20">
-        <div
-          className={`rounded-[22px] ${cardBg} border ${cardBorder} shadow-lg px-3.5 py-2 backdrop-blur-xl min-w-[116px]`}
-        >
+      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20">
+        <div className="rounded-[24px] bg-white/78 border border-white/85 shadow-[0_10px_32px_rgba(0,0,0,0.14)] px-4 py-2.5 backdrop-blur-2xl min-w-[132px]">
           <div className="flex flex-col items-center justify-center">
             <img
               src="/6logo.png"
               alt="StayKnown"
               className="h-5 w-5 object-contain"
             />
-            <div
-              className={`mt-1 text-[8px] uppercase tracking-[0.24em] font-black text-center ${mutedText}`}
-            >
+            <div className="mt-1 text-[8px] uppercase tracking-[0.24em] font-black text-center text-black/65">
               StayKnown
             </div>
           </div>
@@ -569,14 +685,10 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
       </div>
 
       {showSpinner && (
-        <div className="absolute top-[74px] left-1/2 -translate-x-1/2 z-20">
-          <div
-            className={`rounded-full ${darkTheme ? "bg-black/45 border-white/10" : "bg-white/72 border-black/8"} border shadow-md backdrop-blur-xl px-3 py-2 flex items-center gap-2`}
-          >
-            <PremiumSpinner dark={darkTheme} />
-            <span
-              className={`text-[10px] uppercase tracking-[0.18em] font-bold ${darkTheme ? "text-white/70" : "text-black/55"}`}
-            >
+        <div className="absolute top-[84px] left-1/2 -translate-x-1/2 z-20">
+          <div className="rounded-full bg-white/72 border border-white/80 shadow-[0_10px_26px_rgba(0,0,0,0.12)] backdrop-blur-2xl px-3.5 py-2 flex items-center gap-2.5">
+            <PremiumSpinner />
+            <span className="text-[10px] uppercase tracking-[0.18em] font-bold text-black/60">
               Opening live view
             </span>
           </div>
@@ -584,35 +696,30 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
       )}
 
       {showFallbackHint && !showSpinner && (
-        <div className="absolute top-[74px] left-1/2 -translate-x-1/2 z-20">
-          <div
-            className={`rounded-full ${darkTheme ? "bg-black/45 border-white/10" : "bg-white/72 border-black/8"} border shadow-md backdrop-blur-xl px-3 py-2 flex items-center gap-2`}
-          >
-            <PremiumSpinner dark={darkTheme} />
-            <span
-              className={`text-[10px] uppercase tracking-[0.18em] font-bold ${darkTheme ? "text-white/70" : "text-black/55"}`}
-            >
+        <div className="absolute top-[84px] left-1/2 -translate-x-1/2 z-20">
+          <div className="rounded-full bg-white/72 border border-white/80 shadow-[0_10px_26px_rgba(0,0,0,0.12)] backdrop-blur-2xl px-3.5 py-2 flex items-center gap-2.5">
+            <PremiumSpinner />
+            <span className="text-[10px] uppercase tracking-[0.18em] font-bold text-black/60">
               Live updates active
             </span>
           </div>
         </div>
       )}
 
-      <div
-        className="absolute inset-x-0 bottom-0 z-20 px-3 pb-4"
-        onClick={(e) => e.stopPropagation()}
-      >
+      <div className="absolute inset-x-0 bottom-0 z-20 px-3 pb-4">
         <div
-          className={`mx-auto w-full max-w-xl rounded-[28px] ${cardBg} border ${cardBorder} shadow-[0_18px_50px_rgba(0,0,0,0.12)] backdrop-blur-2xl overflow-hidden transition-all duration-300 ${expandedHeight}`}
+          className={`mx-auto w-full max-w-xl rounded-[30px] ${cardBg} border ${cardBorder} shadow-[0_18px_50px_rgba(0,0,0,0.18)] backdrop-blur-2xl overflow-hidden transition-[height] duration-300 ${sheetHeightClass}`}
         >
           <div
-            className="px-4 pt-2.5 pb-2 cursor-grab active:cursor-grabbing"
+            className="px-4 pt-2.5 pb-2 cursor-grab active:cursor-grabbing select-none"
             onPointerDown={onPointerDown}
             onPointerUp={onPointerUp}
-            onDoubleClick={() => setSheetExpanded((v) => !v)}
+            onClick={() =>
+              setSheetSnap((v) => (v === "expanded" ? "collapsed" : "expanded"))
+            }
           >
             <div
-              className={`mx-auto h-1.5 w-12 rounded-full ${darkTheme ? "bg-white/12" : "bg-black/10"}`}
+              className={`mx-auto h-1.5 w-12 rounded-full ${darkTheme ? "bg-white/14" : "bg-black/12"}`}
             />
           </div>
 
@@ -648,7 +755,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
               </div>
             </div>
 
-            {sheetExpanded && (
+            {sheetSnap === "expanded" && (
               <>
                 <div className="mt-3 grid grid-cols-2 gap-3">
                   <div
@@ -708,7 +815,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
                   >
                     <div className="flex items-start gap-3">
                       <div className="pt-0.5">
-                        <PremiumSpinner dark={darkTheme} />
+                        <PremiumSpinner />
                       </div>
                       <div>
                         <div

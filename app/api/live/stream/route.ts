@@ -106,6 +106,60 @@ export async function GET(req: Request) {
         sendChunk(controller, { type: "ka", t: Date.now() });
       }, 15000);
 
+      const visitRes = await sb
+        .from("visits")
+        .select("id,user_id,ended_at,destination_name,destination_address")
+        .eq("id", sid)
+        .maybeSingle();
+
+      const visit = visitRes.data as {
+        id?: string | null;
+        user_id?: string | null;
+        ended_at?: string | null;
+        destination_name?: string | null;
+        destination_address?: string | null;
+      } | null;
+
+      const latestRes = await sb
+        .from("visit_locations")
+        .select("lat,lng,accuracy,place,created_at")
+        .eq("session_id", sid)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      const latest = latestRes.data as {
+        lat?: number | null;
+        lng?: number | null;
+        accuracy?: number | null;
+        place?: string | null;
+        created_at?: string | null;
+      } | null;
+
+      if (typeof latest?.lat === "number" && typeof latest?.lng === "number") {
+        sendChunk(controller, {
+          type: "location",
+          lat: latest.lat,
+          lng: latest.lng,
+          accuracy: latest.accuracy ?? null,
+          place:
+            latest.place ??
+            visit?.destination_name ??
+            visit?.destination_address ??
+            null,
+          created_at: latest.created_at ?? null,
+          initial: true,
+        });
+      }
+
+      if (visit?.ended_at) {
+        sendChunk(controller, {
+          type: "ended",
+          ended_at: visit.ended_at,
+          initial: true,
+        });
+      }
+
       ch1 = sb
         .channel(`live-loc-${sid}-${Date.now()}`)
         .on(
@@ -177,15 +231,7 @@ export async function GET(req: Request) {
           }
         });
 
-      const visitOwnerRes = await sb
-        .from("visits")
-        .select("user_id")
-        .eq("id", sid)
-        .maybeSingle();
-
-      const visitOwnerId = (
-        visitOwnerRes.data as { user_id?: string | null } | null
-      )?.user_id;
+      const visitOwnerId = visit?.user_id ?? null;
 
       if (visitOwnerId) {
         ch3 = sb

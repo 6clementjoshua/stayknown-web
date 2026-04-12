@@ -67,37 +67,13 @@ export async function GET(req: Request) {
 
     const sb = admin();
 
-    const latestResPromise = sb
-      .from("visit_locations")
-      .select("lat,lng,accuracy,place,created_at")
-      .eq("session_id", sid)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    const visitResPromise = sb
+    const visitRes = await sb
       .from("visits")
       .select(
         "id,user_id,ended_at,destination_name,destination_address,end_lat,end_lng",
       )
       .eq("id", sid)
       .maybeSingle();
-
-    const [latestRes, visitRes] = await Promise.all([
-      latestResPromise,
-      visitResPromise,
-    ]);
-
-    if (latestRes.error) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: "We could not load the latest live location right now.",
-          detail: latestRes.error.message,
-        },
-        { status: 500 },
-      );
-    }
 
     if (visitRes.error) {
       return NextResponse.json(
@@ -110,7 +86,6 @@ export async function GET(req: Request) {
       );
     }
 
-    const latest = (latestRes.data as VisitLocationRow | null) ?? null;
     const visit = (visitRes.data as VisitRow | null) ?? null;
 
     if (!visit?.id) {
@@ -123,6 +98,27 @@ export async function GET(req: Request) {
       );
     }
 
+    const latestRes = await sb
+      .from("visit_locations")
+      .select("lat,lng,accuracy,place,created_at")
+      .eq("session_id", sid)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (latestRes.error) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "We could not load the latest live location right now.",
+          detail: latestRes.error.message,
+        },
+        { status: 500 },
+      );
+    }
+
+    const latest = (latestRes.data as VisitLocationRow | null) ?? null;
+
     let sos: SosSessionRow | null = null;
 
     if (visit.user_id) {
@@ -130,7 +126,8 @@ export async function GET(req: Request) {
         .from("sos_sessions")
         .select("ended_at,started_at,payload")
         .eq("user_id", visit.user_id)
-        .order("started_at", { ascending: false });
+        .order("started_at", { ascending: false })
+        .limit(20);
 
       if (sosRes.error) {
         return NextResponse.json(
@@ -158,7 +155,11 @@ export async function GET(req: Request) {
               lat: visit.end_lat,
               lng: visit.end_lng,
               accuracy: null,
-              place: latest?.place ?? null,
+              place:
+                latest?.place ??
+                visit.destination_name ??
+                visit.destination_address ??
+                null,
               created_at: visit.ended_at ?? latest?.created_at ?? null,
             }
           : null;
