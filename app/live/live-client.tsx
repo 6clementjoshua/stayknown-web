@@ -31,31 +31,65 @@ function googleMapsHref(lat?: number, lng?: number) {
   return `https://www.google.com/maps?q=${lat},${lng}`;
 }
 
+function formatLiveTime(v?: string) {
+  if (!v) return "Waiting for update…";
+  const d = new Date(v);
+  if (Number.isNaN(d.getTime())) return "Waiting for update…";
+  return d.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: true,
+  });
+}
+
 function buildMarkerEl() {
-  const el = document.createElement("div");
-  el.style.width = "44px";
-  el.style.height = "44px";
-  el.style.borderRadius = "9999px";
-  el.style.display = "flex";
-  el.style.alignItems = "center";
-  el.style.justifyContent = "center";
-  el.style.background = "rgba(12,12,12,0.88)";
-  el.style.border = "1px solid rgba(255,255,255,0.24)";
-  el.style.boxShadow =
-    "0 14px 38px rgba(0,0,0,0.40), inset 0 1px 0 rgba(255,255,255,0.18)";
-  el.style.backdropFilter = "blur(10px)";
-  (el.style as any).webkitBackdropFilter = "blur(10px)";
+  const wrap = document.createElement("div");
+  wrap.style.width = "72px";
+  wrap.style.height = "72px";
+  wrap.style.display = "flex";
+  wrap.style.alignItems = "center";
+  wrap.style.justifyContent = "center";
+  wrap.style.position = "relative";
+
+  const pulse = document.createElement("div");
+  pulse.style.position = "absolute";
+  pulse.style.width = "58px";
+  pulse.style.height = "58px";
+  pulse.style.borderRadius = "9999px";
+  pulse.style.background = "rgba(17,17,17,0.10)";
+  pulse.style.boxShadow = "0 0 0 10px rgba(17,17,17,0.06)";
+
+  const pin = document.createElement("div");
+  pin.style.width = "52px";
+  pin.style.height = "52px";
+  pin.style.borderRadius = "9999px";
+  pin.style.display = "flex";
+  pin.style.alignItems = "center";
+  pin.style.justifyContent = "center";
+  pin.style.background = "rgba(255,255,255,0.96)";
+  pin.style.border = "1px solid rgba(0,0,0,0.08)";
+  pin.style.boxShadow =
+    "0 16px 34px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.96)";
+  pin.style.backdropFilter = "blur(8px)";
+  (pin.style as any).webkitBackdropFilter = "blur(8px)";
+  pin.style.position = "relative";
+  pin.style.zIndex = "2";
 
   const img = document.createElement("img");
   img.src = "/6logo.png";
   img.alt = "StayKnown";
-  img.style.width = "22px";
-  img.style.height = "22px";
+  img.style.width = "26px";
+  img.style.height = "26px";
   img.style.objectFit = "contain";
 
-  el.appendChild(img);
-  return el;
+  pin.appendChild(img);
+  wrap.appendChild(pulse);
+  wrap.appendChild(pin);
+
+  return wrap;
 }
+
 export default function LiveClient({ sessionId }: { sessionId: string }) {
   const mapDivRef = React.useRef<HTMLDivElement | null>(null);
   const mapRef = React.useRef<mapboxgl.Map | null>(null);
@@ -73,6 +107,10 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
   const [loadingNote, setLoadingNote] = React.useState(
     "Connecting to live location…",
   );
+  const [lastUpdatedLabel, setLastUpdatedLabel] = React.useState(
+    "Waiting for update…",
+  );
+  const [destinationLabel, setDestinationLabel] = React.useState("Live visit");
 
   React.useEffect(() => {
     let closed = false;
@@ -110,6 +148,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
       lng: number,
       place?: string,
       nextStatus: LiveStatus = "live",
+      createdAt?: string,
     ) => {
       const nextLngLat: [number, number] = [lng, lat];
       const marker = ensureMarker();
@@ -125,13 +164,14 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
       if (!hasCenteredOnFirstLivePoint) {
         mapRef.current?.jumpTo({
           center: nextLngLat,
-          zoom: 15,
+          zoom: 16,
         });
         hasCenteredOnFirstLivePoint = true;
       } else {
         mapRef.current?.easeTo({
           center: nextLngLat,
-          duration: 1200,
+          zoom: Math.max(mapRef.current?.getZoom() ?? 16, 16),
+          duration: 1400,
           essential: true,
         });
       }
@@ -144,6 +184,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
       setPlaceLabel(cleanPlace);
       setCoordsLabel(formatCoords(lat, lng));
       setMapHref(googleMapsHref(lat, lng));
+      setLastUpdatedLabel(formatLiveTime(createdAt));
       setStatus(nextStatus);
     };
 
@@ -184,7 +225,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
             typeof data.lat === "number" &&
             typeof data.lng === "number"
           ) {
-            applyPoint(data.lat, data.lng, data.place, "live");
+            applyPoint(data.lat, data.lng, data.place, "live", data.created_at);
             setLoadingNote("Receiving live movement…");
             return;
           }
@@ -234,10 +275,12 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
 
         mapRef.current = new mapboxgl.Map({
           container: mapDivRef.current,
-          style: "mapbox://styles/mapbox/dark-v11",
+          style: "mapbox://styles/mapbox/light-v11",
           center: [8.6753, 9.082],
           zoom: 5,
           attributionControl: false,
+          dragRotate: false,
+          pitchWithRotate: false,
         });
 
         await new Promise<void>((resolve, reject) => {
@@ -294,6 +337,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
         if (closed) return;
 
         setSosActive(Boolean(seed.sos_active));
+        setDestinationLabel("Live visit");
 
         if (seed.ended) {
           setStatus("ended");
@@ -313,6 +357,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
             seed.latest.lng,
             seed.latest.place,
             seed.ended ? "ended" : "live",
+            seed.latest.created_at,
           );
         } else {
           setPlaceLabel(
@@ -350,84 +395,119 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
     status === "ended"
       ? "Visit ended"
       : sosActive
-        ? "SOS Active"
-        : "StayKnown™ Live Tracking";
+        ? "SOS active"
+        : "StayKnown™ Live";
 
   return (
-    <div className="h-screen w-screen bg-black relative overflow-hidden">
+    <div className="h-screen w-screen bg-[#f3f4f6] relative overflow-hidden">
       <div ref={mapDivRef} className="absolute inset-0" />
 
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-36 bg-gradient-to-b from-black/60 to-transparent" />
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-56 bg-gradient-to-t from-black/75 to-transparent" />
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-white/80 to-transparent" />
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-72 bg-gradient-to-t from-white/95 via-white/70 to-transparent" />
 
-      <div className="absolute top-5 left-1/2 -translate-x-1/2 px-5 py-3 rounded-full backdrop-blur-xl bg-white/10 border border-white/20 text-white font-semibold tracking-wide shadow-2xl">
-        {headerText}
-      </div>
-
-      <div className="absolute top-20 left-1/2 -translate-x-1/2">
-        <div className="rounded-full backdrop-blur-xl bg-black/35 border border-white/10 px-4 py-2 text-[11px] uppercase tracking-[0.22em] text-white/75 shadow-xl">
-          {loadingNote}
-        </div>
-      </div>
-
-      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 w-[min(92vw,580px)]">
-        <div className="rounded-[28px] backdrop-blur-xl bg-white/10 border border-white/15 shadow-2xl px-4 py-4 text-white">
-          <div className="text-[11px] uppercase tracking-[0.22em] text-white/55 text-center">
-            Current area
+      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20">
+        <div className="rounded-full bg-white/92 border border-black/10 shadow-xl px-5 py-3 backdrop-blur-xl">
+          <div className="text-[17px] font-black tracking-tight text-black text-center">
+            {headerText}
           </div>
-
-          <div className="mt-2 text-center text-sm sm:text-base font-semibold leading-snug">
-            {placeLabel}
+          <div className="mt-1 text-[10px] uppercase tracking-[0.28em] text-black/50 text-center">
+            {loadingNote}
           </div>
-
-          {!!coordsLabel && !!mapHref && (
-            <div className="mt-2 text-center text-xs break-all">
-              <a
-                href={mapHref}
-                target="_blank"
-                rel="noreferrer"
-                className="text-white/65 underline underline-offset-4"
-              >
-                {coordsLabel}
-              </a>
-            </div>
-          )}
-
-          {!coordsLabel && status === "live" && (
-            <div className="mt-2 text-center text-xs text-white/50">
-              Live coordinates will appear as soon as the first update arrives.
-            </div>
-          )}
-
-          {status === "ended" && (
-            <div className="mt-3 text-center text-xs text-white/60">
-              This visit has already ended. The last visible point is shown
-              here.
-            </div>
-          )}
-
-          {sosActive && (
-            <div className="mt-3 text-center text-[11px] font-bold uppercase tracking-[0.22em] text-white">
-              SOS is active
-            </div>
-          )}
         </div>
       </div>
 
-      {status === "loading" && (
-        <div className="absolute bottom-32 left-1/2 -translate-x-1/2 px-4 py-2 rounded-full backdrop-blur-xl bg-white/10 border border-white/15 text-white/85 text-sm">
-          Opening live location…
-        </div>
-      )}
+      <div className="absolute inset-x-0 bottom-0 z-20 px-4 pb-5">
+        <div className="mx-auto w-full max-w-xl rounded-[30px] bg-white/92 border border-black/10 shadow-[0_24px_60px_rgba(0,0,0,0.14)] backdrop-blur-2xl overflow-hidden">
+          <div className="px-5 pt-3 pb-2">
+            <div className="mx-auto h-1.5 w-14 rounded-full bg-black/10" />
+          </div>
 
-      {status === "error" && (
-        <div className="absolute inset-0 flex items-center justify-center text-white px-6">
-          <div className="text-center max-w-sm">
-            <div className="text-lg font-bold">Unable to load tracking</div>
-            <div className="opacity-70 mt-2 text-sm">{loadingNote}</div>
+          <div className="px-5 pb-5">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className="text-[11px] uppercase tracking-[0.24em] text-black/45 font-bold">
+                  Current area
+                </div>
+                <div className="mt-2 text-[22px] leading-[1.15] font-black text-black">
+                  {placeLabel}
+                </div>
+              </div>
+
+              <div className="shrink-0">
+                <div
+                  className={`rounded-full px-3 py-1.5 text-[10px] uppercase tracking-[0.24em] font-black ${
+                    sosActive
+                      ? "bg-black text-white"
+                      : status === "ended"
+                        ? "bg-black/10 text-black"
+                        : "bg-emerald-500/12 text-emerald-700"
+                  }`}
+                >
+                  {sosActive
+                    ? "SOS active"
+                    : status === "ended"
+                      ? "Ended"
+                      : "Live"}
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-4 grid grid-cols-2 gap-3">
+              <div className="rounded-[22px] border border-black/8 bg-[#f6f7f8] px-4 py-3">
+                <div className="text-[10px] uppercase tracking-[0.22em] text-black/40 font-bold">
+                  Last update
+                </div>
+                <div className="mt-1 text-sm font-bold text-black">
+                  {lastUpdatedLabel}
+                </div>
+              </div>
+
+              <div className="rounded-[22px] border border-black/8 bg-[#f6f7f8] px-4 py-3">
+                <div className="text-[10px] uppercase tracking-[0.22em] text-black/40 font-bold">
+                  Session
+                </div>
+                <div className="mt-1 text-sm font-bold text-black">
+                  {destinationLabel}
+                </div>
+              </div>
+            </div>
+
+            {!!coordsLabel && !!mapHref && (
+              <div className="mt-4 rounded-[22px] border border-black/8 bg-[#f6f7f8] px-4 py-3">
+                <div className="text-[10px] uppercase tracking-[0.22em] text-black/40 font-bold">
+                  Coordinates
+                </div>
+                <a
+                  href={mapHref}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-1 block text-sm font-bold text-black/75 underline underline-offset-4 break-all"
+                >
+                  {coordsLabel}
+                </a>
+              </div>
+            )}
+
+            {status === "error" && (
+              <div className="mt-4 rounded-[22px] border border-red-200 bg-red-50 px-4 py-3">
+                <div className="text-[10px] uppercase tracking-[0.22em] text-red-500 font-bold">
+                  Map status
+                </div>
+                <div className="mt-1 text-sm font-bold text-red-700">
+                  {loadingNote}
+                </div>
+              </div>
+            )}
+
+            {status === "ended" && (
+              <div className="mt-4 rounded-[22px] border border-black/8 bg-[#f6f7f8] px-4 py-3 text-sm font-medium text-black/65">
+                This visit has ended. The last known live point is shown on the
+                map.
+              </div>
+            )}
           </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }
