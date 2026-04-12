@@ -57,8 +57,8 @@ function isInAppBrowser() {
 
 function buildMarkerEl() {
   const wrap = document.createElement("div");
-  wrap.style.width = "78px";
-  wrap.style.height = "92px";
+  wrap.style.width = "64px";
+  wrap.style.height = "78px";
   wrap.style.display = "flex";
   wrap.style.flexDirection = "column";
   wrap.style.alignItems = "center";
@@ -67,16 +67,16 @@ function buildMarkerEl() {
 
   const pulse = document.createElement("div");
   pulse.style.position = "absolute";
-  pulse.style.top = "10px";
-  pulse.style.width = "58px";
-  pulse.style.height = "58px";
+  pulse.style.top = "8px";
+  pulse.style.width = "46px";
+  pulse.style.height = "46px";
   pulse.style.borderRadius = "9999px";
-  pulse.style.background = "rgba(17,17,17,0.10)";
-  pulse.style.boxShadow = "0 0 0 10px rgba(17,17,17,0.06)";
+  pulse.style.background = "rgba(17,17,17,0.08)";
+  pulse.style.boxShadow = "0 0 0 8px rgba(17,17,17,0.05)";
 
   const pin = document.createElement("div");
-  pin.style.width = "56px";
-  pin.style.height = "56px";
+  pin.style.width = "46px";
+  pin.style.height = "46px";
   pin.style.borderRadius = "9999px";
   pin.style.display = "flex";
   pin.style.alignItems = "center";
@@ -84,28 +84,25 @@ function buildMarkerEl() {
   pin.style.background = "rgba(255,255,255,0.98)";
   pin.style.border = "1px solid rgba(0,0,0,0.08)";
   pin.style.boxShadow =
-    "0 16px 34px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.96)";
-  pin.style.backdropFilter = "blur(8px)";
-  (pin.style as any).webkitBackdropFilter = "blur(8px)";
+    "0 14px 28px rgba(0,0,0,0.14), inset 0 1px 0 rgba(255,255,255,0.96)";
   pin.style.position = "relative";
   pin.style.zIndex = "2";
 
   const img = document.createElement("img");
   img.src = "/6logo.png";
   img.alt = "StayKnown";
-  img.style.width = "28px";
-  img.style.height = "28px";
+  img.style.width = "22px";
+  img.style.height = "22px";
   img.style.objectFit = "contain";
 
   const label = document.createElement("div");
   label.textContent = "StayKnown";
-  label.style.marginTop = "7px";
-  label.style.fontSize = "10px";
+  label.style.marginTop = "5px";
+  label.style.fontSize = "8px";
   label.style.fontWeight = "900";
-  label.style.letterSpacing = "0.08em";
+  label.style.letterSpacing = "0.12em";
   label.style.color = "#111111";
   label.style.textTransform = "uppercase";
-  label.style.textShadow = "0 1px 0 rgba(255,255,255,0.65)";
   label.style.position = "relative";
   label.style.zIndex = "2";
 
@@ -117,6 +114,21 @@ function buildMarkerEl() {
   return wrap;
 }
 
+function PremiumSpinner() {
+  return (
+    <div className="relative h-4 w-4">
+      <div
+        className="absolute inset-0 rounded-full border border-black/25 border-t-black animate-spin"
+        style={{ animationDuration: "900ms" }}
+      />
+      <div
+        className="absolute inset-[2px] rounded-full border border-[#bfc5cc]/60 border-b-[#5b6168] animate-spin"
+        style={{ animationDuration: "1300ms", animationDirection: "reverse" }}
+      />
+    </div>
+  );
+}
+
 export default function LiveClient({ sessionId }: { sessionId: string }) {
   const mapDivRef = React.useRef<HTMLDivElement | null>(null);
   const mapRef = React.useRef<mapboxgl.Map | null>(null);
@@ -125,6 +137,8 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
   const reconnectTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
+  const bootedRef = React.useRef(false);
+  const renderModeRef = React.useRef<RenderMode>("map");
 
   const [status, setStatus] = React.useState<LiveStatus>("loading");
   const [renderMode, setRenderMode] = React.useState<RenderMode>("map");
@@ -142,9 +156,11 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
   const [browserHint, setBrowserHint] = React.useState("");
 
   React.useEffect(() => {
+    if (bootedRef.current) return;
+    bootedRef.current = true;
+
     let closed = false;
     let hasCenteredOnFirstLivePoint = false;
-    const inApp = isInAppBrowser();
 
     const clearReconnect = () => {
       if (reconnectTimerRef.current) {
@@ -183,7 +199,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
       const nextLngLat: [number, number] = [lng, lat];
       const marker = ensureMarker();
 
-      if (renderMode === "map" && marker && mapRef.current) {
+      if (renderModeRef.current === "map" && marker && mapRef.current) {
         if (!marker.getElement().isConnected) {
           marker.setLngLat(nextLngLat).addTo(mapRef.current);
         } else {
@@ -200,7 +216,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
           mapRef.current.easeTo({
             center: nextLngLat,
             zoom: Math.max(mapRef.current.getZoom(), 16),
-            duration: 1400,
+            duration: 1200,
             essential: true,
           });
         }
@@ -234,16 +250,14 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
 
           if (data.type === "ready") {
             setLoadingNote(
-              renderMode === "map"
+              renderModeRef.current === "map"
                 ? "Live connection established…"
-                : "Live text updates established…",
+                : "Live updates established…",
             );
             return;
           }
 
-          if (data.type === "ka") {
-            return;
-          }
+          if (data.type === "ka") return;
 
           if (data.type === "warning") {
             setLoadingNote(
@@ -261,7 +275,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
           ) {
             applyPoint(data.lat, data.lng, data.place, "live", data.created_at);
             setLoadingNote(
-              renderMode === "map"
+              renderModeRef.current === "map"
                 ? "Receiving live movement…"
                 : "Receiving live updates…",
             );
@@ -276,7 +290,6 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
           if (data.type === "ended") {
             setStatus("ended");
             setLoadingNote("This visit has ended.");
-            return;
           }
         } catch {}
       };
@@ -287,9 +300,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
         if (closed) return;
 
         setLoadingNote("Reconnecting to live location…");
-        reconnectTimerRef.current = setTimeout(() => {
-          connectStream();
-        }, 2000);
+        reconnectTimerRef.current = setTimeout(connectStream, 2000);
       };
     };
 
@@ -325,7 +336,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
       } else {
         setStatus("live");
         setLoadingNote(
-          renderMode === "map"
+          renderModeRef.current === "map"
             ? "Connected to live tracking."
             : "Connected to live updates.",
         );
@@ -379,7 +390,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
         const map = mapRef.current!;
         const timeout = setTimeout(() => {
           reject(new Error("The live map could not be rendered."));
-        }, 10000);
+        }, 9000);
 
         map.once("load", () => {
           clearTimeout(timeout);
@@ -396,24 +407,27 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
 
     async function boot() {
       try {
-        if (inApp) {
+        if (isInAppBrowser()) {
+          renderModeRef.current = "fallback";
           setRenderMode("fallback");
           setBrowserHint(
-            "Your email app browser does not fully support the premium live map. Live updates will still continue below.",
+            "Your email browser is using the lighter live view. Updates still continue in real time below.",
           );
           await bootSeedOnly();
           return;
         }
 
+        renderModeRef.current = "map";
         setRenderMode("map");
         await bootMap();
       } catch (error) {
         console.error("[live-client.boot]", error);
 
         try {
+          renderModeRef.current = "fallback";
           setRenderMode("fallback");
           setBrowserHint(
-            "The premium live map could not open in this browser. Live updates are still active below.",
+            "The premium map could not open in this browser. Live updates are still active below.",
           );
           await bootSeedOnly();
         } catch (fallbackError) {
@@ -422,13 +436,13 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
           setLoadingNote(
             fallbackError instanceof Error
               ? fallbackError.message
-              : "Unable to open the live map right now.",
+              : "Unable to open the live view right now.",
           );
         }
       }
     }
 
-    boot();
+    void boot();
 
     return () => {
       closed = true;
@@ -438,10 +452,9 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
       mapRef.current?.remove();
       mapRef.current = null;
     };
-  }, [renderMode, sessionId]);
+  }, [sessionId]);
 
-  const headerTitle =
-    status === "ended" ? "Visit ended" : sosActive ? "SOS active" : "Live";
+  const headerTitle = status === "ended" ? "Ended" : sosActive ? "SOS" : "Live";
 
   return (
     <div className="h-screen w-screen bg-[#f3f4f6] relative overflow-hidden">
@@ -451,69 +464,48 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.98),rgba(242,243,245,1)_48%,rgba(235,237,240,1))]" />
       )}
 
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-white/80 to-transparent" />
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-72 bg-gradient-to-t from-white/95 via-white/70 to-transparent" />
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-20 bg-gradient-to-b from-white/75 to-transparent" />
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-64 bg-gradient-to-t from-white/95 via-white/70 to-transparent" />
 
-      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20">
-        <div className="rounded-[38px] bg-white/94 border border-black/10 shadow-xl px-6 py-4 backdrop-blur-xl min-w-[260px]">
+      <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20">
+        <div className="rounded-[24px] bg-white/88 border border-black/8 shadow-lg px-4 py-2.5 backdrop-blur-xl min-w-[132px]">
           <div className="flex flex-col items-center justify-center">
             <img
               src="/6logo.png"
               alt="StayKnown"
-              className="h-9 w-9 object-contain"
+              className="h-6 w-6 object-contain"
             />
-            <div className="mt-2 text-[11px] uppercase tracking-[0.30em] text-black/50 font-black text-center">
+            <div className="mt-1 text-[8px] uppercase tracking-[0.24em] text-black/50 font-black text-center">
               StayKnown
-            </div>
-            <div className="mt-2 text-[20px] font-black tracking-tight text-black text-center">
-              {headerTitle}
-            </div>
-            <div className="mt-1 text-[10px] uppercase tracking-[0.28em] text-black/50 text-center">
-              {loadingNote}
             </div>
           </div>
         </div>
       </div>
 
       {renderMode === "fallback" && (
-        <div className="absolute inset-x-0 top-[142px] z-10 px-4">
-          <div className="mx-auto max-w-xl rounded-[28px] bg-white/86 border border-black/8 shadow-[0_18px_45px_rgba(0,0,0,0.10)] backdrop-blur-xl px-5 py-4">
-            <div className="text-[11px] uppercase tracking-[0.24em] text-black/40 font-bold">
-              Live view
-            </div>
-            <div className="mt-2 text-sm font-semibold text-black/75 leading-6">
-              {browserHint}
-            </div>
-
-            {!!mapHref && (
-              <div className="mt-4 flex flex-col gap-3">
-                <a
-                  href={mapHref}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="rounded-full bg-black text-white text-center font-black px-5 py-3 shadow-lg"
-                >
-                  Open location in Google Maps
-                </a>
-              </div>
-            )}
+        <div className="absolute top-[56px] left-1/2 -translate-x-1/2 z-20">
+          <div className="rounded-full bg-white/82 border border-black/8 shadow-md backdrop-blur-xl px-3 py-1.5 flex items-center gap-2">
+            <PremiumSpinner />
+            <span className="text-[10px] uppercase tracking-[0.20em] text-black/55 font-bold">
+              Opening live view
+            </span>
           </div>
         </div>
       )}
 
-      <div className="absolute inset-x-0 bottom-0 z-20 px-4 pb-5">
-        <div className="mx-auto w-full max-w-xl rounded-[30px] bg-white/92 border border-black/10 shadow-[0_24px_60px_rgba(0,0,0,0.14)] backdrop-blur-2xl overflow-hidden">
-          <div className="px-5 pt-3 pb-2">
-            <div className="mx-auto h-1.5 w-14 rounded-full bg-black/10" />
+      <div className="absolute inset-x-0 bottom-0 z-20 px-3 pb-4">
+        <div className="mx-auto w-full max-w-xl rounded-[28px] bg-white/90 border border-black/8 shadow-[0_18px_50px_rgba(0,0,0,0.12)] backdrop-blur-2xl overflow-hidden">
+          <div className="px-4 pt-2.5 pb-2">
+            <div className="mx-auto h-1.5 w-12 rounded-full bg-black/10" />
           </div>
 
-          <div className="px-5 pb-5">
+          <div className="px-4 pb-4">
             <div className="flex items-start justify-between gap-3">
-              <div>
-                <div className="text-[11px] uppercase tracking-[0.24em] text-black/45 font-bold">
+              <div className="min-w-0">
+                <div className="text-[10px] uppercase tracking-[0.24em] text-black/45 font-bold">
                   Current area
                 </div>
-                <div className="mt-2 text-[22px] leading-[1.15] font-black text-black">
+                <div className="mt-1.5 text-[20px] leading-[1.12] font-black text-black break-words">
                   {placeLabel}
                 </div>
               </div>
@@ -525,57 +517,84 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
                       ? "bg-black text-white"
                       : status === "ended"
                         ? "bg-black/10 text-black"
-                        : "bg-emerald-500/12 text-emerald-700"
+                        : "bg-[#dff5ee] text-[#169873]"
                   }`}
                 >
-                  {sosActive
-                    ? "SOS active"
-                    : status === "ended"
-                      ? "Ended"
-                      : "Live"}
+                  {sosActive ? "SOS" : headerTitle}
                 </div>
               </div>
             </div>
 
-            <div className="mt-4 grid grid-cols-2 gap-3">
-              <div className="rounded-[22px] border border-black/8 bg-[#f6f7f8] px-4 py-3">
-                <div className="text-[10px] uppercase tracking-[0.22em] text-black/40 font-bold">
+            <div className="mt-3 grid grid-cols-2 gap-3">
+              <div className="rounded-[20px] border border-black/6 bg-[#f6f7f8] px-3 py-3">
+                <div className="text-[10px] uppercase tracking-[0.20em] text-black/40 font-bold">
                   Last update
                 </div>
-                <div className="mt-1 text-sm font-bold text-black">
+                <div className="mt-1 text-sm font-bold text-black leading-6">
                   {lastUpdatedLabel}
                 </div>
               </div>
 
-              <div className="rounded-[22px] border border-black/8 bg-[#f6f7f8] px-4 py-3">
-                <div className="text-[10px] uppercase tracking-[0.22em] text-black/40 font-bold">
+              <div className="rounded-[20px] border border-black/6 bg-[#f6f7f8] px-3 py-3">
+                <div className="text-[10px] uppercase tracking-[0.20em] text-black/40 font-bold">
                   Session
                 </div>
-                <div className="mt-1 text-sm font-bold text-black">
+                <div className="mt-1 text-sm font-bold text-black leading-6">
                   {destinationLabel}
                 </div>
               </div>
             </div>
 
             {!!coordsLabel && !!mapHref && (
-              <div className="mt-4 rounded-[22px] border border-black/8 bg-[#f6f7f8] px-4 py-3">
-                <div className="text-[10px] uppercase tracking-[0.22em] text-black/40 font-bold">
+              <div className="mt-3 rounded-[20px] border border-black/6 bg-[#f6f7f8] px-3 py-3">
+                <div className="text-[10px] uppercase tracking-[0.20em] text-black/40 font-bold">
                   Coordinates
                 </div>
                 <a
                   href={mapHref}
                   target="_blank"
                   rel="noreferrer"
-                  className="mt-1 block text-sm font-bold text-black/75 underline underline-offset-4 break-all"
+                  className="mt-1 block text-sm font-bold text-black/70 underline underline-offset-4 break-all"
                 >
                   {coordsLabel}
                 </a>
               </div>
             )}
 
+            {renderMode === "fallback" && (
+              <div className="mt-3 rounded-[20px] border border-black/6 bg-[#f6f7f8] px-3 py-3">
+                <div className="flex items-start gap-3">
+                  <div className="pt-0.5">
+                    <PremiumSpinner />
+                  </div>
+                  <div>
+                    <div className="text-[10px] uppercase tracking-[0.20em] text-black/40 font-bold">
+                      Live view
+                    </div>
+                    <div className="mt-1 text-sm font-semibold text-black/70 leading-6">
+                      {browserHint}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {!!mapHref && renderMode === "fallback" && (
+              <div className="mt-3">
+                <a
+                  href={mapHref}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="block rounded-full bg-black text-white text-center font-black px-5 py-3 shadow-lg"
+                >
+                  Open location in Google Maps
+                </a>
+              </div>
+            )}
+
             {status === "error" && (
-              <div className="mt-4 rounded-[22px] border border-red-200 bg-red-50 px-4 py-3">
-                <div className="text-[10px] uppercase tracking-[0.22em] text-red-500 font-bold">
+              <div className="mt-3 rounded-[20px] border border-red-200 bg-red-50 px-3 py-3">
+                <div className="text-[10px] uppercase tracking-[0.20em] text-red-500 font-bold">
                   Live status
                 </div>
                 <div className="mt-1 text-sm font-bold text-red-700">
@@ -585,7 +604,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
             )}
 
             {status === "ended" && (
-              <div className="mt-4 rounded-[22px] border border-black/8 bg-[#f6f7f8] px-4 py-3 text-sm font-medium text-black/65">
+              <div className="mt-3 rounded-[20px] border border-black/6 bg-[#f6f7f8] px-3 py-3 text-sm font-medium text-black/65">
                 This visit has ended. The last known live point is shown here.
               </div>
             )}
