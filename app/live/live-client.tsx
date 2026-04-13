@@ -266,13 +266,34 @@ function safetyUseHint() {
   );
 }
 
-function getMapStyleUrl(darkTheme: boolean) {
-  return darkTheme
-    ? "mapbox://styles/mapbox/navigation-night-v1"
-    : "mapbox://styles/mapbox/streets-v12";
+function getMapStyleUrl(_darkTheme: boolean) {
+  return "mapbox://styles/mapbox/standard";
 }
 
-function applyStandardBasemapConfig(_map: mapboxgl.Map, _darkTheme: boolean) {}
+function applyStandardBasemapConfig(map: mapboxgl.Map, darkTheme: boolean) {
+  try {
+    map.setConfigProperty(
+      "basemap",
+      "lightPreset",
+      darkTheme ? "night" : "day",
+    );
+
+    map.setConfigProperty("basemap", "showPlaceLabels", true);
+    map.setConfigProperty("basemap", "showPointOfInterestLabels", true);
+    map.setConfigProperty("basemap", "showRoadLabels", true);
+    map.setConfigProperty("basemap", "showTransitLabels", true);
+
+    try {
+      map.setConfigProperty("basemap", "showPedestrianRoads", true);
+    } catch {}
+
+    try {
+      map.setConfigProperty("basemap", "show3dObjects", false);
+    } catch {}
+  } catch (error) {
+    console.warn("[live-map.basemap-config]", error);
+  }
+}
 
 function featureName(props: Record<string, any>) {
   return (
@@ -308,7 +329,7 @@ function collectForcedPlaceFeatures(map: mapboxgl.Map) {
   const features: GeoJSON.Feature<GeoJSON.Point>[] = [];
 
   const pull = (sourceLayer: string, rankBoost = 0) => {
-    let rows: mapboxgl.MapboxGeoJSONFeature[] = [];
+    let rows: mapboxgl.GeoJSONFeature[] = [];
     try {
       rows = map.querySourceFeatures("composite", { sourceLayer });
     } catch {
@@ -436,6 +457,8 @@ function upsertForcedPlaceLabels(map: mapboxgl.Map, darkTheme: boolean) {
 }
 
 function applyPremiumMapLayers(map: mapboxgl.Map, darkTheme: boolean) {
+  applyStandardBasemapConfig(map, darkTheme);
+
   const textColor = darkTheme ? "#eef4fb" : "#2b3642";
   const softColor = darkTheme ? "#d9e3ee" : "#596674";
   const haloColor = darkTheme ? "rgba(8,10,14,0.94)" : "rgba(255,255,255,0.99)";
@@ -549,6 +572,12 @@ function applyPremiumMapLayers(map: mapboxgl.Map, darkTheme: boolean) {
       }
     } catch {}
   });
+
+  try {
+    upsertForcedPlaceLabels(map, darkTheme);
+  } catch (error) {
+    console.warn("[live-map.forced-labels]", error);
+  }
 }
 
 export default function LiveClient({ sessionId }: { sessionId: string }) {
@@ -788,7 +817,15 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
 
     mapRef.current.once("styledata", () => {
       if (!mapRef.current) return;
+
       applyPremiumMapLayers(mapRef.current, darkTheme);
+
+      mapRef.current.once("idle", () => {
+        if (!mapRef.current) return;
+        try {
+          upsertForcedPlaceLabels(mapRef.current, darkTheme);
+        } catch {}
+      });
     });
   }, [darkTheme]);
 
@@ -948,8 +985,16 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
       const map = new mapboxgl.Map({
         container: mapDivRef.current,
         style: getMapStyleUrl(darkTheme),
+        config: {
+          basemap: {
+            lightPreset: darkTheme ? "night" : "day",
+            showPlaceLabels: true,
+            showPointOfInterestLabels: true,
+            showRoadLabels: true,
+            showTransitLabels: true,
+          },
+        },
         language: "en",
-        scaleFactor: 1.2,
         center:
           seed.latest &&
           typeof seed.latest.lng === "number" &&
@@ -1004,9 +1049,15 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
           }, 500);
 
           applyPremiumMapLayers(map, darkTheme);
+
+          map.on("idle", () => {
+            try {
+              upsertForcedPlaceLabels(map, darkTheme);
+            } catch {}
+          });
+
           resolve();
         });
-
         map.on("error", (e) => {
           console.error("[live-map.error]", e);
         });
