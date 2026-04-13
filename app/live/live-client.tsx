@@ -351,6 +351,24 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
   React.useEffect(() => {
     if (!mapRef.current) return;
 
+    const run = () => {
+      mapRef.current?.resize();
+    };
+
+    const t1 = setTimeout(run, 80);
+    const t2 = setTimeout(run, 220);
+    const t3 = setTimeout(run, 520);
+
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+    };
+  }, [renderMode, sheetSnap, status]);
+
+  React.useEffect(() => {
+    if (!mapRef.current) return;
+
     mapRef.current.easeTo({
       padding: {
         top: isDesktop() ? 90 : 104,
@@ -511,6 +529,9 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
         attributionControl: false,
         dragRotate: false,
         pitchWithRotate: false,
+        trackResize: true,
+        fadeDuration: 0,
+        preserveDrawingBuffer: false,
       });
 
       mapRef.current = map;
@@ -523,7 +544,21 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
 
         map.once("load", () => {
           clearTimeout(timeout);
+
           map.resize();
+
+          window.requestAnimationFrame(() => {
+            map.resize();
+          });
+
+          setTimeout(() => {
+            map.resize();
+          }, 150);
+
+          setTimeout(() => {
+            map.resize();
+          }, 500);
+
           resolve();
         });
 
@@ -651,7 +686,15 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
       }`}
     >
       {renderMode === "map" ? (
-        <div ref={mapDivRef} className="absolute inset-0 z-0" />
+        <div className="absolute inset-0 z-0 overflow-hidden">
+          <div
+            ref={mapDivRef}
+            className="absolute inset-0 h-full w-full"
+            style={{
+              background: darkTheme ? "#090909" : "#f3f4f6",
+            }}
+          />
+        </div>
       ) : (
         <div
           className={`absolute inset-0 z-0 ${

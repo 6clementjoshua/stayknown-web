@@ -386,3 +386,19 @@ a:hover {
 .hover-flicker:hover {
   animation: sk-flicker 420ms ease-out both;
 }
+
+.mapboxgl-map,
+.mapboxgl-canvas-container,
+.mapboxgl-canvas {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.mapboxgl-canvas {
+  position: absolute !important;
+  inset: 0 !important;
+}
+
+.mapboxgl-map {
+  background: transparent !important;
+}
