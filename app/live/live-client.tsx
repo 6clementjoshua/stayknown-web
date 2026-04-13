@@ -1346,13 +1346,15 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
                     window.close();
                   }
                 }}
-                className={`rounded-full px-5 py-3 text-[13px] font-extrabold ${
+                className={`group relative overflow-hidden rounded-full px-5 py-3 text-[13px] font-extrabold transition-all duration-200 ease-out active:scale-[0.985] hover:-translate-y-[1px] hover:shadow-[0_14px_34px_rgba(0,0,0,0.14)] ${
                   darkTheme
-                    ? "bg-white/8 text-white/82 border border-white/12"
-                    : "bg-black/5 text-black/72 border border-black/10"
+                    ? "bg-white/8 text-white/82 border border-white/12 hover:bg-white/12"
+                    : "bg-black/5 text-black/72 border border-black/10 hover:bg-black/[0.07]"
                 }`}
               >
-                Decline
+                <span className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-200 group-hover:opacity-100 bg-[linear-gradient(115deg,transparent_18%,rgba(255,255,255,0.22)_42%,transparent_64%)] bg-[length:220%_100%] animate-[skButtonSweep_1.8s_linear_infinite]" />
+                <span className="pointer-events-none absolute inset-0 opacity-0 active:opacity-100 bg-white/20 animate-[skButtonFlicker_220ms_ease-out]" />
+                <span className="relative z-[1]">Decline</span>
               </button>
 
               <button
@@ -1361,9 +1363,11 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
                   setAccessAccepted(true);
                   setAccessGateOpen(false);
                 }}
-                className="rounded-full px-5 py-3 text-[13px] font-extrabold bg-[#dff5ee] text-[#0e8f70] border border-[#ccebdd]"
+                className="group relative overflow-hidden rounded-full px-5 py-3 text-[13px] font-extrabold bg-[#dff5ee] text-[#0e8f70] border border-[#ccebdd] transition-all duration-200 ease-out active:scale-[0.985] hover:-translate-y-[1px] hover:shadow-[0_14px_34px_rgba(14,143,112,0.18)] hover:brightness-[1.02]"
               >
-                I accept
+                <span className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-200 group-hover:opacity-100 bg-[linear-gradient(115deg,transparent_18%,rgba(255,255,255,0.34)_42%,transparent_64%)] bg-[length:220%_100%] animate-[skButtonSweep_1.8s_linear_infinite]" />
+                <span className="pointer-events-none absolute inset-0 opacity-0 active:opacity-100 bg-white/26 animate-[skButtonFlicker_220ms_ease-out]" />
+                <span className="relative z-[1]">I accept</span>
               </button>
             </div>
           </div>

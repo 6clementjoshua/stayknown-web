@@ -505,3 +505,27 @@ a:hover {
     filter: brightness(1.03);
   }
 }
+
+@keyframes skButtonSweep {
+  0% {
+    background-position: 200% 0;
+  }
+
+  100% {
+    background-position: -40% 0;
+  }
+}
+
+@keyframes skButtonFlicker {
+  0% {
+    opacity: 0;
+  }
+
+  35% {
+    opacity: 0.95;
+  }
+
+  100% {
+    opacity: 0;
+  }
+}
