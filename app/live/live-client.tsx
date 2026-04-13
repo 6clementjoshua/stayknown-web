@@ -16,8 +16,14 @@ type SeedResp = {
   } | null;
   sos_active?: boolean;
   ended?: boolean;
+  started_at?: string | null;
   destination_name?: string | null;
   destination_address?: string | null;
+  purpose?: string | null;
+  person_to_meet?: string | null;
+  expected_duration_minutes?: number | null;
+  extra_note?: string | null;
+  visitor_name?: string | null;
   error?: string;
   detail?: string;
 };
@@ -47,6 +53,44 @@ function formatLiveTime(v?: string) {
   });
 }
 
+function formatLiveDate(v?: string | null) {
+  if (!v) return "—";
+  const d = new Date(v);
+  if (Number.isNaN(d.getTime())) return "—";
+  return d.toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+}
+
+function formatStartedTime(v?: string | null) {
+  if (!v) return "—";
+  const d = new Date(v);
+  if (Number.isNaN(d.getTime())) return "—";
+  return d.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+}
+
+function formatDurationMins(v?: number | null) {
+  if (typeof v !== "number" || !Number.isFinite(v) || v <= 0) return "—";
+  if (v < 60) return `${v} mins`;
+
+  const hrs = Math.floor(v / 60);
+  const mins = v % 60;
+
+  if (!mins) return `${hrs} hr${hrs > 1 ? "s" : ""}`;
+  return `${hrs} hr${hrs > 1 ? "s" : ""} ${mins} mins`;
+}
+
+function cleanLabel(v?: string | null, fallback = "—") {
+  const s = typeof v === "string" ? v.trim() : "";
+  return s || fallback;
+}
+
 function isInAppBrowser() {
   if (typeof navigator === "undefined") return false;
   const ua = navigator.userAgent || "";
@@ -67,53 +111,72 @@ function isDesktop() {
   return window.matchMedia("(min-width: 900px)").matches;
 }
 
-function buildMarkerEl() {
+function buildMarkerEl(isLive = true) {
   const wrap = document.createElement("div");
-  wrap.style.width = "60px";
-  wrap.style.height = "60px";
+  wrap.style.width = "88px";
+  wrap.style.height = "88px";
   wrap.style.display = "flex";
   wrap.style.alignItems = "center";
   wrap.style.justifyContent = "center";
   wrap.style.position = "relative";
 
-  const pulse = document.createElement("div");
-  pulse.style.position = "absolute";
-  pulse.style.width = "52px";
-  pulse.style.height = "52px";
-  pulse.style.borderRadius = "9999px";
-  pulse.style.background = "rgba(255,255,255,0.20)";
-  pulse.style.boxShadow = "0 0 0 12px rgba(255,255,255,0.08)";
-  pulse.style.backdropFilter = "blur(8px)";
+  const makeRing = (delayMs: number, size: number, borderOpacity: number) => {
+    const ring = document.createElement("div");
+    ring.style.position = "absolute";
+    ring.style.width = `${size}px`;
+    ring.style.height = `${size}px`;
+    ring.style.borderRadius = "9999px";
+    ring.style.border = `1px solid rgba(255,255,255,${borderOpacity})`;
+    ring.style.boxShadow = "0 0 0 1px rgba(255,255,255,0.04) inset";
+    ring.style.opacity = isLive ? "0" : "0";
+    ring.style.transform = "scale(0.72)";
+    ring.setAttribute("data-sk-radar", "1");
+    ring.style.animation = isLive
+      ? `skLiveRadar 2.8s ease-out ${delayMs}ms infinite`
+      : "none";
+    return ring;
+  };
+
+  const halo = document.createElement("div");
+  halo.style.position = "absolute";
+  halo.style.width = "58px";
+  halo.style.height = "58px";
+  halo.style.borderRadius = "9999px";
+  halo.style.background = "rgba(255,255,255,0.12)";
+  halo.style.backdropFilter = "blur(10px)";
+  halo.style.boxShadow = "0 0 0 10px rgba(255,255,255,0.05)";
 
   const pin = document.createElement("div");
-  pin.style.width = "46px";
-  pin.style.height = "46px";
+  pin.style.width = "50px";
+  pin.style.height = "50px";
   pin.style.borderRadius = "9999px";
   pin.style.display = "flex";
   pin.style.alignItems = "center";
   pin.style.justifyContent = "center";
   pin.style.background =
-    "linear-gradient(180deg, rgba(255,255,255,0.98), rgba(244,246,248,0.94))";
-  pin.style.border = "1px solid rgba(255,255,255,0.95)";
+    "linear-gradient(180deg, rgba(255,255,255,0.99), rgba(243,245,247,0.95))";
+  pin.style.border = "1px solid rgba(255,255,255,0.98)";
   pin.style.boxShadow =
-    "0 16px 34px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,1), inset 0 -8px 20px rgba(0,0,0,0.04)";
+    "0 18px 38px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,1), inset 0 -9px 22px rgba(0,0,0,0.04)";
   pin.style.position = "relative";
-  pin.style.zIndex = "2";
+  pin.style.zIndex = "3";
 
   const img = document.createElement("img");
   img.src = "/6logo.png";
   img.alt = "StayKnown";
-  img.style.width = "20px";
-  img.style.height = "20px";
+  img.style.width = "21px";
+  img.style.height = "21px";
   img.style.objectFit = "contain";
 
   pin.appendChild(img);
-  wrap.appendChild(pulse);
+  wrap.appendChild(makeRing(0, 58, 0.32));
+  wrap.appendChild(makeRing(620, 66, 0.24));
+  wrap.appendChild(makeRing(1240, 76, 0.18));
+  wrap.appendChild(halo);
   wrap.appendChild(pin);
 
   return wrap;
 }
-
 function PremiumSpinner() {
   return (
     <div className="relative h-5 w-5 shrink-0">
@@ -141,6 +204,78 @@ function sessionLabelFromSeed(seed: SeedResp) {
       : "";
 
   return destinationName || destinationAddress || "Last session";
+}
+function applyPremiumMapLayers(map: mapboxgl.Map, darkTheme: boolean) {
+  const textColor = darkTheme ? "#d7d9dd" : "#3f444c";
+  const softColor = darkTheme ? "#a7adb6" : "#6a727d";
+
+  const trySet = (
+    layerId: string,
+    paint?: Record<string, unknown>,
+    layout?: Record<string, unknown>,
+  ) => {
+    if (!map.getLayer(layerId)) return;
+
+    try {
+      if (paint) {
+        Object.entries(paint).forEach(([k, v]) => {
+          map.setPaintProperty(layerId, k as any, v as any);
+        });
+      }
+
+      if (layout) {
+        Object.entries(layout).forEach(([k, v]) => {
+          map.setLayoutProperty(layerId, k as any, v as any);
+        });
+      }
+    } catch {}
+  };
+
+  [
+    "poi-label",
+    "poi-label-sm",
+    "poi-label-md",
+    "poi-label-lg",
+    "settlement-subdivision-label",
+    "settlement-minor-label",
+    "settlement-major-label",
+    "airport-label",
+    "transit-label",
+    "road-label",
+    "natural-label",
+    "water-label",
+  ].forEach((id) => {
+    trySet(
+      id,
+      {
+        "text-color": id === "water-label" ? softColor : textColor,
+        "text-halo-color": darkTheme
+          ? "rgba(7,7,7,0.82)"
+          : "rgba(255,255,255,0.96)",
+        "text-halo-width": 1.15,
+        "text-opacity": 1,
+      },
+      {
+        visibility: "visible",
+        "text-allow-overlap": false,
+        "icon-allow-overlap": false,
+      },
+    );
+  });
+
+  [
+    "poi-label-sm",
+    "poi-label-md",
+    "poi-label-lg",
+    "airport-label",
+    "transit-label",
+  ].forEach((id) => {
+    trySet(id, undefined, {
+      visibility: "visible",
+      "icon-optional": false,
+      "text-optional": false,
+    });
+  });
 }
 
 export default function LiveClient({ sessionId }: { sessionId: string }) {
@@ -174,6 +309,19 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
   const [darkTheme, setDarkTheme] = React.useState(false);
   const [mapLoadError, setMapLoadError] = React.useState("");
 
+  const [accessGateOpen, setAccessGateOpen] = React.useState(true);
+  const [accessAccepted, setAccessAccepted] = React.useState(false);
+
+  const [visitorName, setVisitorName] = React.useState("User");
+  const [startedDateLabel, setStartedDateLabel] = React.useState("—");
+  const [startedTimeLabel, setStartedTimeLabel] = React.useState("—");
+  const [destinationAddressLabel, setDestinationAddressLabel] =
+    React.useState("—");
+  const [purposeLabel, setPurposeLabel] = React.useState("—");
+  const [personToMeetLabel, setPersonToMeetLabel] = React.useState("—");
+  const [expectedDurationLabel, setExpectedDurationLabel] = React.useState("—");
+  const [extraNoteLabel, setExtraNoteLabel] = React.useState("—");
+
   const stopPolling = React.useCallback(() => {
     if (pollTimerRef.current) {
       clearInterval(pollTimerRef.current);
@@ -206,11 +354,26 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
       const nextLngLat: [number, number] = [lng, lat];
 
       if (mapRef.current) {
+        const needsLiveMarker = nextStatus !== "ended";
+
         if (!markerRef.current) {
           markerRef.current = new mapboxgl.Marker({
-            element: buildMarkerEl(),
+            element: buildMarkerEl(needsLiveMarker),
             anchor: "center",
           });
+        } else {
+          const el = markerRef.current.getElement();
+          const hasRadar = el.querySelector("[data-sk-radar='1']");
+          if (
+            (needsLiveMarker && !hasRadar) ||
+            (!needsLiveMarker && hasRadar)
+          ) {
+            markerRef.current.remove();
+            markerRef.current = new mapboxgl.Marker({
+              element: buildMarkerEl(needsLiveMarker),
+              anchor: "center",
+            });
+          }
         }
 
         if (!markerRef.current.getElement().isConnected) {
@@ -282,6 +445,17 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
   const syncFromSeed = React.useCallback(
     (seed: SeedResp) => {
       setDestinationLabel(sessionLabelFromSeed(seed));
+      setDestinationAddressLabel(cleanLabel(seed.destination_address));
+      setVisitorName(cleanLabel(seed.visitor_name, "User"));
+      setStartedDateLabel(formatLiveDate(seed.started_at));
+      setStartedTimeLabel(formatStartedTime(seed.started_at));
+      setPurposeLabel(cleanLabel(seed.purpose));
+      setPersonToMeetLabel(cleanLabel(seed.person_to_meet));
+      setExpectedDurationLabel(
+        formatDurationMins(seed.expected_duration_minutes),
+      );
+      setExtraNoteLabel(cleanLabel(seed.extra_note));
+
       setSosActive(seed.ended ? false : Boolean(seed.sos_active));
       setStatus(seed.ended ? "ended" : "live");
 
@@ -330,11 +504,17 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
 
   React.useEffect(() => {
     if (!mapRef.current) return;
+
     mapRef.current.setStyle(
       darkTheme
         ? "mapbox://styles/mapbox/dark-v11"
         : "mapbox://styles/mapbox/light-v11",
     );
+
+    mapRef.current.once("styledata", () => {
+      if (!mapRef.current) return;
+      applyPremiumMapLayers(mapRef.current, darkTheme);
+    });
   }, [darkTheme]);
 
   React.useEffect(() => {
@@ -392,6 +572,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
   }, [sheetSnap]);
 
   React.useEffect(() => {
+    if (!accessAccepted) return;
     if (bootedRef.current) return;
     bootedRef.current = true;
 
@@ -558,7 +739,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
           setTimeout(() => {
             map.resize();
           }, 500);
-
+          applyPremiumMapLayers(map, darkTheme);
           resolve();
         });
 
@@ -635,6 +816,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
   }, [
     sessionId,
     darkTheme,
+    accessAccepted,
     applyPoint,
     syncFromSeed,
     clearReconnect,
@@ -650,7 +832,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
   const cardText = darkTheme ? "text-white" : "text-black";
   const mutedText = darkTheme ? "text-white/45" : "text-black/45";
   const innerBg = darkTheme ? "bg-white/5" : "bg-[#f6f7f8]";
-  const coordText = darkTheme ? "text-white/80" : "text-black/70";
+  const coordText = darkTheme ? "text-white/86" : "text-black/88";
 
   const showSpinner = status === "loading";
   const showFallbackHint =
@@ -680,31 +862,23 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
   };
 
   return (
-    <div
-      className={`fixed inset-0 h-screen w-screen overflow-hidden ${
-        darkTheme ? "bg-[#090909]" : "bg-[#f3f4f6]"
-      }`}
-    >
+    <div className="fixed inset-0 h-screen w-screen overflow-hidden bg-transparent">
       {renderMode === "map" ? (
-        <div className="absolute inset-0 z-0 overflow-hidden">
+        <div className="absolute inset-0 z-0 overflow-hidden bg-transparent">
           <div
             ref={mapDivRef}
-            className="absolute inset-0 h-full w-full"
-            style={{
-              background: darkTheme ? "#090909" : "#f3f4f6",
-            }}
+            className="absolute inset-0 h-full w-full bg-transparent"
           />
         </div>
       ) : (
         <div
           className={`absolute inset-0 z-0 ${
             darkTheme
-              ? "bg-[radial-gradient(circle_at_top,rgba(32,32,32,1),rgba(15,15,15,1)_48%,rgba(8,8,8,1))]"
-              : "bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.98),rgba(242,243,245,1)_48%,rgba(235,237,240,1))]"
+              ? "bg-[radial-gradient(circle_at_top,rgba(20,20,20,1),rgba(10,10,10,1)_46%,rgba(6,6,6,1))]"
+              : "bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.98),rgba(245,246,248,1)_46%,rgba(236,238,241,1))]"
           }`}
         />
       )}
-
       <div
         className={`pointer-events-none absolute inset-x-0 top-0 h-24 z-10 ${
           darkTheme
@@ -714,15 +888,25 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
       />
 
       <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20">
-        <div className="rounded-[24px] bg-white/78 border border-white/85 shadow-[0_10px_32px_rgba(0,0,0,0.14)] px-4 py-2.5 backdrop-blur-2xl min-w-[132px]">
-          <div className="flex flex-col items-center justify-center">
-            <img
-              src="/6logo.png"
-              alt="StayKnown"
-              className="h-5 w-5 object-contain"
-            />
-            <div className="mt-1 text-[8px] uppercase tracking-[0.24em] font-black text-center text-black/65">
-              StayKnown
+        <div className="relative">
+          {status !== "ended" && (
+            <>
+              <span className="pointer-events-none absolute inset-0 rounded-[28px] border border-white/40 animate-[skTopRadar_2.8s_ease-out_infinite]" />
+              <span className="pointer-events-none absolute inset-0 rounded-[28px] border border-white/28 animate-[skTopRadar_2.8s_ease-out_800ms_infinite]" />
+              <span className="pointer-events-none absolute inset-0 rounded-[28px] border border-white/18 animate-[skTopRadar_2.8s_ease-out_1600ms_infinite]" />
+            </>
+          )}
+
+          <div className="relative rounded-[24px] bg-white/82 border border-white/90 shadow-[0_14px_38px_rgba(0,0,0,0.16)] px-4 py-2.5 backdrop-blur-2xl min-w-[132px]">
+            <div className="flex flex-col items-center justify-center">
+              <img
+                src="/6logo.png"
+                alt="StayKnown"
+                className="h-5 w-5 object-contain"
+              />
+              <div className="mt-1 text-[8px] uppercase tracking-[0.34em] text-black/55 font-semibold">
+                StayKnown
+              </div>
             </div>
           </div>
         </div>
@@ -768,16 +952,16 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
             />
           </div>
 
-          <div className="h-full overflow-y-auto px-4 pb-5">
+          <div className="h-full overflow-y-auto sk-scroll-hidden px-4 pb-5">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <div
-                  className={`text-[10px] uppercase tracking-[0.24em] font-bold ${mutedText}`}
+                  className={`text-[9px] uppercase tracking-[0.26em] font-extrabold ${mutedText}`}
                 >
-                  {locationHeading}
+                  {status === "ended" ? "Last known area" : "Current area"}
                 </div>
                 <div
-                  className={`mt-1.5 text-[20px] leading-[1.12] font-black break-words ${cardText}`}
+                  className={`mt-1.5 text-[17px] md:text-[18px] leading-[1.15] font-black break-words ${cardText}`}
                 >
                   {placeLabel}
                 </div>
@@ -785,7 +969,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
 
               <div className="shrink-0">
                 <div
-                  className={`rounded-full px-3 py-1.5 text-[10px] uppercase tracking-[0.24em] font-black ${
+                  className={`rounded-full px-3 py-1.5 text-[9px] uppercase tracking-[0.24em] font-black ${
                     sosActive
                       ? "bg-black text-white"
                       : status === "ended"
@@ -802,38 +986,170 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
 
             <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
               <div
-                className={`rounded-[20px] border ${cardBorder} ${innerBg} px-3 py-3`}
+                className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3`}
               >
                 <div
-                  className={`text-[10px] uppercase tracking-[0.20em] font-bold ${darkTheme ? "text-white/40" : "text-black/40"}`}
+                  className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${darkTheme ? "text-white/42" : "text-black/42"}`}
+                >
+                  {visitorName}
+                </div>
+                <div
+                  className={`mt-1 text-[13px] font-bold leading-5 ${cardText}`}
+                >
+                  {status === "ended"
+                    ? `Was at ${placeLabel}`
+                    : `Is currently at ${placeLabel}`}
+                </div>
+              </div>
+
+              <div
+                className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3`}
+              >
+                <div
+                  className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${darkTheme ? "text-white/42" : "text-black/42"}`}
+                >
+                  Heading to
+                </div>
+                <div
+                  className={`mt-1 text-[13px] font-bold leading-5 ${cardText}`}
+                >
+                  {destinationLabel}
+                </div>
+                {destinationAddressLabel !== "—" && (
+                  <div
+                    className={`mt-1 text-[11px] leading-5 ${darkTheme ? "text-white/58" : "text-black/58"}`}
+                  >
+                    {destinationAddressLabel}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="mt-3 grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div
+                className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3`}
+              >
+                <div
+                  className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${darkTheme ? "text-white/42" : "text-black/42"}`}
                 >
                   Last update
                 </div>
-                <div className={`mt-1 text-sm font-bold leading-6 ${cardText}`}>
+                <div
+                  className={`mt-1 text-[12px] font-bold leading-5 ${cardText}`}
+                >
                   {lastUpdatedLabel}
                 </div>
               </div>
 
               <div
-                className={`rounded-[20px] border ${cardBorder} ${innerBg} px-3 py-3`}
+                className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3`}
               >
                 <div
-                  className={`text-[10px] uppercase tracking-[0.20em] font-bold ${darkTheme ? "text-white/40" : "text-black/40"}`}
+                  className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${darkTheme ? "text-white/42" : "text-black/42"}`}
                 >
-                  Last session
+                  Started date
                 </div>
-                <div className={`mt-1 text-sm font-bold leading-6 ${cardText}`}>
-                  {destinationLabel}
+                <div
+                  className={`mt-1 text-[12px] font-bold leading-5 ${cardText}`}
+                >
+                  {startedDateLabel}
+                </div>
+              </div>
+
+              <div
+                className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3`}
+              >
+                <div
+                  className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${darkTheme ? "text-white/42" : "text-black/42"}`}
+                >
+                  Started time
+                </div>
+                <div
+                  className={`mt-1 text-[12px] font-bold leading-5 ${cardText}`}
+                >
+                  {startedTimeLabel}
+                </div>
+              </div>
+
+              <div
+                className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3`}
+              >
+                <div
+                  className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${darkTheme ? "text-white/42" : "text-black/42"}`}
+                >
+                  Expected stay
+                </div>
+                <div
+                  className={`mt-1 text-[12px] font-bold leading-5 ${cardText}`}
+                >
+                  {expectedDurationLabel}
                 </div>
               </div>
             </div>
 
+            {(purposeLabel !== "—" ||
+              personToMeetLabel !== "—" ||
+              extraNoteLabel !== "—") && (
+              <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-3">
+                {purposeLabel !== "—" && (
+                  <div
+                    className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3`}
+                  >
+                    <div
+                      className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${darkTheme ? "text-white/42" : "text-black/42"}`}
+                    >
+                      Purpose
+                    </div>
+                    <div
+                      className={`mt-1 text-[12px] font-bold leading-5 ${cardText}`}
+                    >
+                      {purposeLabel}
+                    </div>
+                  </div>
+                )}
+
+                {personToMeetLabel !== "—" && (
+                  <div
+                    className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3`}
+                  >
+                    <div
+                      className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${darkTheme ? "text-white/42" : "text-black/42"}`}
+                    >
+                      Meeting
+                    </div>
+                    <div
+                      className={`mt-1 text-[12px] font-bold leading-5 ${cardText}`}
+                    >
+                      {personToMeetLabel}
+                    </div>
+                  </div>
+                )}
+
+                {extraNoteLabel !== "—" && (
+                  <div
+                    className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3`}
+                  >
+                    <div
+                      className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${darkTheme ? "text-white/42" : "text-black/42"}`}
+                    >
+                      Extra note
+                    </div>
+                    <div
+                      className={`mt-1 text-[12px] font-bold leading-5 ${cardText}`}
+                    >
+                      {extraNoteLabel}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             {!!coordsLabel && !!mapHref && (
               <div
-                className={`mt-3 rounded-[20px] border ${cardBorder} ${innerBg} px-3 py-3`}
+                className={`mt-3 rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3`}
               >
                 <div
-                  className={`text-[10px] uppercase tracking-[0.20em] font-bold ${darkTheme ? "text-white/40" : "text-black/40"}`}
+                  className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${darkTheme ? "text-white/42" : "text-black/42"}`}
                 >
                   Coordinates
                 </div>
@@ -841,19 +1157,36 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
                   href={mapHref}
                   target="_blank"
                   rel="noreferrer"
-                  className={`mt-1 block text-sm font-bold underline underline-offset-4 break-all ${coordText}`}
+                  className={`mt-1 block text-[12px] font-bold underline underline-offset-4 break-all ${coordText}`}
                 >
                   {coordsLabel}
                 </a>
               </div>
             )}
 
+            <div
+              className={`mt-3 rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3`}
+            >
+              <div
+                className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${darkTheme ? "text-white/42" : "text-black/42"}`}
+              >
+                Privacy notice
+              </div>
+              <div
+                className={`mt-1 text-[11px] leading-5 ${darkTheme ? "text-white/66" : "text-black/66"}`}
+              >
+                Use this map only for legitimate safety and care purposes. Do
+                not use it to stalk, harass, or secretly monitor anyone. Misuse
+                may violate privacy policy and applicable law.
+              </div>
+            </div>
+
             {showFallbackHint && (
               <div
-                className={`mt-3 rounded-[20px] border ${cardBorder} ${innerBg} px-3 py-3`}
+                className={`mt-3 rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3`}
               >
                 <div
-                  className={`text-sm font-semibold leading-6 ${darkTheme ? "text-white/70" : "text-black/70"}`}
+                  className={`text-[11px] leading-5 ${darkTheme ? "text-white/68" : "text-black/68"}`}
                 >
                   {browserHint}
                 </div>
@@ -866,7 +1199,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
                   href={mapHref}
                   target="_blank"
                   rel="noreferrer"
-                  className={`block rounded-full text-center font-black px-5 py-3 shadow-lg ${
+                  className={`block rounded-full text-center text-[12px] font-black px-5 py-3 shadow-lg ${
                     darkTheme ? "bg-white text-black" : "bg-black text-white"
                   }`}
                 >
@@ -876,11 +1209,11 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
             )}
 
             {status === "error" && (
-              <div className="mt-3 rounded-[20px] border border-red-200 bg-red-50 px-3 py-3">
-                <div className="text-[10px] uppercase tracking-[0.20em] text-red-500 font-bold">
+              <div className="mt-3 rounded-[18px] border border-red-200 bg-red-50 px-3 py-3">
+                <div className="text-[9px] uppercase tracking-[0.22em] text-red-500 font-extrabold">
                   Live status
                 </div>
-                <div className="mt-1 text-sm font-bold text-red-700">
+                <div className="mt-1 text-[12px] font-bold text-red-700">
                   {mapLoadError || "Unable to open the live view right now."}
                 </div>
               </div>
@@ -888,7 +1221,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
 
             {status === "ended" && (
               <div
-                className={`mt-3 rounded-[20px] border ${cardBorder} ${innerBg} px-3 py-3 text-sm font-medium ${darkTheme ? "text-white/65" : "text-black/65"}`}
+                className={`mt-3 rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3 text-[11px] font-medium leading-5 ${darkTheme ? "text-white/65" : "text-black/65"}`}
               >
                 This visit has ended. This page now shows the last known
                 location from that session.
@@ -897,6 +1230,84 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
           </div>
         </div>
       </div>
+
+      {accessGateOpen && !accessAccepted && (
+        <div className="absolute inset-0 z-[90] flex items-center justify-center bg-black/45 backdrop-blur-md px-4">
+          <div
+            className={`w-full max-w-[560px] rounded-[30px] border ${cardBorder} ${
+              darkTheme ? "bg-[#0d0d0d]/94" : "bg-white/95"
+            } shadow-[0_30px_100px_rgba(0,0,0,0.30)] p-5 md:p-6`}
+          >
+            <div
+              className={`text-[11px] font-black uppercase tracking-[0.34em] ${mutedText}`}
+            >
+              Live map access
+            </div>
+
+            <div
+              className={`mt-3 text-[21px] md:text-[24px] font-black tracking-[-0.03em] ${cardText}`}
+            >
+              Privacy notice
+            </div>
+
+            <div
+              className={`mt-3 text-[11px] md:text-[12px] leading-6 ${darkTheme ? "text-white/72" : "text-black/68"}`}
+            >
+              This live map is provided only for approved safety use. Do not use
+              this session to stalk, monitor, harass, or track anyone you do not
+              know or do not have permission to protect. Misuse may violate
+              StayKnown policy, privacy rules, and applicable law.
+            </div>
+
+            <div
+              className={`mt-4 rounded-[22px] border ${cardBorder} ${innerBg} p-4`}
+            >
+              <div
+                className={`text-[12px] font-extrabold uppercase tracking-[0.24em] ${mutedText}`}
+              >
+                Before you continue
+              </div>
+              <div
+                className={`mt-2 text-[13px] leading-6 ${darkTheme ? "text-white/72" : "text-black/70"}`}
+              >
+                By tapping accept, you confirm that you are opening this session
+                only for a legitimate safety reason.
+              </div>
+            </div>
+
+            <div className="mt-5 flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setAccessGateOpen(false);
+                  if (typeof window !== "undefined") {
+                    window.location.replace("about:blank");
+                    window.close();
+                  }
+                }}
+                className={`rounded-full px-5 py-3 text-[13px] font-extrabold ${
+                  darkTheme
+                    ? "bg-white/8 text-white/82 border border-white/12"
+                    : "bg-black/5 text-black/72 border border-black/10"
+                }`}
+              >
+                Decline
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setAccessAccepted(true);
+                  setAccessGateOpen(false);
+                }}
+                className="rounded-full px-5 py-3 text-[13px] font-extrabold bg-[#dff5ee] text-[#0e8f70] border border-[#ccebdd]"
+              >
+                I accept
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
