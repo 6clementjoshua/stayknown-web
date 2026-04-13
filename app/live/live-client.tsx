@@ -30,8 +30,8 @@ type SeedResp = {
 
 type LiveStatus = "loading" | "live" | "ended" | "error";
 type RenderMode = "map" | "fallback";
-const INITIAL_VIEW_ZOOM = 14.2;
-const FOLLOW_VIEW_ZOOM = 16;
+const INITIAL_VIEW_ZOOM = 14.8;
+const FOLLOW_VIEW_ZOOM = 16.4;
 const MOVE_FOLLOW_THRESHOLD_METERS = 35;
 
 function distanceMeters(
@@ -269,7 +269,7 @@ function safetyUseHint() {
 function getMapStyleUrl(darkTheme: boolean) {
   return darkTheme
     ? "mapbox://styles/mapbox/navigation-night-v1"
-    : "mapbox://styles/mapbox/streets-v12";
+    : "mapbox://styles/mapbox/standard";
 }
 
 function applyPremiumMapLayers(map: mapboxgl.Map, darkTheme: boolean) {
@@ -318,7 +318,7 @@ function applyPremiumMapLayers(map: mapboxgl.Map, darkTheme: boolean) {
     trySet(id, {
       "text-color": id === "water-label" ? softColor : textColor,
       "text-halo-color": haloColor,
-      "text-halo-width": 1.4,
+      "text-halo-width": 1.35,
       "text-opacity": 1,
     });
   });
@@ -343,17 +343,19 @@ function applyPremiumMapLayers(map: mapboxgl.Map, darkTheme: boolean) {
         "interpolate",
         ["linear"],
         ["zoom"],
-        8,
+        7,
         10,
-        10,
+        9,
+        11,
         11,
         12,
-        12.5,
-        14,
-        14,
+        13,
+        13,
+        15,
+        14.5,
+        17,
         16,
-        16,
-        18,
+        19,
         18,
       ],
     });
@@ -363,7 +365,7 @@ function applyPremiumMapLayers(map: mapboxgl.Map, darkTheme: boolean) {
     (id) => {
       try {
         if (map.getLayer(id)) {
-          map.setLayerZoomRange(id, 10, 24);
+          map.setLayerZoomRange(id, 9, 24);
         }
       } catch {}
     },
@@ -373,33 +375,15 @@ function applyPremiumMapLayers(map: mapboxgl.Map, darkTheme: boolean) {
     "settlement-minor-label",
     "settlement-major-label",
     "settlement-subdivision-label",
+    "road-label",
+    "natural-label",
+    "water-label",
   ].forEach((id) => {
     try {
       if (map.getLayer(id)) {
-        map.setLayerZoomRange(id, 5, 24);
+        map.setLayerZoomRange(id, 4, 24);
       }
     } catch {}
-  });
-
-  trySet("road-label", undefined, {
-    visibility: "visible",
-    "text-size": [
-      "interpolate",
-      ["linear"],
-      ["zoom"],
-      8,
-      10,
-      10,
-      11,
-      12,
-      12,
-      14,
-      13,
-      16,
-      14,
-      18,
-      16,
-    ],
   });
 }
 
