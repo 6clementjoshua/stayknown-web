@@ -18,12 +18,12 @@ const space = Space_Grotesk({
   display: "swap",
 });
 
-// ✅ Update to your real domain when ready
 const SITE_URL = "https://stay-known.com";
 
 // Brand
 const APP_NAME = "StayKnown";
-const TITLE = "StayKnown — Personal safety visits, live sharing, Secure Chats and SOS escalation";
+const TITLE =
+  "StayKnown — Personal safety visits, live sharing, Secure Chats and SOS escalation";
 const DESCRIPTION =
   "StayKnown helps you share live locations during active visits to places,people and environments your not familiar with, keep SOS off-by-default, and escalate emergencies fast. Safety tools activate only when you initiate them.";
 
@@ -202,11 +202,6 @@ export default function RootLayout({
         <link rel="sitemap" href="/sitemap.xml" />
         <link rel="canonical" href={SITE_URL} />
 
-        {/* ✅ “Protection” basics (browser-side) */}
-        <meta httpEquiv="X-Content-Type-Options" content="nosniff" />
-        <meta httpEquiv="X-Frame-Options" content="DENY" />
-        <meta httpEquiv="Permissions-Policy" content="camera=(), microphone=(), geolocation=()" />
-
         {/* ✅ JSON-LD structured data */}
         <Script
           id="json-ld"
@@ -216,9 +211,7 @@ export default function RootLayout({
         />
       </head>
 
-      <body className="antialiased">
-        {children}
-      </body>
+      <body className="antialiased">{children}</body>
     </html>
   );
 }
