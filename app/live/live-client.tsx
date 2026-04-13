@@ -134,6 +134,19 @@ function isDesktop() {
   return window.matchMedia("(min-width: 900px)").matches;
 }
 
+function sessionMetaRows(seedStatus: LiveStatus, sosActive: boolean) {
+  const isEnded = seedStatus === "ended";
+
+  return {
+    statusText: sosActive ? "SOS" : isEnded ? "Ended" : "Live",
+    statusClass: sosActive
+      ? "bg-[#dff5ee] text-[#0e8f70] border-[#ccebdd]"
+      : isEnded
+        ? "bg-white/86 text-black/56 border-white/70"
+        : "bg-[#dff5ee] text-[#0e8f70] border-[#ccebdd]",
+  };
+}
+
 function buildMarkerEl(isLive = true) {
   const wrap = document.createElement("div");
   wrap.style.width = "104px";
@@ -243,6 +256,14 @@ function sessionLabelFromSeed(seed: SeedResp) {
       : "";
 
   return destinationName || destinationAddress || "Last session";
+}
+
+function safetyUseHint() {
+  return (
+    "Use this live session only for legitimate safety and care purposes involving people you know or are directly responsible for protecting. " +
+    "Do not use StayKnown to stalk, harass, secretly monitor, or track anyone without consent or lawful safety reason. " +
+    "Misuse may lead to safety review, access restriction, account action, and reporting where required."
+  );
 }
 
 function getMapStyleUrl(darkTheme: boolean) {
@@ -878,6 +899,45 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
   const showFallbackHint =
     renderMode === "fallback" && !isDesktop() && status !== "ended";
 
+  const sessionMeta = sessionMetaRows(status, sosActive);
+  const infoRows = [
+    {
+      label: "Started date",
+      value: startedDateLabel,
+      show: startedDateLabel !== "—",
+    },
+    {
+      label: "Started time",
+      value: startedTimeLabel,
+      show: startedTimeLabel !== "—",
+    },
+    {
+      label: "Address / landmark",
+      value: destinationAddressLabel,
+      show: destinationAddressLabel !== "—",
+    },
+    {
+      label: "Purpose",
+      value: purposeLabel,
+      show: purposeLabel !== "—",
+    },
+    {
+      label: "Meeting",
+      value: personToMeetLabel,
+      show: personToMeetLabel !== "—",
+    },
+    {
+      label: "Expected stay",
+      value: expectedDurationLabel,
+      show: expectedDurationLabel !== "—",
+    },
+    {
+      label: "Extra note",
+      value: extraNoteLabel,
+      show: extraNoteLabel !== "—",
+    },
+  ].filter((item) => item.show);
+
   const isPhone = isPhoneViewport();
 
   return (
@@ -942,9 +1002,17 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
             <div
               className={`pointer-events-auto flex max-w-full flex-wrap items-center justify-center gap-2 rounded-full border ${cardBorder} ${cardBg} px-3 py-2.5 shadow-[0_18px_50px_rgba(0,0,0,0.14)] backdrop-blur-2xl`}
             >
-              <div className="rounded-full border border-white/70 bg-white/86 px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-[0.18em] text-black/58">
-                {sosActive ? "SOS" : headerTitle}
+              <div
+                className={`rounded-full border px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-[0.18em] shadow-[0_0_24px_rgba(15,143,112,0.16)] ${
+                  status === "live" && !sosActive
+                    ? "animate-[skLivePulse_2.6s_ease-in-out_infinite]"
+                    : ""
+                } ${sessionMeta.statusClass}`}
+              >
+                {sessionMeta.statusText}
               </div>
+
+              <div className="text-[14px] font-black text-black/34">›</div>
 
               <div className="rounded-full border border-white/75 bg-white/88 px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-[0.16em] text-black/48">
                 {locationHeading}
@@ -954,6 +1022,8 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
                 {placeLabel}
               </div>
 
+              <div className="text-[14px] font-black text-black/34">›</div>
+
               <div className="rounded-full border border-white/75 bg-white/88 px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-[0.16em] text-black/48">
                 Heading to
               </div>
@@ -961,6 +1031,8 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
               <div className="rounded-full border border-white/75 bg-white/92 px-3 py-1.5 text-[12px] font-bold text-black/78 max-w-[240px] truncate">
                 {destinationLabel}
               </div>
+
+              <div className="text-[14px] font-black text-black/34">›</div>
 
               <div className="rounded-full border border-white/75 bg-white/88 px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-[0.16em] text-black/48">
                 Updated
@@ -971,8 +1043,25 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
               </div>
             </div>
 
-            <div className="pointer-events-none rounded-full border border-white/70 bg-white/48 px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-[0.2em] text-black/55 shadow-[0_10px_28px_rgba(0,0,0,0.10)] backdrop-blur-2xl">
-              Live session overview
+            {infoRows.length > 0 && (
+              <div
+                className={`pointer-events-auto flex max-w-[980px] flex-wrap items-center justify-center gap-2 rounded-[24px] border ${cardBorder} ${cardBg} px-3 py-2 shadow-[0_16px_44px_rgba(0,0,0,0.12)] backdrop-blur-2xl`}
+              >
+                {infoRows.map((item) => (
+                  <React.Fragment key={item.label}>
+                    <div className="rounded-full border border-white/75 bg-white/88 px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-[0.16em] text-black/48">
+                      {item.label}
+                    </div>
+                    <div className="rounded-full border border-white/75 bg-white/92 px-3 py-1.5 text-[12px] font-bold text-black/78 max-w-[300px] truncate">
+                      {item.value}
+                    </div>
+                  </React.Fragment>
+                ))}
+              </div>
+            )}
+
+            <div className="pointer-events-none max-w-[980px] rounded-[22px] border border-white/70 bg-white/48 px-4 py-2 text-center text-[10px] font-bold leading-5 text-black/56 shadow-[0_10px_28px_rgba(0,0,0,0.10)] backdrop-blur-2xl">
+              {safetyUseHint()}
             </div>
           </div>
         </div>
@@ -1010,18 +1099,29 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
             </button>
 
             {mobileInfoExpanded && (
-              <div className="mt-3 space-y-3 max-h-[48vh] overflow-y-auto sk-scroll-hidden">
+              <div className="mt-3 space-y-3 max-h-[52vh] overflow-y-auto sk-scroll-hidden">
                 <div className="grid grid-cols-1 gap-3">
                   <div
                     className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3`}
                   >
-                    <div
-                      className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${darkTheme ? "text-white/42" : "text-black/42"}`}
-                    >
-                      Current area
+                    <div className="flex items-center gap-2">
+                      <div
+                        className={`rounded-full border px-2.5 py-1 text-[9px] font-extrabold uppercase tracking-[0.16em] ${
+                          status === "live" && !sosActive
+                            ? "animate-[skLivePulse_2.6s_ease-in-out_infinite]"
+                            : ""
+                        } ${sessionMeta.statusClass}`}
+                      >
+                        {sessionMeta.statusText}
+                      </div>
+                      <div
+                        className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${darkTheme ? "text-white/42" : "text-black/42"}`}
+                      >
+                        Current area
+                      </div>
                     </div>
                     <div
-                      className={`mt-1 text-[13px] font-bold leading-5 ${cardText}`}
+                      className={`mt-2 text-[13px] font-bold leading-5 ${cardText}`}
                     >
                       {placeLabel}
                     </div>
@@ -1040,13 +1140,6 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
                     >
                       {destinationLabel}
                     </div>
-                    {destinationAddressLabel !== "—" && (
-                      <div
-                        className={`mt-1 text-[11px] leading-5 ${darkTheme ? "text-white/58" : "text-black/58"}`}
-                      >
-                        {destinationAddressLabel}
-                      </div>
-                    )}
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
@@ -1081,6 +1174,34 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
                     </div>
                   </div>
 
+                  {infoRows.length > 0 && (
+                    <div
+                      className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3`}
+                    >
+                      <div
+                        className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${darkTheme ? "text-white/42" : "text-black/42"}`}
+                      >
+                        Session details
+                      </div>
+
+                      <div className="mt-2 space-y-2">
+                        {infoRows.map((item) => (
+                          <div
+                            key={item.label}
+                            className="flex items-start justify-between gap-3 rounded-[14px] border border-black/6 bg-white/55 px-3 py-2"
+                          >
+                            <div className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-black/45">
+                              {item.label}
+                            </div>
+                            <div className="text-right text-[12px] font-bold leading-5 text-black/78 max-w-[62%] break-words">
+                              {item.value}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   {!!coordsLabel && !!mapHref && (
                     <div
                       className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3`}
@@ -1101,6 +1222,21 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
                       </a>
                     </div>
                   )}
+
+                  <div
+                    className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3`}
+                  >
+                    <div
+                      className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${darkTheme ? "text-white/42" : "text-black/42"}`}
+                    >
+                      Reminder
+                    </div>
+                    <div
+                      className={`mt-1 text-[11px] leading-5 ${darkTheme ? "text-white/66" : "text-black/66"}`}
+                    >
+                      {safetyUseHint()}
+                    </div>
+                  </div>
                 </div>
               </div>
             )}

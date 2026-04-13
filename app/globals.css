@@ -493,3 +493,15 @@ a:hover {
     transform: translate3d(0, 0, 0) scale(1);
   }
 }
+
+@keyframes skLivePulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(14, 143, 112, 0.12);
+    filter: brightness(1);
+  }
+
+  50% {
+    box-shadow: 0 0 0 8px rgba(14, 143, 112, 0.04);
+    filter: brightness(1.03);
+  }
+}
