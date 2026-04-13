@@ -140,6 +140,8 @@ export async function GET(req: Request) {
         created_at?: string | null;
       } | null;
 
+      const ended = Boolean(visit?.ended_at);
+
       if (typeof latest?.lat === "number" && typeof latest?.lng === "number") {
         sendChunk(controller, {
           type: "location",
@@ -153,6 +155,7 @@ export async function GET(req: Request) {
             null,
           created_at: latest.created_at ?? null,
           initial: true,
+          ended,
         });
       } else if (
         typeof visit?.end_lat === "number" &&
@@ -166,15 +169,17 @@ export async function GET(req: Request) {
           place: visit.destination_name ?? visit.destination_address ?? null,
           created_at: visit.ended_at ?? null,
           initial: true,
+          ended: true,
         });
       }
 
-      if (visit?.ended_at) {
+      if (ended) {
         sendChunk(controller, {
           type: "ended",
-          ended_at: visit.ended_at,
+          ended_at: visit?.ended_at,
           initial: true,
         });
+        return;
       }
 
       ch1 = sb
@@ -204,19 +209,12 @@ export async function GET(req: Request) {
                 accuracy: row.accuracy ?? null,
                 place: row.place ?? null,
                 created_at: row.created_at ?? null,
+                ended: false,
               });
             }
           },
         )
-        .subscribe((status) => {
-          if (status === "CHANNEL_ERROR") {
-            sendChunk(controller, {
-              type: "warning",
-              message:
-                "The live location channel had a brief issue. Reconnecting…",
-            });
-          }
-        });
+        .subscribe();
 
       ch2 = sb
         .channel(`live-visit-${sid}-${Date.now()}`)
@@ -248,6 +246,7 @@ export async function GET(req: Request) {
                 accuracy: null,
                 place: row.destination_name ?? row.destination_address ?? null,
                 created_at: row.ended_at ?? null,
+                ended: Boolean(row.ended_at),
               });
             }
 
@@ -259,14 +258,7 @@ export async function GET(req: Request) {
             }
           },
         )
-        .subscribe((status) => {
-          if (status === "CHANNEL_ERROR") {
-            sendChunk(controller, {
-              type: "warning",
-              message: "Visit status updates paused for a moment.",
-            });
-          }
-        });
+        .subscribe();
 
       const visitOwnerId = visit?.user_id ?? null;
 
@@ -302,14 +294,7 @@ export async function GET(req: Request) {
               });
             },
           )
-          .subscribe((status) => {
-            if (status === "CHANNEL_ERROR") {
-              sendChunk(controller, {
-                type: "warning",
-                message: "SOS status updates paused for a moment.",
-              });
-            }
-          });
+          .subscribe();
       }
 
       req.signal.addEventListener("abort", async () => {

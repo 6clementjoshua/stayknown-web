@@ -127,13 +127,12 @@ function buildMarkerEl() {
 function PremiumSpinner() {
   return (
     <div className="relative h-5 w-5 shrink-0">
-      <div className="absolute inset-0 rounded-full bg-white/75 backdrop-blur-xl shadow-[0_8px_24px_rgba(0,0,0,0.16)] border border-white/80" />
       <div
-        className="absolute inset-[3px] rounded-full border border-black/15 border-t-black/80 animate-spin"
+        className="absolute inset-0 rounded-full border border-white/70 border-t-black/65 animate-spin"
         style={{ animationDuration: "900ms" }}
       />
       <div
-        className="absolute inset-[7px] rounded-full border border-[#cfd5dc] border-b-[#6b7280] animate-spin"
+        className="absolute inset-[4px] rounded-full border border-black/10 border-b-black/45 animate-spin"
         style={{ animationDuration: "1300ms", animationDirection: "reverse" }}
       />
     </div>
@@ -151,7 +150,7 @@ function sessionLabelFromSeed(seed: SeedResp) {
       ? seed.destination_address.trim()
       : "";
 
-  return destinationName || destinationAddress || "Live visit";
+  return destinationName || destinationAddress || "Last session";
 }
 
 export default function LiveClient({ sessionId }: { sessionId: string }) {
@@ -170,16 +169,14 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
   const [status, setStatus] = React.useState<LiveStatus>("loading");
   const [renderMode, setRenderMode] = React.useState<RenderMode>("map");
   const [sosActive, setSosActive] = React.useState(false);
-  const [placeLabel, setPlaceLabel] = React.useState("Preparing live map…");
+  const [placeLabel, setPlaceLabel] = React.useState("Preparing last session…");
   const [coordsLabel, setCoordsLabel] = React.useState("");
   const [mapHref, setMapHref] = React.useState("");
-  const [loadingNote, setLoadingNote] = React.useState(
-    "Connecting to live location…",
-  );
   const [lastUpdatedLabel, setLastUpdatedLabel] = React.useState(
     "Waiting for update…",
   );
-  const [destinationLabel, setDestinationLabel] = React.useState("Live visit");
+  const [destinationLabel, setDestinationLabel] =
+    React.useState("Last session");
   const [browserHint, setBrowserHint] = React.useState("");
   const [sheetSnap, setSheetSnap] = React.useState<SheetSnap>("collapsed");
   const [darkTheme, setDarkTheme] = React.useState(false);
@@ -249,7 +246,9 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
       const cleanPlace =
         typeof place === "string" && place.trim()
           ? place.trim()
-          : "Live location available";
+          : nextStatus === "ended"
+            ? "Last known location"
+            : "Live location available";
 
       setPlaceLabel(cleanPlace);
       setCoordsLabel(formatCoords(lat, lng));
@@ -355,23 +354,10 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
         try {
           const data = JSON.parse(msg.data);
 
-          if (data.type === "ready") {
-            setLoadingNote(
-              renderModeRef.current === "map"
-                ? "Connected…"
-                : "Live updates ready…",
-            );
-            return;
-          }
-
+          if (data.type === "ready") return;
           if (data.type === "ka") return;
 
           if (data.type === "warning") {
-            setLoadingNote(
-              typeof data.message === "string" && data.message.trim()
-                ? data.message.trim()
-                : "Refreshing live connection…",
-            );
             return;
           }
 
@@ -380,11 +366,12 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
             typeof data.lat === "number" &&
             typeof data.lng === "number"
           ) {
-            applyPoint(data.lat, data.lng, data.place, "live", data.created_at);
-            setLoadingNote(
-              renderModeRef.current === "map"
-                ? "Receiving live movement…"
-                : "Receiving live updates…",
+            applyPoint(
+              data.lat,
+              data.lng,
+              data.place,
+              data.ended ? "ended" : "live",
+              data.created_at,
             );
             return;
           }
@@ -396,9 +383,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
 
           if (data.type === "ended") {
             setStatus("ended");
-            setLoadingNote("This visit has ended.");
-            clearReconnect();
-            closeStream();
+            setSosActive(false);
             return;
           }
         } catch {}
@@ -406,9 +391,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
 
       ev.onerror = () => {
         closeStream();
-        if (closed || status === "ended") return;
-
-        setLoadingNote("Reconnecting to live location…");
+        if (closed) return;
         reconnectTimerRef.current = setTimeout(connectStream, 1500);
       };
     };
@@ -445,7 +428,6 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
       }
 
       mapboxgl.accessToken = publicMapToken;
-      setLoadingNote("Opening…");
       setMapLoadError("");
 
       mapRef.current = new mapboxgl.Map({
@@ -489,16 +471,9 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
         });
       });
 
-      setSosActive(Boolean(seed.sos_active));
       setDestinationLabel(sessionLabelFromSeed(seed));
-
-      if (seed.ended) {
-        setStatus("ended");
-        setLoadingNote("This visit has ended.");
-      } else {
-        setStatus("live");
-        setLoadingNote("Connected to live tracking.");
-      }
+      setSosActive(seed.ended ? false : Boolean(seed.sos_active));
+      setStatus(seed.ended ? "ended" : "live");
 
       if (
         seed.latest &&
@@ -514,7 +489,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
         );
       } else {
         setPlaceLabel(
-          seed.ended ? "Visit ended" : "Waiting for first live update…",
+          seed.ended ? "Last known location" : "Waiting for first live update…",
         );
         setCoordsLabel("");
         setMapHref("");
@@ -526,29 +501,25 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
     }
 
     async function bootFallback(seed: SeedResp) {
-      setSosActive(Boolean(seed.sos_active));
       setDestinationLabel(sessionLabelFromSeed(seed));
-
-      if (seed.ended) {
-        setStatus("ended");
-        setLoadingNote("This visit has ended.");
-      } else {
-        setStatus("live");
-        setLoadingNote("Connected to live updates.");
-      }
+      setSosActive(seed.ended ? false : Boolean(seed.sos_active));
+      setStatus(seed.ended ? "ended" : "live");
 
       if (
         seed.latest &&
         typeof seed.latest.lat === "number" &&
         typeof seed.latest.lng === "number"
       ) {
-        setPlaceLabel(seed.latest.place?.trim() || "Live location available");
+        setPlaceLabel(
+          seed.latest.place?.trim() ||
+            (seed.ended ? "Last known location" : "Live location available"),
+        );
         setCoordsLabel(formatCoords(seed.latest.lat, seed.latest.lng));
         setMapHref(googleMapsHref(seed.latest.lat, seed.latest.lng));
         setLastUpdatedLabel(formatLiveTime(seed.latest.created_at));
       } else {
         setPlaceLabel(
-          seed.ended ? "Visit ended" : "Waiting for first live update…",
+          seed.ended ? "Last known location" : "Waiting for first live update…",
         );
         setCoordsLabel("");
         setMapHref("");
@@ -561,19 +532,14 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
 
     async function boot() {
       try {
-        setLoadingNote("Loading latest live location…");
         const seed = await fetchSeed();
         if (!seed) return;
-
-        if (seed.ended) {
-          setStatus("ended");
-        }
 
         if (isInAppBrowser()) {
           renderModeRef.current = "fallback";
           setRenderMode("fallback");
           setBrowserHint(
-            "Your browser is using the lighter live view. Updates still continue in real time below.",
+            "Open this link in Chrome or Safari for the full map experience.",
           );
           await bootFallback(seed);
           return;
@@ -592,13 +558,13 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
           renderModeRef.current = "fallback";
           setRenderMode("fallback");
           setBrowserHint(
-            "The premium map could not open in this browser. Live updates are still active below.",
+            "Open this link in Chrome or Safari for the full map experience.",
           );
           await bootFallback(seed);
         } catch (fallbackError) {
           if (closed) return;
           setStatus("error");
-          setLoadingNote(
+          setMapLoadError(
             fallbackError instanceof Error
               ? fallbackError.message
               : "Unable to open the live view right now.",
@@ -617,11 +583,10 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
       mapRef.current?.remove();
       mapRef.current = null;
     };
-  }, [sessionId, darkTheme, applyPoint, status]);
+  }, [sessionId, darkTheme, applyPoint]);
 
   const headerTitle = status === "ended" ? "Ended" : sosActive ? "SOS" : "Live";
-  const locationHeading =
-    status === "ended" ? "Last seen location" : "Current area";
+  const locationHeading = status === "ended" ? "Last session" : "Current area";
 
   const cardBg = darkTheme ? "bg-black/78" : "bg-white/92";
   const cardBorder = darkTheme ? "border-white/10" : "border-black/10";
@@ -698,18 +663,13 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
       </div>
 
       {showSpinner && (
-        <div className="absolute top-[84px] left-1/2 -translate-x-1/2 z-20">
-          <div className="rounded-full bg-white/72 border border-white/80 shadow-[0_10px_26px_rgba(0,0,0,0.12)] backdrop-blur-2xl px-3 py-1.5 flex items-center gap-2">
-            <PremiumSpinner />
-            <span className="text-[9px] tracking-[0.08em] font-bold text-black/60 whitespace-nowrap">
-              Opening…
-            </span>
-          </div>
+        <div className="absolute top-[88px] left-1/2 -translate-x-1/2 z-20">
+          <PremiumSpinner />
         </div>
       )}
 
       {mapLoadError && (
-        <div className="absolute top-[118px] left-1/2 -translate-x-1/2 z-20">
+        <div className="absolute top-[120px] left-1/2 -translate-x-1/2 z-20">
           <div className="rounded-full bg-red-50 border border-red-200 shadow-md px-3 py-2">
             <span className="text-[10px] tracking-[0.12em] font-bold text-red-600 whitespace-nowrap">
               {mapLoadError}
@@ -719,11 +679,10 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
       )}
 
       {showFallbackHint && !showSpinner && (
-        <div className="absolute top-[84px] left-1/2 -translate-x-1/2 z-20">
-          <div className="rounded-full bg-white/72 border border-white/80 shadow-[0_10px_26px_rgba(0,0,0,0.12)] backdrop-blur-2xl px-3 py-1.5 flex items-center gap-2">
-            <PremiumSpinner />
-            <span className="text-[9px] tracking-[0.08em] font-bold text-black/60 whitespace-nowrap">
-              Live updates active
+        <div className="absolute top-[88px] left-1/2 -translate-x-1/2 z-20">
+          <div className="rounded-full bg-white/70 border border-white/80 shadow-md px-3 py-1.5">
+            <span className="text-[9px] font-bold text-black/60 whitespace-nowrap">
+              Open in Chrome or Safari
             </span>
           </div>
         </div>
@@ -833,22 +792,10 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
                   <div
                     className={`mt-3 rounded-[20px] border ${cardBorder} ${innerBg} px-3 py-3`}
                   >
-                    <div className="flex items-start gap-3">
-                      <div className="pt-0.5">
-                        <PremiumSpinner />
-                      </div>
-                      <div>
-                        <div
-                          className={`text-[10px] uppercase tracking-[0.20em] font-bold ${darkTheme ? "text-white/40" : "text-black/40"}`}
-                        >
-                          Live view
-                        </div>
-                        <div
-                          className={`mt-1 text-sm font-semibold leading-6 ${darkTheme ? "text-white/70" : "text-black/70"}`}
-                        >
-                          {browserHint}
-                        </div>
-                      </div>
+                    <div
+                      className={`text-sm font-semibold leading-6 ${darkTheme ? "text-white/70" : "text-black/70"}`}
+                    >
+                      {browserHint}
                     </div>
                   </div>
                 )}
@@ -876,7 +823,8 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
                       Live status
                     </div>
                     <div className="mt-1 text-sm font-bold text-red-700">
-                      {loadingNote}
+                      {mapLoadError ||
+                        "Unable to open the live view right now."}
                     </div>
                   </div>
                 )}
