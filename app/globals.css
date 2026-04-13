@@ -469,3 +469,27 @@ a:hover {
     transform: scale(1.62);
   }
 }
+
+@keyframes skInfoLeft {
+  0% {
+    opacity: 0;
+    transform: translate3d(-24px, 0, 0) scale(0.98);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes skInfoUp {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 26px, 0) scale(0.985);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}

@@ -30,7 +30,12 @@ type SeedResp = {
 
 type LiveStatus = "loading" | "live" | "ended" | "error";
 type RenderMode = "map" | "fallback";
-type SheetSnap = "expanded" | "collapsed";
+type InfoCardOrigin = {
+  x: number;
+  y: number;
+};
+
+type InfoPanelMode = "closed" | "open";
 
 function formatCoords(lat: number, lng: number) {
   return `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
@@ -320,7 +325,11 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
   );
   const bootedRef = React.useRef(false);
   const hasCenteredRef = React.useRef(false);
-  const startYRef = React.useRef<number | null>(null);
+  const markerElRef = React.useRef<HTMLElement | null>(null);
+  const recenterTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
+  const userInteractingRef = React.useRef(false);
 
   const [status, setStatus] = React.useState<LiveStatus>("loading");
   const [renderMode, setRenderMode] = React.useState<RenderMode>("map");
@@ -334,9 +343,16 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
   const [destinationLabel, setDestinationLabel] =
     React.useState("Last session");
   const [browserHint, setBrowserHint] = React.useState("");
-  const [sheetSnap, setSheetSnap] = React.useState<SheetSnap>("collapsed");
   const [darkTheme, setDarkTheme] = React.useState(false);
   const [mapLoadError, setMapLoadError] = React.useState("");
+
+  const [infoPanelMode, setInfoPanelMode] =
+    React.useState<InfoPanelMode>("closed");
+  const [infoPanelOrigin, setInfoPanelOrigin] = React.useState<InfoCardOrigin>({
+    x: 0,
+    y: 0,
+  });
+  const [hintVisible, setHintVisible] = React.useState(true);
 
   const [accessGateOpen, setAccessGateOpen] = React.useState(true);
   const [accessAccepted, setAccessAccepted] = React.useState(false);
@@ -372,6 +388,59 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
     eventSourceRef.current = null;
   }, []);
 
+  function isPhoneViewport() {
+    if (typeof window === "undefined") return false;
+    return window.matchMedia("(max-width: 767px)").matches;
+  }
+
+  const clearRecenterTimer = React.useCallback(() => {
+    if (recenterTimerRef.current) {
+      clearTimeout(recenterTimerRef.current);
+      recenterTimerRef.current = null;
+    }
+  }, []);
+
+  const updateInfoPanelOrigin = React.useCallback(() => {
+    const el = markerElRef.current;
+    if (!el || typeof window === "undefined") return;
+
+    const rect = el.getBoundingClientRect();
+    setInfoPanelOrigin({
+      x: rect.left + rect.width / 2,
+      y: rect.top + rect.height / 2,
+    });
+  }, []);
+
+  const scheduleRecentre = React.useCallback(() => {
+    clearRecenterTimer();
+
+    recenterTimerRef.current = setTimeout(() => {
+      if (!mapRef.current || !markerRef.current) return;
+      if (userInteractingRef.current) return;
+
+      const lngLat = markerRef.current.getLngLat();
+
+      mapRef.current.easeTo({
+        center: [lngLat.lng, lngLat.lat],
+        zoom: Math.max(mapRef.current.getZoom(), 17),
+        duration: 850,
+        essential: true,
+      });
+
+      updateInfoPanelOrigin();
+    }, 1100);
+  }, [clearRecenterTimer, updateInfoPanelOrigin]);
+
+  const openInfoPanel = React.useCallback(() => {
+    updateInfoPanelOrigin();
+    setInfoPanelMode("open");
+    setHintVisible(false);
+  }, [updateInfoPanelOrigin]);
+
+  const closeInfoPanel = React.useCallback(() => {
+    setInfoPanelMode("closed");
+  }, []);
+
   const applyPoint = React.useCallback(
     (
       lat: number,
@@ -384,24 +453,46 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
 
       if (mapRef.current) {
         const needsLiveMarker = nextStatus !== "ended";
-
         if (!markerRef.current) {
           markerRef.current = new mapboxgl.Marker({
             element: buildMarkerEl(needsLiveMarker),
             anchor: "center",
           });
+
+          markerElRef.current = markerRef.current.getElement();
+          markerElRef.current.style.cursor = "pointer";
+          markerElRef.current.addEventListener("click", (e) => {
+            e.stopPropagation();
+            openInfoPanel();
+          });
         } else {
           const el = markerRef.current.getElement();
           const hasRadar = el.querySelector("[data-sk-radar='1']");
+
           if (
             (needsLiveMarker && !hasRadar) ||
             (!needsLiveMarker && hasRadar)
           ) {
+            const wasOpen = infoPanelMode === "open";
+
             markerRef.current.remove();
             markerRef.current = new mapboxgl.Marker({
               element: buildMarkerEl(needsLiveMarker),
               anchor: "center",
             });
+
+            markerElRef.current = markerRef.current.getElement();
+            markerElRef.current.style.cursor = "pointer";
+            markerElRef.current.addEventListener("click", (e) => {
+              e.stopPropagation();
+              openInfoPanel();
+            });
+
+            if (wasOpen) {
+              window.requestAnimationFrame(() => {
+                updateInfoPanelOrigin();
+              });
+            }
           }
         }
 
@@ -413,16 +504,9 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
 
         const padding = {
           top: isDesktop() ? 90 : 104,
-          right: 16,
-          bottom:
-            sheetSnap === "expanded"
-              ? isDesktop()
-                ? 360
-                : 330
-              : isDesktop()
-                ? 170
-                : 154,
-          left: 16,
+          right: isDesktop() ? 24 : 16,
+          bottom: isDesktop() ? 36 : 28,
+          left: isDesktop() ? 24 : 16,
         };
 
         if (!hasCenteredRef.current) {
@@ -467,7 +551,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
       setLastUpdatedLabel(formatLiveTime(createdAt));
       setStatus(nextStatus);
     },
-    [sheetSnap],
+    [infoPanelMode, openInfoPanel, updateInfoPanelOrigin],
   );
 
   const syncFromSeed = React.useCallback(
@@ -543,20 +627,27 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
 
   React.useEffect(() => {
     if (!mapRef.current) return;
-    const onResize = () => mapRef.current?.resize();
+
+    const onResize = () => {
+      mapRef.current?.resize();
+      updateInfoPanelOrigin();
+    };
+
     window.addEventListener("resize", onResize);
     const t = setTimeout(onResize, 120);
+
     return () => {
       clearTimeout(t);
       window.removeEventListener("resize", onResize);
     };
-  }, [sheetSnap]);
+  }, [updateInfoPanelOrigin]);
 
   React.useEffect(() => {
     if (!mapRef.current) return;
 
     const run = () => {
       mapRef.current?.resize();
+      updateInfoPanelOrigin();
     };
 
     const t1 = setTimeout(run, 80);
@@ -568,55 +659,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
       clearTimeout(t2);
       clearTimeout(t3);
     };
-  }, [renderMode, sheetSnap, status]);
-
-  React.useEffect(() => {
-    if (!mapRef.current) return;
-
-    const map = mapRef.current;
-
-    map.resize();
-    map.triggerRepaint();
-
-    map.easeTo({
-      padding: {
-        top: isDesktop() ? 90 : 104,
-        right: 16,
-        bottom:
-          sheetSnap === "expanded"
-            ? isDesktop()
-              ? 360
-              : 330
-            : isDesktop()
-              ? 170
-              : 154,
-        left: 16,
-      },
-      duration: 220,
-      essential: true,
-    });
-
-    const t1 = setTimeout(() => {
-      map.resize();
-      map.triggerRepaint();
-    }, 60);
-
-    const t2 = setTimeout(() => {
-      map.resize();
-      map.triggerRepaint();
-    }, 220);
-
-    const t3 = setTimeout(() => {
-      map.resize();
-      map.triggerRepaint();
-    }, 420);
-
-    return () => {
-      clearTimeout(t1);
-      clearTimeout(t2);
-      clearTimeout(t3);
-    };
-  }, [sheetSnap]);
+  }, [renderMode, status, updateInfoPanelOrigin]);
 
   React.useEffect(() => {
     if (!accessAccepted) return;
@@ -762,6 +805,54 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
 
       mapRef.current = map;
 
+      map.on("dragstart", () => {
+        userInteractingRef.current = true;
+        clearRecenterTimer();
+      });
+
+      map.on("zoomstart", () => {
+        userInteractingRef.current = true;
+        clearRecenterTimer();
+      });
+
+      map.on("rotatestart", () => {
+        userInteractingRef.current = true;
+        clearRecenterTimer();
+      });
+
+      map.on("pitchstart", () => {
+        userInteractingRef.current = true;
+        clearRecenterTimer();
+      });
+
+      map.on("dragend", () => {
+        userInteractingRef.current = false;
+        scheduleRecentre();
+      });
+
+      map.on("zoomend", () => {
+        userInteractingRef.current = false;
+        scheduleRecentre();
+      });
+
+      map.on("rotateend", () => {
+        userInteractingRef.current = false;
+        scheduleRecentre();
+      });
+
+      map.on("pitchend", () => {
+        userInteractingRef.current = false;
+        scheduleRecentre();
+      });
+
+      map.on("moveend", () => {
+        updateInfoPanelOrigin();
+      });
+
+      map.on("click", () => {
+        closeInfoPanel();
+      });
+
       await new Promise<void>((resolve, reject) => {
         const timeout = setTimeout(() => {
           setMapLoadError("The live map could not be rendered.");
@@ -852,9 +943,11 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
     return () => {
       closed = true;
       clearReconnect();
+      clearRecenterTimer();
       closeStream();
       stopPolling();
       markerRef.current = null;
+      markerElRef.current = null;
       mapRef.current?.remove();
       mapRef.current = null;
     };
@@ -867,6 +960,10 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
     clearReconnect,
     closeStream,
     stopPolling,
+    clearRecenterTimer,
+    scheduleRecentre,
+    updateInfoPanelOrigin,
+    closeInfoPanel,
   ]);
 
   const headerTitle = status === "ended" ? "Ended" : sosActive ? "SOS" : "Live";
@@ -883,28 +980,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
   const showFallbackHint =
     renderMode === "fallback" && !isDesktop() && status !== "ended";
 
-  const sheetHeightClass =
-    sheetSnap === "expanded" ? "h-[72vh] md:h-[64vh]" : "h-[182px]";
-
-  const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    startYRef.current = e.clientY;
-  };
-
-  const onPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (startYRef.current === null) return;
-
-    const delta = e.clientY - startYRef.current;
-
-    if (delta > 28) {
-      setSheetSnap("collapsed");
-    } else if (delta < -28) {
-      setSheetSnap("expanded");
-    } else {
-      setSheetSnap((prev) => (prev === "expanded" ? "collapsed" : "expanded"));
-    }
-
-    startYRef.current = null;
-  };
+  const isPhone = isPhoneViewport();
 
   return (
     <div className="fixed inset-0 h-screen w-screen overflow-hidden bg-transparent">
@@ -942,6 +1018,22 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
         </div>
       )}
 
+      {hintVisible && markerElRef.current && infoPanelMode === "closed" && (
+        <div
+          className="pointer-events-none absolute z-20 -translate-x-1/2"
+          style={{
+            left: `${infoPanelOrigin.x}px`,
+            top: `${infoPanelOrigin.y + 56}px`,
+          }}
+        >
+          <div className="rounded-full border border-white/80 bg-white/84 px-3 py-1.5 shadow-[0_12px_30px_rgba(0,0,0,0.14)] backdrop-blur-xl">
+            <div className="text-[10px] font-extrabold tracking-[0.18em] uppercase text-black/55">
+              Tap for more
+            </div>
+          </div>
+        </div>
+      )}
+
       {mapLoadError && (
         <div className="absolute top-[120px] left-1/2 -translate-x-1/2 z-20">
           <div className="rounded-full bg-red-50 border border-red-200 shadow-md px-3 py-2">
@@ -962,254 +1054,374 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
         </div>
       )}
 
-      <div className="absolute inset-x-0 bottom-0 z-20 px-3 pb-3 md:pb-4">
-        <div
-          className={`mx-auto w-full max-w-[760px] rounded-[30px] ${cardBg} border ${cardBorder} shadow-[0_18px_50px_rgba(0,0,0,0.18)] backdrop-blur-2xl overflow-hidden transition-[height] duration-300 ${sheetHeightClass}`}
-        >
+      {infoPanelMode === "open" && (
+        <>
           <div
-            className="px-4 pt-2.5 pb-2 cursor-grab active:cursor-grabbing select-none touch-none"
-            onPointerDown={onPointerDown}
-            onPointerUp={onPointerUp}
-          >
-            <div
-              className={`mx-auto h-1.5 w-12 rounded-full ${darkTheme ? "bg-white/14" : "bg-black/12"}`}
-            />
-          </div>
+            className="absolute inset-0 z-30 bg-transparent"
+            onClick={closeInfoPanel}
+          />
 
-          <div className="h-[calc(100%-44px)] overflow-y-auto sk-scroll-hidden px-4 pb-5">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <div
-                  className={`text-[9px] uppercase tracking-[0.26em] font-extrabold ${mutedText}`}
-                >
-                  {status === "ended" ? "Last known area" : "Current area"}
-                </div>
-                <div
-                  className={`mt-1.5 text-[17px] md:text-[18px] leading-[1.15] font-black break-words ${cardText}`}
-                >
-                  {placeLabel}
-                </div>
-              </div>
-
-              <div className="shrink-0">
-                <div
-                  className={`rounded-full px-3 py-1.5 text-[9px] uppercase tracking-[0.24em] font-black ${
-                    sosActive
-                      ? "bg-black text-white"
-                      : status === "ended"
-                        ? darkTheme
-                          ? "bg-white/12 text-white"
-                          : "bg-black/10 text-black"
-                        : "bg-[#dff5ee] text-[#169873]"
-                  }`}
-                >
-                  {sosActive ? "SOS" : headerTitle}
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+          {isPhone ? (
+            <div className="absolute inset-x-0 bottom-0 z-40 px-3 pb-3">
               <div
-                className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3`}
+                className={`mx-auto w-full max-w-[640px] rounded-[28px] ${cardBg} border ${cardBorder} shadow-[0_24px_80px_rgba(0,0,0,0.18)] backdrop-blur-2xl px-4 py-4 animate-[skInfoUp_280ms_cubic-bezier(.22,1,.36,1)]`}
+                onClick={(e) => e.stopPropagation()}
               >
-                <div
-                  className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${darkTheme ? "text-white/42" : "text-black/42"}`}
-                >
-                  {visitorName}
-                </div>
-                <div
-                  className={`mt-1 text-[13px] font-bold leading-5 ${cardText}`}
-                >
-                  {status === "ended"
-                    ? `Was at ${placeLabel}`
-                    : `Is currently at ${placeLabel}`}
-                </div>
-              </div>
+                <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-black/12" />
 
-              <div
-                className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3`}
-              >
-                <div
-                  className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${darkTheme ? "text-white/42" : "text-black/42"}`}
-                >
-                  Heading to
-                </div>
-                <div
-                  className={`mt-1 text-[13px] font-bold leading-5 ${cardText}`}
-                >
-                  {destinationLabel}
-                </div>
-                {destinationAddressLabel !== "—" && (
-                  <div
-                    className={`mt-1 text-[11px] leading-5 ${darkTheme ? "text-white/58" : "text-black/58"}`}
-                  >
-                    {destinationAddressLabel}
+                <div className="space-y-3 max-h-[68vh] overflow-y-auto sk-scroll-hidden">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div
+                        className={`text-[9px] uppercase tracking-[0.26em] font-extrabold ${mutedText}`}
+                      >
+                        {status === "ended"
+                          ? "Last known area"
+                          : "Current area"}
+                      </div>
+                      <div
+                        className={`mt-1.5 text-[17px] leading-[1.15] font-black break-words ${cardText}`}
+                      >
+                        {placeLabel}
+                      </div>
+                    </div>
+
+                    <div className="shrink-0 rounded-full border border-black/8 bg-[#dff5ee] px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.24em] text-[#169873]">
+                      {sosActive ? "SOS" : headerTitle}
+                    </div>
                   </div>
-                )}
+
+                  <div className="grid grid-cols-1 gap-3">
+                    <div
+                      className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3`}
+                    >
+                      <div
+                        className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${darkTheme ? "text-white/42" : "text-black/42"}`}
+                      >
+                        {visitorName}
+                      </div>
+                      <div
+                        className={`mt-1 text-[13px] font-bold leading-5 ${cardText}`}
+                      >
+                        {status === "ended"
+                          ? `Was at ${placeLabel}`
+                          : `Is currently at ${placeLabel}`}
+                      </div>
+                    </div>
+
+                    <div
+                      className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3`}
+                    >
+                      <div
+                        className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${darkTheme ? "text-white/42" : "text-black/42"}`}
+                      >
+                        Heading to
+                      </div>
+                      <div
+                        className={`mt-1 text-[13px] font-bold leading-5 ${cardText}`}
+                      >
+                        {destinationLabel}
+                      </div>
+                      {destinationAddressLabel !== "—" && (
+                        <div
+                          className={`mt-1 text-[11px] leading-5 ${darkTheme ? "text-white/58" : "text-black/58"}`}
+                        >
+                          {destinationAddressLabel}
+                        </div>
+                      )}
+                    </div>
+
+                    <div
+                      className={`grid gap-3 ${expectedDurationLabel !== "—" ? "grid-cols-2" : "grid-cols-2"}`}
+                    >
+                      <div
+                        className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3`}
+                      >
+                        <div
+                          className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${darkTheme ? "text-white/42" : "text-black/42"}`}
+                        >
+                          Last update
+                        </div>
+                        <div
+                          className={`mt-1 text-[12px] font-bold leading-5 ${cardText}`}
+                        >
+                          {lastUpdatedLabel}
+                        </div>
+                      </div>
+
+                      <div
+                        className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3`}
+                      >
+                        <div
+                          className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${darkTheme ? "text-white/42" : "text-black/42"}`}
+                        >
+                          Started date
+                        </div>
+                        <div
+                          className={`mt-1 text-[12px] font-bold leading-5 ${cardText}`}
+                        >
+                          {startedDateLabel}
+                        </div>
+                      </div>
+
+                      <div
+                        className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3`}
+                      >
+                        <div
+                          className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${darkTheme ? "text-white/42" : "text-black/42"}`}
+                        >
+                          Started time
+                        </div>
+                        <div
+                          className={`mt-1 text-[12px] font-bold leading-5 ${cardText}`}
+                        >
+                          {startedTimeLabel}
+                        </div>
+                      </div>
+
+                      {!!coordsLabel && !!mapHref && (
+                        <div
+                          className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3`}
+                        >
+                          <div
+                            className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${darkTheme ? "text-white/42" : "text-black/42"}`}
+                          >
+                            Coordinates
+                          </div>
+                          <a
+                            href={mapHref}
+                            target="_blank"
+                            rel="noreferrer"
+                            className={`mt-1 block text-[12px] font-extrabold underline underline-offset-4 break-all ${coordText}`}
+                            style={{ opacity: 0.96 }}
+                          >
+                            {coordsLabel}
+                          </a>
+                        </div>
+                      )}
+
+                      {expectedDurationLabel !== "—" && (
+                        <div
+                          className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3 col-span-2`}
+                        >
+                          <div
+                            className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${darkTheme ? "text-white/42" : "text-black/42"}`}
+                          >
+                            Expected stay
+                          </div>
+                          <div
+                            className={`mt-1 text-[12px] font-bold leading-5 ${cardText}`}
+                          >
+                            {expectedDurationLabel}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    <div
+                      className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3`}
+                    >
+                      <div
+                        className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${darkTheme ? "text-white/42" : "text-black/42"}`}
+                      >
+                        Privacy notice
+                      </div>
+                      <div
+                        className={`mt-1 text-[11px] leading-5 ${darkTheme ? "text-white/66" : "text-black/66"}`}
+                      >
+                        Use this map only for legitimate safety and care
+                        purposes. Do not use it to stalk, harass, or secretly
+                        monitor anyone.
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
-
+          ) : (
             <div
-              className={`mt-3 grid gap-3 ${
-                expectedDurationLabel !== "—"
-                  ? "grid-cols-2 md:grid-cols-5"
-                  : "grid-cols-2 md:grid-cols-4"
-              }`}
+              className="absolute z-40"
+              style={{
+                left: `${Math.max(16, infoPanelOrigin.x - 380)}px`,
+                top: `${Math.max(96, infoPanelOrigin.y - 120)}px`,
+              }}
+              onClick={(e) => e.stopPropagation()}
             >
               <div
-                className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3 min-w-0`}
+                className={`w-[360px] rounded-[28px] ${cardBg} border ${cardBorder} shadow-[0_28px_90px_rgba(0,0,0,0.20)] backdrop-blur-2xl px-4 py-4 animate-[skInfoLeft_280ms_cubic-bezier(.22,1,.36,1)]`}
               >
-                <div
-                  className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${darkTheme ? "text-white/42" : "text-black/42"}`}
-                >
-                  Last update
+                <div className="mb-3 text-[10px] font-extrabold uppercase tracking-[0.24em] text-black/48">
+                  Tap outside to dismiss
                 </div>
-                <div
-                  className={`mt-1 text-[12px] font-bold leading-5 ${cardText}`}
-                >
-                  {lastUpdatedLabel}
+
+                <div className="space-y-3 max-h-[72vh] overflow-y-auto sk-scroll-hidden">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div
+                        className={`text-[9px] uppercase tracking-[0.26em] font-extrabold ${mutedText}`}
+                      >
+                        {status === "ended"
+                          ? "Last known area"
+                          : "Current area"}
+                      </div>
+                      <div
+                        className={`mt-1.5 text-[17px] leading-[1.15] font-black break-words ${cardText}`}
+                      >
+                        {placeLabel}
+                      </div>
+                    </div>
+
+                    <div className="shrink-0 rounded-full border border-black/8 bg-[#dff5ee] px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.24em] text-[#169873]">
+                      {sosActive ? "SOS" : headerTitle}
+                    </div>
+                  </div>
+
+                  <div
+                    className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3`}
+                  >
+                    <div
+                      className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${darkTheme ? "text-white/42" : "text-black/42"}`}
+                    >
+                      {visitorName}
+                    </div>
+                    <div
+                      className={`mt-1 text-[13px] font-bold leading-5 ${cardText}`}
+                    >
+                      {status === "ended"
+                        ? `Was at ${placeLabel}`
+                        : `Is currently at ${placeLabel}`}
+                    </div>
+                  </div>
+
+                  <div
+                    className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3`}
+                  >
+                    <div
+                      className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${darkTheme ? "text-white/42" : "text-black/42"}`}
+                    >
+                      Heading to
+                    </div>
+                    <div
+                      className={`mt-1 text-[13px] font-bold leading-5 ${cardText}`}
+                    >
+                      {destinationLabel}
+                    </div>
+                    {destinationAddressLabel !== "—" && (
+                      <div
+                        className={`mt-1 text-[11px] leading-5 ${darkTheme ? "text-white/58" : "text-black/58"}`}
+                      >
+                        {destinationAddressLabel}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div
+                      className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3`}
+                    >
+                      <div
+                        className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${darkTheme ? "text-white/42" : "text-black/42"}`}
+                      >
+                        Last update
+                      </div>
+                      <div
+                        className={`mt-1 text-[12px] font-bold leading-5 ${cardText}`}
+                      >
+                        {lastUpdatedLabel}
+                      </div>
+                    </div>
+
+                    <div
+                      className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3`}
+                    >
+                      <div
+                        className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${darkTheme ? "text-white/42" : "text-black/42"}`}
+                      >
+                        Started date
+                      </div>
+                      <div
+                        className={`mt-1 text-[12px] font-bold leading-5 ${cardText}`}
+                      >
+                        {startedDateLabel}
+                      </div>
+                    </div>
+
+                    <div
+                      className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3`}
+                    >
+                      <div
+                        className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${darkTheme ? "text-white/42" : "text-black/42"}`}
+                      >
+                        Started time
+                      </div>
+                      <div
+                        className={`mt-1 text-[12px] font-bold leading-5 ${cardText}`}
+                      >
+                        {startedTimeLabel}
+                      </div>
+                    </div>
+
+                    {!!coordsLabel && !!mapHref && (
+                      <div
+                        className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3`}
+                      >
+                        <div
+                          className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${darkTheme ? "text-white/42" : "text-black/42"}`}
+                        >
+                          Coordinates
+                        </div>
+                        <a
+                          href={mapHref}
+                          target="_blank"
+                          rel="noreferrer"
+                          className={`mt-1 block text-[12px] font-extrabold underline underline-offset-4 break-all ${coordText}`}
+                          style={{ opacity: 0.96 }}
+                        >
+                          {coordsLabel}
+                        </a>
+                      </div>
+                    )}
+
+                    {expectedDurationLabel !== "—" && (
+                      <div
+                        className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3 col-span-2`}
+                      >
+                        <div
+                          className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${darkTheme ? "text-white/42" : "text-black/42"}`}
+                        >
+                          Expected stay
+                        </div>
+                        <div
+                          className={`mt-1 text-[12px] font-bold leading-5 ${cardText}`}
+                        >
+                          {expectedDurationLabel}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div
+                    className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3`}
+                  >
+                    <div
+                      className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${darkTheme ? "text-white/42" : "text-black/42"}`}
+                    >
+                      Privacy notice
+                    </div>
+                    <div
+                      className={`mt-1 text-[11px] leading-5 ${darkTheme ? "text-white/66" : "text-black/66"}`}
+                    >
+                      Use this map only for legitimate safety and care purposes.
+                      Do not use it to stalk, harass, or secretly monitor
+                      anyone.
+                    </div>
+                  </div>
                 </div>
               </div>
-
-              <div
-                className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3 min-w-0`}
-              >
-                <div
-                  className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${darkTheme ? "text-white/42" : "text-black/42"}`}
-                >
-                  Started date
-                </div>
-                <div
-                  className={`mt-1 text-[12px] font-bold leading-5 ${cardText}`}
-                >
-                  {startedDateLabel}
-                </div>
-              </div>
-
-              <div
-                className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3 min-w-0`}
-              >
-                <div
-                  className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${darkTheme ? "text-white/42" : "text-black/42"}`}
-                >
-                  Started time
-                </div>
-                <div
-                  className={`mt-1 text-[12px] font-bold leading-5 ${cardText}`}
-                >
-                  {startedTimeLabel}
-                </div>
-              </div>
-
-              {!!coordsLabel && !!mapHref && (
-                <div
-                  className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3 min-w-0 ${
-                    expectedDurationLabel !== "—"
-                      ? "col-span-2 md:col-span-1"
-                      : "col-span-2 md:col-span-1"
-                  }`}
-                >
-                  <div
-                    className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${darkTheme ? "text-white/42" : "text-black/42"}`}
-                  >
-                    Coordinates
-                  </div>
-                  <a
-                    href={mapHref}
-                    target="_blank"
-                    rel="noreferrer"
-                    className={`mt-1 block text-[12px] font-extrabold underline underline-offset-4 break-all ${coordText}`}
-                    style={{ opacity: 0.96 }}
-                  >
-                    {coordsLabel}
-                  </a>
-                </div>
-              )}
-
-              {expectedDurationLabel !== "—" && (
-                <div
-                  className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3 min-w-0`}
-                >
-                  <div
-                    className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${darkTheme ? "text-white/42" : "text-black/42"}`}
-                  >
-                    Expected stay
-                  </div>
-                  <div
-                    className={`mt-1 text-[12px] font-bold leading-5 ${cardText}`}
-                  >
-                    {expectedDurationLabel}
-                  </div>
-                </div>
-              )}
             </div>
-
-            <div
-              className={`mt-3 rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3`}
-            >
-              <div
-                className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${darkTheme ? "text-white/42" : "text-black/42"}`}
-              >
-                Privacy notice
-              </div>
-              <div
-                className={`mt-1 text-[11px] leading-5 ${darkTheme ? "text-white/66" : "text-black/66"}`}
-              >
-                Use this map only for legitimate safety and care purposes. Do
-                not use it to stalk, harass, or secretly monitor anyone. Misuse
-                may violate privacy policy and applicable law.
-              </div>
-            </div>
-
-            {showFallbackHint && (
-              <div
-                className={`mt-3 rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3`}
-              >
-                <div
-                  className={`text-[11px] leading-5 ${darkTheme ? "text-white/68" : "text-black/68"}`}
-                >
-                  {browserHint}
-                </div>
-              </div>
-            )}
-
-            {!!mapHref && renderMode === "fallback" && (
-              <div className="mt-3">
-                <a
-                  href={mapHref}
-                  target="_blank"
-                  rel="noreferrer"
-                  className={`block rounded-full text-center text-[12px] font-black px-5 py-3 shadow-lg ${
-                    darkTheme ? "bg-white text-black" : "bg-black text-white"
-                  }`}
-                >
-                  Open location in Google Maps
-                </a>
-              </div>
-            )}
-
-            {status === "error" && (
-              <div className="mt-3 rounded-[18px] border border-red-200 bg-red-50 px-3 py-3">
-                <div className="text-[9px] uppercase tracking-[0.22em] text-red-500 font-extrabold">
-                  Live status
-                </div>
-                <div className="mt-1 text-[12px] font-bold text-red-700">
-                  {mapLoadError || "Unable to open the live view right now."}
-                </div>
-              </div>
-            )}
-
-            {status === "ended" && (
-              <div
-                className={`mt-3 rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3 text-[11px] font-medium leading-5 ${darkTheme ? "text-white/65" : "text-black/65"}`}
-              >
-                This visit has ended. This page now shows the last known
-                location from that session.
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
+          )}
+        </>
+      )}
 
       {accessGateOpen && !accessAccepted && (
         <div className="absolute inset-0 z-[90] flex items-center justify-center bg-black/45 backdrop-blur-md px-4">
