@@ -229,8 +229,8 @@ function getMapStyleUrl(darkTheme: boolean) {
 }
 
 function applyPremiumMapLayers(map: mapboxgl.Map, darkTheme: boolean) {
-  const textColor = darkTheme ? "#f1f5f9" : "#2f3944";
-  const softColor = darkTheme ? "#dbe4ee" : "#586472";
+  const textColor = darkTheme ? "#eef4fb" : "#2b3642";
+  const softColor = darkTheme ? "#d9e3ee" : "#596674";
 
   const trySet = (
     layerId: string,
@@ -275,32 +275,38 @@ function applyPremiumMapLayers(map: mapboxgl.Map, darkTheme: boolean) {
       {
         "text-color": id === "water-label" ? softColor : textColor,
         "text-halo-color": darkTheme
-          ? "rgba(9,12,16,0.88)"
-          : "rgba(255,255,255,0.98)",
-        "text-halo-width": 1.35,
+          ? "rgba(8,10,14,0.90)"
+          : "rgba(255,255,255,0.99)",
+        "text-halo-width": 1.5,
         "text-opacity": 1,
       },
       {
         visibility: "visible",
         "text-optional": false,
         "icon-optional": false,
+        "symbol-placement": "point",
       },
     );
   });
 
   [
+    "poi-label",
     "poi-label-sm",
     "poi-label-md",
     "poi-label-lg",
     "airport-label",
     "transit-label",
+    "road-label",
+    "settlement-minor-label",
+    "settlement-major-label",
   ].forEach((id) => {
     trySet(id, undefined, {
       visibility: "visible",
-      "text-size": 12,
+      "text-size": 13,
     });
   });
 }
+
 export default function LiveClient({ sessionId }: { sessionId: string }) {
   const mapDivRef = React.useRef<HTMLDivElement | null>(null);
   const mapRef = React.useRef<mapboxgl.Map | null>(null);
@@ -422,22 +428,21 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
         if (!hasCenteredRef.current) {
           mapRef.current.jumpTo({
             center: nextLngLat,
-            zoom: 16.2,
+            zoom: 17,
           });
 
           mapRef.current.easeTo({
             center: nextLngLat,
-            zoom: 16.2,
+            zoom: 17,
             padding,
             duration: 0,
             essential: true,
           });
-
           hasCenteredRef.current = true;
         } else {
           mapRef.current.easeTo({
             center: nextLngLat,
-            zoom: Math.max(mapRef.current.getZoom(), 16.2),
+            zoom: Math.max(mapRef.current.getZoom(), 17),
             padding,
             duration: 650,
             essential: true,
@@ -568,7 +573,12 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
   React.useEffect(() => {
     if (!mapRef.current) return;
 
-    mapRef.current.easeTo({
+    const map = mapRef.current;
+
+    map.resize();
+    map.triggerRepaint();
+
+    map.easeTo({
       padding: {
         top: isDesktop() ? 90 : 104,
         right: 16,
@@ -586,8 +596,26 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
       essential: true,
     });
 
-    const t = setTimeout(() => mapRef.current?.resize(), 230);
-    return () => clearTimeout(t);
+    const t1 = setTimeout(() => {
+      map.resize();
+      map.triggerRepaint();
+    }, 60);
+
+    const t2 = setTimeout(() => {
+      map.resize();
+      map.triggerRepaint();
+    }, 220);
+
+    const t3 = setTimeout(() => {
+      map.resize();
+      map.triggerRepaint();
+    }, 420);
+
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+    };
   }, [sheetSnap]);
 
   React.useEffect(() => {
@@ -722,7 +750,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
           seed.latest &&
           typeof seed.latest.lng === "number" &&
           typeof seed.latest.lat === "number"
-            ? 16.2
+            ? 17
             : 5,
         attributionControl: false,
         dragRotate: false,
@@ -856,7 +884,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
     renderMode === "fallback" && !isDesktop() && status !== "ended";
 
   const sheetHeightClass =
-    sheetSnap === "expanded" ? "h-[74vh] md:h-[66vh]" : "h-[182px]";
+    sheetSnap === "expanded" ? "h-[72vh] md:h-[64vh]" : "h-[182px]";
 
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     startYRef.current = e.clientY;
@@ -885,11 +913,11 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
           <div
             ref={mapDivRef}
             className="absolute inset-0 h-full w-full"
-            style={{ background: "#eef2f6" }}
+            style={{ background: "transparent" }}
           />
         </div>
       ) : (
-        <div className="absolute inset-0 z-0 bg-[#eef2f6]" />
+        <div className="absolute inset-0 z-0 bg-transparent" />
       )}
       <div className="pointer-events-none absolute inset-x-0 top-0 h-20 z-10 bg-gradient-to-b from-white/28 to-transparent" />
 
@@ -948,7 +976,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
             />
           </div>
 
-          <div className="h-full overflow-y-auto sk-scroll-hidden px-4 pb-5">
+          <div className="h-[calc(100%-44px)] overflow-y-auto sk-scroll-hidden px-4 pb-5">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <div
@@ -1021,9 +1049,15 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
               </div>
             </div>
 
-            <div className="mt-3 grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div
+              className={`mt-3 grid gap-3 ${
+                expectedDurationLabel !== "—"
+                  ? "grid-cols-2 md:grid-cols-5"
+                  : "grid-cols-2 md:grid-cols-4"
+              }`}
+            >
               <div
-                className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3`}
+                className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3 min-w-0`}
               >
                 <div
                   className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${darkTheme ? "text-white/42" : "text-black/42"}`}
@@ -1038,7 +1072,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
               </div>
 
               <div
-                className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3`}
+                className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3 min-w-0`}
               >
                 <div
                   className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${darkTheme ? "text-white/42" : "text-black/42"}`}
@@ -1053,7 +1087,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
               </div>
 
               <div
-                className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3`}
+                className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3 min-w-0`}
               >
                 <div
                   className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${darkTheme ? "text-white/42" : "text-black/42"}`}
@@ -1067,9 +1101,34 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
                 </div>
               </div>
 
+              {!!coordsLabel && !!mapHref && (
+                <div
+                  className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3 min-w-0 ${
+                    expectedDurationLabel !== "—"
+                      ? "col-span-2 md:col-span-1"
+                      : "col-span-2 md:col-span-1"
+                  }`}
+                >
+                  <div
+                    className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${darkTheme ? "text-white/42" : "text-black/42"}`}
+                  >
+                    Coordinates
+                  </div>
+                  <a
+                    href={mapHref}
+                    target="_blank"
+                    rel="noreferrer"
+                    className={`mt-1 block text-[12px] font-extrabold underline underline-offset-4 break-all ${coordText}`}
+                    style={{ opacity: 0.96 }}
+                  >
+                    {coordsLabel}
+                  </a>
+                </div>
+              )}
+
               {expectedDurationLabel !== "—" && (
                 <div
-                  className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3`}
+                  className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3 min-w-0`}
                 >
                   <div
                     className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${darkTheme ? "text-white/42" : "text-black/42"}`}
@@ -1084,84 +1143,6 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
                 </div>
               )}
             </div>
-
-            {(purposeLabel !== "—" ||
-              personToMeetLabel !== "—" ||
-              extraNoteLabel !== "—") && (
-              <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-3">
-                {purposeLabel !== "—" && (
-                  <div
-                    className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3`}
-                  >
-                    <div
-                      className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${darkTheme ? "text-white/42" : "text-black/42"}`}
-                    >
-                      Purpose
-                    </div>
-                    <div
-                      className={`mt-1 text-[12px] font-bold leading-5 ${cardText}`}
-                    >
-                      {purposeLabel}
-                    </div>
-                  </div>
-                )}
-
-                {personToMeetLabel !== "—" && (
-                  <div
-                    className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3`}
-                  >
-                    <div
-                      className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${darkTheme ? "text-white/42" : "text-black/42"}`}
-                    >
-                      Meeting
-                    </div>
-                    <div
-                      className={`mt-1 text-[12px] font-bold leading-5 ${cardText}`}
-                    >
-                      {personToMeetLabel}
-                    </div>
-                  </div>
-                )}
-
-                {extraNoteLabel !== "—" && (
-                  <div
-                    className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3`}
-                  >
-                    <div
-                      className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${darkTheme ? "text-white/42" : "text-black/42"}`}
-                    >
-                      Extra note
-                    </div>
-                    <div
-                      className={`mt-1 text-[12px] font-bold leading-5 ${cardText}`}
-                    >
-                      {extraNoteLabel}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {!!coordsLabel && !!mapHref && (
-              <div
-                className={`mt-3 rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3`}
-              >
-                <div
-                  className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${darkTheme ? "text-white/42" : "text-black/42"}`}
-                >
-                  Coordinates
-                </div>
-                <a
-                  href={mapHref}
-                  target="_blank"
-                  rel="noreferrer"
-                  className={`mt-1 block text-[12px] font-extrabold underline underline-offset-4 break-all ${coordText}`}
-                  style={{ opacity: 0.96 }}
-                >
-                  {coordsLabel}
-                </a>
-              </div>
-            )}
 
             <div
               className={`mt-3 rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3`}
