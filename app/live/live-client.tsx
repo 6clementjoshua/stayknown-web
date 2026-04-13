@@ -30,8 +30,8 @@ type SeedResp = {
 
 type LiveStatus = "loading" | "live" | "ended" | "error";
 type RenderMode = "map" | "fallback";
-const INITIAL_VIEW_ZOOM = 14.8;
-const FOLLOW_VIEW_ZOOM = 16.4;
+const INITIAL_VIEW_ZOOM = 14.4;
+const FOLLOW_VIEW_ZOOM = 16;
 const MOVE_FOLLOW_THRESHOLD_METERS = 35;
 
 function distanceMeters(
@@ -270,6 +270,23 @@ function getMapStyleUrl(darkTheme: boolean) {
   return darkTheme
     ? "mapbox://styles/mapbox/navigation-night-v1"
     : "mapbox://styles/mapbox/standard";
+}
+
+function applyStandardBasemapConfig(map: mapboxgl.Map, darkTheme: boolean) {
+  try {
+    const setConfig = (key: string, value: unknown) => {
+      try {
+        (map as any).setConfigProperty?.("basemap", key, value);
+      } catch {}
+    };
+
+    setConfig("showPlaceLabels", true);
+    setConfig("showPointOfInterestLabels", true);
+    setConfig("showRoadLabels", true);
+    setConfig("showTransitLabels", true);
+    setConfig("show3dObjects", false);
+    setConfig("lightPreset", darkTheme ? "night" : "day");
+  } catch {}
 }
 
 function applyPremiumMapLayers(map: mapboxgl.Map, darkTheme: boolean) {
@@ -624,6 +641,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
 
     mapRef.current.once("styledata", () => {
       if (!mapRef.current) return;
+      applyStandardBasemapConfig(mapRef.current, darkTheme);
       applyPremiumMapLayers(mapRef.current, darkTheme);
     });
   }, [darkTheme]);
@@ -784,6 +802,16 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
       const map = new mapboxgl.Map({
         container: mapDivRef.current,
         style: getMapStyleUrl(darkTheme),
+        config: {
+          basemap: {
+            showPlaceLabels: true,
+            showPointOfInterestLabels: true,
+            showRoadLabels: true,
+            showTransitLabels: true,
+            show3dObjects: false,
+            lightPreset: darkTheme ? "night" : "day",
+          },
+        } as any,
         center:
           seed.latest &&
           typeof seed.latest.lng === "number" &&
@@ -835,10 +863,32 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
           setTimeout(() => {
             map.resize();
           }, 500);
+
+          applyStandardBasemapConfig(map, darkTheme);
           applyPremiumMapLayers(map, darkTheme);
           resolve();
         });
+        map.once("load", () => {
+          clearTimeout(timeout);
 
+          map.resize();
+
+          window.requestAnimationFrame(() => {
+            map.resize();
+          });
+
+          setTimeout(() => {
+            map.resize();
+          }, 150);
+
+          setTimeout(() => {
+            map.resize();
+          }, 500);
+
+          applyStandardBasemapConfig(map, darkTheme);
+          applyPremiumMapLayers(map, darkTheme);
+          resolve();
+        });
         map.on("error", (e) => {
           console.error("[live-map.error]", e);
         });
