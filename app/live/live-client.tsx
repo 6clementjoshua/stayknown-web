@@ -1052,10 +1052,10 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
         <div className="absolute inset-x-0 bottom-5 z-30 px-4">
           <div className="mx-auto flex w-full max-w-[1120px] flex-col items-center gap-2">
             <div
-              className={`pointer-events-auto flex max-w-full flex-wrap items-center justify-center gap-1.5 rounded-full border ${cardBorder} ${cardBg} px-2.5 py-2 shadow-[0_16px_40px_rgba(0,0,0,0.12)] backdrop-blur-2xl`}
+              className={`pointer-events-auto flex max-w-full flex-wrap items-center justify-center gap-1 rounded-full border ${cardBorder} ${cardBg} px-2 py-1.5 shadow-[0_14px_34px_rgba(0,0,0,0.10)] backdrop-blur-2xl`}
             >
               <div
-                className={`rounded-full border px-3 py-[8px] text-[9px] font-extrabold uppercase tracking-[0.18em] shadow-[0_0_20px_rgba(15,143,112,0.14)] ${
+                className={`rounded-full border px-2.5 py-[6px] text-[8px] font-extrabold uppercase tracking-[0.18em] shadow-[0_0_16px_rgba(15,143,112,0.12)] ${
                   status === "live" && !sosActive
                     ? "animate-[skLivePulse_2.6s_ease-in-out_infinite]"
                     : ""
@@ -1064,40 +1064,40 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
                 {sessionMeta.statusText}
               </div>
 
-              <div className="rounded-full border border-white/75 bg-white/88 px-2.5 py-[8px] text-[9px] font-extrabold uppercase tracking-[0.14em] text-black/46">
+              <div className="rounded-full border border-white/75 bg-white/88 px-2 py-[6px] text-[8px] font-extrabold uppercase tracking-[0.13em] text-black/46">
                 {locationHeading} <span className="ml-1 text-black/34">›</span>
               </div>
 
-              <div className="rounded-full border border-white/75 bg-white/92 px-3 py-[8px] text-[11px] font-bold text-black/78 max-w-[300px] truncate">
+              <div className="rounded-full border border-white/75 bg-white/92 px-2.5 py-[6px] text-[10px] font-bold text-black/78 max-w-[280px] truncate">
                 {placeLabel}
               </div>
 
-              <div className="rounded-full border border-white/75 bg-white/88 px-2.5 py-[8px] text-[9px] font-extrabold uppercase tracking-[0.14em] text-black/46">
+              <div className="rounded-full border border-white/75 bg-white/88 px-2 py-[6px] text-[8px] font-extrabold uppercase tracking-[0.13em] text-black/46">
                 Heading to <span className="ml-1 text-black/34">›</span>
               </div>
 
-              <div className="rounded-full border border-white/75 bg-white/92 px-3 py-[8px] text-[11px] font-bold text-black/78 max-w-[220px] truncate">
+              <div className="rounded-full border border-white/75 bg-white/92 px-2.5 py-[6px] text-[10px] font-bold text-black/78 max-w-[200px] truncate">
                 {destinationLabel}
               </div>
 
-              <div className="rounded-full border border-white/75 bg-white/88 px-2.5 py-[8px] text-[9px] font-extrabold uppercase tracking-[0.14em] text-black/46">
+              <div className="rounded-full border border-white/75 bg-white/88 px-2 py-[6px] text-[8px] font-extrabold uppercase tracking-[0.13em] text-black/46">
                 Updated <span className="ml-1 text-black/34">›</span>
               </div>
 
-              <div className="rounded-full border border-white/75 bg-white/92 px-3 py-[8px] text-[11px] font-bold text-black/78">
+              <div className="rounded-full border border-white/75 bg-white/92 px-2.5 py-[6px] text-[10px] font-bold text-black/78">
                 {lastUpdatedLabel}
               </div>
             </div>
             {infoRows.length > 0 && (
               <div
-                className={`pointer-events-auto flex max-w-[980px] flex-wrap items-center justify-center gap-2 rounded-[24px] border ${cardBorder} ${cardBg} px-3 py-2 shadow-[0_16px_44px_rgba(0,0,0,0.12)] backdrop-blur-2xl`}
+                className={`pointer-events-auto flex max-w-[980px] flex-wrap items-center justify-center gap-1 rounded-[18px] border ${cardBorder} ${cardBg} px-2 py-1 shadow-[0_12px_30px_rgba(0,0,0,0.08)] backdrop-blur-2xl`}
               >
                 {infoRows.map((item) => (
                   <React.Fragment key={item.label}>
-                    <div className="rounded-full border border-white/75 bg-white/88 px-2.5 py-[8px] text-[9px] font-extrabold uppercase tracking-[0.14em] text-black/46">
+                    <div className="rounded-full border border-white/75 bg-white/88 px-2 py-[6px] text-[8px] font-extrabold uppercase tracking-[0.13em] text-black/46">
                       {item.label} <span className="ml-1 text-black/34">›</span>
                     </div>
-                    <div className="rounded-full border border-white/75 bg-white/92 px-3 py-[8px] text-[11px] font-bold text-black/78 max-w-[280px] truncate">
+                    <div className="rounded-full border border-white/75 bg-white/92 px-2.5 py-[6px] text-[10px] font-bold text-black/78 max-w-[240px] truncate">
                       {item.value}
                     </div>
                   </React.Fragment>
