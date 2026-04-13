@@ -30,8 +30,8 @@ type SeedResp = {
 
 type LiveStatus = "loading" | "live" | "ended" | "error";
 type RenderMode = "map" | "fallback";
-const INITIAL_VIEW_ZOOM = 14.4;
-const FOLLOW_VIEW_ZOOM = 16;
+const INITIAL_VIEW_ZOOM = 13.8;
+const FOLLOW_VIEW_ZOOM = 15.8;
 const MOVE_FOLLOW_THRESHOLD_METERS = 35;
 
 function distanceMeters(
@@ -289,10 +289,171 @@ function applyStandardBasemapConfig(map: mapboxgl.Map, darkTheme: boolean) {
   } catch {}
 }
 
+function featureName(props: Record<string, any>) {
+  return (
+    props.name_en ||
+    props.name ||
+    props.name_en_US ||
+    props.name_int ||
+    props["name:en"] ||
+    ""
+  );
+}
+
+function coercePointCoords(
+  geometry: mapboxgl.MapboxGeoJSONFeature["geometry"],
+): [number, number] | null {
+  if (!geometry) return null;
+
+  if (geometry.type === "Point") {
+    const c = geometry.coordinates as number[];
+    if (c.length >= 2) return [c[0], c[1]];
+  }
+
+  if (geometry.type === "MultiPoint") {
+    const c = geometry.coordinates?.[0] as number[] | undefined;
+    if (c && c.length >= 2) return [c[0], c[1]];
+  }
+
+  return null;
+}
+
+function collectForcedPlaceFeatures(map: mapboxgl.Map) {
+  const seen = new Set<string>();
+  const features: GeoJSON.Feature<GeoJSON.Point>[] = [];
+
+  const pull = (sourceLayer: string, rankBoost = 0) => {
+    let rows: mapboxgl.MapboxGeoJSONFeature[] = [];
+    try {
+      rows = map.querySourceFeatures("composite", { sourceLayer });
+    } catch {
+      return;
+    }
+
+    for (const row of rows) {
+      const props = (row.properties || {}) as Record<string, any>;
+      const name = String(featureName(props)).trim();
+      if (!name) continue;
+
+      const coords = coercePointCoords(row.geometry);
+      if (!coords) continue;
+
+      const lng = Number(coords[0]);
+      const lat = Number(coords[1]);
+      if (!Number.isFinite(lng) || !Number.isFinite(lat)) continue;
+
+      const key = `${sourceLayer}:${name}:${lng.toFixed(5)}:${lat.toFixed(5)}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+
+      const scalerank =
+        typeof props.sizerank === "number"
+          ? props.sizerank
+          : typeof props.scalerank === "number"
+            ? props.scalerank
+            : 999;
+
+      const localrank =
+        typeof props.localrank === "number" ? props.localrank : 999;
+
+      const score = rankBoost - scalerank * 3 - localrank;
+
+      features.push({
+        type: "Feature",
+        geometry: {
+          type: "Point",
+          coordinates: [lng, lat],
+        },
+        properties: {
+          name,
+          score,
+          sourceLayer,
+        },
+      });
+    }
+  };
+
+  pull("poi_label", 120);
+  pull("place_label", 80);
+  pull("transit_stop_label", 50);
+
+  return features
+    .sort(
+      (a, b) =>
+        Number(b.properties?.score || 0) - Number(a.properties?.score || 0),
+    )
+    .slice(0, 140);
+}
+
+function upsertForcedPlaceLabels(map: mapboxgl.Map, darkTheme: boolean) {
+  const sourceId = "sk-forced-places";
+  const layerId = "sk-forced-places-label";
+
+  const data: GeoJSON.FeatureCollection<GeoJSON.Point> = {
+    type: "FeatureCollection",
+    features: collectForcedPlaceFeatures(map),
+  };
+
+  const existing = map.getSource(sourceId) as
+    | mapboxgl.GeoJSONSource
+    | undefined;
+
+  if (existing) {
+    existing.setData(data);
+  } else {
+    map.addSource(sourceId, {
+      type: "geojson",
+      data,
+    });
+
+    map.addLayer({
+      id: layerId,
+      type: "symbol",
+      source: sourceId,
+      layout: {
+        "text-field": ["get", "name"],
+        "text-font": ["Open Sans Semibold", "Arial Unicode MS Regular"],
+        "text-size": [
+          "interpolate",
+          ["linear"],
+          ["zoom"],
+          9,
+          10,
+          11,
+          11,
+          13,
+          12,
+          15,
+          13,
+          17,
+          14,
+        ],
+        "text-letter-spacing": 0.02,
+        "text-max-width": 10,
+        "text-line-height": 1.05,
+        "text-offset": [0, 0.7],
+        "text-anchor": "top",
+        "text-allow-overlap": false,
+        "text-ignore-placement": false,
+        "symbol-sort-key": ["get", "score"],
+      },
+      paint: {
+        "text-color": darkTheme ? "#eef4fb" : "#34404d",
+        "text-halo-color": darkTheme
+          ? "rgba(8,10,14,0.94)"
+          : "rgba(255,255,255,0.98)",
+        "text-halo-width": 1.4,
+        "text-halo-blur": 0.2,
+      },
+      minzoom: 9,
+    });
+  }
+}
+
 function applyPremiumMapLayers(map: mapboxgl.Map, darkTheme: boolean) {
   const textColor = darkTheme ? "#eef4fb" : "#2b3642";
   const softColor = darkTheme ? "#d9e3ee" : "#596674";
-  const haloColor = darkTheme ? "rgba(8,10,14,0.90)" : "rgba(255,255,255,0.99)";
+  const haloColor = darkTheme ? "rgba(8,10,14,0.94)" : "rgba(255,255,255,0.99)";
 
   const trySet = (
     layerId: string,
@@ -335,7 +496,7 @@ function applyPremiumMapLayers(map: mapboxgl.Map, darkTheme: boolean) {
     trySet(id, {
       "text-color": id === "water-label" ? softColor : textColor,
       "text-halo-color": haloColor,
-      "text-halo-width": 1.35,
+      "text-halo-width": 1.45,
       "text-opacity": 1,
     });
   });
@@ -360,20 +521,20 @@ function applyPremiumMapLayers(map: mapboxgl.Map, darkTheme: boolean) {
         "interpolate",
         ["linear"],
         ["zoom"],
-        7,
+        6,
         10,
-        9,
+        8,
         11,
-        11,
+        10,
+        12,
         12,
         13,
-        13,
-        15,
-        14.5,
-        17,
+        14,
+        14,
         16,
-        19,
+        15.5,
         18,
+        17,
       ],
     });
   });
@@ -382,7 +543,7 @@ function applyPremiumMapLayers(map: mapboxgl.Map, darkTheme: boolean) {
     (id) => {
       try {
         if (map.getLayer(id)) {
-          map.setLayerZoomRange(id, 9, 24);
+          map.setLayerZoomRange(id, 8, 24);
         }
       } catch {}
     },
@@ -395,10 +556,11 @@ function applyPremiumMapLayers(map: mapboxgl.Map, darkTheme: boolean) {
     "road-label",
     "natural-label",
     "water-label",
+    "transit-label",
   ].forEach((id) => {
     try {
       if (map.getLayer(id)) {
-        map.setLayerZoomRange(id, 4, 24);
+        map.setLayerZoomRange(id, 3, 24);
       }
     } catch {}
   });
@@ -643,6 +805,11 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
       if (!mapRef.current) return;
       applyStandardBasemapConfig(mapRef.current, darkTheme);
       applyPremiumMapLayers(mapRef.current, darkTheme);
+
+      window.requestAnimationFrame(() => {
+        if (!mapRef.current) return;
+        upsertForcedPlaceLabels(mapRef.current, darkTheme);
+      });
     });
   }, [darkTheme]);
 
@@ -847,6 +1014,12 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
           reject(new Error("The live map could not be rendered."));
         }, 8000);
 
+        const refreshForcedLabels = () => {
+          try {
+            upsertForcedPlaceLabels(map, darkTheme);
+          } catch {}
+        };
+
         map.once("load", () => {
           clearTimeout(timeout);
 
@@ -866,29 +1039,16 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
 
           applyStandardBasemapConfig(map, darkTheme);
           applyPremiumMapLayers(map, darkTheme);
+
+          refreshForcedLabels();
+
+          map.on("moveend", refreshForcedLabels);
+          map.on("zoomend", refreshForcedLabels);
+          map.on("idle", refreshForcedLabels);
+
           resolve();
         });
-        map.once("load", () => {
-          clearTimeout(timeout);
 
-          map.resize();
-
-          window.requestAnimationFrame(() => {
-            map.resize();
-          });
-
-          setTimeout(() => {
-            map.resize();
-          }, 150);
-
-          setTimeout(() => {
-            map.resize();
-          }, 500);
-
-          applyStandardBasemapConfig(map, darkTheme);
-          applyPremiumMapLayers(map, darkTheme);
-          resolve();
-        });
         map.on("error", (e) => {
           console.error("[live-map.error]", e);
         });
