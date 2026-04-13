@@ -30,8 +30,8 @@ type SeedResp = {
 
 type LiveStatus = "loading" | "live" | "ended" | "error";
 type RenderMode = "map" | "fallback";
-const INITIAL_VIEW_ZOOM = 13.8;
-const FOLLOW_VIEW_ZOOM = 15.8;
+const INITIAL_VIEW_ZOOM = 13.9;
+const FOLLOW_VIEW_ZOOM = 15.7;
 const MOVE_FOLLOW_THRESHOLD_METERS = 35;
 
 function distanceMeters(
@@ -269,25 +269,10 @@ function safetyUseHint() {
 function getMapStyleUrl(darkTheme: boolean) {
   return darkTheme
     ? "mapbox://styles/mapbox/navigation-night-v1"
-    : "mapbox://styles/mapbox/standard";
+    : "mapbox://styles/mapbox/streets-v12";
 }
 
-function applyStandardBasemapConfig(map: mapboxgl.Map, darkTheme: boolean) {
-  try {
-    const setConfig = (key: string, value: unknown) => {
-      try {
-        (map as any).setConfigProperty?.("basemap", key, value);
-      } catch {}
-    };
-
-    setConfig("showPlaceLabels", true);
-    setConfig("showPointOfInterestLabels", true);
-    setConfig("showRoadLabels", true);
-    setConfig("showTransitLabels", true);
-    setConfig("show3dObjects", false);
-    setConfig("lightPreset", darkTheme ? "night" : "day");
-  } catch {}
-}
+function applyStandardBasemapConfig(_map: mapboxgl.Map, _darkTheme: boolean) {}
 
 function featureName(props: Record<string, any>) {
   return (
@@ -301,7 +286,7 @@ function featureName(props: Record<string, any>) {
 }
 
 function coercePointCoords(
-  geometry: mapboxgl.MapboxGeoJSONFeature["geometry"],
+  geometry: GeoJSON.Geometry | GeoJSON.GeometryCollection,
 ): [number, number] | null {
   if (!geometry) return null;
 
@@ -803,13 +788,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
 
     mapRef.current.once("styledata", () => {
       if (!mapRef.current) return;
-      applyStandardBasemapConfig(mapRef.current, darkTheme);
       applyPremiumMapLayers(mapRef.current, darkTheme);
-
-      window.requestAnimationFrame(() => {
-        if (!mapRef.current) return;
-        upsertForcedPlaceLabels(mapRef.current, darkTheme);
-      });
     });
   }, [darkTheme]);
 
@@ -969,16 +948,8 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
       const map = new mapboxgl.Map({
         container: mapDivRef.current,
         style: getMapStyleUrl(darkTheme),
-        config: {
-          basemap: {
-            showPlaceLabels: true,
-            showPointOfInterestLabels: true,
-            showRoadLabels: true,
-            showTransitLabels: true,
-            show3dObjects: false,
-            lightPreset: darkTheme ? "night" : "day",
-          },
-        } as any,
+        language: "en",
+        scaleFactor: 1.2,
         center:
           seed.latest &&
           typeof seed.latest.lng === "number" &&
@@ -992,6 +963,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
             ? INITIAL_VIEW_ZOOM
             : 5,
         minZoom: 3,
+        maxZoom: 22,
         attributionControl: false,
         dragRotate: false,
         pitchWithRotate: false,
@@ -1014,12 +986,6 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
           reject(new Error("The live map could not be rendered."));
         }, 8000);
 
-        const refreshForcedLabels = () => {
-          try {
-            upsertForcedPlaceLabels(map, darkTheme);
-          } catch {}
-        };
-
         map.once("load", () => {
           clearTimeout(timeout);
 
@@ -1037,15 +1003,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
             map.resize();
           }, 500);
 
-          applyStandardBasemapConfig(map, darkTheme);
           applyPremiumMapLayers(map, darkTheme);
-
-          refreshForcedLabels();
-
-          map.on("moveend", refreshForcedLabels);
-          map.on("zoomend", refreshForcedLabels);
-          map.on("idle", refreshForcedLabels);
-
           resolve();
         });
 
