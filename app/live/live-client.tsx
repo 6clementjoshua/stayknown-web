@@ -30,8 +30,8 @@ type SeedResp = {
 
 type LiveStatus = "loading" | "live" | "ended" | "error";
 type RenderMode = "map" | "fallback";
-const INITIAL_VIEW_ZOOM = 13.4;
-const FOLLOW_VIEW_ZOOM = 15.1;
+const INITIAL_VIEW_ZOOM = 14.2;
+const FOLLOW_VIEW_ZOOM = 16;
 const MOVE_FOLLOW_THRESHOLD_METERS = 35;
 
 function distanceMeters(
@@ -275,6 +275,7 @@ function getMapStyleUrl(darkTheme: boolean) {
 function applyPremiumMapLayers(map: mapboxgl.Map, darkTheme: boolean) {
   const textColor = darkTheme ? "#eef4fb" : "#2b3642";
   const softColor = darkTheme ? "#d9e3ee" : "#596674";
+  const haloColor = darkTheme ? "rgba(8,10,14,0.90)" : "rgba(255,255,255,0.99)";
 
   const trySet = (
     layerId: string,
@@ -298,7 +299,7 @@ function applyPremiumMapLayers(map: mapboxgl.Map, darkTheme: boolean) {
     } catch {}
   };
 
-  const labelLayers = [
+  const allLabelLayers = [
     "poi-label",
     "poi-label-sm",
     "poi-label-md",
@@ -313,24 +314,13 @@ function applyPremiumMapLayers(map: mapboxgl.Map, darkTheme: boolean) {
     "water-label",
   ];
 
-  labelLayers.forEach((id) => {
-    trySet(
-      id,
-      {
-        "text-color": id === "water-label" ? softColor : textColor,
-        "text-halo-color": darkTheme
-          ? "rgba(8,10,14,0.90)"
-          : "rgba(255,255,255,0.99)",
-        "text-halo-width": 1.5,
-        "text-opacity": 1,
-      },
-      {
-        visibility: "visible",
-        "text-optional": false,
-        "icon-optional": false,
-        "symbol-placement": "point",
-      },
-    );
+  allLabelLayers.forEach((id) => {
+    trySet(id, {
+      "text-color": id === "water-label" ? softColor : textColor,
+      "text-halo-color": haloColor,
+      "text-halo-width": 1.4,
+      "text-opacity": 1,
+    });
   });
 
   [
@@ -343,11 +333,73 @@ function applyPremiumMapLayers(map: mapboxgl.Map, darkTheme: boolean) {
     "road-label",
     "settlement-minor-label",
     "settlement-major-label",
+    "settlement-subdivision-label",
+    "natural-label",
+    "water-label",
   ].forEach((id) => {
     trySet(id, undefined, {
       visibility: "visible",
-      "text-size": 13,
+      "text-size": [
+        "interpolate",
+        ["linear"],
+        ["zoom"],
+        8,
+        10,
+        10,
+        11,
+        12,
+        12.5,
+        14,
+        14,
+        16,
+        16,
+        18,
+        18,
+      ],
     });
+  });
+
+  ["poi-label", "poi-label-sm", "poi-label-md", "poi-label-lg"].forEach(
+    (id) => {
+      try {
+        if (map.getLayer(id)) {
+          map.setLayerZoomRange(id, 10, 24);
+        }
+      } catch {}
+    },
+  );
+
+  [
+    "settlement-minor-label",
+    "settlement-major-label",
+    "settlement-subdivision-label",
+  ].forEach((id) => {
+    try {
+      if (map.getLayer(id)) {
+        map.setLayerZoomRange(id, 5, 24);
+      }
+    } catch {}
+  });
+
+  trySet("road-label", undefined, {
+    visibility: "visible",
+    "text-size": [
+      "interpolate",
+      ["linear"],
+      ["zoom"],
+      8,
+      10,
+      10,
+      11,
+      12,
+      12,
+      14,
+      13,
+      16,
+      14,
+      18,
+      16,
+    ],
   });
 }
 
@@ -1000,10 +1052,10 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
         <div className="absolute inset-x-0 bottom-5 z-30 px-4">
           <div className="mx-auto flex w-full max-w-[1120px] flex-col items-center gap-2">
             <div
-              className={`pointer-events-auto flex max-w-full flex-wrap items-center justify-center gap-2 rounded-full border ${cardBorder} ${cardBg} px-3 py-2.5 shadow-[0_18px_50px_rgba(0,0,0,0.14)] backdrop-blur-2xl`}
+              className={`pointer-events-auto flex max-w-full flex-wrap items-center justify-center gap-1.5 rounded-full border ${cardBorder} ${cardBg} px-2.5 py-2 shadow-[0_16px_40px_rgba(0,0,0,0.12)] backdrop-blur-2xl`}
             >
               <div
-                className={`rounded-full border px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-[0.18em] shadow-[0_0_24px_rgba(15,143,112,0.16)] ${
+                className={`rounded-full border px-3 py-[8px] text-[9px] font-extrabold uppercase tracking-[0.18em] shadow-[0_0_20px_rgba(15,143,112,0.14)] ${
                   status === "live" && !sosActive
                     ? "animate-[skLivePulse_2.6s_ease-in-out_infinite]"
                     : ""
@@ -1012,47 +1064,40 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
                 {sessionMeta.statusText}
               </div>
 
-              <div className="text-[14px] font-black text-black/34">›</div>
-
-              <div className="rounded-full border border-white/75 bg-white/88 px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-[0.16em] text-black/48">
-                {locationHeading}
+              <div className="rounded-full border border-white/75 bg-white/88 px-2.5 py-[8px] text-[9px] font-extrabold uppercase tracking-[0.14em] text-black/46">
+                {locationHeading} <span className="ml-1 text-black/34">›</span>
               </div>
 
-              <div className="rounded-full border border-white/75 bg-white/92 px-3 py-1.5 text-[12px] font-bold text-black/78 max-w-[320px] truncate">
+              <div className="rounded-full border border-white/75 bg-white/92 px-3 py-[8px] text-[11px] font-bold text-black/78 max-w-[300px] truncate">
                 {placeLabel}
               </div>
 
-              <div className="text-[14px] font-black text-black/34">›</div>
-
-              <div className="rounded-full border border-white/75 bg-white/88 px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-[0.16em] text-black/48">
-                Heading to
+              <div className="rounded-full border border-white/75 bg-white/88 px-2.5 py-[8px] text-[9px] font-extrabold uppercase tracking-[0.14em] text-black/46">
+                Heading to <span className="ml-1 text-black/34">›</span>
               </div>
 
-              <div className="rounded-full border border-white/75 bg-white/92 px-3 py-1.5 text-[12px] font-bold text-black/78 max-w-[240px] truncate">
+              <div className="rounded-full border border-white/75 bg-white/92 px-3 py-[8px] text-[11px] font-bold text-black/78 max-w-[220px] truncate">
                 {destinationLabel}
               </div>
 
-              <div className="text-[14px] font-black text-black/34">›</div>
-
-              <div className="rounded-full border border-white/75 bg-white/88 px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-[0.16em] text-black/48">
-                Updated
+              <div className="rounded-full border border-white/75 bg-white/88 px-2.5 py-[8px] text-[9px] font-extrabold uppercase tracking-[0.14em] text-black/46">
+                Updated <span className="ml-1 text-black/34">›</span>
               </div>
 
-              <div className="rounded-full border border-white/75 bg-white/92 px-3 py-1.5 text-[12px] font-bold text-black/78">
+              <div className="rounded-full border border-white/75 bg-white/92 px-3 py-[8px] text-[11px] font-bold text-black/78">
                 {lastUpdatedLabel}
               </div>
             </div>
-
             {infoRows.length > 0 && (
               <div
                 className={`pointer-events-auto flex max-w-[980px] flex-wrap items-center justify-center gap-2 rounded-[24px] border ${cardBorder} ${cardBg} px-3 py-2 shadow-[0_16px_44px_rgba(0,0,0,0.12)] backdrop-blur-2xl`}
               >
                 {infoRows.map((item) => (
                   <React.Fragment key={item.label}>
-                    <div className="rounded-full border border-white/75 bg-white/88 px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-[0.16em] text-black/48">
-                      {item.label}
+                    <div className="rounded-full border border-white/75 bg-white/88 px-2.5 py-[8px] text-[9px] font-extrabold uppercase tracking-[0.14em] text-black/46">
+                      {item.label} <span className="ml-1 text-black/34">›</span>
                     </div>
-                    <div className="rounded-full border border-white/75 bg-white/92 px-3 py-1.5 text-[12px] font-bold text-black/78 max-w-[300px] truncate">
+                    <div className="rounded-full border border-white/75 bg-white/92 px-3 py-[8px] text-[11px] font-bold text-black/78 max-w-[280px] truncate">
                       {item.value}
                     </div>
                   </React.Fragment>
