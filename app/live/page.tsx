@@ -1,6 +1,9 @@
 import crypto from "crypto";
 import LiveClient from "./live-client";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 function verifySignature(params: URLSearchParams) {
   const sid = (params.get("sid") || "").trim();
   const exp = (params.get("exp") || "").trim();

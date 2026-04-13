@@ -57,6 +57,11 @@ function isInAppBrowser() {
   );
 }
 
+function isDesktopBrowser() {
+  if (typeof window === "undefined") return false;
+  return window.matchMedia("(min-width: 900px)").matches;
+}
+
 function prefersDarkTheme() {
   if (typeof window === "undefined") return false;
   return window.matchMedia("(prefers-color-scheme: dark)").matches;
@@ -64,27 +69,25 @@ function prefersDarkTheme() {
 
 function buildMarkerEl() {
   const wrap = document.createElement("div");
-  wrap.style.width = "74px";
-  wrap.style.height = "88px";
+  wrap.style.width = "62px";
+  wrap.style.height = "62px";
   wrap.style.display = "flex";
-  wrap.style.flexDirection = "column";
   wrap.style.alignItems = "center";
   wrap.style.justifyContent = "center";
   wrap.style.position = "relative";
 
   const pulse = document.createElement("div");
   pulse.style.position = "absolute";
-  pulse.style.top = "10px";
   pulse.style.width = "54px";
   pulse.style.height = "54px";
   pulse.style.borderRadius = "9999px";
-  pulse.style.background = "rgba(255,255,255,0.22)";
-  pulse.style.boxShadow = "0 0 0 12px rgba(255,255,255,0.10)";
+  pulse.style.background = "rgba(255,255,255,0.20)";
+  pulse.style.boxShadow = "0 0 0 12px rgba(255,255,255,0.08)";
   pulse.style.backdropFilter = "blur(8px)";
 
   const pin = document.createElement("div");
-  pin.style.width = "50px";
-  pin.style.height = "50px";
+  pin.style.width = "48px";
+  pin.style.height = "48px";
   pin.style.borderRadius = "9999px";
   pin.style.display = "flex";
   pin.style.alignItems = "center";
@@ -100,26 +103,13 @@ function buildMarkerEl() {
   const img = document.createElement("img");
   img.src = "/6logo.png";
   img.alt = "StayKnown";
-  img.style.width = "22px";
-  img.style.height = "22px";
+  img.style.width = "20px";
+  img.style.height = "20px";
   img.style.objectFit = "contain";
-
-  const label = document.createElement("div");
-  label.textContent = "StayKnown";
-  label.style.marginTop = "6px";
-  label.style.fontSize = "8px";
-  label.style.fontWeight = "900";
-  label.style.letterSpacing = "0.12em";
-  label.style.color = "#ffffff";
-  label.style.textTransform = "uppercase";
-  label.style.textShadow = "0 1px 8px rgba(0,0,0,0.45)";
-  label.style.position = "relative";
-  label.style.zIndex = "2";
 
   pin.appendChild(img);
   wrap.appendChild(pulse);
   wrap.appendChild(pin);
-  wrap.appendChild(label);
 
   return wrap;
 }
@@ -162,7 +152,6 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
     null,
   );
   const bootedRef = React.useRef(false);
-  const renderModeRef = React.useRef<RenderMode>("map");
   const hasCenteredRef = React.useRef(false);
   const startYRef = React.useRef<number | null>(null);
 
@@ -196,7 +185,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
         if (!markerRef.current) {
           markerRef.current = new mapboxgl.Marker({
             element: buildMarkerEl(),
-            anchor: "bottom",
+            anchor: "center",
           });
         }
 
@@ -207,9 +196,16 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
         }
 
         const padding = {
-          top: 104,
+          top: isDesktopBrowser() ? 90 : 104,
           right: 16,
-          bottom: sheetSnap === "expanded" ? 318 : 154,
+          bottom:
+            sheetSnap === "expanded"
+              ? isDesktopBrowser()
+                ? 360
+                : 330
+              : isDesktopBrowser()
+                ? 170
+                : 154,
           left: 16,
         };
 
@@ -233,7 +229,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
             center: nextLngLat,
             zoom: Math.max(mapRef.current.getZoom(), 16.2),
             padding,
-            duration: 900,
+            duration: 700,
             essential: true,
           });
         }
@@ -279,11 +275,6 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
         ? "mapbox://styles/mapbox/dark-v11"
         : "mapbox://styles/mapbox/light-v11",
     );
-    mapRef.current.once("style.load", () => {
-      window.requestAnimationFrame(() => {
-        mapRef.current?.resize();
-      });
-    });
   }, [darkTheme]);
 
   React.useEffect(() => {
@@ -300,23 +291,25 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
   React.useEffect(() => {
     if (!mapRef.current) return;
 
-    const bottomPadding = sheetSnap === "expanded" ? 318 : 154;
-
     mapRef.current.easeTo({
       padding: {
-        top: 104,
+        top: isDesktopBrowser() ? 90 : 104,
         right: 16,
-        bottom: bottomPadding,
+        bottom:
+          sheetSnap === "expanded"
+            ? isDesktopBrowser()
+              ? 360
+              : 330
+            : isDesktopBrowser()
+              ? 170
+              : 154,
         left: 16,
       },
-      duration: 240,
+      duration: 220,
       essential: true,
     });
 
-    const t = setTimeout(() => {
-      mapRef.current?.resize();
-    }, 250);
-
+    const t = setTimeout(() => mapRef.current?.resize(), 230);
     return () => clearTimeout(t);
   }, [sheetSnap]);
 
@@ -354,25 +347,18 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
         try {
           const data = JSON.parse(msg.data);
 
-          if (data.type === "ready") return;
-          if (data.type === "ka") return;
+          if (data.type === "ready" || data.type === "ka") return;
 
-          if (data.type === "warning") {
-            return;
-          }
-
-          if (
-            data.type === "location" &&
-            typeof data.lat === "number" &&
-            typeof data.lng === "number"
-          ) {
-            applyPoint(
-              data.lat,
-              data.lng,
-              data.place,
-              data.ended ? "ended" : "live",
-              data.created_at,
-            );
+          if (data.type === "location") {
+            if (typeof data.lat === "number" && typeof data.lng === "number") {
+              applyPoint(
+                data.lat,
+                data.lng,
+                data.place,
+                data.ended ? "ended" : "live",
+                data.created_at,
+              );
+            }
             return;
           }
 
@@ -384,6 +370,8 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
           if (data.type === "ended") {
             setStatus("ended");
             setSosActive(false);
+            clearReconnect();
+            closeStream();
             return;
           }
         } catch {}
@@ -392,7 +380,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
       ev.onerror = () => {
         closeStream();
         if (closed) return;
-        reconnectTimerRef.current = setTimeout(connectStream, 1500);
+        reconnectTimerRef.current = setTimeout(connectStream, 1200);
       };
     };
 
@@ -430,7 +418,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
       mapboxgl.accessToken = publicMapToken;
       setMapLoadError("");
 
-      mapRef.current = new mapboxgl.Map({
+      const map = new mapboxgl.Map({
         container: mapDivRef.current,
         style: darkTheme
           ? "mapbox://styles/mapbox/dark-v11"
@@ -452,12 +440,13 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
         pitchWithRotate: false,
       });
 
+      mapRef.current = map;
+
       await new Promise<void>((resolve, reject) => {
-        const map = mapRef.current!;
         const timeout = setTimeout(() => {
           setMapLoadError("The live map could not be rendered.");
           reject(new Error("The live map could not be rendered."));
-        }, 9000);
+        }, 8000);
 
         map.once("load", () => {
           clearTimeout(timeout);
@@ -467,7 +456,6 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
 
         map.on("error", (e) => {
           console.error("[live-map.error]", e);
-          setMapLoadError("Map style failed to load.");
         });
       });
 
@@ -524,10 +512,6 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
         setCoordsLabel("");
         setMapHref("");
       }
-
-      if (!seed.ended) {
-        connectStream();
-      }
     }
 
     async function boot() {
@@ -535,17 +519,17 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
         const seed = await fetchSeed();
         if (!seed) return;
 
-        if (isInAppBrowser()) {
-          renderModeRef.current = "fallback";
+        const shouldUseFallback = isInAppBrowser();
+
+        if (shouldUseFallback) {
           setRenderMode("fallback");
           setBrowserHint(
-            "Open this link in Chrome or Safari for the full map experience.",
+            "Open in Chrome or Safari for the full map experience.",
           );
           await bootFallback(seed);
           return;
         }
 
-        renderModeRef.current = "map";
         setRenderMode("map");
         await bootMapWithSeed(seed);
       } catch (error) {
@@ -555,11 +539,8 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
           const seed = await fetchSeed();
           if (!seed) return;
 
-          renderModeRef.current = "fallback";
           setRenderMode("fallback");
-          setBrowserHint(
-            "Open this link in Chrome or Safari for the full map experience.",
-          );
+          setBrowserHint("Map preview unavailable here.");
           await bootFallback(seed);
         } catch (fallbackError) {
           if (closed) return;
@@ -596,10 +577,11 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
   const coordText = darkTheme ? "text-white/80" : "text-black/70";
 
   const showSpinner = status === "loading";
-  const showFallbackHint = renderMode === "fallback" && status !== "ended";
+  const showFallbackHint =
+    renderMode === "fallback" && !isDesktopBrowser() && status !== "ended";
 
   const sheetHeightClass =
-    sheetSnap === "expanded" ? "h-[36vh] sm:h-[34vh]" : "h-[136px]";
+    sheetSnap === "expanded" ? "h-[72vh] md:h-[62vh]" : "h-[148px]";
 
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     startYRef.current = e.clientY;
@@ -623,7 +605,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
 
   return (
     <div
-      className={`h-screen w-screen relative overflow-hidden ${
+      className={`fixed inset-0 h-screen w-screen overflow-hidden ${
         darkTheme ? "bg-[#090909]" : "bg-[#f3f4f6]"
       }`}
     >
@@ -690,7 +672,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
 
       <div className="absolute inset-x-0 bottom-0 z-20 px-3 pb-4">
         <div
-          className={`mx-auto w-full max-w-xl rounded-[30px] ${cardBg} border ${cardBorder} shadow-[0_18px_50px_rgba(0,0,0,0.18)] backdrop-blur-2xl overflow-hidden transition-[height] duration-300 ${sheetHeightClass}`}
+          className={`mx-auto w-full max-w-[760px] rounded-[30px] ${cardBg} border ${cardBorder} shadow-[0_18px_50px_rgba(0,0,0,0.18)] backdrop-blur-2xl overflow-hidden transition-[height] duration-300 ${sheetHeightClass}`}
         >
           <div
             className="px-4 pt-2.5 pb-2 cursor-grab active:cursor-grabbing select-none touch-none"
@@ -702,7 +684,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
             />
           </div>
 
-          <div className="px-4 pb-4">
+          <div className="h-full overflow-y-auto px-4 pb-5">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <div
@@ -734,110 +716,99 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
               </div>
             </div>
 
-            {sheetSnap === "expanded" && (
-              <>
-                <div className="mt-3 grid grid-cols-2 gap-3">
-                  <div
-                    className={`rounded-[20px] border ${cardBorder} ${innerBg} px-3 py-3`}
-                  >
-                    <div
-                      className={`text-[10px] uppercase tracking-[0.20em] font-bold ${darkTheme ? "text-white/40" : "text-black/40"}`}
-                    >
-                      Last update
-                    </div>
-                    <div
-                      className={`mt-1 text-sm font-bold leading-6 ${cardText}`}
-                    >
-                      {lastUpdatedLabel}
-                    </div>
-                  </div>
-
-                  <div
-                    className={`rounded-[20px] border ${cardBorder} ${innerBg} px-3 py-3`}
-                  >
-                    <div
-                      className={`text-[10px] uppercase tracking-[0.20em] font-bold ${darkTheme ? "text-white/40" : "text-black/40"}`}
-                    >
-                      Last session
-                    </div>
-                    <div
-                      className={`mt-1 text-sm font-bold leading-6 ${cardText}`}
-                    >
-                      {destinationLabel}
-                    </div>
-                  </div>
+            <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div
+                className={`rounded-[20px] border ${cardBorder} ${innerBg} px-3 py-3`}
+              >
+                <div
+                  className={`text-[10px] uppercase tracking-[0.20em] font-bold ${darkTheme ? "text-white/40" : "text-black/40"}`}
+                >
+                  Last update
                 </div>
+                <div className={`mt-1 text-sm font-bold leading-6 ${cardText}`}>
+                  {lastUpdatedLabel}
+                </div>
+              </div>
 
-                {!!coordsLabel && !!mapHref && (
-                  <div
-                    className={`mt-3 rounded-[20px] border ${cardBorder} ${innerBg} px-3 py-3`}
-                  >
-                    <div
-                      className={`text-[10px] uppercase tracking-[0.20em] font-bold ${darkTheme ? "text-white/40" : "text-black/40"}`}
-                    >
-                      Coordinates
-                    </div>
-                    <a
-                      href={mapHref}
-                      target="_blank"
-                      rel="noreferrer"
-                      className={`mt-1 block text-sm font-bold underline underline-offset-4 break-all ${coordText}`}
-                    >
-                      {coordsLabel}
-                    </a>
-                  </div>
-                )}
+              <div
+                className={`rounded-[20px] border ${cardBorder} ${innerBg} px-3 py-3`}
+              >
+                <div
+                  className={`text-[10px] uppercase tracking-[0.20em] font-bold ${darkTheme ? "text-white/40" : "text-black/40"}`}
+                >
+                  Last session
+                </div>
+                <div className={`mt-1 text-sm font-bold leading-6 ${cardText}`}>
+                  {destinationLabel}
+                </div>
+              </div>
+            </div>
 
-                {showFallbackHint && (
-                  <div
-                    className={`mt-3 rounded-[20px] border ${cardBorder} ${innerBg} px-3 py-3`}
-                  >
-                    <div
-                      className={`text-sm font-semibold leading-6 ${darkTheme ? "text-white/70" : "text-black/70"}`}
-                    >
-                      {browserHint}
-                    </div>
-                  </div>
-                )}
+            {!!coordsLabel && !!mapHref && (
+              <div
+                className={`mt-3 rounded-[20px] border ${cardBorder} ${innerBg} px-3 py-3`}
+              >
+                <div
+                  className={`text-[10px] uppercase tracking-[0.20em] font-bold ${darkTheme ? "text-white/40" : "text-black/40"}`}
+                >
+                  Coordinates
+                </div>
+                <a
+                  href={mapHref}
+                  target="_blank"
+                  rel="noreferrer"
+                  className={`mt-1 block text-sm font-bold underline underline-offset-4 break-all ${coordText}`}
+                >
+                  {coordsLabel}
+                </a>
+              </div>
+            )}
 
-                {!!mapHref && renderMode === "fallback" && (
-                  <div className="mt-3">
-                    <a
-                      href={mapHref}
-                      target="_blank"
-                      rel="noreferrer"
-                      className={`block rounded-full text-center font-black px-5 py-3 shadow-lg ${
-                        darkTheme
-                          ? "bg-white text-black"
-                          : "bg-black text-white"
-                      }`}
-                    >
-                      Open location in Google Maps
-                    </a>
-                  </div>
-                )}
+            {showFallbackHint && (
+              <div
+                className={`mt-3 rounded-[20px] border ${cardBorder} ${innerBg} px-3 py-3`}
+              >
+                <div
+                  className={`text-sm font-semibold leading-6 ${darkTheme ? "text-white/70" : "text-black/70"}`}
+                >
+                  {browserHint}
+                </div>
+              </div>
+            )}
 
-                {status === "error" && (
-                  <div className="mt-3 rounded-[20px] border border-red-200 bg-red-50 px-3 py-3">
-                    <div className="text-[10px] uppercase tracking-[0.20em] text-red-500 font-bold">
-                      Live status
-                    </div>
-                    <div className="mt-1 text-sm font-bold text-red-700">
-                      {mapLoadError ||
-                        "Unable to open the live view right now."}
-                    </div>
-                  </div>
-                )}
+            {!!mapHref && renderMode === "fallback" && (
+              <div className="mt-3">
+                <a
+                  href={mapHref}
+                  target="_blank"
+                  rel="noreferrer"
+                  className={`block rounded-full text-center font-black px-5 py-3 shadow-lg ${
+                    darkTheme ? "bg-white text-black" : "bg-black text-white"
+                  }`}
+                >
+                  Open location in Google Maps
+                </a>
+              </div>
+            )}
 
-                {status === "ended" && (
-                  <div
-                    className={`mt-3 rounded-[20px] border ${cardBorder} ${innerBg} px-3 py-3 text-sm font-medium ${darkTheme ? "text-white/65" : "text-black/65"}`}
-                  >
-                    This visit has ended. This page now shows the last known
-                    location from that session.
-                  </div>
-                )}
-              </>
+            {status === "error" && (
+              <div className="mt-3 rounded-[20px] border border-red-200 bg-red-50 px-3 py-3">
+                <div className="text-[10px] uppercase tracking-[0.20em] text-red-500 font-bold">
+                  Live status
+                </div>
+                <div className="mt-1 text-sm font-bold text-red-700">
+                  {mapLoadError || "Unable to open the live view right now."}
+                </div>
+              </div>
+            )}
+
+            {status === "ended" && (
+              <div
+                className={`mt-3 rounded-[20px] border ${cardBorder} ${innerBg} px-3 py-3 text-sm font-medium ${darkTheme ? "text-white/65" : "text-black/65"}`}
+              >
+                This visit has ended. This page now shows the last known
+                location from that session.
+              </div>
             )}
           </div>
         </div>
