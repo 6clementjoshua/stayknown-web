@@ -86,6 +86,11 @@ function displayNameFromProfile(profile: UserProfileRow | null): string | null {
   return joined || null;
 }
 
+function payloadString(payload: unknown, key: string): string | null {
+  if (!payload || typeof payload !== "object") return null;
+  return cleanString((payload as Record<string, unknown>)[key]);
+}
+
 export async function GET(req: Request) {
   try {
     const url = new URL(req.url);
@@ -220,6 +225,14 @@ export async function GET(req: Request) {
 
     const payload = (visit.payload ?? {}) as VisitPayload;
 
+    const destinationName =
+      cleanString(visit.destination_name) ??
+      payloadString(visit.payload, "destination_name");
+
+    const destinationAddress =
+      cleanString(visit.destination_address) ??
+      payloadString(visit.payload, "destination_address");
+
     return NextResponse.json({
       ok: true,
       session_id: sid,
@@ -227,15 +240,15 @@ export async function GET(req: Request) {
       ended,
       sos_active,
       started_at: visit.started_at ?? null,
-      destination_name: visit.destination_name ?? null,
-      destination_address: visit.destination_address ?? null,
-      purpose: cleanString(payload.purpose),
-      person_to_meet: cleanString(payload.person_to_meet),
+      destination_name: destinationName,
+      destination_address: destinationAddress,
+      purpose: cleanString((visit.payload ?? {}).purpose),
+      person_to_meet: cleanString((visit.payload ?? {}).person_to_meet),
       expected_duration_minutes:
-        typeof payload.expected_duration_minutes === "number"
-          ? payload.expected_duration_minutes
+        typeof (visit.payload ?? {}).expected_duration_minutes === "number"
+          ? (visit.payload ?? {}).expected_duration_minutes
           : null,
-      extra_note: cleanString(payload.extra_note),
+      extra_note: cleanString((visit.payload ?? {}).extra_note),
       visitor_name: visitorName,
     });
   } catch (e) {

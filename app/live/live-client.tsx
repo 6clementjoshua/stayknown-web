@@ -113,42 +113,47 @@ function isDesktop() {
 
 function buildMarkerEl(isLive = true) {
   const wrap = document.createElement("div");
-  wrap.style.width = "88px";
-  wrap.style.height = "88px";
+  wrap.style.width = "104px";
+  wrap.style.height = "104px";
   wrap.style.display = "flex";
   wrap.style.alignItems = "center";
   wrap.style.justifyContent = "center";
   wrap.style.position = "relative";
 
-  const makeRing = (delayMs: number, size: number, borderOpacity: number) => {
+  const makeRing = (
+    delayMs: number,
+    size: number,
+    borderColor: string,
+    shadowColor: string,
+  ) => {
     const ring = document.createElement("div");
     ring.style.position = "absolute";
     ring.style.width = `${size}px`;
     ring.style.height = `${size}px`;
     ring.style.borderRadius = "9999px";
-    ring.style.border = `1px solid rgba(255,255,255,${borderOpacity})`;
-    ring.style.boxShadow = "0 0 0 1px rgba(255,255,255,0.04) inset";
-    ring.style.opacity = isLive ? "0" : "0";
+    ring.style.border = `1.6px solid ${borderColor}`;
+    ring.style.boxShadow = `0 0 20px ${shadowColor}`;
+    ring.style.opacity = "0";
     ring.style.transform = "scale(0.72)";
     ring.setAttribute("data-sk-radar", "1");
     ring.style.animation = isLive
-      ? `skLiveRadar 2.8s ease-out ${delayMs}ms infinite`
+      ? `skLiveRadarStrong 2.9s ease-out ${delayMs}ms infinite`
       : "none";
     return ring;
   };
 
   const halo = document.createElement("div");
   halo.style.position = "absolute";
-  halo.style.width = "58px";
-  halo.style.height = "58px";
+  halo.style.width = "62px";
+  halo.style.height = "62px";
   halo.style.borderRadius = "9999px";
   halo.style.background = "rgba(255,255,255,0.12)";
   halo.style.backdropFilter = "blur(10px)";
-  halo.style.boxShadow = "0 0 0 10px rgba(255,255,255,0.05)";
+  halo.style.boxShadow = "0 0 0 12px rgba(255,255,255,0.05)";
 
   const pin = document.createElement("div");
-  pin.style.width = "50px";
-  pin.style.height = "50px";
+  pin.style.width = "52px";
+  pin.style.height = "52px";
   pin.style.borderRadius = "9999px";
   pin.style.display = "flex";
   pin.style.alignItems = "center";
@@ -169,14 +174,25 @@ function buildMarkerEl(isLive = true) {
   img.style.objectFit = "contain";
 
   pin.appendChild(img);
-  wrap.appendChild(makeRing(0, 58, 0.32));
-  wrap.appendChild(makeRing(620, 66, 0.24));
-  wrap.appendChild(makeRing(1240, 76, 0.18));
+
+  if (isLive) {
+    wrap.appendChild(
+      makeRing(0, 58, "rgba(138,138,138,0.90)", "rgba(120,120,120,0.16)"),
+    );
+    wrap.appendChild(
+      makeRing(760, 72, "rgba(192,192,192,0.82)", "rgba(196,196,196,0.14)"),
+    );
+    wrap.appendChild(
+      makeRing(1520, 88, "rgba(224,224,224,0.58)", "rgba(225,225,225,0.10)"),
+    );
+  }
+
   wrap.appendChild(halo);
   wrap.appendChild(pin);
 
   return wrap;
 }
+
 function PremiumSpinner() {
   return (
     <div className="relative h-5 w-5 shrink-0">
@@ -205,9 +221,16 @@ function sessionLabelFromSeed(seed: SeedResp) {
 
   return destinationName || destinationAddress || "Last session";
 }
+
+function getMapStyleUrl(darkTheme: boolean) {
+  return darkTheme
+    ? "mapbox://styles/mapbox/navigation-night-v1"
+    : "mapbox://styles/mapbox/streets-v12";
+}
+
 function applyPremiumMapLayers(map: mapboxgl.Map, darkTheme: boolean) {
-  const textColor = darkTheme ? "#d7d9dd" : "#3f444c";
-  const softColor = darkTheme ? "#a7adb6" : "#6a727d";
+  const textColor = darkTheme ? "#f1f5f9" : "#2f3944";
+  const softColor = darkTheme ? "#dbe4ee" : "#586472";
 
   const trySet = (
     layerId: string,
@@ -231,7 +254,7 @@ function applyPremiumMapLayers(map: mapboxgl.Map, darkTheme: boolean) {
     } catch {}
   };
 
-  [
+  const labelLayers = [
     "poi-label",
     "poi-label-sm",
     "poi-label-md",
@@ -244,21 +267,23 @@ function applyPremiumMapLayers(map: mapboxgl.Map, darkTheme: boolean) {
     "road-label",
     "natural-label",
     "water-label",
-  ].forEach((id) => {
+  ];
+
+  labelLayers.forEach((id) => {
     trySet(
       id,
       {
         "text-color": id === "water-label" ? softColor : textColor,
         "text-halo-color": darkTheme
-          ? "rgba(7,7,7,0.82)"
-          : "rgba(255,255,255,0.96)",
-        "text-halo-width": 1.15,
+          ? "rgba(9,12,16,0.88)"
+          : "rgba(255,255,255,0.98)",
+        "text-halo-width": 1.35,
         "text-opacity": 1,
       },
       {
         visibility: "visible",
-        "text-allow-overlap": false,
-        "icon-allow-overlap": false,
+        "text-optional": false,
+        "icon-optional": false,
       },
     );
   });
@@ -272,12 +297,10 @@ function applyPremiumMapLayers(map: mapboxgl.Map, darkTheme: boolean) {
   ].forEach((id) => {
     trySet(id, undefined, {
       visibility: "visible",
-      "icon-optional": false,
-      "text-optional": false,
+      "text-size": 12,
     });
   });
 }
-
 export default function LiveClient({ sessionId }: { sessionId: string }) {
   const mapDivRef = React.useRef<HTMLDivElement | null>(null);
   const mapRef = React.useRef<mapboxgl.Map | null>(null);
@@ -505,11 +528,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
   React.useEffect(() => {
     if (!mapRef.current) return;
 
-    mapRef.current.setStyle(
-      darkTheme
-        ? "mapbox://styles/mapbox/dark-v11"
-        : "mapbox://styles/mapbox/light-v11",
-    );
+    mapRef.current.setStyle(getMapStyleUrl(darkTheme));
 
     mapRef.current.once("styledata", () => {
       if (!mapRef.current) return;
@@ -692,9 +711,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
 
       const map = new mapboxgl.Map({
         container: mapDivRef.current,
-        style: darkTheme
-          ? "mapbox://styles/mapbox/dark-v11"
-          : "mapbox://styles/mapbox/light-v11",
+        style: getMapStyleUrl(darkTheme),
         center:
           seed.latest &&
           typeof seed.latest.lng === "number" &&
@@ -832,14 +849,14 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
   const cardText = darkTheme ? "text-white" : "text-black";
   const mutedText = darkTheme ? "text-white/45" : "text-black/45";
   const innerBg = darkTheme ? "bg-white/5" : "bg-[#f6f7f8]";
-  const coordText = darkTheme ? "text-white/86" : "text-black/88";
+  const coordText = darkTheme ? "!text-white" : "!text-black";
 
   const showSpinner = status === "loading";
   const showFallbackHint =
     renderMode === "fallback" && !isDesktop() && status !== "ended";
 
   const sheetHeightClass =
-    sheetSnap === "expanded" ? "h-[72vh] md:h-[62vh]" : "h-[148px]";
+    sheetSnap === "expanded" ? "h-[74vh] md:h-[66vh]" : "h-[182px]";
 
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     startYRef.current = e.clientY;
@@ -864,49 +881,28 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
   return (
     <div className="fixed inset-0 h-screen w-screen overflow-hidden bg-transparent">
       {renderMode === "map" ? (
-        <div className="absolute inset-0 z-0 overflow-hidden bg-transparent">
+        <div className="absolute inset-0 z-0 overflow-hidden">
           <div
             ref={mapDivRef}
-            className="absolute inset-0 h-full w-full bg-transparent"
+            className="absolute inset-0 h-full w-full"
+            style={{ background: "#eef2f6" }}
           />
         </div>
       ) : (
-        <div
-          className={`absolute inset-0 z-0 ${
-            darkTheme
-              ? "bg-[radial-gradient(circle_at_top,rgba(20,20,20,1),rgba(10,10,10,1)_46%,rgba(6,6,6,1))]"
-              : "bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.98),rgba(245,246,248,1)_46%,rgba(236,238,241,1))]"
-          }`}
-        />
+        <div className="absolute inset-0 z-0 bg-[#eef2f6]" />
       )}
-      <div
-        className={`pointer-events-none absolute inset-x-0 top-0 h-24 z-10 ${
-          darkTheme
-            ? "bg-gradient-to-b from-black/55 to-transparent"
-            : "bg-gradient-to-b from-white/70 to-transparent"
-        }`}
-      />
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-20 z-10 bg-gradient-to-b from-white/28 to-transparent" />
 
       <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20">
-        <div className="relative">
-          {status !== "ended" && (
-            <>
-              <span className="pointer-events-none absolute inset-0 rounded-[28px] border border-white/40 animate-[skTopRadar_2.8s_ease-out_infinite]" />
-              <span className="pointer-events-none absolute inset-0 rounded-[28px] border border-white/28 animate-[skTopRadar_2.8s_ease-out_800ms_infinite]" />
-              <span className="pointer-events-none absolute inset-0 rounded-[28px] border border-white/18 animate-[skTopRadar_2.8s_ease-out_1600ms_infinite]" />
-            </>
-          )}
-
-          <div className="relative rounded-[24px] bg-white/82 border border-white/90 shadow-[0_14px_38px_rgba(0,0,0,0.16)] px-4 py-2.5 backdrop-blur-2xl min-w-[132px]">
-            <div className="flex flex-col items-center justify-center">
-              <img
-                src="/6logo.png"
-                alt="StayKnown"
-                className="h-5 w-5 object-contain"
-              />
-              <div className="mt-1 text-[8px] uppercase tracking-[0.34em] text-black/55 font-semibold">
-                StayKnown
-              </div>
+        <div className="rounded-[24px] bg-white/84 border border-white/92 shadow-[0_14px_38px_rgba(0,0,0,0.16)] px-4 py-2.5 backdrop-blur-2xl min-w-[132px]">
+          <div className="flex flex-col items-center justify-center">
+            <img
+              src="/6logo.png"
+              alt="StayKnown"
+              className="h-5 w-5 object-contain"
+            />
+            <div className="mt-1 text-[8px] uppercase tracking-[0.34em] text-black/55 font-semibold">
+              StayKnown
             </div>
           </div>
         </div>
@@ -938,7 +934,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
         </div>
       )}
 
-      <div className="absolute inset-x-0 bottom-0 z-20 px-3 pb-4">
+      <div className="absolute inset-x-0 bottom-0 z-20 px-3 pb-3 md:pb-4">
         <div
           className={`mx-auto w-full max-w-[760px] rounded-[30px] ${cardBg} border ${cardBorder} shadow-[0_18px_50px_rgba(0,0,0,0.18)] backdrop-blur-2xl overflow-hidden transition-[height] duration-300 ${sheetHeightClass}`}
         >
@@ -1071,20 +1067,22 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
                 </div>
               </div>
 
-              <div
-                className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3`}
-              >
+              {expectedDurationLabel !== "—" && (
                 <div
-                  className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${darkTheme ? "text-white/42" : "text-black/42"}`}
+                  className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3`}
                 >
-                  Expected stay
+                  <div
+                    className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${darkTheme ? "text-white/42" : "text-black/42"}`}
+                  >
+                    Expected stay
+                  </div>
+                  <div
+                    className={`mt-1 text-[12px] font-bold leading-5 ${cardText}`}
+                  >
+                    {expectedDurationLabel}
+                  </div>
                 </div>
-                <div
-                  className={`mt-1 text-[12px] font-bold leading-5 ${cardText}`}
-                >
-                  {expectedDurationLabel}
-                </div>
-              </div>
+              )}
             </div>
 
             {(purposeLabel !== "—" ||
@@ -1157,7 +1155,8 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
                   href={mapHref}
                   target="_blank"
                   rel="noreferrer"
-                  className={`mt-1 block text-[12px] font-bold underline underline-offset-4 break-all ${coordText}`}
+                  className={`mt-1 block text-[12px] font-extrabold underline underline-offset-4 break-all ${coordText}`}
+                  style={{ opacity: 0.96 }}
                 >
                   {coordsLabel}
                 </a>

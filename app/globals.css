@@ -449,3 +449,23 @@ a:hover {
   height: 0;
   display: none;
 }
+
+@keyframes skLiveRadarStrong {
+  0% {
+    opacity: 0;
+    transform: scale(0.72);
+  }
+
+  18% {
+    opacity: 0.95;
+  }
+
+  72% {
+    opacity: 0.14;
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(1.62);
+  }
+}
