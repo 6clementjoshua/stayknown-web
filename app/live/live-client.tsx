@@ -57,20 +57,20 @@ function isInAppBrowser() {
   );
 }
 
-function isDesktopBrowser() {
-  if (typeof window === "undefined") return false;
-  return window.matchMedia("(min-width: 900px)").matches;
-}
-
 function prefersDarkTheme() {
   if (typeof window === "undefined") return false;
   return window.matchMedia("(prefers-color-scheme: dark)").matches;
 }
 
+function isDesktop() {
+  if (typeof window === "undefined") return false;
+  return window.matchMedia("(min-width: 900px)").matches;
+}
+
 function buildMarkerEl() {
   const wrap = document.createElement("div");
-  wrap.style.width = "62px";
-  wrap.style.height = "62px";
+  wrap.style.width = "60px";
+  wrap.style.height = "60px";
   wrap.style.display = "flex";
   wrap.style.alignItems = "center";
   wrap.style.justifyContent = "center";
@@ -78,16 +78,16 @@ function buildMarkerEl() {
 
   const pulse = document.createElement("div");
   pulse.style.position = "absolute";
-  pulse.style.width = "54px";
-  pulse.style.height = "54px";
+  pulse.style.width = "52px";
+  pulse.style.height = "52px";
   pulse.style.borderRadius = "9999px";
   pulse.style.background = "rgba(255,255,255,0.20)";
   pulse.style.boxShadow = "0 0 0 12px rgba(255,255,255,0.08)";
   pulse.style.backdropFilter = "blur(8px)";
 
   const pin = document.createElement("div");
-  pin.style.width = "48px";
-  pin.style.height = "48px";
+  pin.style.width = "46px";
+  pin.style.height = "46px";
   pin.style.borderRadius = "9999px";
   pin.style.display = "flex";
   pin.style.alignItems = "center";
@@ -151,6 +151,9 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
   const reconnectTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
+  const pollTimerRef = React.useRef<ReturnType<typeof setInterval> | null>(
+    null,
+  );
   const bootedRef = React.useRef(false);
   const hasCenteredRef = React.useRef(false);
   const startYRef = React.useRef<number | null>(null);
@@ -170,6 +173,27 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
   const [sheetSnap, setSheetSnap] = React.useState<SheetSnap>("collapsed");
   const [darkTheme, setDarkTheme] = React.useState(false);
   const [mapLoadError, setMapLoadError] = React.useState("");
+
+  const stopPolling = React.useCallback(() => {
+    if (pollTimerRef.current) {
+      clearInterval(pollTimerRef.current);
+      pollTimerRef.current = null;
+    }
+  }, []);
+
+  const clearReconnect = React.useCallback(() => {
+    if (reconnectTimerRef.current) {
+      clearTimeout(reconnectTimerRef.current);
+      reconnectTimerRef.current = null;
+    }
+  }, []);
+
+  const closeStream = React.useCallback(() => {
+    try {
+      eventSourceRef.current?.close();
+    } catch {}
+    eventSourceRef.current = null;
+  }, []);
 
   const applyPoint = React.useCallback(
     (
@@ -196,14 +220,14 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
         }
 
         const padding = {
-          top: isDesktopBrowser() ? 90 : 104,
+          top: isDesktop() ? 90 : 104,
           right: 16,
           bottom:
             sheetSnap === "expanded"
-              ? isDesktopBrowser()
+              ? isDesktop()
                 ? 360
                 : 330
-              : isDesktopBrowser()
+              : isDesktop()
                 ? 170
                 : 154,
           left: 16,
@@ -229,7 +253,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
             center: nextLngLat,
             zoom: Math.max(mapRef.current.getZoom(), 16.2),
             padding,
-            duration: 700,
+            duration: 650,
             essential: true,
           });
         }
@@ -253,6 +277,42 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
       setStatus(nextStatus);
     },
     [sheetSnap],
+  );
+
+  const syncFromSeed = React.useCallback(
+    (seed: SeedResp) => {
+      setDestinationLabel(sessionLabelFromSeed(seed));
+      setSosActive(seed.ended ? false : Boolean(seed.sos_active));
+      setStatus(seed.ended ? "ended" : "live");
+
+      if (
+        seed.latest &&
+        typeof seed.latest.lat === "number" &&
+        typeof seed.latest.lng === "number"
+      ) {
+        applyPoint(
+          seed.latest.lat,
+          seed.latest.lng,
+          seed.latest.place,
+          seed.ended ? "ended" : "live",
+          seed.latest.created_at,
+        );
+      } else {
+        setPlaceLabel(
+          seed.ended ? "Last known location" : "Waiting for first live update…",
+        );
+        setCoordsLabel("");
+        setMapHref("");
+      }
+
+      if (seed.ended) {
+        setSosActive(false);
+        clearReconnect();
+        closeStream();
+        stopPolling();
+      }
+    },
+    [applyPoint, clearReconnect, closeStream, stopPolling],
   );
 
   React.useEffect(() => {
@@ -293,14 +353,14 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
 
     mapRef.current.easeTo({
       padding: {
-        top: isDesktopBrowser() ? 90 : 104,
+        top: isDesktop() ? 90 : 104,
         right: 16,
         bottom:
           sheetSnap === "expanded"
-            ? isDesktopBrowser()
+            ? isDesktop()
               ? 360
               : 330
-            : isDesktopBrowser()
+            : isDesktop()
               ? 170
               : 154,
         left: 16,
@@ -318,71 +378,6 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
     bootedRef.current = true;
 
     let closed = false;
-
-    const clearReconnect = () => {
-      if (reconnectTimerRef.current) {
-        clearTimeout(reconnectTimerRef.current);
-        reconnectTimerRef.current = null;
-      }
-    };
-
-    const closeStream = () => {
-      try {
-        eventSourceRef.current?.close();
-      } catch {}
-      eventSourceRef.current = null;
-    };
-
-    const connectStream = () => {
-      if (closed) return;
-
-      closeStream();
-
-      const ev = new EventSource(
-        `/api/live/stream?sid=${encodeURIComponent(sessionId)}`,
-      );
-      eventSourceRef.current = ev;
-
-      ev.onmessage = (msg) => {
-        try {
-          const data = JSON.parse(msg.data);
-
-          if (data.type === "ready" || data.type === "ka") return;
-
-          if (data.type === "location") {
-            if (typeof data.lat === "number" && typeof data.lng === "number") {
-              applyPoint(
-                data.lat,
-                data.lng,
-                data.place,
-                data.ended ? "ended" : "live",
-                data.created_at,
-              );
-            }
-            return;
-          }
-
-          if (data.type === "sos") {
-            setSosActive(Boolean(data.active));
-            return;
-          }
-
-          if (data.type === "ended") {
-            setStatus("ended");
-            setSosActive(false);
-            clearReconnect();
-            closeStream();
-            return;
-          }
-        } catch {}
-      };
-
-      ev.onerror = () => {
-        closeStream();
-        if (closed) return;
-        reconnectTimerRef.current = setTimeout(connectStream, 1200);
-      };
-    };
 
     async function fetchSeed() {
       const ac = new AbortController();
@@ -406,6 +401,84 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
       if (closed) return null;
       return seed;
     }
+
+    const startPolling = () => {
+      stopPolling();
+
+      pollTimerRef.current = setInterval(async () => {
+        try {
+          const seed = await fetchSeed();
+          if (!seed || closed) return;
+          syncFromSeed(seed);
+        } catch {}
+      }, 3000);
+    };
+
+    const connectStream = () => {
+      if (closed) return;
+
+      closeStream();
+
+      const ev = new EventSource(
+        `/api/live/stream?sid=${encodeURIComponent(sessionId)}`,
+      );
+      eventSourceRef.current = ev;
+
+      ev.onmessage = async (msg) => {
+        try {
+          const data = JSON.parse(msg.data);
+
+          if (data.type === "ready" || data.type === "ka") return;
+
+          if (data.type === "location") {
+            if (typeof data.lat === "number" && typeof data.lng === "number") {
+              applyPoint(
+                data.lat,
+                data.lng,
+                data.place,
+                data.ended ? "ended" : "live",
+                data.created_at,
+              );
+            }
+            if (data.ended) {
+              setStatus("ended");
+              setSosActive(false);
+              clearReconnect();
+              closeStream();
+              stopPolling();
+            }
+            return;
+          }
+
+          if (data.type === "sos") {
+            setSosActive(Boolean(data.active));
+            return;
+          }
+
+          if (data.type === "ended") {
+            try {
+              const seed = await fetchSeed();
+              if (seed && !closed) {
+                syncFromSeed(seed);
+              }
+            } catch {
+              setStatus("ended");
+              setSosActive(false);
+            }
+            clearReconnect();
+            closeStream();
+            stopPolling();
+            return;
+          }
+        } catch {}
+      };
+
+      ev.onerror = () => {
+        closeStream();
+        if (closed) return;
+        reconnectTimerRef.current = setTimeout(connectStream, 1200);
+      };
+    };
 
     async function bootMapWithSeed(seed: SeedResp) {
       if (!mapDivRef.current) throw new Error("Map container missing");
@@ -459,58 +532,19 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
         });
       });
 
-      setDestinationLabel(sessionLabelFromSeed(seed));
-      setSosActive(seed.ended ? false : Boolean(seed.sos_active));
-      setStatus(seed.ended ? "ended" : "live");
-
-      if (
-        seed.latest &&
-        typeof seed.latest.lat === "number" &&
-        typeof seed.latest.lng === "number"
-      ) {
-        applyPoint(
-          seed.latest.lat,
-          seed.latest.lng,
-          seed.latest.place,
-          seed.ended ? "ended" : "live",
-          seed.latest.created_at,
-        );
-      } else {
-        setPlaceLabel(
-          seed.ended ? "Last known location" : "Waiting for first live update…",
-        );
-        setCoordsLabel("");
-        setMapHref("");
-      }
+      syncFromSeed(seed);
 
       if (!seed.ended) {
         connectStream();
+        startPolling();
       }
     }
 
     async function bootFallback(seed: SeedResp) {
-      setDestinationLabel(sessionLabelFromSeed(seed));
-      setSosActive(seed.ended ? false : Boolean(seed.sos_active));
-      setStatus(seed.ended ? "ended" : "live");
+      syncFromSeed(seed);
 
-      if (
-        seed.latest &&
-        typeof seed.latest.lat === "number" &&
-        typeof seed.latest.lng === "number"
-      ) {
-        setPlaceLabel(
-          seed.latest.place?.trim() ||
-            (seed.ended ? "Last known location" : "Live location available"),
-        );
-        setCoordsLabel(formatCoords(seed.latest.lat, seed.latest.lng));
-        setMapHref(googleMapsHref(seed.latest.lat, seed.latest.lng));
-        setLastUpdatedLabel(formatLiveTime(seed.latest.created_at));
-      } else {
-        setPlaceLabel(
-          seed.ended ? "Last known location" : "Waiting for first live update…",
-        );
-        setCoordsLabel("");
-        setMapHref("");
+      if (!seed.ended) {
+        startPolling();
       }
     }
 
@@ -519,9 +553,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
         const seed = await fetchSeed();
         if (!seed) return;
 
-        const shouldUseFallback = isInAppBrowser();
-
-        if (shouldUseFallback) {
+        if (isInAppBrowser()) {
           setRenderMode("fallback");
           setBrowserHint(
             "Open in Chrome or Safari for the full map experience.",
@@ -560,11 +592,20 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
       closed = true;
       clearReconnect();
       closeStream();
+      stopPolling();
       markerRef.current = null;
       mapRef.current?.remove();
       mapRef.current = null;
     };
-  }, [sessionId, darkTheme, applyPoint]);
+  }, [
+    sessionId,
+    darkTheme,
+    applyPoint,
+    syncFromSeed,
+    clearReconnect,
+    closeStream,
+    stopPolling,
+  ]);
 
   const headerTitle = status === "ended" ? "Ended" : sosActive ? "SOS" : "Live";
   const locationHeading = status === "ended" ? "Last session" : "Current area";
@@ -578,7 +619,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
 
   const showSpinner = status === "loading";
   const showFallbackHint =
-    renderMode === "fallback" && !isDesktopBrowser() && status !== "ended";
+    renderMode === "fallback" && !isDesktop() && status !== "ended";
 
   const sheetHeightClass =
     sheetSnap === "expanded" ? "h-[72vh] md:h-[62vh]" : "h-[148px]";
