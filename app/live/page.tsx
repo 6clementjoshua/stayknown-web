@@ -74,7 +74,7 @@ function InvalidState({ reason }: { reason?: string }) {
 
         <p className="opacity-60 mt-2 text-sm leading-6">
           This live tracking session is no longer available. Please ask the user
-          for a fresh link if tracking is still active.
+          for a fresh link - if tracking is still active.
         </p>
 
         {reason ? (
