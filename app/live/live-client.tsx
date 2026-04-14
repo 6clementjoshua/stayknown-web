@@ -403,79 +403,8 @@ async function fetchNearbyPois(
     .slice(0, 10);
 }
 
-function getTomTomRasterStyle(
-  darkTheme: boolean,
-  apiKey: string,
-): maplibregl.StyleSpecification {
-  const labelStyle = darkTheme ? "night" : "main";
-
-  return {
-    version: 8,
-    name: darkTheme
-      ? "StayKnown TomTom Satellite Night Hybrid"
-      : "StayKnown TomTom Satellite Hybrid",
-    sources: {
-      "tomtom-sat": {
-        type: "raster",
-        tiles: [
-          `https://api.tomtom.com/map/1/tile/sat/main/{z}/{x}/{y}.jpg?key=${encodeURIComponent(apiKey)}`,
-        ],
-        tileSize: 256,
-        attribution: "© TomTom",
-      },
-      "tomtom-hybrid": {
-        type: "raster",
-        tiles: [
-          `https://api.tomtom.com/map/1/tile/hybrid/${labelStyle}/{z}/{x}/{y}.png?key=${encodeURIComponent(apiKey)}&tileSize=256&view=Unified&language=en-GB`,
-        ],
-        tileSize: 256,
-        attribution: "© TomTom",
-      },
-      "tomtom-labels": {
-        type: "raster",
-        tiles: [
-          `https://api.tomtom.com/map/1/tile/labels/${labelStyle}/{z}/{x}/{y}.png?key=${encodeURIComponent(apiKey)}&tileSize=256&view=Unified&language=en-GB`,
-        ],
-        tileSize: 256,
-        attribution: "© TomTom",
-      },
-    },
-    layers: [
-      {
-        id: "tomtom-sat-layer",
-        type: "raster",
-        source: "tomtom-sat",
-        minzoom: 0,
-        maxzoom: 19,
-        paint: {
-          "raster-saturation": 0.08,
-          "raster-contrast": 0.08,
-          "raster-brightness-min": 0.03,
-          "raster-brightness-max": 0.98,
-        },
-      },
-      {
-        id: "tomtom-hybrid-layer",
-        type: "raster",
-        source: "tomtom-hybrid",
-        minzoom: 0,
-        maxzoom: 19,
-        paint: {
-          "raster-opacity": darkTheme ? 0.92 : 0.96,
-        },
-      },
-      {
-        id: "tomtom-labels-layer",
-        type: "raster",
-        source: "tomtom-labels",
-        minzoom: 0,
-        maxzoom: 19,
-        paint: {
-          "raster-opacity": 1,
-        },
-      },
-    ],
-  };
+function getTomTomStyleUrl() {
+  return (process.env.NEXT_PUBLIC_TOMTOM_STYLE_URL || "").trim();
 }
 
 export default function LiveClient({ sessionId }: { sessionId: string }) {
@@ -800,26 +729,6 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
   React.useEffect(() => {
     if (!mapRef.current) return;
 
-    const tomtomKey = (process.env.NEXT_PUBLIC_TOMTOM_API_KEY || "").trim();
-    if (!tomtomKey) return;
-
-    mapRef.current.setStyle(getTomTomRasterStyle(darkTheme, tomtomKey));
-
-    const runResize = () => mapRef.current?.resize();
-    const t1 = setTimeout(runResize, 80);
-    const t2 = setTimeout(runResize, 220);
-    const t3 = setTimeout(runResize, 460);
-
-    return () => {
-      clearTimeout(t1);
-      clearTimeout(t2);
-      clearTimeout(t3);
-    };
-  }, [darkTheme]);
-
-  React.useEffect(() => {
-    if (!mapRef.current) return;
-
     const onResize = () => {
       mapRef.current?.resize();
     };
@@ -961,7 +870,12 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
     async function bootTomTomMap(seed: SeedResp) {
       if (!mapDivRef.current) throw new Error("Map container missing");
 
+      const tomtomStyleUrl = getTomTomStyleUrl();
       const tomtomKey = (process.env.NEXT_PUBLIC_TOMTOM_API_KEY || "").trim();
+
+      if (!tomtomStyleUrl) {
+        throw new Error("Missing NEXT_PUBLIC_TOMTOM_STYLE_URL");
+      }
       if (!tomtomKey) {
         throw new Error("Missing NEXT_PUBLIC_TOMTOM_API_KEY");
       }
@@ -973,7 +887,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
 
       const map = new maplibregl.Map({
         container: mapDivRef.current,
-        style: getTomTomRasterStyle(darkTheme, tomtomKey),
+        style: tomtomStyleUrl,
         center: hasLatest
           ? [seed.latest!.lng, seed.latest!.lat]
           : FALLBACK_CENTER,
@@ -985,8 +899,15 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
         pitchWithRotate: false,
         trackResize: true,
         fadeDuration: 0,
+        transformRequest: (url) => ({
+          url,
+          headers: {
+            "TomTom-Api-Key": (
+              process.env.NEXT_PUBLIC_TOMTOM_API_KEY || ""
+            ).trim(),
+          },
+        }),
       });
-
       mapRef.current = map;
 
       map.on("click", () => {
