@@ -1,8 +1,8 @@
 "use client";
 
 import React from "react";
-import mapboxgl from "mapbox-gl";
-import "mapbox-gl/dist/mapbox-gl.css";
+import maplibregl from "maplibre-gl";
+import "maplibre-gl/dist/maplibre-gl.css";
 
 type SeedResp = {
   ok: boolean;
@@ -30,7 +30,6 @@ type SeedResp = {
 
 type LiveStatus = "loading" | "live" | "ended" | "error";
 type RenderMode = "map" | "fallback";
-type MapProvider = "tomtom" | "mapbox";
 
 const INITIAL_VIEW_ZOOM = 13.9;
 const FOLLOW_VIEW_ZOOM = 15.7;
@@ -278,7 +277,7 @@ function getTomTomRasterTiles(darkTheme: boolean, apiKey: string) {
 function getTomTomRasterStyle(
   darkTheme: boolean,
   apiKey: string,
-): mapboxgl.Style {
+): maplibregl.StyleSpecification {
   return {
     version: 8,
     name: darkTheme ? "StayKnown TomTom Night" : "StayKnown TomTom Main",
@@ -288,7 +287,7 @@ function getTomTomRasterStyle(
         tiles: getTomTomRasterTiles(darkTheme, apiKey),
         tileSize: 256,
         attribution: "© TomTom",
-      } as any,
+      },
     },
     layers: [
       {
@@ -297,322 +296,15 @@ function getTomTomRasterStyle(
         source: "tomtom-raster",
         minzoom: 0,
         maxzoom: 22,
-      } as any,
+      },
     ],
-  } as mapboxgl.Style;
-}
-
-function getMapboxStyleUrl() {
-  return "mapbox://styles/mapbox/standard";
-}
-
-function featureName(props: Record<string, any>) {
-  return (
-    props.name_en ||
-    props.name ||
-    props.name_en_US ||
-    props.name_int ||
-    props["name:en"] ||
-    ""
-  );
-}
-
-function coercePointCoords(
-  geometry: GeoJSON.Geometry | GeoJSON.GeometryCollection,
-): [number, number] | null {
-  if (!geometry) return null;
-
-  if (geometry.type === "Point") {
-    const c = geometry.coordinates as number[];
-    if (c.length >= 2) return [c[0], c[1]];
-  }
-
-  if (geometry.type === "MultiPoint") {
-    const c = geometry.coordinates?.[0] as number[] | undefined;
-    if (c && c.length >= 2) return [c[0], c[1]];
-  }
-
-  return null;
-}
-
-function collectForcedPlaceFeatures(map: mapboxgl.Map) {
-  const seen = new Set<string>();
-  const features: GeoJSON.Feature<GeoJSON.Point>[] = [];
-
-  const pull = (sourceLayer: string, rankBoost = 0) => {
-    let rows: mapboxgl.GeoJSONFeature[] = [];
-    try {
-      rows = map.querySourceFeatures("composite", { sourceLayer });
-    } catch {
-      return;
-    }
-
-    for (const row of rows) {
-      const props = (row.properties || {}) as Record<string, any>;
-      const name = String(featureName(props)).trim();
-      if (!name) continue;
-
-      const coords = coercePointCoords(row.geometry);
-      if (!coords) continue;
-
-      const lng = Number(coords[0]);
-      const lat = Number(coords[1]);
-      if (!Number.isFinite(lng) || !Number.isFinite(lat)) continue;
-
-      const key = `${sourceLayer}:${name}:${lng.toFixed(5)}:${lat.toFixed(5)}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-
-      const scalerank =
-        typeof props.sizerank === "number"
-          ? props.sizerank
-          : typeof props.scalerank === "number"
-            ? props.scalerank
-            : 999;
-
-      const localrank =
-        typeof props.localrank === "number" ? props.localrank : 999;
-
-      const score = rankBoost - scalerank * 3 - localrank;
-
-      features.push({
-        type: "Feature",
-        geometry: {
-          type: "Point",
-          coordinates: [lng, lat],
-        },
-        properties: {
-          name,
-          score,
-          sourceLayer,
-        },
-      });
-    }
   };
-
-  pull("poi_label", 120);
-  pull("place_label", 80);
-  pull("transit_stop_label", 50);
-
-  return features
-    .sort(
-      (a, b) =>
-        Number(b.properties?.score || 0) - Number(a.properties?.score || 0),
-    )
-    .slice(0, 140);
-}
-
-function upsertForcedPlaceLabels(map: mapboxgl.Map, darkTheme: boolean) {
-  const sourceId = "sk-forced-places";
-  const layerId = "sk-forced-places-label";
-
-  const data: GeoJSON.FeatureCollection<GeoJSON.Point> = {
-    type: "FeatureCollection",
-    features: collectForcedPlaceFeatures(map),
-  };
-
-  const existing = map.getSource(sourceId) as
-    | mapboxgl.GeoJSONSource
-    | undefined;
-
-  if (existing) {
-    existing.setData(data);
-  } else {
-    map.addSource(sourceId, {
-      type: "geojson",
-      data,
-    });
-
-    map.addLayer({
-      id: layerId,
-      type: "symbol",
-      source: sourceId,
-      layout: {
-        "text-field": ["get", "name"],
-        "text-font": ["Open Sans Semibold", "Arial Unicode MS Regular"],
-        "text-size": [
-          "interpolate",
-          ["linear"],
-          ["zoom"],
-          9,
-          10,
-          11,
-          11,
-          13,
-          12,
-          15,
-          13,
-          17,
-          14,
-        ],
-        "text-letter-spacing": 0.02,
-        "text-max-width": 10,
-        "text-line-height": 1.05,
-        "text-offset": [0, 0.7],
-        "text-anchor": "top",
-        "text-allow-overlap": false,
-        "text-ignore-placement": false,
-        "symbol-sort-key": ["get", "score"],
-      },
-      paint: {
-        "text-color": darkTheme ? "#eef4fb" : "#34404d",
-        "text-halo-color": darkTheme
-          ? "rgba(8,10,14,0.94)"
-          : "rgba(255,255,255,0.98)",
-        "text-halo-width": 1.4,
-        "text-halo-blur": 0.2,
-      },
-      minzoom: 9,
-    });
-  }
-}
-
-function applyMapboxBasemapConfig(map: mapboxgl.Map, darkTheme: boolean) {
-  try {
-    map.setConfigProperty(
-      "basemap",
-      "lightPreset",
-      darkTheme ? "night" : "day",
-    );
-    map.setConfigProperty("basemap", "showPlaceLabels", true);
-    map.setConfigProperty("basemap", "showPointOfInterestLabels", true);
-    map.setConfigProperty("basemap", "showRoadLabels", true);
-    map.setConfigProperty("basemap", "showTransitLabels", true);
-    try {
-      map.setConfigProperty("basemap", "showPedestrianRoads", true);
-    } catch {}
-    try {
-      map.setConfigProperty("basemap", "show3dObjects", false);
-    } catch {}
-  } catch {}
-}
-
-function applyPremiumMapboxLayers(map: mapboxgl.Map, darkTheme: boolean) {
-  applyMapboxBasemapConfig(map, darkTheme);
-
-  const textColor = darkTheme ? "#eef4fb" : "#2b3642";
-  const softColor = darkTheme ? "#d9e3ee" : "#596674";
-  const haloColor = darkTheme ? "rgba(8,10,14,0.94)" : "rgba(255,255,255,0.99)";
-
-  const trySet = (
-    layerId: string,
-    paint?: Record<string, unknown>,
-    layout?: Record<string, unknown>,
-  ) => {
-    if (!map.getLayer(layerId)) return;
-
-    try {
-      if (paint) {
-        Object.entries(paint).forEach(([k, v]) => {
-          map.setPaintProperty(layerId, k as any, v as any);
-        });
-      }
-
-      if (layout) {
-        Object.entries(layout).forEach(([k, v]) => {
-          map.setLayoutProperty(layerId, k as any, v as any);
-        });
-      }
-    } catch {}
-  };
-
-  const allLabelLayers = [
-    "poi-label",
-    "poi-label-sm",
-    "poi-label-md",
-    "poi-label-lg",
-    "settlement-subdivision-label",
-    "settlement-minor-label",
-    "settlement-major-label",
-    "airport-label",
-    "transit-label",
-    "road-label",
-    "natural-label",
-    "water-label",
-  ];
-
-  allLabelLayers.forEach((id) => {
-    trySet(id, {
-      "text-color": id === "water-label" ? softColor : textColor,
-      "text-halo-color": haloColor,
-      "text-halo-width": 1.45,
-      "text-opacity": 1,
-    });
-  });
-
-  [
-    "poi-label",
-    "poi-label-sm",
-    "poi-label-md",
-    "poi-label-lg",
-    "airport-label",
-    "transit-label",
-    "road-label",
-    "settlement-minor-label",
-    "settlement-major-label",
-    "settlement-subdivision-label",
-    "natural-label",
-    "water-label",
-  ].forEach((id) => {
-    trySet(id, undefined, {
-      visibility: "visible",
-      "text-size": [
-        "interpolate",
-        ["linear"],
-        ["zoom"],
-        6,
-        10,
-        8,
-        11,
-        10,
-        12,
-        12,
-        13,
-        14,
-        14,
-        16,
-        15.5,
-        18,
-        17,
-      ],
-    });
-  });
-
-  ["poi-label", "poi-label-sm", "poi-label-md", "poi-label-lg"].forEach(
-    (id) => {
-      try {
-        if (map.getLayer(id)) {
-          map.setLayerZoomRange(id, 8, 24);
-        }
-      } catch {}
-    },
-  );
-
-  [
-    "settlement-minor-label",
-    "settlement-major-label",
-    "settlement-subdivision-label",
-    "road-label",
-    "natural-label",
-    "water-label",
-    "transit-label",
-  ].forEach((id) => {
-    try {
-      if (map.getLayer(id)) {
-        map.setLayerZoomRange(id, 3, 24);
-      }
-    } catch {}
-  });
-
-  try {
-    upsertForcedPlaceLabels(map, darkTheme);
-  } catch {}
 }
 
 export default function LiveClient({ sessionId }: { sessionId: string }) {
   const mapDivRef = React.useRef<HTMLDivElement | null>(null);
-  const mapRef = React.useRef<mapboxgl.Map | null>(null);
-  const markerRef = React.useRef<mapboxgl.Marker | null>(null);
+  const mapRef = React.useRef<maplibregl.Map | null>(null);
+  const markerRef = React.useRef<maplibregl.Marker | null>(null);
   const eventSourceRef = React.useRef<EventSource | null>(null);
   const reconnectTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(
     null,
@@ -622,9 +314,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
   );
   const bootedRef = React.useRef(false);
   const hasCenteredRef = React.useRef(false);
-  const markerElRef = React.useRef<HTMLElement | null>(null);
   const lastPointRef = React.useRef<{ lat: number; lng: number } | null>(null);
-  const providerRef = React.useRef<MapProvider>("tomtom");
 
   const [status, setStatus] = React.useState<LiveStatus>("loading");
   const [renderMode, setRenderMode] = React.useState<RenderMode>("map");
@@ -701,11 +391,10 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
         const needsLiveMarker = nextStatus !== "ended";
 
         if (!markerRef.current) {
-          markerRef.current = new mapboxgl.Marker({
+          markerRef.current = new maplibregl.Marker({
             element: buildMarkerEl(needsLiveMarker),
             anchor: "center",
           });
-          markerElRef.current = markerRef.current.getElement();
         } else {
           const el = markerRef.current.getElement();
           const hasRadar = el.querySelector("[data-sk-radar='1']");
@@ -715,11 +404,10 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
             (!needsLiveMarker && hasRadar)
           ) {
             markerRef.current.remove();
-            markerRef.current = new mapboxgl.Marker({
+            markerRef.current = new maplibregl.Marker({
               element: buildMarkerEl(needsLiveMarker),
               anchor: "center",
             });
-            markerElRef.current = markerRef.current.getElement();
           }
         }
 
@@ -844,26 +532,18 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
     if (!mapRef.current) return;
 
     const tomtomKey = (process.env.NEXT_PUBLIC_TOMTOM_API_KEY || "").trim();
+    if (!tomtomKey) return;
 
-    if (providerRef.current === "tomtom" && tomtomKey) {
-      mapRef.current.setStyle(getTomTomRasterStyle(darkTheme, tomtomKey));
-      return;
-    }
+    mapRef.current.setStyle(getTomTomRasterStyle(darkTheme, tomtomKey));
 
-    mapRef.current.setStyle(getMapboxStyleUrl());
+    const runResize = () => mapRef.current?.resize();
+    const t1 = setTimeout(runResize, 80);
+    const t2 = setTimeout(runResize, 220);
 
-    mapRef.current.once("styledata", () => {
-      if (!mapRef.current) return;
-
-      applyPremiumMapboxLayers(mapRef.current, darkTheme);
-
-      mapRef.current.once("idle", () => {
-        if (!mapRef.current) return;
-        try {
-          upsertForcedPlaceLabels(mapRef.current, darkTheme);
-        } catch {}
-      });
-    });
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
   }, [darkTheme]);
 
   React.useEffect(() => {
@@ -1015,7 +695,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
         throw new Error("Missing NEXT_PUBLIC_TOMTOM_API_KEY");
       }
 
-      const map = new mapboxgl.Map({
+      const map = new maplibregl.Map({
         container: mapDivRef.current,
         style: getTomTomRasterStyle(darkTheme, tomtomKey),
         center:
@@ -1037,10 +717,8 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
         pitchWithRotate: false,
         trackResize: true,
         fadeDuration: 0,
-        preserveDrawingBuffer: false,
       });
 
-      providerRef.current = "tomtom";
       mapRef.current = map;
 
       map.on("click", () => {
@@ -1071,101 +749,10 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
 
           resolve();
         });
-      });
 
-      syncFromSeed(seed);
-
-      if (!seed.ended) {
-        connectStream();
-        startPolling();
-      }
-    }
-
-    async function bootMapboxFallback(seed: SeedResp) {
-      if (!mapDivRef.current) throw new Error("Map container missing");
-
-      const publicMapToken = (
-        process.env.NEXT_PUBLIC_MAPBOX_TOKEN || ""
-      ).trim();
-      if (!publicMapToken) {
-        throw new Error("Missing NEXT_PUBLIC_MAPBOX_TOKEN");
-      }
-
-      mapboxgl.accessToken = publicMapToken;
-      setMapLoadError("");
-
-      const map = new mapboxgl.Map({
-        container: mapDivRef.current,
-        style: getMapboxStyleUrl(),
-        config: {
-          basemap: {
-            lightPreset: darkTheme ? "night" : "day",
-            showPlaceLabels: true,
-            showPointOfInterestLabels: true,
-            showRoadLabels: true,
-            showTransitLabels: true,
-          },
-        },
-        center:
-          seed.latest &&
-          typeof seed.latest.lng === "number" &&
-          typeof seed.latest.lat === "number"
-            ? [seed.latest.lng, seed.latest.lat]
-            : [8.6753, 9.082],
-        zoom:
-          seed.latest &&
-          typeof seed.latest.lng === "number" &&
-          typeof seed.latest.lat === "number"
-            ? INITIAL_VIEW_ZOOM
-            : 5,
-        minZoom: 3,
-        maxZoom: 22,
-        attributionControl: false,
-        dragRotate: false,
-        pitchWithRotate: false,
-        trackResize: true,
-        fadeDuration: 0,
-        preserveDrawingBuffer: false,
-      });
-
-      providerRef.current = "mapbox";
-      mapRef.current = map;
-
-      map.on("click", () => {
-        if (isPhoneViewport()) {
-          setMobileInfoExpanded(false);
-        }
-      });
-
-      await new Promise<void>((resolve, reject) => {
-        const timeout = setTimeout(() => {
-          setMapLoadError("The live map could not be rendered.");
-          reject(new Error("The live map could not be rendered."));
-        }, 8000);
-
-        map.once("load", () => {
+        map.once("error", () => {
           clearTimeout(timeout);
-
-          map.resize();
-          window.requestAnimationFrame(() => {
-            map.resize();
-          });
-          setTimeout(() => {
-            map.resize();
-          }, 150);
-          setTimeout(() => {
-            map.resize();
-          }, 500);
-
-          applyPremiumMapboxLayers(map, darkTheme);
-
-          map.on("idle", () => {
-            try {
-              upsertForcedPlaceLabels(map, darkTheme);
-            } catch {}
-          });
-
-          resolve();
+          reject(new Error("The live map could not be rendered."));
         });
       });
 
@@ -1200,12 +787,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
         }
 
         setRenderMode("map");
-
-        try {
-          await bootTomTomMap(seed);
-        } catch {
-          await bootMapboxFallback(seed);
-        }
+        await bootTomTomMap(seed);
       } catch {
         try {
           const seed = await fetchSeed();
@@ -1234,7 +816,6 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
       closeStream();
       stopPolling();
       markerRef.current = null;
-      markerElRef.current = null;
       mapRef.current?.remove();
       mapRef.current = null;
     };
@@ -1310,7 +891,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
           <div
             ref={mapDivRef}
             className="absolute inset-0 h-full w-full"
-            style={{ background: "transparent" }}
+            style={{ background: darkTheme ? "#111111" : "#eef1f4" }}
           />
         </div>
       ) : (
@@ -1399,6 +980,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
                 {lastUpdatedLabel}
               </div>
             </div>
+
             {infoRows.length > 0 && (
               <div
                 className={`pointer-events-auto flex max-w-[980px] flex-wrap items-center justify-center gap-1 rounded-[18px] border ${cardBorder} ${cardBg} px-2 py-1 shadow-[0_12px_30px_rgba(0,0,0,0.08)] backdrop-blur-2xl`}
