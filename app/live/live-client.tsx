@@ -296,19 +296,16 @@ type NearbyPoi = {
   distanceMeters?: number;
 };
 
-const POI_RADIUS_METERS = 900;
-const POI_LIMIT_PER_CATEGORY = 3;
-const POI_MIN_ZOOM_TO_SHOW = 15.3;
-const POI_REFRESH_MOVE_THRESHOLD_METERS = 160;
-const POI_REFRESH_MIN_MS = 15000;
+const POI_RADIUS_METERS = 700;
+const POI_LIMIT_PER_CATEGORY = 2;
+const POI_MIN_ZOOM_TO_SHOW = 15.8;
+const POI_REFRESH_MOVE_THRESHOLD_METERS = 320;
+const POI_REFRESH_MIN_MS = 120000;
 
 const NEARBY_CATEGORIES: NearbyCategory[] = [
   { id: "hospital", query: "hospital", label: "Hospital" },
   { id: "police", query: "police station", label: "Police" },
   { id: "school", query: "school", label: "School" },
-  { id: "pharmacy", query: "pharmacy", label: "Pharmacy" },
-  { id: "atm", query: "atm", label: "ATM" },
-  { id: "fuel", query: "gas station", label: "Fuel" },
 ];
 
 function buildPoiLabelEl(name: string, darkTheme: boolean) {
@@ -436,6 +433,12 @@ function getTomTomRasterStyle(
         source: "tomtom-raster",
         minzoom: 0,
         maxzoom: 22,
+        paint: {
+          "raster-saturation": 0.28,
+          "raster-contrast": 0.12,
+          "raster-brightness-min": 0.02,
+          "raster-brightness-max": 0.98,
+        },
       },
     ],
   };
@@ -539,6 +542,10 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
   const refreshNearbyPois = React.useCallback(
     async (lat: number, lng: number) => {
       if (!mapRef.current) return;
+      if (mapRef.current.getZoom() < POI_MIN_ZOOM_TO_SHOW) {
+        clearPoiMarkers();
+        return;
+      }
 
       const apiKey = (process.env.NEXT_PUBLIC_TOMTOM_API_KEY || "").trim();
       if (!apiKey) return;
@@ -680,7 +687,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
         void refreshNearbyPois(lat, lng);
       }
     },
-    [mobileInfoExpanded],
+    [mobileInfoExpanded, refreshNearbyPois],
   );
 
   const syncFromSeed = React.useCallback(
@@ -1056,6 +1063,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
     clearReconnect,
     closeStream,
     stopPolling,
+    clearPoiMarkers,
   ]);
 
   const locationHeading = status === "ended" ? "Last session" : "Current area";
