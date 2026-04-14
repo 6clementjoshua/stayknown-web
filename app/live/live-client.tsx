@@ -31,56 +31,10 @@ type SeedResp = {
 type LiveStatus = "loading" | "live" | "ended" | "error";
 type RenderMode = "map" | "fallback";
 
-type NearbyCategoryId =
-  | "hospital"
-  | "clinic"
-  | "police"
-  | "school"
-  | "government";
-
-type NearbyCategory = {
-  id: NearbyCategoryId;
-  query: string;
-  label: string;
-  short: string;
-};
-
-type NearbyPoi = {
-  id: string;
-  name: string;
-  category: NearbyCategoryId;
-  categoryLabel: string;
-  lat: number;
-  lng: number;
-  address: string;
-  distanceMeters?: number;
-  freeformAddress?: string;
-};
-
-const INITIAL_VIEW_ZOOM = 15.2;
-const FOLLOW_VIEW_ZOOM = 16.2;
+const INITIAL_VIEW_ZOOM = 14.1;
 const FALLBACK_CENTER: [number, number] = [8.3349, 4.5736];
-const FALLBACK_ZOOM = 13.6;
-
+const FALLBACK_ZOOM = 12.8;
 const MOVE_FOLLOW_THRESHOLD_METERS = 28;
-const POI_REFRESH_MOVE_THRESHOLD_METERS = 180;
-const POI_REFRESH_MIN_MS = 15000;
-const POI_RADIUS_METERS = 1000;
-const POI_LIMIT_PER_CATEGORY = 4;
-const POI_MIN_ZOOM_TO_SHOW = 14.2;
-
-const NEARBY_CATEGORIES: NearbyCategory[] = [
-  { id: "hospital", query: "hospital", label: "Hospital", short: "H" },
-  { id: "clinic", query: "clinic", label: "Clinic", short: "C" },
-  { id: "police", query: "police station", label: "Police", short: "P" },
-  { id: "school", query: "school", label: "School", short: "S" },
-  {
-    id: "government",
-    query: "government office",
-    label: "Government",
-    short: "G",
-  },
-];
 
 function distanceMeters(
   aLat: number,
@@ -197,8 +151,8 @@ function sessionMetaRows(seedStatus: LiveStatus, sosActive: boolean) {
 
 function buildMarkerEl(isLive = true) {
   const wrap = document.createElement("div");
-  wrap.style.width = "92px";
-  wrap.style.height = "92px";
+  wrap.style.width = "88px";
+  wrap.style.height = "88px";
   wrap.style.display = "flex";
   wrap.style.alignItems = "center";
   wrap.style.justifyContent = "center";
@@ -215,8 +169,8 @@ function buildMarkerEl(isLive = true) {
     ring.style.width = `${size}px`;
     ring.style.height = `${size}px`;
     ring.style.borderRadius = "9999px";
-    ring.style.border = `1.35px solid ${borderColor}`;
-    ring.style.boxShadow = `0 0 18px ${shadowColor}`;
+    ring.style.border = `1.2px solid ${borderColor}`;
+    ring.style.boxShadow = `0 0 16px ${shadowColor}`;
     ring.style.opacity = "0";
     ring.style.transform = "scale(0.72)";
     ring.setAttribute("data-sk-radar", "1");
@@ -228,16 +182,16 @@ function buildMarkerEl(isLive = true) {
 
   const halo = document.createElement("div");
   halo.style.position = "absolute";
-  halo.style.width = "54px";
-  halo.style.height = "54px";
+  halo.style.width = "52px";
+  halo.style.height = "52px";
   halo.style.borderRadius = "9999px";
   halo.style.background = "rgba(255,255,255,0.10)";
   halo.style.backdropFilter = "blur(10px)";
-  halo.style.boxShadow = "0 0 0 10px rgba(255,255,255,0.04)";
+  halo.style.boxShadow = "0 0 0 9px rgba(255,255,255,0.04)";
 
   const pin = document.createElement("div");
-  pin.style.width = "46px";
-  pin.style.height = "46px";
+  pin.style.width = "44px";
+  pin.style.height = "44px";
   pin.style.borderRadius = "9999px";
   pin.style.display = "flex";
   pin.style.alignItems = "center";
@@ -246,7 +200,7 @@ function buildMarkerEl(isLive = true) {
     "linear-gradient(180deg, rgba(255,255,255,0.99), rgba(243,245,247,0.95))";
   pin.style.border = "1px solid rgba(255,255,255,0.98)";
   pin.style.boxShadow =
-    "0 16px 34px rgba(0,0,0,0.16), inset 0 1px 0 rgba(255,255,255,1), inset 0 -8px 20px rgba(0,0,0,0.04)";
+    "0 14px 30px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,1), inset 0 -8px 18px rgba(0,0,0,0.04)";
   pin.style.position = "relative";
   pin.style.zIndex = "3";
 
@@ -261,51 +215,19 @@ function buildMarkerEl(isLive = true) {
 
   if (isLive) {
     wrap.appendChild(
-      makeRing(0, 52, "rgba(138,138,138,0.74)", "rgba(120,120,120,0.10)"),
+      makeRing(0, 50, "rgba(138,138,138,0.70)", "rgba(120,120,120,0.08)"),
     );
     wrap.appendChild(
-      makeRing(760, 66, "rgba(192,192,192,0.62)", "rgba(196,196,196,0.08)"),
+      makeRing(760, 62, "rgba(192,192,192,0.56)", "rgba(196,196,196,0.06)"),
     );
     wrap.appendChild(
-      makeRing(1520, 80, "rgba(224,224,224,0.42)", "rgba(225,225,225,0.06)"),
+      makeRing(1520, 76, "rgba(224,224,224,0.38)", "rgba(225,225,225,0.04)"),
     );
   }
 
   wrap.appendChild(halo);
   wrap.appendChild(pin);
 
-  return wrap;
-}
-
-function buildPoiMarkerEl(category: NearbyCategory, darkTheme: boolean) {
-  const wrap = document.createElement("div");
-  wrap.style.width = "20px";
-  wrap.style.height = "20px";
-  wrap.style.display = "flex";
-  wrap.style.alignItems = "center";
-  wrap.style.justifyContent = "center";
-  wrap.style.borderRadius = "9999px";
-  wrap.style.background = darkTheme
-    ? "rgba(14,14,14,0.96)"
-    : "rgba(255,255,255,0.96)";
-  wrap.style.border = darkTheme
-    ? "1px solid rgba(255,255,255,0.16)"
-    : "1px solid rgba(0,0,0,0.10)";
-  wrap.style.boxShadow =
-    "0 8px 18px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.18)";
-  wrap.style.backdropFilter = "blur(12px)";
-  wrap.style.cursor = "pointer";
-  wrap.style.userSelect = "none";
-
-  const text = document.createElement("div");
-  text.textContent = category.short;
-  text.style.fontSize = "8px";
-  text.style.fontWeight = "900";
-  text.style.lineHeight = "1";
-  text.style.letterSpacing = "0";
-  text.style.color = darkTheme ? "#f6f6f6" : "#111111";
-
-  wrap.appendChild(text);
   return wrap;
 }
 
@@ -389,136 +311,10 @@ function getTomTomRasterStyle(
   };
 }
 
-function pickTomTomAddress(result: any) {
-  const addr = result?.address ?? {};
-  return (
-    addr.freeformAddress ||
-    [addr.streetNumber, addr.streetName, addr.municipality]
-      .filter(Boolean)
-      .join(" ") ||
-    [addr.municipality, addr.countrySubdivision, addr.country]
-      .filter(Boolean)
-      .join(", ")
-  );
-}
-
-function buildPoiPopupHtml(poi: NearbyPoi) {
-  const distance =
-    typeof poi.distanceMeters === "number"
-      ? `<div style="margin-top:5px; font-size:10px; color:rgba(0,0,0,0.56); font-weight:800;">${Math.round(poi.distanceMeters)}m away</div>`
-      : "";
-
-  return `
-    <div style="
-      min-width:150px;
-      max-width:210px;
-      padding:1px 1px 0 1px;
-      color:#111;
-      font-family:inherit;
-    ">
-      <div style="font-size:9px; font-weight:900; letter-spacing:0.14em; text-transform:uppercase; color:rgba(0,0,0,0.42);">
-        ${poi.categoryLabel}
-      </div>
-      <div style="margin-top:5px; font-size:12px; line-height:1.3; font-weight:900; color:#101010;">
-        ${poi.name}
-      </div>
-      <div style="margin-top:5px; font-size:10px; line-height:1.38; color:rgba(0,0,0,0.68); font-weight:700;">
-        ${poi.address || poi.freeformAddress || "Nearby place"}
-      </div>
-      ${distance}
-    </div>
-  `;
-}
-
-async function fetchNearbyPois(
-  lat: number,
-  lng: number,
-  apiKey: string,
-  signal?: AbortSignal,
-) {
-  const requests = NEARBY_CATEGORIES.map(async (category) => {
-    const url =
-      `https://api.tomtom.com/search/2/categorySearch/${encodeURIComponent(category.query)}.json` +
-      `?key=${encodeURIComponent(apiKey)}` +
-      `&lat=${encodeURIComponent(String(lat))}` +
-      `&lon=${encodeURIComponent(String(lng))}` +
-      `&radius=${encodeURIComponent(String(POI_RADIUS_METERS))}` +
-      `&limit=${encodeURIComponent(String(POI_LIMIT_PER_CATEGORY))}` +
-      `&language=en-GB` +
-      `&view=Unified`;
-
-    const res = await fetch(url, { signal });
-    if (!res.ok) return [] as NearbyPoi[];
-
-    const json = await res.json().catch(() => ({}));
-    const rows = Array.isArray(json?.results) ? json.results : [];
-
-    return rows
-      .map((row: any) => {
-        const p = row?.position ?? {};
-        const id = String(
-          row?.id ||
-            `${category.id}:${row?.poi?.name || row?.address?.freeformAddress || ""}:${p.lat}:${p.lon}`,
-        );
-
-        const poiName =
-          String(row?.poi?.name || row?.poi?.brands?.[0]?.name || "").trim() ||
-          String(row?.address?.freeformAddress || "").trim() ||
-          category.label;
-
-        const address = String(pickTomTomAddress(row) || "").trim();
-
-        const latNum = Number(p.lat);
-        const lngNum = Number(p.lon);
-
-        if (!Number.isFinite(latNum) || !Number.isFinite(lngNum)) return null;
-
-        const dist = distanceMeters(lat, lng, latNum, lngNum);
-
-        return {
-          id,
-          name: poiName,
-          category: category.id,
-          categoryLabel: category.label,
-          lat: latNum,
-          lng: lngNum,
-          address,
-          freeformAddress: address,
-          distanceMeters: dist,
-        } satisfies NearbyPoi;
-      })
-      .filter(Boolean) as NearbyPoi[];
-  });
-
-  const settled = await Promise.all(requests);
-  const merged = settled.flat();
-
-  const seen = new Set<string>();
-  const deduped: NearbyPoi[] = [];
-
-  for (const poi of merged) {
-    const key = `${poi.name.toLowerCase()}|${poi.lat.toFixed(5)}|${poi.lng.toFixed(5)}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    deduped.push(poi);
-  }
-
-  return deduped
-    .sort((a, b) => (a.distanceMeters ?? 999999) - (b.distanceMeters ?? 999999))
-    .slice(0, 14);
-}
-
 export default function LiveClient({ sessionId }: { sessionId: string }) {
   const mapDivRef = React.useRef<HTMLDivElement | null>(null);
   const mapRef = React.useRef<maplibregl.Map | null>(null);
   const markerRef = React.useRef<maplibregl.Marker | null>(null);
-  const poiMarkersRef = React.useRef<maplibregl.Marker[]>([]);
-  const poiPopupRef = React.useRef<maplibregl.Popup | null>(null);
-  const poiFetchAbortRef = React.useRef<AbortController | null>(null);
-  const lastPoiCenterRef = React.useRef<{ lat: number; lng: number } | null>(
-    null,
-  );
-  const lastPoiFetchAtRef = React.useRef<number>(0);
 
   const eventSourceRef = React.useRef<EventSource | null>(null);
   const reconnectTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(
@@ -561,28 +357,6 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
   const [expectedDurationLabel, setExpectedDurationLabel] = React.useState("—");
   const [extraNoteLabel, setExtraNoteLabel] = React.useState("—");
 
-  const clearPoiMarkers = React.useCallback(() => {
-    poiMarkersRef.current.forEach((marker) => marker.remove());
-    poiMarkersRef.current = [];
-    poiPopupRef.current?.remove();
-    poiPopupRef.current = null;
-  }, []);
-
-  const syncPoiMarkerVisibility = React.useCallback(() => {
-    if (!mapRef.current) return;
-    const zoom = mapRef.current.getZoom();
-    const visible = zoom >= POI_MIN_ZOOM_TO_SHOW;
-
-    poiMarkersRef.current.forEach((marker) => {
-      const el = marker.getElement();
-      el.style.display = visible ? "flex" : "none";
-    });
-
-    if (!visible) {
-      poiPopupRef.current?.remove();
-    }
-  }, []);
-
   const stopPolling = React.useCallback(() => {
     if (pollTimerRef.current) {
       clearInterval(pollTimerRef.current);
@@ -612,91 +386,6 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
   const toggleMobileInfo = React.useCallback(() => {
     setMobileInfoExpanded((v) => !v);
   }, []);
-
-  const refreshNearbyPois = React.useCallback(
-    async (lat: number, lng: number) => {
-      if (!mapRef.current) return;
-
-      const apiKey = (process.env.NEXT_PUBLIC_TOMTOM_API_KEY || "").trim();
-      if (!apiKey) return;
-
-      const lastCenter = lastPoiCenterRef.current;
-      const now = Date.now();
-
-      const movedEnough = lastCenter
-        ? distanceMeters(lastCenter.lat, lastCenter.lng, lat, lng) >=
-          POI_REFRESH_MOVE_THRESHOLD_METERS
-        : true;
-
-      const longEnough = now - lastPoiFetchAtRef.current >= POI_REFRESH_MIN_MS;
-
-      if (!movedEnough && !longEnough) return;
-
-      lastPoiCenterRef.current = { lat, lng };
-      lastPoiFetchAtRef.current = now;
-
-      poiFetchAbortRef.current?.abort();
-      const controller = new AbortController();
-      poiFetchAbortRef.current = controller;
-
-      try {
-        const pois = await fetchNearbyPois(lat, lng, apiKey, controller.signal);
-        if (controller.signal.aborted || !mapRef.current) return;
-
-        clearPoiMarkers();
-
-        const popup = new maplibregl.Popup({
-          closeButton: false,
-          closeOnClick: true,
-          offset: 12,
-          maxWidth: "220px",
-          className: "sk-poi-popup",
-        });
-
-        poiPopupRef.current = popup;
-
-        const nextMarkers = pois.map((poi) => {
-          const category =
-            NEARBY_CATEGORIES.find((c) => c.id === poi.category) ||
-            NEARBY_CATEGORIES[0];
-
-          const el = buildPoiMarkerEl(category, darkTheme);
-
-          const marker = new maplibregl.Marker({
-            element: el,
-            anchor: "center",
-          })
-            .setLngLat([poi.lng, poi.lat])
-            .addTo(mapRef.current!);
-
-          const showPopup = () => {
-            if (
-              !mapRef.current ||
-              mapRef.current.getZoom() < POI_MIN_ZOOM_TO_SHOW
-            )
-              return;
-
-            popup
-              .setLngLat([poi.lng, poi.lat])
-              .setHTML(buildPoiPopupHtml(poi))
-              .addTo(mapRef.current!);
-          };
-
-          el.addEventListener("mouseenter", showPopup);
-          el.addEventListener("click", (e) => {
-            e.stopPropagation();
-            showPopup();
-          });
-
-          return marker;
-        });
-
-        poiMarkersRef.current = nextMarkers;
-        syncPoiMarkerVisibility();
-      } catch {}
-    },
-    [clearPoiMarkers, darkTheme, syncPoiMarkerVisibility],
-  );
 
   const applyPoint = React.useCallback(
     (
@@ -744,6 +433,8 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
             MOVE_FOLLOW_THRESHOLD_METERS
           : true;
 
+        const currentZoom = mapRef.current.getZoom();
+
         const padding = {
           top: isDesktop() ? 96 : 88,
           right: 18,
@@ -760,7 +451,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
         } else if (movedEnough) {
           mapRef.current.easeTo({
             center: nextLngLat,
-            zoom: Math.max(mapRef.current.getZoom(), FOLLOW_VIEW_ZOOM),
+            zoom: currentZoom,
             padding,
             duration: 700,
             essential: true,
@@ -786,12 +477,8 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
       setMapHref(googleMapsHref(lat, lng));
       setLastUpdatedLabel(formatLiveTime(createdAt));
       setStatus(nextStatus);
-
-      if (nextStatus !== "ended") {
-        void refreshNearbyPois(lat, lng);
-      }
     },
-    [mobileInfoExpanded, refreshNearbyPois],
+    [mobileInfoExpanded],
   );
 
   const syncFromSeed = React.useCallback(
@@ -836,10 +523,9 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
         clearReconnect();
         closeStream();
         stopPolling();
-        clearPoiMarkers();
       }
     },
-    [applyPoint, clearReconnect, clearPoiMarkers, closeStream, stopPolling],
+    [applyPoint, clearReconnect, closeStream, stopPolling],
   );
 
   React.useEffect(() => {
@@ -908,18 +594,6 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
       clearTimeout(t3);
     };
   }, [renderMode, status]);
-
-  React.useEffect(() => {
-    if (!mapRef.current) return;
-
-    const map = mapRef.current;
-    const onZoom = () => syncPoiMarkerVisibility();
-    map.on("zoom", onZoom);
-
-    return () => {
-      map.off("zoom", onZoom);
-    };
-  }, [syncPoiMarkerVisibility]);
 
   React.useEffect(() => {
     if (!accessAccepted) return;
@@ -995,7 +669,6 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
               clearReconnect();
               closeStream();
               stopPolling();
-              clearPoiMarkers();
             }
             return;
           }
@@ -1018,7 +691,6 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
             clearReconnect();
             closeStream();
             stopPolling();
-            clearPoiMarkers();
           }
         } catch {}
       };
@@ -1065,7 +737,6 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
         if (isPhoneViewport()) {
           setMobileInfoExpanded(false);
         }
-        poiPopupRef.current?.remove();
       });
 
       await new Promise<void>((resolve, reject) => {
@@ -1153,11 +824,9 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
 
     return () => {
       closed = true;
-      poiFetchAbortRef.current?.abort();
       clearReconnect();
       closeStream();
       stopPolling();
-      clearPoiMarkers();
       markerRef.current = null;
       mapRef.current?.remove();
       mapRef.current = null;
@@ -1169,7 +838,6 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
     applyPoint,
     syncFromSeed,
     clearReconnect,
-    clearPoiMarkers,
     closeStream,
     stopPolling,
   ]);
@@ -1241,21 +909,6 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
       ) : (
         <div className="absolute inset-0 z-0 bg-transparent" />
       )}
-
-      <style jsx global>{`
-        .sk-poi-popup .maplibregl-popup-content {
-          border-radius: 18px;
-          border: 1px solid rgba(0, 0, 0, 0.08);
-          background: rgba(255, 255, 255, 0.97);
-          box-shadow: 0 18px 48px rgba(0, 0, 0, 0.12);
-          backdrop-filter: blur(18px);
-          padding: 8px 10px;
-        }
-        .sk-poi-popup .maplibregl-popup-tip {
-          border-top-color: rgba(255, 255, 255, 0.97) !important;
-          border-bottom-color: rgba(255, 255, 255, 0.97) !important;
-        }
-      `}</style>
 
       <div className="pointer-events-none absolute inset-x-0 top-0 h-20 z-10 bg-gradient-to-b from-white/28 to-transparent" />
 
@@ -1362,7 +1015,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
               {safetyUseHint()}
             </div>
 
-            <div className="pointer-events-none max-w-[980px] rounded-[22px] border border-white/70 bg-white/48 px-4 py-[5px] text-center text-[8px] font-semibold leading-4 text-black/44 shadow-[0_10px_28px_rgba(0,0,0,0.06)] backdrop-blur-2xl">
+            <div className="pointer-events-none max-w-[980px] rounded-[22px] border border-white/70 bg-white/48 px-4 py-[5px] text-center text-[8px] font-semibold leading-4 text-black/50 shadow-[0_10px_28px_rgba(0,0,0,0.06)] backdrop-blur-2xl">
               {legalTinyLine()}
             </div>
           </div>
@@ -1543,7 +1196,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
                   <div
                     className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-[7px] text-center`}
                   >
-                    <div className="text-[8px] font-semibold leading-4 text-black/44">
+                    <div className="text-[8px] font-semibold leading-4 text-black/50">
                       {legalTinyLine()}
                     </div>
                   </div>
