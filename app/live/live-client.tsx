@@ -306,6 +306,9 @@ const NEARBY_CATEGORIES: NearbyCategory[] = [
   { id: "hospital", query: "hospital", label: "Hospital" },
   { id: "police", query: "police station", label: "Police" },
   { id: "school", query: "school", label: "School" },
+  { id: "pharmacy", query: "pharmacy", label: "Pharmacy" },
+  { id: "atm", query: "atm", label: "ATM" },
+  { id: "fuel", query: "gas station", label: "Fuel" },
 ];
 
 function buildPoiLabelEl(name: string, darkTheme: boolean) {
