@@ -273,13 +273,145 @@ function legalTinyLine() {
   return `A 6Clement Joshua Service™  •  © ${year}`;
 }
 
-function getTomTomRasterTiles(darkTheme: boolean, apiKey: string) {
-  const style = darkTheme ? "street-dark" : "street-light";
+type NearbyCategoryId =
+  | "hospital"
+  | "police"
+  | "school"
+  | "pharmacy"
+  | "atm"
+  | "fuel";
 
-  return ["a", "b", "c", "d"].map(
-    (host) =>
-      `https://${host}.api.tomtom.com/maps/orbis/map-display/tile/{z}/{x}/{y}.png?apiVersion=1&style=${style}&tileSize=512&language=en-GB&view=Unified&key=${encodeURIComponent(apiKey)}`,
-  );
+type NearbyCategory = {
+  id: NearbyCategoryId;
+  query: string;
+  label: string;
+};
+
+type NearbyPoi = {
+  id: string;
+  name: string;
+  category: NearbyCategoryId;
+  lat: number;
+  lng: number;
+  distanceMeters?: number;
+};
+
+const POI_RADIUS_METERS = 900;
+const POI_LIMIT_PER_CATEGORY = 3;
+const POI_MIN_ZOOM_TO_SHOW = 15.3;
+const POI_REFRESH_MOVE_THRESHOLD_METERS = 160;
+const POI_REFRESH_MIN_MS = 15000;
+
+const NEARBY_CATEGORIES: NearbyCategory[] = [
+  { id: "hospital", query: "hospital", label: "Hospital" },
+  { id: "police", query: "police station", label: "Police" },
+  { id: "school", query: "school", label: "School" },
+  { id: "pharmacy", query: "pharmacy", label: "Pharmacy" },
+  { id: "atm", query: "atm", label: "ATM" },
+  { id: "fuel", query: "gas station", label: "Fuel" },
+];
+
+function buildPoiLabelEl(name: string, darkTheme: boolean) {
+  const wrap = document.createElement("div");
+  wrap.style.display = "inline-flex";
+  wrap.style.alignItems = "center";
+  wrap.style.justifyContent = "center";
+  wrap.style.padding = "3px 7px";
+  wrap.style.borderRadius = "999px";
+  wrap.style.background = darkTheme
+    ? "rgba(10,10,10,0.88)"
+    : "rgba(255,255,255,0.88)";
+  wrap.style.border = darkTheme
+    ? "1px solid rgba(255,255,255,0.10)"
+    : "1px solid rgba(0,0,0,0.07)";
+  wrap.style.boxShadow = "0 8px 18px rgba(0,0,0,0.10)";
+  wrap.style.backdropFilter = "blur(10px)";
+  wrap.style.whiteSpace = "nowrap";
+  wrap.style.pointerEvents = "none";
+
+  const text = document.createElement("div");
+  text.textContent = name;
+  text.style.fontSize = "10px";
+  text.style.fontWeight = "800";
+  text.style.lineHeight = "1";
+  text.style.letterSpacing = "0";
+  text.style.color = darkTheme ? "#f5f5f5" : "#171717";
+
+  wrap.appendChild(text);
+  return wrap;
+}
+
+async function fetchNearbyPois(
+  lat: number,
+  lng: number,
+  apiKey: string,
+  signal?: AbortSignal,
+) {
+  const requests = NEARBY_CATEGORIES.map(async (category) => {
+    const url =
+      `https://api.tomtom.com/search/2/categorySearch/${encodeURIComponent(category.query)}.json` +
+      `?key=${encodeURIComponent(apiKey)}` +
+      `&lat=${encodeURIComponent(String(lat))}` +
+      `&lon=${encodeURIComponent(String(lng))}` +
+      `&radius=${encodeURIComponent(String(POI_RADIUS_METERS))}` +
+      `&limit=${encodeURIComponent(String(POI_LIMIT_PER_CATEGORY))}` +
+      `&language=en-GB` +
+      `&view=Unified`;
+
+    const res = await fetch(url, { signal });
+    if (!res.ok) return [] as NearbyPoi[];
+
+    const json = await res.json().catch(() => ({}));
+    const rows = Array.isArray(json?.results) ? json.results : [];
+
+    return rows
+      .map((row: any) => {
+        const p = row?.position ?? {};
+        const latNum = Number(p.lat);
+        const lngNum = Number(p.lon);
+        if (!Number.isFinite(latNum) || !Number.isFinite(lngNum)) return null;
+
+        const name =
+          String(
+            row?.poi?.name || row?.address?.freeformAddress || "",
+          ).trim() || category.label;
+
+        return {
+          id: String(row?.id || `${category.id}:${name}:${latNum}:${lngNum}`),
+          name,
+          category: category.id,
+          lat: latNum,
+          lng: lngNum,
+          distanceMeters: distanceMeters(lat, lng, latNum, lngNum),
+        } satisfies NearbyPoi;
+      })
+      .filter(Boolean) as NearbyPoi[];
+  });
+
+  const settled = await Promise.all(requests);
+  const merged = settled.flat();
+
+  const seen = new Set<String>();
+  const deduped: NearbyPoi[] = [];
+
+  for (const poi of merged) {
+    const key = `${poi.name.toLowerCase()}|${poi.lat.toFixed(5)}|${poi.lng.toFixed(5)}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    deduped.push(poi);
+  }
+
+  return deduped
+    .sort((a, b) => (a.distanceMeters ?? 999999) - (b.distanceMeters ?? 999999))
+    .slice(0, 10);
+}
+
+function getTomTomRasterTiles(darkTheme: boolean, apiKey: string) {
+  const style = darkTheme ? "main/night" : "main";
+
+  return [
+    `https://api.tomtom.com/map/1/tile/basic/${style}/{z}/{x}/{y}.png?key=${encodeURIComponent(apiKey)}&tileSize=256&language=en-GB`,
+  ];
 }
 
 function getTomTomRasterStyle(
@@ -288,14 +420,12 @@ function getTomTomRasterStyle(
 ): maplibregl.StyleSpecification {
   return {
     version: 8,
-    name: darkTheme
-      ? "StayKnown TomTom Street Dark"
-      : "StayKnown TomTom Street Light",
+    name: darkTheme ? "StayKnown TomTom Night" : "StayKnown TomTom Main",
     sources: {
       "tomtom-raster": {
         type: "raster",
         tiles: getTomTomRasterTiles(darkTheme, apiKey),
-        tileSize: 512,
+        tileSize: 256,
         attribution: "© TomTom",
       },
     },
@@ -310,11 +440,16 @@ function getTomTomRasterStyle(
     ],
   };
 }
-
 export default function LiveClient({ sessionId }: { sessionId: string }) {
   const mapDivRef = React.useRef<HTMLDivElement | null>(null);
   const mapRef = React.useRef<maplibregl.Map | null>(null);
   const markerRef = React.useRef<maplibregl.Marker | null>(null);
+  const poiMarkersRef = React.useRef<maplibregl.Marker[]>([]);
+  const poiFetchAbortRef = React.useRef<AbortController | null>(null);
+  const lastPoiCenterRef = React.useRef<{ lat: number; lng: number } | null>(
+    null,
+  );
+  const lastPoiFetchAtRef = React.useRef<number>(0);
 
   const eventSourceRef = React.useRef<EventSource | null>(null);
   const reconnectTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(
@@ -386,6 +521,70 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
   const toggleMobileInfo = React.useCallback(() => {
     setMobileInfoExpanded((v) => !v);
   }, []);
+
+  const clearPoiMarkers = React.useCallback(() => {
+    poiMarkersRef.current.forEach((marker) => marker.remove());
+    poiMarkersRef.current = [];
+  }, []);
+
+  const syncPoiMarkerVisibility = React.useCallback(() => {
+    if (!mapRef.current) return;
+    const visible = mapRef.current.getZoom() >= POI_MIN_ZOOM_TO_SHOW;
+
+    poiMarkersRef.current.forEach((marker) => {
+      marker.getElement().style.display = visible ? "flex" : "none";
+    });
+  }, []);
+
+  const refreshNearbyPois = React.useCallback(
+    async (lat: number, lng: number) => {
+      if (!mapRef.current) return;
+
+      const apiKey = (process.env.NEXT_PUBLIC_TOMTOM_API_KEY || "").trim();
+      if (!apiKey) return;
+
+      const lastCenter = lastPoiCenterRef.current;
+      const now = Date.now();
+
+      const movedEnough = lastCenter
+        ? distanceMeters(lastCenter.lat, lastCenter.lng, lat, lng) >=
+          POI_REFRESH_MOVE_THRESHOLD_METERS
+        : true;
+
+      const longEnough = now - lastPoiFetchAtRef.current >= POI_REFRESH_MIN_MS;
+
+      if (!movedEnough && !longEnough) return;
+
+      lastPoiCenterRef.current = { lat, lng };
+      lastPoiFetchAtRef.current = now;
+
+      poiFetchAbortRef.current?.abort();
+      const controller = new AbortController();
+      poiFetchAbortRef.current = controller;
+
+      try {
+        const pois = await fetchNearbyPois(lat, lng, apiKey, controller.signal);
+        if (controller.signal.aborted || !mapRef.current) return;
+
+        clearPoiMarkers();
+
+        const nextMarkers = pois.map((poi) => {
+          const el = buildPoiLabelEl(poi.name, darkTheme);
+
+          return new maplibregl.Marker({
+            element: el,
+            anchor: "bottom",
+          })
+            .setLngLat([poi.lng, poi.lat])
+            .addTo(mapRef.current!);
+        });
+
+        poiMarkersRef.current = nextMarkers;
+        syncPoiMarkerVisibility();
+      } catch {}
+    },
+    [clearPoiMarkers, darkTheme, syncPoiMarkerVisibility],
+  );
 
   const applyPoint = React.useCallback(
     (
@@ -477,6 +676,9 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
       setMapHref(googleMapsHref(lat, lng));
       setLastUpdatedLabel(formatLiveTime(createdAt));
       setStatus(nextStatus);
+      if (nextStatus !== "ended") {
+        void refreshNearbyPois(lat, lng);
+      }
     },
     [mobileInfoExpanded],
   );
@@ -527,6 +729,18 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
     },
     [applyPoint, clearReconnect, closeStream, stopPolling],
   );
+
+  React.useEffect(() => {
+    if (!mapRef.current) return;
+
+    const map = mapRef.current;
+    const onZoom = () => syncPoiMarkerVisibility();
+
+    map.on("zoom", onZoom);
+    return () => {
+      map.off("zoom", onZoom);
+    };
+  }, [syncPoiMarkerVisibility]);
 
   React.useEffect(() => {
     setDarkTheme(prefersDarkTheme());
@@ -824,9 +1038,11 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
 
     return () => {
       closed = true;
+      poiFetchAbortRef.current?.abort();
       clearReconnect();
       closeStream();
       stopPolling();
+      clearPoiMarkers();
       markerRef.current = null;
       mapRef.current?.remove();
       mapRef.current = null;
