@@ -403,46 +403,81 @@ async function fetchNearbyPois(
     .slice(0, 10);
 }
 
-function getTomTomRasterTiles(darkTheme: boolean, apiKey: string) {
-  const style = darkTheme ? "main/night" : "main";
-
-  return [
-    `https://api.tomtom.com/map/1/tile/basic/${style}/{z}/{x}/{y}.png?key=${encodeURIComponent(apiKey)}&tileSize=256&language=en-GB`,
-  ];
-}
-
 function getTomTomRasterStyle(
   darkTheme: boolean,
   apiKey: string,
 ): maplibregl.StyleSpecification {
+  const labelStyle = darkTheme ? "night" : "main";
+
   return {
     version: 8,
-    name: darkTheme ? "StayKnown TomTom Night" : "StayKnown TomTom Main",
+    name: darkTheme
+      ? "StayKnown TomTom Satellite Night Hybrid"
+      : "StayKnown TomTom Satellite Hybrid",
     sources: {
-      "tomtom-raster": {
+      "tomtom-sat": {
         type: "raster",
-        tiles: getTomTomRasterTiles(darkTheme, apiKey),
+        tiles: [
+          `https://api.tomtom.com/map/1/tile/sat/main/{z}/{x}/{y}.jpg?key=${encodeURIComponent(apiKey)}`,
+        ],
+        tileSize: 256,
+        attribution: "© TomTom",
+      },
+      "tomtom-hybrid": {
+        type: "raster",
+        tiles: [
+          `https://api.tomtom.com/map/1/tile/hybrid/${labelStyle}/{z}/{x}/{y}.png?key=${encodeURIComponent(apiKey)}&tileSize=256&view=Unified&language=en-GB`,
+        ],
+        tileSize: 256,
+        attribution: "© TomTom",
+      },
+      "tomtom-labels": {
+        type: "raster",
+        tiles: [
+          `https://api.tomtom.com/map/1/tile/labels/${labelStyle}/{z}/{x}/{y}.png?key=${encodeURIComponent(apiKey)}&tileSize=256&view=Unified&language=en-GB`,
+        ],
         tileSize: 256,
         attribution: "© TomTom",
       },
     },
     layers: [
       {
-        id: "tomtom-raster-layer",
+        id: "tomtom-sat-layer",
         type: "raster",
-        source: "tomtom-raster",
+        source: "tomtom-sat",
         minzoom: 0,
-        maxzoom: 22,
+        maxzoom: 19,
         paint: {
-          "raster-saturation": 0.28,
-          "raster-contrast": 0.12,
-          "raster-brightness-min": 0.02,
+          "raster-saturation": 0.08,
+          "raster-contrast": 0.08,
+          "raster-brightness-min": 0.03,
           "raster-brightness-max": 0.98,
+        },
+      },
+      {
+        id: "tomtom-hybrid-layer",
+        type: "raster",
+        source: "tomtom-hybrid",
+        minzoom: 0,
+        maxzoom: 19,
+        paint: {
+          "raster-opacity": darkTheme ? 0.92 : 0.96,
+        },
+      },
+      {
+        id: "tomtom-labels-layer",
+        type: "raster",
+        source: "tomtom-labels",
+        minzoom: 0,
+        maxzoom: 19,
+        paint: {
+          "raster-opacity": 1,
         },
       },
     ],
   };
 }
+
 export default function LiveClient({ sessionId }: { sessionId: string }) {
   const mapDivRef = React.useRef<HTMLDivElement | null>(null);
   const mapRef = React.useRef<maplibregl.Map | null>(null);
@@ -944,7 +979,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
           : FALLBACK_CENTER,
         zoom: hasLatest ? INITIAL_VIEW_ZOOM : FALLBACK_ZOOM,
         minZoom: 3,
-        maxZoom: 22,
+        maxZoom: 19,
         attributionControl: false,
         dragRotate: false,
         pitchWithRotate: false,
