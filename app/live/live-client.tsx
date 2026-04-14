@@ -902,9 +902,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
         transformRequest: (url) => ({
           url,
           headers: {
-            "TomTom-Api-Key": (
-              process.env.NEXT_PUBLIC_TOMTOM_API_KEY || ""
-            ).trim(),
+            "TomTom-Api-Key": tomtomKey,
           },
         }),
       });
