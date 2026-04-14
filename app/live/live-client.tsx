@@ -30,6 +30,8 @@ type SeedResp = {
 
 type LiveStatus = "loading" | "live" | "ended" | "error";
 type RenderMode = "map" | "fallback";
+type MapProvider = "tomtom" | "mapbox";
+
 const INITIAL_VIEW_ZOOM = 13.9;
 const FOLLOW_VIEW_ZOOM = 15.7;
 const MOVE_FOLLOW_THRESHOLD_METERS = 35;
@@ -266,33 +268,42 @@ function safetyUseHint() {
   );
 }
 
-function getMapStyleUrl(_darkTheme: boolean) {
-  return "mapbox://styles/mapbox/standard";
+function getTomTomRasterTiles(darkTheme: boolean, apiKey: string) {
+  const style = darkTheme ? "night" : "main";
+  return [
+    `https://api.tomtom.com/map/1/tile/basic/${style}/{z}/{x}/{y}.png?key=${encodeURIComponent(apiKey)}&tileSize=256&language=en-GB`,
+  ];
 }
 
-function applyStandardBasemapConfig(map: mapboxgl.Map, darkTheme: boolean) {
-  try {
-    map.setConfigProperty(
-      "basemap",
-      "lightPreset",
-      darkTheme ? "night" : "day",
-    );
+function getTomTomRasterStyle(
+  darkTheme: boolean,
+  apiKey: string,
+): mapboxgl.Style {
+  return {
+    version: 8,
+    name: darkTheme ? "StayKnown TomTom Night" : "StayKnown TomTom Main",
+    sources: {
+      "tomtom-raster": {
+        type: "raster",
+        tiles: getTomTomRasterTiles(darkTheme, apiKey),
+        tileSize: 256,
+        attribution: "© TomTom",
+      } as any,
+    },
+    layers: [
+      {
+        id: "tomtom-raster-layer",
+        type: "raster",
+        source: "tomtom-raster",
+        minzoom: 0,
+        maxzoom: 22,
+      } as any,
+    ],
+  } as mapboxgl.Style;
+}
 
-    map.setConfigProperty("basemap", "showPlaceLabels", true);
-    map.setConfigProperty("basemap", "showPointOfInterestLabels", true);
-    map.setConfigProperty("basemap", "showRoadLabels", true);
-    map.setConfigProperty("basemap", "showTransitLabels", true);
-
-    try {
-      map.setConfigProperty("basemap", "showPedestrianRoads", true);
-    } catch {}
-
-    try {
-      map.setConfigProperty("basemap", "show3dObjects", false);
-    } catch {}
-  } catch (error) {
-    console.warn("[live-map.basemap-config]", error);
-  }
+function getMapboxStyleUrl() {
+  return "mapbox://styles/mapbox/standard";
 }
 
 function featureName(props: Record<string, any>) {
@@ -456,8 +467,28 @@ function upsertForcedPlaceLabels(map: mapboxgl.Map, darkTheme: boolean) {
   }
 }
 
-function applyPremiumMapLayers(map: mapboxgl.Map, darkTheme: boolean) {
-  applyStandardBasemapConfig(map, darkTheme);
+function applyMapboxBasemapConfig(map: mapboxgl.Map, darkTheme: boolean) {
+  try {
+    map.setConfigProperty(
+      "basemap",
+      "lightPreset",
+      darkTheme ? "night" : "day",
+    );
+    map.setConfigProperty("basemap", "showPlaceLabels", true);
+    map.setConfigProperty("basemap", "showPointOfInterestLabels", true);
+    map.setConfigProperty("basemap", "showRoadLabels", true);
+    map.setConfigProperty("basemap", "showTransitLabels", true);
+    try {
+      map.setConfigProperty("basemap", "showPedestrianRoads", true);
+    } catch {}
+    try {
+      map.setConfigProperty("basemap", "show3dObjects", false);
+    } catch {}
+  } catch {}
+}
+
+function applyPremiumMapboxLayers(map: mapboxgl.Map, darkTheme: boolean) {
+  applyMapboxBasemapConfig(map, darkTheme);
 
   const textColor = darkTheme ? "#eef4fb" : "#2b3642";
   const softColor = darkTheme ? "#d9e3ee" : "#596674";
@@ -575,9 +606,7 @@ function applyPremiumMapLayers(map: mapboxgl.Map, darkTheme: boolean) {
 
   try {
     upsertForcedPlaceLabels(map, darkTheme);
-  } catch (error) {
-    console.warn("[live-map.forced-labels]", error);
-  }
+  } catch {}
 }
 
 export default function LiveClient({ sessionId }: { sessionId: string }) {
@@ -595,6 +624,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
   const hasCenteredRef = React.useRef(false);
   const markerElRef = React.useRef<HTMLElement | null>(null);
   const lastPointRef = React.useRef<{ lat: number; lng: number } | null>(null);
+  const providerRef = React.useRef<MapProvider>("tomtom");
 
   const [status, setStatus] = React.useState<LiveStatus>("loading");
   const [renderMode, setRenderMode] = React.useState<RenderMode>("map");
@@ -813,12 +843,19 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
   React.useEffect(() => {
     if (!mapRef.current) return;
 
-    mapRef.current.setStyle(getMapStyleUrl(darkTheme));
+    const tomtomKey = (process.env.NEXT_PUBLIC_TOMTOM_API_KEY || "").trim();
+
+    if (providerRef.current === "tomtom" && tomtomKey) {
+      mapRef.current.setStyle(getTomTomRasterStyle(darkTheme, tomtomKey));
+      return;
+    }
+
+    mapRef.current.setStyle(getMapboxStyleUrl());
 
     mapRef.current.once("styledata", () => {
       if (!mapRef.current) return;
 
-      applyPremiumMapLayers(mapRef.current, darkTheme);
+      applyPremiumMapboxLayers(mapRef.current, darkTheme);
 
       mapRef.current.once("idle", () => {
         if (!mapRef.current) return;
@@ -959,7 +996,6 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
             clearReconnect();
             closeStream();
             stopPolling();
-            return;
           }
         } catch {}
       };
@@ -971,30 +1007,17 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
       };
     };
 
-    async function bootMapWithSeed(seed: SeedResp) {
+    async function bootTomTomMap(seed: SeedResp) {
       if (!mapDivRef.current) throw new Error("Map container missing");
 
-      const publicMapToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
-      if (!publicMapToken) {
-        throw new Error("Missing NEXT_PUBLIC_MAPBOX_TOKEN");
+      const tomtomKey = (process.env.NEXT_PUBLIC_TOMTOM_API_KEY || "").trim();
+      if (!tomtomKey) {
+        throw new Error("Missing NEXT_PUBLIC_TOMTOM_API_KEY");
       }
-
-      mapboxgl.accessToken = publicMapToken;
-      setMapLoadError("");
 
       const map = new mapboxgl.Map({
         container: mapDivRef.current,
-        style: getMapStyleUrl(darkTheme),
-        config: {
-          basemap: {
-            lightPreset: darkTheme ? "night" : "day",
-            showPlaceLabels: true,
-            showPointOfInterestLabels: true,
-            showRoadLabels: true,
-            showTransitLabels: true,
-          },
-        },
-        language: "en",
+        style: getTomTomRasterStyle(darkTheme, tomtomKey),
         center:
           seed.latest &&
           typeof seed.latest.lng === "number" &&
@@ -1017,6 +1040,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
         preserveDrawingBuffer: false,
       });
 
+      providerRef.current = "tomtom";
       mapRef.current = map;
 
       map.on("click", () => {
@@ -1035,20 +1059,105 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
           clearTimeout(timeout);
 
           map.resize();
-
           window.requestAnimationFrame(() => {
             map.resize();
           });
-
           setTimeout(() => {
             map.resize();
           }, 150);
-
           setTimeout(() => {
             map.resize();
           }, 500);
 
-          applyPremiumMapLayers(map, darkTheme);
+          resolve();
+        });
+      });
+
+      syncFromSeed(seed);
+
+      if (!seed.ended) {
+        connectStream();
+        startPolling();
+      }
+    }
+
+    async function bootMapboxFallback(seed: SeedResp) {
+      if (!mapDivRef.current) throw new Error("Map container missing");
+
+      const publicMapToken = (
+        process.env.NEXT_PUBLIC_MAPBOX_TOKEN || ""
+      ).trim();
+      if (!publicMapToken) {
+        throw new Error("Missing NEXT_PUBLIC_MAPBOX_TOKEN");
+      }
+
+      mapboxgl.accessToken = publicMapToken;
+      setMapLoadError("");
+
+      const map = new mapboxgl.Map({
+        container: mapDivRef.current,
+        style: getMapboxStyleUrl(),
+        config: {
+          basemap: {
+            lightPreset: darkTheme ? "night" : "day",
+            showPlaceLabels: true,
+            showPointOfInterestLabels: true,
+            showRoadLabels: true,
+            showTransitLabels: true,
+          },
+        },
+        center:
+          seed.latest &&
+          typeof seed.latest.lng === "number" &&
+          typeof seed.latest.lat === "number"
+            ? [seed.latest.lng, seed.latest.lat]
+            : [8.6753, 9.082],
+        zoom:
+          seed.latest &&
+          typeof seed.latest.lng === "number" &&
+          typeof seed.latest.lat === "number"
+            ? INITIAL_VIEW_ZOOM
+            : 5,
+        minZoom: 3,
+        maxZoom: 22,
+        attributionControl: false,
+        dragRotate: false,
+        pitchWithRotate: false,
+        trackResize: true,
+        fadeDuration: 0,
+        preserveDrawingBuffer: false,
+      });
+
+      providerRef.current = "mapbox";
+      mapRef.current = map;
+
+      map.on("click", () => {
+        if (isPhoneViewport()) {
+          setMobileInfoExpanded(false);
+        }
+      });
+
+      await new Promise<void>((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          setMapLoadError("The live map could not be rendered.");
+          reject(new Error("The live map could not be rendered."));
+        }, 8000);
+
+        map.once("load", () => {
+          clearTimeout(timeout);
+
+          map.resize();
+          window.requestAnimationFrame(() => {
+            map.resize();
+          });
+          setTimeout(() => {
+            map.resize();
+          }, 150);
+          setTimeout(() => {
+            map.resize();
+          }, 500);
+
+          applyPremiumMapboxLayers(map, darkTheme);
 
           map.on("idle", () => {
             try {
@@ -1057,9 +1166,6 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
           });
 
           resolve();
-        });
-        map.on("error", (e) => {
-          console.error("[live-map.error]", e);
         });
       });
 
@@ -1094,10 +1200,13 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
         }
 
         setRenderMode("map");
-        await bootMapWithSeed(seed);
-      } catch (error) {
-        console.error("[live-client.boot]", error);
 
+        try {
+          await bootTomTomMap(seed);
+        } catch {
+          await bootMapboxFallback(seed);
+        }
+      } catch {
         try {
           const seed = await fetchSeed();
           if (!seed) return;
@@ -1140,7 +1249,6 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
     stopPolling,
   ]);
 
-  const headerTitle = status === "ended" ? "Ended" : sosActive ? "SOS" : "Live";
   const locationHeading = status === "ended" ? "Last session" : "Current area";
 
   const cardBg = darkTheme ? "bg-black/78" : "bg-white/92";
