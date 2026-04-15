@@ -52,7 +52,6 @@ function distanceMeters(
   const s2 = Math.sin(dLng / 2);
 
   const aa = s1 * s1 + Math.cos(toRad(aLat)) * Math.cos(toRad(bLat)) * s2 * s2;
-
   const c = 2 * Math.atan2(Math.sqrt(aa), Math.sqrt(1 - aa));
   return R * c;
 }
@@ -134,6 +133,11 @@ function prefersDarkTheme() {
 function isDesktop() {
   if (typeof window === "undefined") return false;
   return window.matchMedia("(min-width: 900px)").matches;
+}
+
+function isPhoneViewport() {
+  if (typeof window === "undefined") return false;
+  return window.matchMedia("(max-width: 767px)").matches;
 }
 
 function sessionMetaRows(seedStatus: LiveStatus, sosActive: boolean) {
@@ -296,6 +300,14 @@ type NearbyPoi = {
   distanceMeters?: number;
 };
 
+type MobileSection = {
+  id: string;
+  label: string;
+  value: string;
+  isLink?: boolean;
+  href?: string;
+};
+
 const POI_RADIUS_METERS = 700;
 const POI_LIMIT_PER_CATEGORY = 2;
 const POI_MIN_ZOOM_TO_SHOW = 15.8;
@@ -391,7 +403,7 @@ async function fetchNearbyPois(
   const settled = await Promise.all(requests);
   const merged = settled.flat();
 
-  const seen = new Set<String>();
+  const seen = new Set<string>();
   const deduped: NearbyPoi[] = [];
 
   for (const poi of merged) {
@@ -432,6 +444,11 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
   const hasCenteredRef = React.useRef(false);
   const lastPointRef = React.useRef<{ lat: number; lng: number } | null>(null);
 
+  const mobileScrollRef = React.useRef<HTMLDivElement | null>(null);
+  const mobileSectionRefs = React.useRef<Record<string, HTMLDivElement | null>>(
+    {},
+  );
+
   const [status, setStatus] = React.useState<LiveStatus>("loading");
   const [renderMode, setRenderMode] = React.useState<RenderMode>("map");
   const [sosActive, setSosActive] = React.useState(false);
@@ -448,8 +465,6 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
   const [mapLoadError, setMapLoadError] = React.useState("");
   const [mapReady, setMapReady] = React.useState(false);
 
-  const [mobileSheetShrunk, setMobileSheetShrunk] = React.useState(false);
-
   const [accessGateOpen, setAccessGateOpen] = React.useState(true);
   const [accessAccepted, setAccessAccepted] = React.useState(false);
 
@@ -462,6 +477,10 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
   const [personToMeetLabel, setPersonToMeetLabel] = React.useState("—");
   const [expectedDurationLabel, setExpectedDurationLabel] = React.useState("—");
   const [extraNoteLabel, setExtraNoteLabel] = React.useState("—");
+
+  const [mobileActiveTitle, setMobileActiveTitle] =
+    React.useState("Last session");
+  const [mobileActiveValue, setMobileActiveValue] = React.useState("");
 
   const stopPolling = React.useCallback(() => {
     if (pollTimerRef.current) {
@@ -484,11 +503,6 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
     eventSourceRef.current = null;
   }, []);
 
-  function isPhoneViewport() {
-    if (typeof window === "undefined") return false;
-    return window.matchMedia("(max-width: 767px)").matches;
-  }
-
   const clearPoiMarkers = React.useCallback(() => {
     poiMarkersRef.current.forEach((marker) => marker.remove());
     poiMarkersRef.current = [];
@@ -502,6 +516,19 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
       marker.getElement().style.display = visible ? "flex" : "none";
     });
   }, []);
+
+  const getMapPadding = React.useCallback(() => {
+    const desktop = isDesktop();
+    const phone = isPhoneViewport();
+    const showPhoneSheet = phone && renderMode === "map" && mapReady;
+
+    return {
+      top: desktop ? 96 : 88,
+      right: 18,
+      bottom: showPhoneSheet ? 208 : desktop ? 126 : 88,
+      left: 18,
+    };
+  }, [mapReady, renderMode]);
 
   const refreshNearbyPois = React.useCallback(
     async (lat: number, lng: number) => {
@@ -604,19 +631,14 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
           : true;
 
         const currentZoom = mapRef.current.getZoom();
-
-        const padding = {
-          top: isDesktop() ? 96 : 88,
-          right: 18,
-          bottom: isDesktop() ? 126 : mobileSheetShrunk ? 120 : 210,
-          left: 18,
-        };
+        const padding = getMapPadding();
 
         if (!hasCenteredRef.current) {
           mapRef.current.jumpTo({
             center: nextLngLat,
             zoom: INITIAL_VIEW_ZOOM,
           });
+          mapRef.current.setPadding(padding);
           hasCenteredRef.current = true;
         } else if (movedEnough) {
           mapRef.current.easeTo({
@@ -626,6 +648,8 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
             duration: 700,
             essential: true,
           });
+        } else {
+          mapRef.current.setPadding(padding);
         }
 
         window.requestAnimationFrame(() => {
@@ -647,11 +671,12 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
       setMapHref(googleMapsHref(lat, lng));
       setLastUpdatedLabel(formatLiveTime(createdAt));
       setStatus(nextStatus);
+
       if (nextStatus !== "ended") {
         void refreshNearbyPois(lat, lng);
       }
     },
-    [mobileSheetShrunk, refreshNearbyPois],
+    [getMapPadding, refreshNearbyPois],
   );
 
   const syncFromSeed = React.useCallback(
@@ -792,7 +817,32 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
       window.removeEventListener("orientationchange", resizeMap);
       window.removeEventListener("resize", resizeMap);
     };
-  }, [renderMode, mapReady, mobileSheetShrunk]);
+  }, [renderMode, mapReady]);
+
+  React.useEffect(() => {
+    if (!mapRef.current || renderMode !== "map" || !mapReady) return;
+
+    const padding = getMapPadding();
+
+    mapRef.current.setPadding(padding);
+
+    const resizeMap = () => {
+      window.requestAnimationFrame(() => {
+        mapRef.current?.resize();
+      });
+    };
+
+    resizeMap();
+    const t1 = window.setTimeout(resizeMap, 50);
+    const t2 = window.setTimeout(resizeMap, 180);
+    const t3 = window.setTimeout(resizeMap, 360);
+
+    return () => {
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+      window.clearTimeout(t3);
+    };
+  }, [getMapPadding, mapReady, renderMode]);
 
   React.useEffect(() => {
     if (!accessAccepted) return;
@@ -952,6 +1002,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
           clearTimeout(timeout);
 
           setMapReady(true);
+          map.setPadding(getMapPadding());
 
           map.resize();
           window.requestAnimationFrame(() => {
@@ -1051,16 +1102,10 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
     closeStream,
     stopPolling,
     clearPoiMarkers,
+    getMapPadding,
   ]);
 
   const locationHeading = status === "ended" ? "Last session" : "Current area";
-
-  const mobileHeaderEyebrow =
-    status === "ended"
-      ? "Last session"
-      : sosActive
-        ? "SOS live session"
-        : "Live session";
 
   const cardBg = darkTheme ? "bg-black/78" : "bg-white/92";
   const cardBorder = darkTheme ? "border-white/10" : "border-black/10";
@@ -1074,6 +1119,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
     renderMode === "fallback" && !isDesktop() && status !== "ended";
 
   const sessionMeta = sessionMetaRows(status, sosActive);
+
   const infoRows = [
     {
       label: "Started date",
@@ -1114,10 +1160,103 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
 
   const isPhone = isPhoneViewport();
   const showMobileSheet = isPhone && renderMode === "map" && mapReady;
-  const showZoomControls =
-    renderMode === "map" && mapReady && (!isPhone || mobileSheetShrunk);
-  const mobileSheetBottom = "bottom-[18px]";
-  const mobileZoomBottom = showMobileSheet ? "bottom-[188px]" : "bottom-5";
+  const showZoomControls = renderMode === "map" && mapReady;
+  const mobileSheetBottom = "bottom-[16px]";
+  const mobileZoomBottom = "bottom-[122px]";
+
+  const mobileSections: MobileSection[] = React.useMemo(() => {
+    const sections: MobileSection[] = [
+      {
+        id: "area",
+        label: locationHeading,
+        value: placeLabel,
+      },
+      {
+        id: "heading",
+        label: "Heading to",
+        value: destinationLabel,
+      },
+      {
+        id: "updated",
+        label: "Last update",
+        value: lastUpdatedLabel,
+      },
+    ];
+
+    for (const row of infoRows) {
+      sections.push({
+        id: row.label.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+        label: row.label,
+        value: row.value,
+      });
+    }
+
+    if (coordsLabel && mapHref) {
+      sections.push({
+        id: "coordinates",
+        label: "Coordinates",
+        value: coordsLabel,
+        isLink: true,
+        href: mapHref,
+      });
+    }
+
+    sections.push({
+      id: "reminder",
+      label: "Reminder",
+      value: safetyUseHint(),
+    });
+
+    return sections;
+  }, [
+    coordsLabel,
+    destinationLabel,
+    infoRows,
+    lastUpdatedLabel,
+    locationHeading,
+    mapHref,
+    placeLabel,
+  ]);
+
+  React.useEffect(() => {
+    const first = mobileSections[0];
+    if (!first) return;
+    setMobileActiveTitle(first.label);
+    setMobileActiveValue(first.value);
+  }, [mobileSections]);
+
+  const updateMobileActiveSection = React.useCallback(() => {
+    const container = mobileScrollRef.current;
+    if (!container) return;
+
+    const containerTop = container.getBoundingClientRect().top;
+    let best: MobileSection | null = null;
+    let bestDistance = Number.POSITIVE_INFINITY;
+
+    for (const section of mobileSections) {
+      const el = mobileSectionRefs.current[section.id];
+      if (!el) continue;
+
+      const rect = el.getBoundingClientRect();
+      const distance = Math.abs(rect.top - containerTop - 22);
+
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        best = section;
+      }
+    }
+
+    if (best) {
+      setMobileActiveTitle(best.label);
+      setMobileActiveValue(best.value);
+    }
+  }, [mobileSections]);
+
+  React.useEffect(() => {
+    updateMobileActiveSection();
+  }, [updateMobileActiveSection, mobileSections]);
+
+  const locationLabelTop = status === "ended" ? "Last session" : "Current area";
 
   return (
     <div
@@ -1148,214 +1287,124 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
                 className="mx-auto w-[calc(100%-10px)] max-w-[640px] pointer-events-auto"
               >
                 <div
-                  className={`rounded-[30px] border shadow-[0_24px_60px_rgba(0,0,0,0.24)] overflow-hidden transition-all duration-300 ease-out ${
+                  className={`rounded-[30px] border shadow-[0_24px_60px_rgba(0,0,0,0.24)] overflow-hidden ${
                     darkTheme
                       ? "bg-[#050505] border-white/10"
                       : "bg-[#fbfbfb] border-black/8"
                   }`}
                 >
-                  <button
-                    type="button"
-                    onClick={() => setMobileSheetShrunk((v) => !v)}
-                    className="block w-full px-4 pt-2.5 pb-3 text-left"
-                    aria-label={
-                      mobileSheetShrunk ? "Expand sheet" : "Shrink sheet"
-                    }
-                  >
+                  <div className="px-4 pt-2.5 pb-1.5">
                     <div
-                      className={`mx-auto mb-2.5 h-1.5 w-12 rounded-full transition-all duration-300 ${
+                      className={`mx-auto h-1.5 w-12 rounded-full ${
                         darkTheme ? "bg-white/12" : "bg-black/10"
                       }`}
                     />
+                  </div>
 
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="min-w-0">
+                  <div className="px-4 pb-2">
+                    <div className="flex items-center justify-center">
+                      <div className="min-w-0 text-center">
                         <div
-                          className={`text-[9px] uppercase tracking-[0.24em] font-extrabold ${mutedText}`}
+                          className={`text-[8px] uppercase tracking-[0.26em] font-extrabold ${mutedText} transition-opacity duration-200`}
                         >
-                          {mobileHeaderEyebrow}
+                          {mobileActiveTitle}
                         </div>
                         <div
-                          className={`mt-1 text-[14px] font-black leading-5 ${cardText}`}
-                        >
-                          {placeLabel}
-                        </div>
-                        <div
-                          className={`mt-1 text-[11px] leading-4 ${
-                            darkTheme ? "text-white/62" : "text-black/58"
+                          className={`mt-1 text-[10px] font-bold leading-4 transition-all duration-200 ${
+                            darkTheme ? "text-white/72" : "text-black/62"
                           }`}
                         >
-                          Heading to {destinationLabel}
-                        </div>
-                      </div>
-
-                      <div className="shrink-0 flex items-center gap-2">
-                        <div
-                          className={`rounded-full border px-2.5 py-1 text-[9px] font-extrabold uppercase tracking-[0.16em] ${
-                            status === "live" && !sosActive
-                              ? "animate-[skLivePulse_2.6s_ease-in-out_infinite]"
-                              : ""
-                          } ${sessionMeta.statusClass}`}
-                        >
-                          {sessionMeta.statusText}
-                        </div>
-                      </div>
-                    </div>
-                  </button>
-
-                  <div
-                    className={`grid transition-all duration-300 ease-out ${
-                      mobileSheetShrunk
-                        ? "grid-rows-[0fr] opacity-0"
-                        : "grid-rows-[1fr] opacity-100"
-                    }`}
-                  >
-                    <div className="overflow-hidden">
-                      <div className="px-4 pt-1 pb-0">
-                        <div className="space-y-3 max-h-[34dvh] overflow-y-auto sk-scroll-hidden pr-[2px] pb-2">
-                          <div className="grid grid-cols-1 gap-3">
-                            <div className="grid grid-cols-2 gap-3">
-                              <div
-                                className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3 text-center`}
-                              >
-                                <div
-                                  className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${
-                                    darkTheme
-                                      ? "text-white/42"
-                                      : "text-black/42"
-                                  }`}
-                                >
-                                  Last update
-                                </div>
-                                <div
-                                  className={`mt-2 text-[12px] font-bold leading-5 ${cardText}`}
-                                >
-                                  {lastUpdatedLabel}
-                                </div>
-                              </div>
-
-                              <div
-                                className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3 text-center`}
-                              >
-                                <div
-                                  className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${
-                                    darkTheme
-                                      ? "text-white/42"
-                                      : "text-black/42"
-                                  }`}
-                                >
-                                  Started
-                                </div>
-                                <div
-                                  className={`mt-2 text-[12px] font-bold leading-5 ${cardText}`}
-                                >
-                                  {startedTimeLabel}
-                                </div>
-                              </div>
-                            </div>
-
-                            {infoRows.length > 0 && (
-                              <div
-                                className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3`}
-                              >
-                                <div
-                                  className={`text-center text-[9px] uppercase tracking-[0.22em] font-extrabold ${
-                                    darkTheme
-                                      ? "text-white/42"
-                                      : "text-black/42"
-                                  }`}
-                                >
-                                  Session details
-                                </div>
-
-                                <div className="mt-2 space-y-2">
-                                  {infoRows.map((item) => (
-                                    <div
-                                      key={item.label}
-                                      className={`rounded-[14px] border px-3 py-2.5 text-center ${
-                                        darkTheme
-                                          ? "border-white/8 bg-white/6"
-                                          : "border-black/6 bg-white/55"
-                                      }`}
-                                    >
-                                      <div
-                                        className={`text-[10px] font-extrabold uppercase tracking-[0.16em] ${
-                                          darkTheme
-                                            ? "text-white/42"
-                                            : "text-black/45"
-                                        }`}
-                                      >
-                                        {item.label}
-                                      </div>
-                                      <div
-                                        className={`mt-1 text-[12px] font-bold leading-5 break-words whitespace-pre-wrap ${
-                                          darkTheme
-                                            ? "text-white/82"
-                                            : "text-black/78"
-                                        }`}
-                                      >
-                                        {item.value}
-                                      </div>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-
-                            {!!coordsLabel && !!mapHref && (
-                              <div
-                                className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3 text-center`}
-                              >
-                                <div
-                                  className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${
-                                    darkTheme
-                                      ? "text-white/42"
-                                      : "text-black/42"
-                                  }`}
-                                >
-                                  Coordinates
-                                </div>
-                                <a
-                                  href={mapHref}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className={`mt-2 block text-[12px] font-extrabold underline underline-offset-4 break-all text-center ${coordText}`}
-                                  style={{ opacity: 0.96 }}
-                                >
-                                  {coordsLabel}
-                                </a>
-                              </div>
-                            )}
-
-                            <div
-                              className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3 text-center`}
-                            >
-                              <div
-                                className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${
-                                  darkTheme ? "text-white/42" : "text-black/42"
-                                }`}
-                              >
-                                Reminder
-                              </div>
-                              <div
-                                className={`mt-2 text-[11px] leading-5 ${
-                                  darkTheme ? "text-white/70" : "text-black/66"
-                                }`}
-                              >
-                                {safetyUseHint()}
-                              </div>
-                            </div>
-                          </div>
+                          {mobileActiveValue}
                         </div>
                       </div>
                     </div>
                   </div>
 
+                  <div className="px-4 pb-0">
+                    <div className="flex items-center justify-center gap-2">
+                      <div
+                        className={`rounded-full border px-2 py-[5px] text-[8px] font-extrabold uppercase tracking-[0.18em] ${mutedText}`}
+                      >
+                        {locationLabelTop}
+                      </div>
+
+                      <div
+                        className={`rounded-full border px-2.5 py-[5px] text-[8px] font-extrabold uppercase tracking-[0.18em] ${sessionMeta.statusClass}`}
+                      >
+                        {sessionMeta.statusText}
+                      </div>
+                    </div>
+
+                    <div
+                      className={`mt-2 text-center text-[11px] font-black leading-5 ${cardText}`}
+                    >
+                      {placeLabel}
+                    </div>
+
+                    <div
+                      className={`mt-1 text-center text-[10px] leading-4 ${
+                        darkTheme ? "text-white/58" : "text-black/56"
+                      }`}
+                    >
+                      Heading to {destinationLabel}
+                    </div>
+                  </div>
+
+                  <div className="px-4 pt-2 pb-0">
+                    <div
+                      ref={mobileScrollRef}
+                      onScroll={updateMobileActiveSection}
+                      className="max-h-[142px] overflow-y-auto sk-scroll-hidden overscroll-contain scroll-smooth px-[2px] pb-2"
+                      style={{
+                        WebkitOverflowScrolling: "touch",
+                      }}
+                    >
+                      <div className="space-y-2">
+                        {mobileSections.map((section) => (
+                          <div
+                            key={section.id}
+                            ref={(el) => {
+                              mobileSectionRefs.current[section.id] = el;
+                            }}
+                            className={`rounded-[16px] border ${cardBorder} ${innerBg} px-3 py-2.5 text-center`}
+                          >
+                            <div
+                              className={`text-[8px] font-extrabold uppercase tracking-[0.22em] ${
+                                darkTheme ? "text-white/38" : "text-black/40"
+                              }`}
+                            >
+                              {section.label}
+                            </div>
+
+                            {section.isLink && section.href ? (
+                              <a
+                                href={section.href}
+                                target="_blank"
+                                rel="noreferrer"
+                                className={`mt-1.5 block text-[10px] font-bold leading-4 break-words underline underline-offset-4 ${coordText}`}
+                              >
+                                {section.value}
+                              </a>
+                            ) : (
+                              <div
+                                className={`mt-1.5 text-[10px] font-bold leading-4 break-words whitespace-pre-wrap ${
+                                  darkTheme ? "text-white/82" : "text-black/78"
+                                }`}
+                              >
+                                {section.value}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
                   <div
-                    className={`border-t px-3 py-2 text-center text-[8px] font-semibold leading-4 transition-all duration-300 ${
+                    className={`border-t px-3 py-1.5 text-center text-[7px] font-semibold leading-3 ${
                       darkTheme
-                        ? "border-white/8 text-white/52"
-                        : "border-black/8 text-black/50"
+                        ? "border-white/8 text-white/50"
+                        : "border-black/8 text-black/48"
                     }`}
                   >
                     {legalTinyLine()}
@@ -1373,7 +1422,6 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
       )}
 
       <div className="absolute top-5 left-1/2 -translate-x-1/2 z-20">
-        {" "}
         <div className="rounded-[24px] bg-white/84 border border-white/92 shadow-[0_14px_38px_rgba(0,0,0,0.16)] px-4 py-2.5 backdrop-blur-2xl min-w-[132px]">
           <div className="flex flex-col items-center justify-center">
             <img
@@ -1408,7 +1456,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
         <div className="absolute top-[92px] left-1/2 -translate-x-1/2 z-20">
           <div className="rounded-full bg-white/70 border border-white/80 shadow-md px-3 py-1.5">
             <span className="text-[9px] font-bold text-black/60 whitespace-nowrap">
-              Open in Chrome or Safari
+              {browserHint || "Open in Chrome or Safari"}
             </span>
           </div>
         </div>
@@ -1490,11 +1538,11 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
       ) : null}
 
       <div
-        className={`absolute right-4 z-30 flex flex-col gap-2 transition-all duration-300 ${
+        className={`absolute right-4 z-40 flex flex-col gap-2 ${isPhone ? mobileZoomBottom : "bottom-6"} ${
           showZoomControls
-            ? "opacity-100 translate-y-0 pointer-events-auto"
-            : "opacity-0 translate-y-2 pointer-events-none"
-        } ${isPhone ? mobileZoomBottom : "bottom-6"}`}
+            ? "opacity-100 pointer-events-auto"
+            : "opacity-0 pointer-events-none"
+        }`}
       >
         <button
           type="button"
@@ -1504,7 +1552,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
             if (!mapReady || renderMode !== "map") return;
             mapRef.current?.zoomIn({ duration: 220 });
           }}
-          className={`h-9 w-9 rounded-full border text-[18px] font-black shadow-[0_14px_38px_rgba(0,0,0,0.14)] backdrop-blur-2xl transition-opacity ${
+          className={`h-9 w-9 rounded-full border text-[18px] font-black shadow-[0_14px_38px_rgba(0,0,0,0.14)] backdrop-blur-2xl ${
             !mapReady || renderMode !== "map"
               ? "border-white/55 bg-white/55 text-black/30 opacity-55 cursor-not-allowed"
               : "border-white/85 bg-white/86 text-black/70"
@@ -1520,7 +1568,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
             if (!mapReady || renderMode !== "map") return;
             mapRef.current?.zoomOut({ duration: 220 });
           }}
-          className={`h-9 w-9 rounded-full border text-[18px] font-black shadow-[0_14px_38px_rgba(0,0,0,0.14)] backdrop-blur-2xl transition-opacity ${
+          className={`h-9 w-9 rounded-full border text-[18px] font-black shadow-[0_14px_38px_rgba(0,0,0,0.14)] backdrop-blur-2xl ${
             !mapReady || renderMode !== "map"
               ? "border-white/55 bg-white/55 text-black/30 opacity-55 cursor-not-allowed"
               : "border-white/85 bg-white/86 text-black/70"
