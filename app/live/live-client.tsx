@@ -1218,7 +1218,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
           </div>
         </div>
       ) : showMobileSheet ? (
-        <div className="absolute left-0 right-0 bottom-[104px] z-30 px-3 pointer-events-none">
+        <div className="absolute left-0 right-0 bottom-[92px] z-30 px-3 pointer-events-none">
           <div
             data-sk-mobile-sheet="1"
             className="mx-auto w-[calc(100%-6px)] max-w-[640px] pointer-events-auto"
