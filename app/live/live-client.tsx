@@ -1092,26 +1092,74 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
     },
   ].filter((item) => item.show);
 
+  React.useEffect(() => {
+    if (!mapRef.current || renderMode !== "map") return;
+
+    const resizeMap = () => {
+      window.requestAnimationFrame(() => {
+        mapRef.current?.resize();
+      });
+    };
+
+    resizeMap();
+
+    const t1 = window.setTimeout(resizeMap, 60);
+    const t2 = window.setTimeout(resizeMap, 180);
+    const t3 = window.setTimeout(resizeMap, 420);
+
+    const vv = typeof window !== "undefined" ? window.visualViewport : null;
+    vv?.addEventListener("resize", resizeMap);
+    vv?.addEventListener("scroll", resizeMap);
+    window.addEventListener("orientationchange", resizeMap);
+
+    return () => {
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+      window.clearTimeout(t3);
+      vv?.removeEventListener("resize", resizeMap);
+      vv?.removeEventListener("scroll", resizeMap);
+      window.removeEventListener("orientationchange", resizeMap);
+    };
+  }, [mobileInfoExpanded, renderMode, mapReady]);
+
   const isPhone = isPhoneViewport();
   const showMobileSheet = isPhone && renderMode === "map" && mapReady;
+  const showZoomControls =
+    renderMode === "map" && mapReady && (!isPhone || !mobileInfoExpanded);
+
+  const mobileSheetBottom = mobileInfoExpanded
+    ? "bottom-[28px]"
+    : "bottom-[92px]";
+  const mobileZoomBottom = showMobileSheet ? "bottom-[188px]" : "bottom-5";
 
   return (
-    <div className="fixed inset-0 h-screen w-screen overflow-hidden bg-transparent">
+    <div
+      className="fixed inset-0 w-screen overflow-hidden bg-transparent"
+      style={{ height: "100dvh", minHeight: "100dvh" }}
+    >
       {renderMode === "map" ? (
-        <div className="absolute inset-0 z-0 overflow-hidden">
+        <div
+          className="absolute inset-0 z-0 overflow-hidden"
+          style={{ height: "100dvh" }}
+        >
           <div
             ref={mapDivRef}
             className="absolute inset-0 h-full w-full"
-            style={{ background: darkTheme ? "#111111" : "#eef1f4" }}
+            style={{
+              height: "100dvh",
+              minHeight: "100dvh",
+              background: darkTheme ? "#111111" : "#eef1f4",
+            }}
           />
         </div>
       ) : (
-        <div className="absolute inset-0 z-0 bg-transparent" />
+        <div
+          className="absolute inset-0 z-0 bg-transparent"
+          style={{ height: "100dvh" }}
+        />
       )}
 
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-20 z-10 bg-gradient-to-b from-white/28 to-transparent" />
-
-      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20">
+      <div className="absolute top-5 left-1/2 -translate-x-1/2 z-20">
         <div className="rounded-[24px] bg-white/84 border border-white/92 shadow-[0_14px_38px_rgba(0,0,0,0.16)] px-4 py-2.5 backdrop-blur-2xl min-w-[132px]">
           <div className="flex flex-col items-center justify-center">
             <img
@@ -1127,13 +1175,13 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
       </div>
 
       {showSpinner && (
-        <div className="absolute top-[88px] left-1/2 -translate-x-1/2 z-20">
+        <div className="absolute top-[92px] left-1/2 -translate-x-1/2 z-20">
           <PremiumSpinner />
         </div>
       )}
 
       {mapLoadError && (
-        <div className="absolute top-[120px] left-1/2 -translate-x-1/2 z-20">
+        <div className="absolute top-[124px] left-1/2 -translate-x-1/2 z-20">
           <div className="rounded-full bg-red-50 border border-red-200 shadow-md px-3 py-2">
             <span className="text-[10px] tracking-[0.12em] font-bold text-red-600 whitespace-nowrap">
               {mapLoadError}
@@ -1143,7 +1191,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
       )}
 
       {showFallbackHint && !showSpinner && (
-        <div className="absolute top-[88px] left-1/2 -translate-x-1/2 z-20">
+        <div className="absolute top-[92px] left-1/2 -translate-x-1/2 z-20">
           <div className="rounded-full bg-white/70 border border-white/80 shadow-md px-3 py-1.5">
             <span className="text-[9px] font-bold text-black/60 whitespace-nowrap">
               Open in Chrome or Safari
@@ -1153,7 +1201,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
       )}
 
       {!isPhone ? (
-        <div className="absolute inset-x-0 bottom-9 z-30 px-4">
+        <div className="absolute inset-x-0 bottom-12 z-30 px-4">
           <div className="mx-auto flex w-full max-w-[1120px] flex-col items-center gap-2">
             <div
               className={`pointer-events-auto flex max-w-full flex-wrap items-center justify-center gap-1 rounded-full border ${cardBorder} ${cardBg} px-2 py-1.5 shadow-[0_14px_34px_rgba(0,0,0,0.10)] backdrop-blur-2xl`}
@@ -1226,7 +1274,9 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
           </div>
         </div>
       ) : showMobileSheet ? (
-        <div className="absolute left-0 right-0 bottom-[76px] z-30 px-3 pointer-events-none">
+        <div
+          className={`absolute left-0 right-0 z-30 px-3 pointer-events-none transition-all duration-300 ${mobileSheetBottom}`}
+        >
           <div
             data-sk-mobile-sheet="1"
             className="mx-auto w-[calc(100%-10px)] max-w-[640px] pointer-events-auto"
@@ -1319,7 +1369,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
               >
                 <div className="overflow-hidden">
                   <div className="px-4 pt-1 pb-0">
-                    <div className="space-y-3 max-h-[54vh] overflow-y-auto sk-scroll-hidden pr-[2px]">
+                    <div className="space-y-3 max-h-[50dvh] overflow-y-auto sk-scroll-hidden pr-[2px]">
                       <div className="grid grid-cols-1 gap-3">
                         <div className="grid grid-cols-2 gap-3">
                           <div
@@ -1463,44 +1513,47 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
           </div>
         </div>
       ) : null}
-      <div
-        className={`absolute right-4 z-30 flex flex-col gap-2 ${
-          isPhone ? "bottom-[118px]" : "bottom-5"
-        }`}
-      >
-        <button
-          type="button"
-          aria-label="Zoom in"
-          disabled={!mapReady || renderMode !== "map"}
-          onClick={() => {
-            if (!mapReady || renderMode !== "map") return;
-            mapRef.current?.zoomIn({ duration: 220 });
-          }}
-          className={`h-9 w-9 rounded-full border text-[18px] font-black shadow-[0_14px_38px_rgba(0,0,0,0.14)] backdrop-blur-2xl transition-opacity ${
-            !mapReady || renderMode !== "map"
-              ? "border-white/55 bg-white/55 text-black/30 opacity-55 cursor-not-allowed"
-              : "border-white/85 bg-white/86 text-black/70"
+
+      {showZoomControls && (
+        <div
+          className={`absolute right-4 z-30 flex flex-col gap-2 transition-all duration-300 ${
+            isPhone ? mobileZoomBottom : "bottom-6"
           }`}
         >
-          +
-        </button>
-        <button
-          type="button"
-          aria-label="Zoom out"
-          disabled={!mapReady || renderMode !== "map"}
-          onClick={() => {
-            if (!mapReady || renderMode !== "map") return;
-            mapRef.current?.zoomOut({ duration: 220 });
-          }}
-          className={`h-9 w-9 rounded-full border text-[18px] font-black shadow-[0_14px_38px_rgba(0,0,0,0.14)] backdrop-blur-2xl transition-opacity ${
-            !mapReady || renderMode !== "map"
-              ? "border-white/55 bg-white/55 text-black/30 opacity-55 cursor-not-allowed"
-              : "border-white/85 bg-white/86 text-black/70"
-          }`}
-        >
-          −
-        </button>
-      </div>
+          <button
+            type="button"
+            aria-label="Zoom in"
+            disabled={!mapReady || renderMode !== "map"}
+            onClick={() => {
+              if (!mapReady || renderMode !== "map") return;
+              mapRef.current?.zoomIn({ duration: 220 });
+            }}
+            className={`h-9 w-9 rounded-full border text-[18px] font-black shadow-[0_14px_38px_rgba(0,0,0,0.14)] backdrop-blur-2xl transition-opacity ${
+              !mapReady || renderMode !== "map"
+                ? "border-white/55 bg-white/55 text-black/30 opacity-55 cursor-not-allowed"
+                : "border-white/85 bg-white/86 text-black/70"
+            }`}
+          >
+            +
+          </button>
+          <button
+            type="button"
+            aria-label="Zoom out"
+            disabled={!mapReady || renderMode !== "map"}
+            onClick={() => {
+              if (!mapReady || renderMode !== "map") return;
+              mapRef.current?.zoomOut({ duration: 220 });
+            }}
+            className={`h-9 w-9 rounded-full border text-[18px] font-black shadow-[0_14px_38px_rgba(0,0,0,0.14)] backdrop-blur-2xl transition-opacity ${
+              !mapReady || renderMode !== "map"
+                ? "border-white/55 bg-white/55 text-black/30 opacity-55 cursor-not-allowed"
+                : "border-white/85 bg-white/86 text-black/70"
+            }`}
+          >
+            −
+          </button>
+        </div>
+      )}
 
       {accessGateOpen && !accessAccepted && (
         <div className="absolute inset-0 z-[90] flex items-center justify-center bg-black/45 backdrop-blur-md px-4">
@@ -1522,7 +1575,9 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
             </div>
 
             <div
-              className={`mt-3 text-[11px] md:text-[12px] leading-6 ${darkTheme ? "text-white/72" : "text-black/68"}`}
+              className={`mt-3 text-[11px] md:text-[12px] leading-6 ${
+                darkTheme ? "text-white/72" : "text-black/68"
+              }`}
             >
               This live map is provided only for approved safety use. Do not use
               this session to stalk, monitor, harass, or track anyone you do not
@@ -1539,7 +1594,9 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
                 Before you continue
               </div>
               <div
-                className={`mt-2 text-[13px] leading-6 ${darkTheme ? "text-white/72" : "text-black/70"}`}
+                className={`mt-2 text-[13px] leading-6 ${
+                  darkTheme ? "text-white/72" : "text-black/70"
+                }`}
               >
                 By tapping accept, you confirm that you are opening this session
                 only for a legitimate safety reason.
