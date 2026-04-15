@@ -447,7 +447,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
   const [darkTheme, setDarkTheme] = React.useState(false);
   const [mapLoadError, setMapLoadError] = React.useState("");
 
-  const [mobileInfoExpanded, setMobileInfoExpanded] = React.useState(true);
+  const [mobileInfoExpanded, setMobileInfoExpanded] = React.useState(false);
 
   const [accessGateOpen, setAccessGateOpen] = React.useState(true);
   const [accessAccepted, setAccessAccepted] = React.useState(false);
@@ -1202,192 +1202,235 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
           </div>
         </div>
       ) : (
-        <div className="absolute inset-x-0 bottom-0 z-30 px-3 pb-3">
-          <div
-            className={`mx-auto w-full max-w-[640px] rounded-[28px] ${cardBg} border ${cardBorder} shadow-[0_24px_80px_rgba(0,0,0,0.18)] backdrop-blur-2xl px-4 py-3`}
-          >
-            <button
-              type="button"
-              onClick={toggleMobileInfo}
-              className="flex w-full items-center justify-between gap-3"
+        <div className="absolute inset-x-0 bottom-4 z-30 px-3">
+          <div className="mx-auto w-full max-w-[640px]">
+            <div
+              className={`pointer-events-auto rounded-[30px] ${cardBg} border ${cardBorder} shadow-[0_28px_90px_rgba(0,0,0,0.18)] backdrop-blur-2xl overflow-hidden transition-all duration-300 ease-out ${
+                mobileInfoExpanded ? "translate-y-0" : "translate-y-0"
+              }`}
             >
-              <div className="min-w-0 text-left">
-                <div
-                  className={`text-[9px] uppercase tracking-[0.24em] font-extrabold ${mutedText}`}
-                >
-                  {sosActive ? "SOS live session" : "Live session"}
-                </div>
-                <div
-                  className={`mt-1 truncate text-[14px] font-black ${cardText}`}
-                >
-                  {placeLabel}
-                </div>
-                <div
-                  className={`mt-0.5 truncate text-[11px] ${darkTheme ? "text-white/58" : "text-black/58"}`}
-                >
-                  Heading to {destinationLabel}
-                </div>
-              </div>
+              <button
+                type="button"
+                onClick={toggleMobileInfo}
+                className="w-full px-4 pt-3 pb-3 text-left"
+              >
+                <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-black/10" />
 
-              <div className="shrink-0 rounded-full border border-black/8 bg-white/72 px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-[0.18em] text-black/58">
-                {mobileInfoExpanded ? "Hide" : "Show"}
-              </div>
-            </button>
-
-            {mobileInfoExpanded && (
-              <div className="mt-3 space-y-3 max-h-[52vh] overflow-y-auto sk-scroll-hidden">
-                <div className="grid grid-cols-1 gap-3">
-                  <div
-                    className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <div
-                        className={`rounded-full border px-2.5 py-1 text-[9px] font-extrabold uppercase tracking-[0.16em] ${
-                          status === "live" && !sosActive
-                            ? "animate-[skLivePulse_2.6s_ease-in-out_infinite]"
-                            : ""
-                        } ${sessionMeta.statusClass}`}
-                      >
-                        {sessionMeta.statusText}
-                      </div>
-                      <div
-                        className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${darkTheme ? "text-white/42" : "text-black/42"}`}
-                      >
-                        Current area
-                      </div>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <div
+                      className={`text-[9px] uppercase tracking-[0.24em] font-extrabold ${mutedText}`}
+                    >
+                      {sosActive ? "SOS live session" : "Live session"}
                     </div>
                     <div
-                      className={`mt-2 text-[13px] font-bold leading-5 ${cardText}`}
+                      className={`mt-1 truncate text-[14px] font-black ${cardText}`}
                     >
                       {placeLabel}
                     </div>
-                  </div>
-
-                  <div
-                    className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3`}
-                  >
                     <div
-                      className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${darkTheme ? "text-white/42" : "text-black/42"}`}
+                      className={`mt-0.5 truncate text-[11px] ${darkTheme ? "text-white/58" : "text-black/58"}`}
                     >
-                      Heading to
-                    </div>
-                    <div
-                      className={`mt-1 text-[13px] font-bold leading-5 ${cardText}`}
-                    >
-                      {destinationLabel}
+                      Heading to {destinationLabel}
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="shrink-0 flex items-center gap-2">
                     <div
-                      className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3`}
+                      className={`rounded-full border px-2.5 py-1 text-[9px] font-extrabold uppercase tracking-[0.16em] ${
+                        status === "live" && !sosActive
+                          ? "animate-[skLivePulse_2.6s_ease-in-out_infinite]"
+                          : ""
+                      } ${sessionMeta.statusClass}`}
                     >
-                      <div
-                        className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${darkTheme ? "text-white/42" : "text-black/42"}`}
-                      >
-                        Last update
-                      </div>
-                      <div
-                        className={`mt-1 text-[12px] font-bold leading-5 ${cardText}`}
-                      >
-                        {lastUpdatedLabel}
-                      </div>
+                      {sessionMeta.statusText}
                     </div>
 
-                    <div
-                      className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3`}
-                    >
-                      <div
-                        className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${darkTheme ? "text-white/42" : "text-black/42"}`}
+                    <div className="h-8 w-8 rounded-full border border-black/8 bg-white/72 flex items-center justify-center text-black/56">
+                      <svg
+                        width="14"
+                        height="14"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        className={`transition-transform duration-300 ${mobileInfoExpanded ? "rotate-180" : "rotate-0"}`}
                       >
-                        Started
-                      </div>
-                      <div
-                        className={`mt-1 text-[12px] font-bold leading-5 ${cardText}`}
-                      >
-                        {startedTimeLabel}
-                      </div>
+                        <path
+                          d="M6 9L12 15L18 9"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
                     </div>
                   </div>
+                </div>
+              </button>
 
-                  {infoRows.length > 0 && (
-                    <div
-                      className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3`}
-                    >
-                      <div
-                        className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${darkTheme ? "text-white/42" : "text-black/42"}`}
-                      >
-                        Session details
-                      </div>
-
-                      <div className="mt-2 space-y-2">
-                        {infoRows.map((item) => (
-                          <div
-                            key={item.label}
-                            className="flex items-start justify-between gap-3 rounded-[14px] border border-black/6 bg-white/55 px-3 py-2"
-                          >
-                            <div className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-black/45">
-                              {item.label}
+              <div
+                className={`grid transition-all duration-300 ease-out ${
+                  mobileInfoExpanded
+                    ? "grid-rows-[1fr] opacity-100"
+                    : "grid-rows-[0fr] opacity-0"
+                }`}
+              >
+                <div className="overflow-hidden">
+                  <div className="px-4 pb-4">
+                    <div className="space-y-3 max-h-[46vh] overflow-y-auto sk-scroll-hidden">
+                      <div className="grid grid-cols-1 gap-3">
+                        <div
+                          className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <div
+                              className={`rounded-full border px-2.5 py-1 text-[9px] font-extrabold uppercase tracking-[0.16em] ${
+                                status === "live" && !sosActive
+                                  ? "animate-[skLivePulse_2.6s_ease-in-out_infinite]"
+                                  : ""
+                              } ${sessionMeta.statusClass}`}
+                            >
+                              {sessionMeta.statusText}
                             </div>
-                            <div className="text-right text-[12px] font-bold leading-5 text-black/78 max-w-[62%] break-words">
-                              {item.value}
+                            <div
+                              className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${darkTheme ? "text-white/42" : "text-black/42"}`}
+                            >
+                              Current area
                             </div>
                           </div>
-                        ))}
+                          <div
+                            className={`mt-2 text-[13px] font-bold leading-5 ${cardText}`}
+                          >
+                            {placeLabel}
+                          </div>
+                        </div>
+
+                        <div
+                          className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3`}
+                        >
+                          <div
+                            className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${darkTheme ? "text-white/42" : "text-black/42"}`}
+                          >
+                            Heading to
+                          </div>
+                          <div
+                            className={`mt-1 text-[13px] font-bold leading-5 ${cardText}`}
+                          >
+                            {destinationLabel}
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                          <div
+                            className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3`}
+                          >
+                            <div
+                              className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${darkTheme ? "text-white/42" : "text-black/42"}`}
+                            >
+                              Last update
+                            </div>
+                            <div
+                              className={`mt-1 text-[12px] font-bold leading-5 ${cardText}`}
+                            >
+                              {lastUpdatedLabel}
+                            </div>
+                          </div>
+
+                          <div
+                            className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3`}
+                          >
+                            <div
+                              className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${darkTheme ? "text-white/42" : "text-black/42"}`}
+                            >
+                              Started
+                            </div>
+                            <div
+                              className={`mt-1 text-[12px] font-bold leading-5 ${cardText}`}
+                            >
+                              {startedTimeLabel}
+                            </div>
+                          </div>
+                        </div>
+
+                        {infoRows.length > 0 && (
+                          <div
+                            className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3`}
+                          >
+                            <div
+                              className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${darkTheme ? "text-white/42" : "text-black/42"}`}
+                            >
+                              Session details
+                            </div>
+
+                            <div className="mt-2 space-y-2">
+                              {infoRows.map((item) => (
+                                <div
+                                  key={item.label}
+                                  className="flex items-start justify-between gap-3 rounded-[14px] border border-black/6 bg-white/55 px-3 py-2"
+                                >
+                                  <div className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-black/45">
+                                    {item.label}
+                                  </div>
+                                  <div className="text-right text-[12px] font-bold leading-5 text-black/78 max-w-[62%] break-words">
+                                    {item.value}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {!!coordsLabel && !!mapHref && (
+                          <div
+                            className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3`}
+                          >
+                            <div
+                              className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${darkTheme ? "text-white/42" : "text-black/42"}`}
+                            >
+                              Coordinates
+                            </div>
+                            <a
+                              href={mapHref}
+                              target="_blank"
+                              rel="noreferrer"
+                              className={`mt-1 block text-[12px] font-extrabold underline underline-offset-4 break-all ${coordText}`}
+                              style={{ opacity: 0.96 }}
+                            >
+                              {coordsLabel}
+                            </a>
+                          </div>
+                        )}
+
+                        <div
+                          className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3`}
+                        >
+                          <div
+                            className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${darkTheme ? "text-white/42" : "text-black/42"}`}
+                          >
+                            Reminder
+                          </div>
+                          <div
+                            className={`mt-1 text-[11px] leading-5 ${darkTheme ? "text-white/66" : "text-black/66"}`}
+                          >
+                            {safetyUseHint()}
+                          </div>
+                        </div>
+
+                        <div
+                          className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-[7px] text-center`}
+                        >
+                          <div className="text-[8px] font-semibold leading-4 text-black/50">
+                            {legalTinyLine()}
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  )}
-
-                  {!!coordsLabel && !!mapHref && (
-                    <div
-                      className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3`}
-                    >
-                      <div
-                        className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${darkTheme ? "text-white/42" : "text-black/42"}`}
-                      >
-                        Coordinates
-                      </div>
-                      <a
-                        href={mapHref}
-                        target="_blank"
-                        rel="noreferrer"
-                        className={`mt-1 block text-[12px] font-extrabold underline underline-offset-4 break-all ${coordText}`}
-                        style={{ opacity: 0.96 }}
-                      >
-                        {coordsLabel}
-                      </a>
-                    </div>
-                  )}
-
-                  <div
-                    className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3`}
-                  >
-                    <div
-                      className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${darkTheme ? "text-white/42" : "text-black/42"}`}
-                    >
-                      Reminder
-                    </div>
-                    <div
-                      className={`mt-1 text-[11px] leading-5 ${darkTheme ? "text-white/66" : "text-black/66"}`}
-                    >
-                      {safetyUseHint()}
-                    </div>
-                  </div>
-
-                  <div
-                    className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-[7px] text-center`}
-                  >
-                    <div className="text-[8px] font-semibold leading-4 text-black/50">
-                      {legalTinyLine()}
                     </div>
                   </div>
                 </div>
               </div>
-            )}
+            </div>
           </div>
         </div>
       )}
-
       <div className="absolute bottom-5 right-4 z-30 flex flex-col gap-2">
         <button
           type="button"
