@@ -1149,7 +1149,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
                   className={`rounded-[30px] border shadow-[0_24px_60px_rgba(0,0,0,0.18)] overflow-hidden backdrop-blur-2xl ${
                     darkTheme
                       ? "bg-black/68 border-white/14"
-                      : "bg-black/54 border-white/12"
+                      : "bg-black/34 border-white/12"
                   }`}
                 >
                   <div className="px-4 pt-1.5 pb-[2px]">
