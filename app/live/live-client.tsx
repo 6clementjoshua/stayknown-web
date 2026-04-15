@@ -446,6 +446,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
   const [browserHint, setBrowserHint] = React.useState("");
   const [darkTheme, setDarkTheme] = React.useState(false);
   const [mapLoadError, setMapLoadError] = React.useState("");
+  const [mapReady, setMapReady] = React.useState(false);
 
   const [mobileInfoExpanded, setMobileInfoExpanded] = React.useState(false);
 
@@ -929,6 +930,8 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
         map.once("load", () => {
           clearTimeout(timeout);
 
+          setMapReady(true);
+
           map.resize();
           window.requestAnimationFrame(() => {
             map.resize();
@@ -945,6 +948,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
 
         map.once("error", () => {
           clearTimeout(timeout);
+          setMapReady(false);
           reject(new Error("The live map could not be rendered."));
         });
       });
@@ -980,6 +984,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
         }
 
         setRenderMode("map");
+        setMapReady(false);
         await bootTomTomMap(seed);
       } catch {
         try {
@@ -987,6 +992,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
           if (!seed) return;
 
           setRenderMode("fallback");
+          setMapReady(false);
           setBrowserHint("Map preview unavailable here.");
           await bootFallback(seed);
         } catch (fallbackError) {
@@ -1079,6 +1085,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
   ].filter((item) => item.show);
 
   const isPhone = isPhoneViewport();
+  const showMobileSheet = isPhone && renderMode === "map" && mapReady;
 
   return (
     <div className="fixed inset-0 h-screen w-screen overflow-hidden bg-transparent">
@@ -1210,16 +1217,16 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
             </div>
           </div>
         </div>
-      ) : (
-        <div className="absolute inset-x-0 bottom-6 z-30 px-3">
-          <div className="mx-auto w-full max-w-[640px]">
+      ) : showMobileSheet ? (
+        <div className="absolute inset-x-0 bottom-5 z-30 px-3 pointer-events-none">
+          <div className="mx-auto w-full max-w-[640px] pointer-events-auto">
             <div
               data-sk-mobile-sheet="1"
-              className={`pointer-events-auto rounded-[30px] border shadow-[0_28px_90px_rgba(0,0,0,0.18)] overflow-hidden transition-all duration-300 ease-out ${
+              className={`rounded-[30px] border shadow-[0_28px_90px_rgba(0,0,0,0.22)] overflow-hidden transition-all duration-300 ease-out ${
                 darkTheme
-                  ? "bg-black/72 border-white/10"
-                  : "bg-white/78 border-white/65"
-              } backdrop-blur-[22px] supports-[backdrop-filter]:bg-white/40`}
+                  ? "bg-black/92 border-white/10"
+                  : "bg-white/96 border-black/8"
+              } backdrop-blur-[22px]`}
             >
               <button
                 type="button"
@@ -1240,12 +1247,12 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
                       {sosActive ? "SOS live session" : "Live session"}
                     </div>
                     <div
-                      className={`mt-1 truncate text-[14px] font-black ${cardText}`}
+                      className={`mt-1 text-[14px] font-black leading-5 ${cardText}`}
                     >
                       {placeLabel}
                     </div>
                     <div
-                      className={`mt-0.5 truncate text-[11px] ${darkTheme ? "text-white/58" : "text-black/58"}`}
+                      className={`mt-1 text-[11px] leading-4 ${darkTheme ? "text-white/62" : "text-black/58"}`}
                     >
                       Heading to {destinationLabel}
                     </div>
@@ -1301,9 +1308,9 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
                     <div className="space-y-3 max-h-[56vh] overflow-y-auto sk-scroll-hidden pr-[2px]">
                       <div className="grid grid-cols-1 gap-3">
                         <div
-                          className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3`}
+                          className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3 text-center`}
                         >
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center justify-center gap-2">
                             <div
                               className={`rounded-full border px-2.5 py-1 text-[9px] font-extrabold uppercase tracking-[0.16em] ${
                                 status === "live" && !sosActive
@@ -1320,14 +1327,14 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
                             </div>
                           </div>
                           <div
-                            className={`mt-2 text-[13px] font-bold leading-5 ${cardText}`}
+                            className={`mt-2 text-[13px] font-bold leading-6 break-words whitespace-pre-wrap ${cardText}`}
                           >
                             {placeLabel}
                           </div>
                         </div>
 
                         <div
-                          className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3`}
+                          className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3 text-center`}
                         >
                           <div
                             className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${darkTheme ? "text-white/42" : "text-black/42"}`}
@@ -1335,7 +1342,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
                             Heading to
                           </div>
                           <div
-                            className={`mt-1 text-[13px] font-bold leading-5 ${cardText}`}
+                            className={`mt-2 text-[13px] font-bold leading-6 break-words whitespace-pre-wrap ${cardText}`}
                           >
                             {destinationLabel}
                           </div>
@@ -1343,7 +1350,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
 
                         <div className="grid grid-cols-2 gap-3">
                           <div
-                            className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3`}
+                            className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3 text-center`}
                           >
                             <div
                               className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${darkTheme ? "text-white/42" : "text-black/42"}`}
@@ -1358,7 +1365,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
                           </div>
 
                           <div
-                            className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3`}
+                            className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3 text-center`}
                           >
                             <div
                               className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${darkTheme ? "text-white/42" : "text-black/42"}`}
@@ -1378,7 +1385,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
                             className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3`}
                           >
                             <div
-                              className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${darkTheme ? "text-white/42" : "text-black/42"}`}
+                              className={`text-center text-[9px] uppercase tracking-[0.22em] font-extrabold ${darkTheme ? "text-white/42" : "text-black/42"}`}
                             >
                               Session details
                             </div>
@@ -1419,7 +1426,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
 
                         {!!coordsLabel && !!mapHref && (
                           <div
-                            className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3`}
+                            className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3 text-center`}
                           >
                             <div
                               className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${darkTheme ? "text-white/42" : "text-black/42"}`}
@@ -1430,7 +1437,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
                               href={mapHref}
                               target="_blank"
                               rel="noreferrer"
-                              className={`mt-1 block text-[12px] font-extrabold underline underline-offset-4 break-all ${coordText}`}
+                              className={`mt-2 block text-[12px] font-extrabold underline underline-offset-4 break-all text-center ${coordText}`}
                               style={{ opacity: 0.96 }}
                             >
                               {coordsLabel}
@@ -1439,7 +1446,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
                         )}
 
                         <div
-                          className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3`}
+                          className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3 text-center`}
                         >
                           <div
                             className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${darkTheme ? "text-white/42" : "text-black/42"}`}
@@ -1447,17 +1454,13 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
                             Reminder
                           </div>
                           <div
-                            className={`mt-1 text-[11px] leading-5 ${darkTheme ? "text-white/66" : "text-black/66"}`}
+                            className={`mt-2 text-[11px] leading-5 ${darkTheme ? "text-white/70" : "text-black/66"}`}
                           >
                             {safetyUseHint()}
                           </div>
-                        </div>
 
-                        <div
-                          className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-[7px] text-center`}
-                        >
                           <div
-                            className={`text-[8px] font-semibold leading-4 ${
+                            className={`mt-3 text-[8px] font-semibold leading-4 ${
                               darkTheme ? "text-white/52" : "text-black/50"
                             }`}
                           >
@@ -1472,7 +1475,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
             </div>
           </div>
         </div>
-      )}
+      ) : null}
       <div className="absolute bottom-5 right-4 z-30 flex flex-col gap-2">
         <button
           type="button"
