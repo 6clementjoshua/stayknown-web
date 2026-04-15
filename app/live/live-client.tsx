@@ -612,7 +612,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
         const padding = {
           top: isDesktop() ? 96 : 88,
           right: 18,
-          bottom: isDesktop() ? 126 : mobileInfoExpanded ? 118 : 76,
+          bottom: isDesktop() ? 126 : mobileInfoExpanded ? 104 : 68,
           left: 18,
         };
 
@@ -1033,6 +1033,14 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
   ]);
 
   const locationHeading = status === "ended" ? "Last session" : "Current area";
+  const mobileHeaderEyebrow =
+    status === "ended"
+      ? "Last session"
+      : sosActive
+        ? "SOS live session"
+        : "Live session";
+  const mobilePrimaryLabel =
+    status === "ended" ? "Last known area" : "Current area";
 
   const cardBg = darkTheme ? "bg-black/78" : "bg-white/92";
   const cardBorder = darkTheme ? "border-white/10" : "border-black/10";
@@ -1218,17 +1226,17 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
           </div>
         </div>
       ) : showMobileSheet ? (
-        <div className="absolute left-0 right-0 bottom-[92px] z-30 px-3 pointer-events-none">
+        <div className="absolute left-0 right-0 bottom-[76px] z-30 px-3 pointer-events-none">
           <div
             data-sk-mobile-sheet="1"
-            className="mx-auto w-[calc(100%-6px)] max-w-[640px] pointer-events-auto"
+            className="mx-auto w-[calc(100%-10px)] max-w-[640px] pointer-events-auto"
           >
             <div
-              className={`rounded-[30px] border shadow-[0_28px_90px_rgba(0,0,0,0.24)] overflow-hidden transition-all duration-300 ease-out ${
+              className={`rounded-[30px] border shadow-[0_24px_60px_rgba(0,0,0,0.24)] overflow-hidden transition-all duration-300 ease-out ${
                 darkTheme
                   ? "bg-[#050505] border-white/10"
                   : "bg-[#fbfbfb] border-black/8"
-              } backdrop-blur-[22px]`}
+              }`}
             >
               <button
                 type="button"
@@ -1246,7 +1254,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
                     <div
                       className={`text-[9px] uppercase tracking-[0.24em] font-extrabold ${mutedText}`}
                     >
-                      {sosActive ? "SOS live session" : "Live session"}
+                      {mobileHeaderEyebrow}
                     </div>
                     <div
                       className={`mt-1 text-[14px] font-black leading-5 ${cardText}`}
@@ -1310,54 +1318,9 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
                 }`}
               >
                 <div className="overflow-hidden">
-                  <div className="px-4 pb-4">
-                    <div className="space-y-3 max-h-[56vh] overflow-y-auto sk-scroll-hidden pr-[2px]">
+                  <div className="px-4 pt-1 pb-0">
+                    <div className="space-y-3 max-h-[54vh] overflow-y-auto sk-scroll-hidden pr-[2px]">
                       <div className="grid grid-cols-1 gap-3">
-                        <div
-                          className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3 text-center`}
-                        >
-                          <div className="flex items-center justify-center gap-2">
-                            <div
-                              className={`rounded-full border px-2.5 py-1 text-[9px] font-extrabold uppercase tracking-[0.16em] ${
-                                status === "live" && !sosActive
-                                  ? "animate-[skLivePulse_2.6s_ease-in-out_infinite]"
-                                  : ""
-                              } ${sessionMeta.statusClass}`}
-                            >
-                              {sessionMeta.statusText}
-                            </div>
-                            <div
-                              className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${
-                                darkTheme ? "text-white/42" : "text-black/42"
-                              }`}
-                            >
-                              Current area
-                            </div>
-                          </div>
-                          <div
-                            className={`mt-2 text-[13px] font-bold leading-6 break-words whitespace-pre-wrap ${cardText}`}
-                          >
-                            {placeLabel}
-                          </div>
-                        </div>
-
-                        <div
-                          className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3 text-center`}
-                        >
-                          <div
-                            className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${
-                              darkTheme ? "text-white/42" : "text-black/42"
-                            }`}
-                          >
-                            Heading to
-                          </div>
-                          <div
-                            className={`mt-2 text-[13px] font-bold leading-6 break-words whitespace-pre-wrap ${cardText}`}
-                          >
-                            {destinationLabel}
-                          </div>
-                        </div>
-
                         <div className="grid grid-cols-2 gap-3">
                           <div
                             className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3 text-center`}
@@ -1464,7 +1427,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
                         )}
 
                         <div
-                          className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 pt-3 pb-5 text-center`}
+                          className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3 text-center`}
                         >
                           <div
                             className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${
@@ -1480,16 +1443,18 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
                           >
                             {safetyUseHint()}
                           </div>
-
-                          <div
-                            className={`mt-4 pb-1 text-[8px] font-semibold leading-4 ${
-                              darkTheme ? "text-white/52" : "text-black/50"
-                            }`}
-                          >
-                            {legalTinyLine()}
-                          </div>
                         </div>
                       </div>
+                    </div>
+
+                    <div
+                      className={`mt-2 border-t px-3 py-2 text-center text-[8px] font-semibold leading-4 ${
+                        darkTheme
+                          ? "border-white/8 text-white/52"
+                          : "border-black/8 text-black/50"
+                      }`}
+                    >
+                      {legalTinyLine()}
                     </div>
                   </div>
                 </div>
@@ -1506,16 +1471,32 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
         <button
           type="button"
           aria-label="Zoom in"
-          onClick={() => mapRef.current?.zoomIn({ duration: 220 })}
-          className="h-9 w-9 rounded-full border border-white/85 bg-white/86 text-[18px] font-black text-black/70 shadow-[0_14px_38px_rgba(0,0,0,0.14)] backdrop-blur-2xl"
+          disabled={!mapReady || renderMode !== "map"}
+          onClick={() => {
+            if (!mapReady || renderMode !== "map") return;
+            mapRef.current?.zoomIn({ duration: 220 });
+          }}
+          className={`h-9 w-9 rounded-full border text-[18px] font-black shadow-[0_14px_38px_rgba(0,0,0,0.14)] backdrop-blur-2xl transition-opacity ${
+            !mapReady || renderMode !== "map"
+              ? "border-white/55 bg-white/55 text-black/30 opacity-55 cursor-not-allowed"
+              : "border-white/85 bg-white/86 text-black/70"
+          }`}
         >
           +
         </button>
         <button
           type="button"
           aria-label="Zoom out"
-          onClick={() => mapRef.current?.zoomOut({ duration: 220 })}
-          className="h-9 w-9 rounded-full border border-white/85 bg-white/86 text-[18px] font-black text-black/70 shadow-[0_14px_38px_rgba(0,0,0,0.14)] backdrop-blur-2xl"
+          disabled={!mapReady || renderMode !== "map"}
+          onClick={() => {
+            if (!mapReady || renderMode !== "map") return;
+            mapRef.current?.zoomOut({ duration: 220 });
+          }}
+          className={`h-9 w-9 rounded-full border text-[18px] font-black shadow-[0_14px_38px_rgba(0,0,0,0.14)] backdrop-blur-2xl transition-opacity ${
+            !mapReady || renderMode !== "map"
+              ? "border-white/55 bg-white/55 text-black/30 opacity-55 cursor-not-allowed"
+              : "border-white/85 bg-white/86 text-black/70"
+          }`}
         >
           −
         </button>
