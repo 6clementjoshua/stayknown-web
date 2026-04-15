@@ -612,7 +612,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
         const padding = {
           top: isDesktop() ? 96 : 88,
           right: 18,
-          bottom: isDesktop() ? 126 : mobileInfoExpanded ? 132 : 94,
+          bottom: isDesktop() ? 126 : mobileInfoExpanded ? 118 : 76,
           left: 18,
         };
 
@@ -1145,7 +1145,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
       )}
 
       {!isPhone ? (
-        <div className="absolute inset-x-0 bottom-5 z-30 px-4">
+        <div className="absolute inset-x-0 bottom-9 z-30 px-4">
           <div className="mx-auto flex w-full max-w-[1120px] flex-col items-center gap-2">
             <div
               className={`pointer-events-auto flex max-w-full flex-wrap items-center justify-center gap-1 rounded-full border ${cardBorder} ${cardBg} px-2 py-1.5 shadow-[0_14px_34px_rgba(0,0,0,0.10)] backdrop-blur-2xl`}
@@ -1218,14 +1218,16 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
           </div>
         </div>
       ) : showMobileSheet ? (
-        <div className="absolute inset-x-0 bottom-5 z-30 px-3 pointer-events-none">
-          <div className="mx-auto w-full max-w-[640px] pointer-events-auto">
+        <div className="absolute left-0 right-0 bottom-[104px] z-30 px-3 pointer-events-none">
+          <div
+            data-sk-mobile-sheet="1"
+            className="mx-auto w-[calc(100%-6px)] max-w-[640px] pointer-events-auto"
+          >
             <div
-              data-sk-mobile-sheet="1"
-              className={`rounded-[30px] border shadow-[0_28px_90px_rgba(0,0,0,0.22)] overflow-hidden transition-all duration-300 ease-out ${
+              className={`rounded-[30px] border shadow-[0_28px_90px_rgba(0,0,0,0.24)] overflow-hidden transition-all duration-300 ease-out ${
                 darkTheme
-                  ? "bg-black/92 border-white/10"
-                  : "bg-white/96 border-black/8"
+                  ? "bg-[#050505] border-white/10"
+                  : "bg-[#fbfbfb] border-black/8"
               } backdrop-blur-[22px]`}
             >
               <button
@@ -1252,7 +1254,9 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
                       {placeLabel}
                     </div>
                     <div
-                      className={`mt-1 text-[11px] leading-4 ${darkTheme ? "text-white/62" : "text-black/58"}`}
+                      className={`mt-1 text-[11px] leading-4 ${
+                        darkTheme ? "text-white/62" : "text-black/58"
+                      }`}
                     >
                       Heading to {destinationLabel}
                     </div>
@@ -1281,7 +1285,9 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
                         height="14"
                         viewBox="0 0 24 24"
                         fill="none"
-                        className={`transition-transform duration-300 ${mobileInfoExpanded ? "rotate-180" : "rotate-0"}`}
+                        className={`transition-transform duration-300 ${
+                          mobileInfoExpanded ? "rotate-180" : "rotate-0"
+                        }`}
                       >
                         <path
                           d="M6 9L12 15L18 9"
@@ -1321,7 +1327,9 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
                               {sessionMeta.statusText}
                             </div>
                             <div
-                              className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${darkTheme ? "text-white/42" : "text-black/42"}`}
+                              className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${
+                                darkTheme ? "text-white/42" : "text-black/42"
+                              }`}
                             >
                               Current area
                             </div>
@@ -1337,7 +1345,9 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
                           className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3 text-center`}
                         >
                           <div
-                            className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${darkTheme ? "text-white/42" : "text-black/42"}`}
+                            className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${
+                              darkTheme ? "text-white/42" : "text-black/42"
+                            }`}
                           >
                             Heading to
                           </div>
@@ -1353,12 +1363,14 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
                             className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3 text-center`}
                           >
                             <div
-                              className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${darkTheme ? "text-white/42" : "text-black/42"}`}
+                              className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${
+                                darkTheme ? "text-white/42" : "text-black/42"
+                              }`}
                             >
                               Last update
                             </div>
                             <div
-                              className={`mt-1 text-[12px] font-bold leading-5 ${cardText}`}
+                              className={`mt-2 text-[12px] font-bold leading-5 ${cardText}`}
                             >
                               {lastUpdatedLabel}
                             </div>
@@ -1368,12 +1380,14 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
                             className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3 text-center`}
                           >
                             <div
-                              className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${darkTheme ? "text-white/42" : "text-black/42"}`}
+                              className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${
+                                darkTheme ? "text-white/42" : "text-black/42"
+                              }`}
                             >
                               Started
                             </div>
                             <div
-                              className={`mt-1 text-[12px] font-bold leading-5 ${cardText}`}
+                              className={`mt-2 text-[12px] font-bold leading-5 ${cardText}`}
                             >
                               {startedTimeLabel}
                             </div>
@@ -1385,7 +1399,9 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
                             className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3`}
                           >
                             <div
-                              className={`text-center text-[9px] uppercase tracking-[0.22em] font-extrabold ${darkTheme ? "text-white/42" : "text-black/42"}`}
+                              className={`text-center text-[9px] uppercase tracking-[0.22em] font-extrabold ${
+                                darkTheme ? "text-white/42" : "text-black/42"
+                              }`}
                             >
                               Session details
                             </div>
@@ -1429,7 +1445,9 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
                             className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3 text-center`}
                           >
                             <div
-                              className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${darkTheme ? "text-white/42" : "text-black/42"}`}
+                              className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${
+                                darkTheme ? "text-white/42" : "text-black/42"
+                              }`}
                             >
                               Coordinates
                             </div>
@@ -1446,21 +1464,25 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
                         )}
 
                         <div
-                          className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3 text-center`}
+                          className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 pt-3 pb-5 text-center`}
                         >
                           <div
-                            className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${darkTheme ? "text-white/42" : "text-black/42"}`}
+                            className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${
+                              darkTheme ? "text-white/42" : "text-black/42"
+                            }`}
                           >
                             Reminder
                           </div>
                           <div
-                            className={`mt-2 text-[11px] leading-5 ${darkTheme ? "text-white/70" : "text-black/66"}`}
+                            className={`mt-2 text-[11px] leading-5 ${
+                              darkTheme ? "text-white/70" : "text-black/66"
+                            }`}
                           >
                             {safetyUseHint()}
                           </div>
 
                           <div
-                            className={`mt-3 text-[8px] font-semibold leading-4 ${
+                            className={`mt-4 pb-1 text-[8px] font-semibold leading-4 ${
                               darkTheme ? "text-white/52" : "text-black/50"
                             }`}
                           >
@@ -1476,7 +1498,11 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
           </div>
         </div>
       ) : null}
-      <div className="absolute bottom-5 right-4 z-30 flex flex-col gap-2">
+      <div
+        className={`absolute right-4 z-30 flex flex-col gap-2 ${
+          isPhone ? "bottom-[118px]" : "bottom-5"
+        }`}
+      >
         <button
           type="button"
           aria-label="Zoom in"
