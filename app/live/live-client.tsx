@@ -136,11 +136,6 @@ function isDesktop() {
   return window.matchMedia("(min-width: 900px)").matches;
 }
 
-function isPhoneViewport() {
-  if (typeof window === "undefined") return false;
-  return window.matchMedia("(max-width: 767px)").matches;
-}
-
 function sessionMetaRows(seedStatus: LiveStatus, sosActive: boolean) {
   const isEnded = seedStatus === "ended";
 
@@ -396,7 +391,7 @@ async function fetchNearbyPois(
   const settled = await Promise.all(requests);
   const merged = settled.flat();
 
-  const seen = new Set<string>();
+  const seen = new Set<String>();
   const deduped: NearbyPoi[] = [];
 
   for (const poi of merged) {
@@ -489,6 +484,11 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
     eventSourceRef.current = null;
   }, []);
 
+  function isPhoneViewport() {
+    if (typeof window === "undefined") return false;
+    return window.matchMedia("(max-width: 767px)").matches;
+  }
+
   const clearPoiMarkers = React.useCallback(() => {
     poiMarkersRef.current.forEach((marker) => marker.remove());
     poiMarkersRef.current = [];
@@ -502,20 +502,6 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
       marker.getElement().style.display = visible ? "flex" : "none";
     });
   }, []);
-
-  const getMapPadding = React.useCallback(() => {
-    const desktop = isDesktop();
-    const phone = isPhoneViewport();
-    const showPhoneSheet = phone && renderMode === "map" && mapReady;
-    const sheetExpanded = showPhoneSheet && !mobileSheetShrunk;
-
-    return {
-      top: desktop ? 96 : 88,
-      right: 18,
-      bottom: sheetExpanded ? 218 : showPhoneSheet ? 112 : desktop ? 126 : 88,
-      left: 18,
-    };
-  }, [mapReady, mobileSheetShrunk, renderMode]);
 
   const refreshNearbyPois = React.useCallback(
     async (lat: number, lng: number) => {
@@ -618,14 +604,19 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
           : true;
 
         const currentZoom = mapRef.current.getZoom();
-        const padding = getMapPadding();
+
+        const padding = {
+          top: isDesktop() ? 96 : 88,
+          right: 18,
+          bottom: isDesktop() ? 126 : mobileSheetShrunk ? 120 : 210,
+          left: 18,
+        };
 
         if (!hasCenteredRef.current) {
           mapRef.current.jumpTo({
             center: nextLngLat,
             zoom: INITIAL_VIEW_ZOOM,
           });
-          mapRef.current.setPadding(padding);
           hasCenteredRef.current = true;
         } else if (movedEnough) {
           mapRef.current.easeTo({
@@ -635,8 +626,6 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
             duration: 700,
             essential: true,
           });
-        } else {
-          mapRef.current.setPadding(padding);
         }
 
         window.requestAnimationFrame(() => {
@@ -658,12 +647,11 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
       setMapHref(googleMapsHref(lat, lng));
       setLastUpdatedLabel(formatLiveTime(createdAt));
       setStatus(nextStatus);
-
       if (nextStatus !== "ended") {
         void refreshNearbyPois(lat, lng);
       }
     },
-    [getMapPadding, refreshNearbyPois],
+    [mobileSheetShrunk, refreshNearbyPois],
   );
 
   const syncFromSeed = React.useCallback(
@@ -805,31 +793,6 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
       window.removeEventListener("resize", resizeMap);
     };
   }, [renderMode, mapReady, mobileSheetShrunk]);
-
-  React.useEffect(() => {
-    if (!mapRef.current || renderMode !== "map" || !mapReady) return;
-
-    const padding = getMapPadding();
-
-    mapRef.current.setPadding(padding);
-
-    const resizeMap = () => {
-      window.requestAnimationFrame(() => {
-        mapRef.current?.resize();
-      });
-    };
-
-    resizeMap();
-    const t1 = window.setTimeout(resizeMap, 50);
-    const t2 = window.setTimeout(resizeMap, 180);
-    const t3 = window.setTimeout(resizeMap, 360);
-
-    return () => {
-      window.clearTimeout(t1);
-      window.clearTimeout(t2);
-      window.clearTimeout(t3);
-    };
-  }, [getMapPadding, mapReady, mobileSheetShrunk, renderMode]);
 
   React.useEffect(() => {
     if (!accessAccepted) return;
@@ -989,7 +952,6 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
           clearTimeout(timeout);
 
           setMapReady(true);
-          map.setPadding(getMapPadding());
 
           map.resize();
           window.requestAnimationFrame(() => {
@@ -1089,7 +1051,6 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
     closeStream,
     stopPolling,
     clearPoiMarkers,
-    getMapPadding,
   ]);
 
   const locationHeading = status === "ended" ? "Last session" : "Current area";
@@ -1178,17 +1139,6 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
             }}
           />
 
-          {showMobileSheet && !mobileSheetShrunk ? (
-            <div
-              className="absolute inset-x-0 bottom-0 z-10 pointer-events-none transition-opacity duration-300"
-              style={{
-                height: "218px",
-                background:
-                  "linear-gradient(to top, rgba(0,0,0,0.08), rgba(0,0,0,0.03), transparent)",
-              }}
-            />
-          ) : null}
-
           {showMobileSheet && isPhone ? (
             <div
               className={`absolute inset-x-0 z-30 px-3 pointer-events-none ${mobileSheetBottom}`}
@@ -1200,9 +1150,9 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
                 <div
                   className={`rounded-[30px] border shadow-[0_24px_60px_rgba(0,0,0,0.24)] overflow-hidden transition-all duration-300 ease-out ${
                     darkTheme
-                      ? "bg-[#050505]/96 border-white/10"
-                      : "bg-[#fbfbfb]/96 border-black/8"
-                  } backdrop-blur-2xl`}
+                      ? "bg-[#050505] border-white/10"
+                      : "bg-[#fbfbfb] border-black/8"
+                  }`}
                 >
                   <button
                     type="button"
@@ -1423,6 +1373,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
       )}
 
       <div className="absolute top-5 left-1/2 -translate-x-1/2 z-20">
+        {" "}
         <div className="rounded-[24px] bg-white/84 border border-white/92 shadow-[0_14px_38px_rgba(0,0,0,0.16)] px-4 py-2.5 backdrop-blur-2xl min-w-[132px]">
           <div className="flex flex-col items-center justify-center">
             <img
@@ -1457,7 +1408,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
         <div className="absolute top-[92px] left-1/2 -translate-x-1/2 z-20">
           <div className="rounded-full bg-white/70 border border-white/80 shadow-md px-3 py-1.5">
             <span className="text-[9px] font-bold text-black/60 whitespace-nowrap">
-              {browserHint || "Open in Chrome or Safari"}
+              Open in Chrome or Safari
             </span>
           </div>
         </div>
