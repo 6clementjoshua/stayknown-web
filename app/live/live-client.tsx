@@ -448,6 +448,8 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
   const [mapLoadError, setMapLoadError] = React.useState("");
   const [mapReady, setMapReady] = React.useState(false);
 
+  const [mobileSheetShrunk, setMobileSheetShrunk] = React.useState(false);
+
   const [accessGateOpen, setAccessGateOpen] = React.useState(true);
   const [accessAccepted, setAccessAccepted] = React.useState(false);
 
@@ -606,7 +608,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
         const padding = {
           top: isDesktop() ? 96 : 88,
           right: 18,
-          bottom: isDesktop() ? 126 : 210,
+          bottom: isDesktop() ? 126 : mobileSheetShrunk ? 120 : 210,
           left: 18,
         };
 
@@ -649,7 +651,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
         void refreshNearbyPois(lat, lng);
       }
     },
-    [refreshNearbyPois],
+    [mobileSheetShrunk, refreshNearbyPois],
   );
 
   const syncFromSeed = React.useCallback(
@@ -757,6 +759,40 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
       clearTimeout(t3);
     };
   }, [renderMode, status]);
+
+  React.useEffect(() => {
+    if (!mapRef.current || renderMode !== "map") return;
+
+    const resizeMap = () => {
+      window.requestAnimationFrame(() => {
+        mapRef.current?.resize();
+      });
+    };
+
+    resizeMap();
+
+    const t1 = window.setTimeout(resizeMap, 60);
+    const t2 = window.setTimeout(resizeMap, 180);
+    const t3 = window.setTimeout(resizeMap, 420);
+    const t4 = window.setTimeout(resizeMap, 900);
+
+    const vv = typeof window !== "undefined" ? window.visualViewport : null;
+    vv?.addEventListener("resize", resizeMap);
+    vv?.addEventListener("scroll", resizeMap);
+    window.addEventListener("orientationchange", resizeMap);
+    window.addEventListener("resize", resizeMap);
+
+    return () => {
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+      window.clearTimeout(t3);
+      window.clearTimeout(t4);
+      vv?.removeEventListener("resize", resizeMap);
+      vv?.removeEventListener("scroll", resizeMap);
+      window.removeEventListener("orientationchange", resizeMap);
+      window.removeEventListener("resize", resizeMap);
+    };
+  }, [renderMode, mapReady, mobileSheetShrunk]);
 
   React.useEffect(() => {
     if (!accessAccepted) return;
@@ -1076,45 +1112,12 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
     },
   ].filter((item) => item.show);
 
-  React.useEffect(() => {
-    if (!mapRef.current || renderMode !== "map") return;
-
-    const resizeMap = () => {
-      window.requestAnimationFrame(() => {
-        mapRef.current?.resize();
-      });
-    };
-
-    resizeMap();
-
-    const t1 = window.setTimeout(resizeMap, 60);
-    const t2 = window.setTimeout(resizeMap, 180);
-    const t3 = window.setTimeout(resizeMap, 420);
-    const t4 = window.setTimeout(resizeMap, 900);
-
-    const vv = typeof window !== "undefined" ? window.visualViewport : null;
-    vv?.addEventListener("resize", resizeMap);
-    vv?.addEventListener("scroll", resizeMap);
-    window.addEventListener("orientationchange", resizeMap);
-    window.addEventListener("resize", resizeMap);
-
-    return () => {
-      window.clearTimeout(t1);
-      window.clearTimeout(t2);
-      window.clearTimeout(t3);
-      window.clearTimeout(t4);
-      vv?.removeEventListener("resize", resizeMap);
-      vv?.removeEventListener("scroll", resizeMap);
-      window.removeEventListener("orientationchange", resizeMap);
-      window.removeEventListener("resize", resizeMap);
-    };
-  }, [renderMode, mapReady]);
-
   const isPhone = isPhoneViewport();
   const showMobileSheet = isPhone && renderMode === "map" && mapReady;
-  const showZoomControls = renderMode === "map" && mapReady;
+  const showZoomControls =
+    renderMode === "map" && mapReady && (!isPhone || mobileSheetShrunk);
   const mobileSheetBottom = "bottom-[18px]";
-  const mobileZoomBottom = showMobileSheet ? "bottom-[250px]" : "bottom-5";
+  const mobileZoomBottom = showMobileSheet ? "bottom-[144px]" : "bottom-5";
 
   return (
     <div
@@ -1266,15 +1269,20 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
             className="mx-auto w-[calc(100%-10px)] max-w-[640px] pointer-events-auto"
           >
             <div
-              className={`rounded-[30px] border shadow-[0_24px_60px_rgba(0,0,0,0.24)] overflow-hidden ${
+              className={`rounded-[30px] border shadow-[0_24px_60px_rgba(0,0,0,0.24)] overflow-hidden transition-all duration-300 ease-out ${
                 darkTheme
                   ? "bg-[#050505] border-white/10"
                   : "bg-[#fbfbfb] border-black/8"
               }`}
             >
-              <div className="px-4 pt-2.5 pb-3 text-left">
+              <button
+                type="button"
+                onClick={() => setMobileSheetShrunk((v) => !v)}
+                className="block w-full px-4 pt-2.5 pb-3 text-left"
+                aria-label={mobileSheetShrunk ? "Expand sheet" : "Shrink sheet"}
+              >
                 <div
-                  className={`mx-auto mb-2.5 h-1.5 w-12 rounded-full ${
+                  className={`mx-auto mb-2.5 h-1.5 w-12 rounded-full transition-all duration-300 ${
                     darkTheme ? "bg-white/12" : "bg-black/10"
                   }`}
                 />
@@ -1312,188 +1320,202 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
                     </div>
                   </div>
                 </div>
-              </div>
+              </button>
 
-              <div className="px-4 pt-1 pb-0">
-                <div className="space-y-3 max-h-[34dvh] overflow-y-auto sk-scroll-hidden pr-[2px] pb-2">
-                  <div className="grid grid-cols-1 gap-3">
-                    <div className="grid grid-cols-2 gap-3">
-                      <div
-                        className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3 text-center`}
-                      >
-                        <div
-                          className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${
-                            darkTheme ? "text-white/42" : "text-black/42"
-                          }`}
-                        >
-                          Last update
-                        </div>
-                        <div
-                          className={`mt-2 text-[12px] font-bold leading-5 ${cardText}`}
-                        >
-                          {lastUpdatedLabel}
-                        </div>
-                      </div>
-
-                      <div
-                        className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3 text-center`}
-                      >
-                        <div
-                          className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${
-                            darkTheme ? "text-white/42" : "text-black/42"
-                          }`}
-                        >
-                          Started
-                        </div>
-                        <div
-                          className={`mt-2 text-[12px] font-bold leading-5 ${cardText}`}
-                        >
-                          {startedTimeLabel}
-                        </div>
-                      </div>
-                    </div>
-
-                    {infoRows.length > 0 && (
-                      <div
-                        className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3`}
-                      >
-                        <div
-                          className={`text-center text-[9px] uppercase tracking-[0.22em] font-extrabold ${
-                            darkTheme ? "text-white/42" : "text-black/42"
-                          }`}
-                        >
-                          Session details
-                        </div>
-
-                        <div className="mt-2 space-y-2">
-                          {infoRows.map((item) => (
+              <div
+                className={`grid transition-all duration-300 ease-out ${
+                  mobileSheetShrunk
+                    ? "grid-rows-[0fr] opacity-0"
+                    : "grid-rows-[1fr] opacity-100"
+                }`}
+              >
+                <div className="overflow-hidden">
+                  <div className="px-4 pt-1 pb-0">
+                    <div className="space-y-3 max-h-[34dvh] overflow-y-auto sk-scroll-hidden pr-[2px] pb-2">
+                      <div className="grid grid-cols-1 gap-3">
+                        <div className="grid grid-cols-2 gap-3">
+                          <div
+                            className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3 text-center`}
+                          >
                             <div
-                              key={item.label}
-                              className={`rounded-[14px] border px-3 py-2.5 text-center ${
-                                darkTheme
-                                  ? "border-white/8 bg-white/6"
-                                  : "border-black/6 bg-white/55"
+                              className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${
+                                darkTheme ? "text-white/42" : "text-black/42"
                               }`}
                             >
-                              <div
-                                className={`text-[10px] font-extrabold uppercase tracking-[0.16em] ${
-                                  darkTheme ? "text-white/42" : "text-black/45"
-                                }`}
-                              >
-                                {item.label}
-                              </div>
-                              <div
-                                className={`mt-1 text-[12px] font-bold leading-5 break-words whitespace-pre-wrap ${
-                                  darkTheme ? "text-white/82" : "text-black/78"
-                                }`}
-                              >
-                                {item.value}
-                              </div>
+                              Last update
                             </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
+                            <div
+                              className={`mt-2 text-[12px] font-bold leading-5 ${cardText}`}
+                            >
+                              {lastUpdatedLabel}
+                            </div>
+                          </div>
 
-                    {!!coordsLabel && !!mapHref && (
-                      <div
-                        className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3 text-center`}
-                      >
+                          <div
+                            className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3 text-center`}
+                          >
+                            <div
+                              className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${
+                                darkTheme ? "text-white/42" : "text-black/42"
+                              }`}
+                            >
+                              Started
+                            </div>
+                            <div
+                              className={`mt-2 text-[12px] font-bold leading-5 ${cardText}`}
+                            >
+                              {startedTimeLabel}
+                            </div>
+                          </div>
+                        </div>
+
+                        {infoRows.length > 0 && (
+                          <div
+                            className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3`}
+                          >
+                            <div
+                              className={`text-center text-[9px] uppercase tracking-[0.22em] font-extrabold ${
+                                darkTheme ? "text-white/42" : "text-black/42"
+                              }`}
+                            >
+                              Session details
+                            </div>
+
+                            <div className="mt-2 space-y-2">
+                              {infoRows.map((item) => (
+                                <div
+                                  key={item.label}
+                                  className={`rounded-[14px] border px-3 py-2.5 text-center ${
+                                    darkTheme
+                                      ? "border-white/8 bg-white/6"
+                                      : "border-black/6 bg-white/55"
+                                  }`}
+                                >
+                                  <div
+                                    className={`text-[10px] font-extrabold uppercase tracking-[0.16em] ${
+                                      darkTheme
+                                        ? "text-white/42"
+                                        : "text-black/45"
+                                    }`}
+                                  >
+                                    {item.label}
+                                  </div>
+                                  <div
+                                    className={`mt-1 text-[12px] font-bold leading-5 break-words whitespace-pre-wrap ${
+                                      darkTheme
+                                        ? "text-white/82"
+                                        : "text-black/78"
+                                    }`}
+                                  >
+                                    {item.value}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {!!coordsLabel && !!mapHref && (
+                          <div
+                            className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3 text-center`}
+                          >
+                            <div
+                              className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${
+                                darkTheme ? "text-white/42" : "text-black/42"
+                              }`}
+                            >
+                              Coordinates
+                            </div>
+                            <a
+                              href={mapHref}
+                              target="_blank"
+                              rel="noreferrer"
+                              className={`mt-2 block text-[12px] font-extrabold underline underline-offset-4 break-all text-center ${coordText}`}
+                              style={{ opacity: 0.96 }}
+                            >
+                              {coordsLabel}
+                            </a>
+                          </div>
+                        )}
+
                         <div
-                          className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${
-                            darkTheme ? "text-white/42" : "text-black/42"
-                          }`}
+                          className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3 text-center`}
                         >
-                          Coordinates
+                          <div
+                            className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${
+                              darkTheme ? "text-white/42" : "text-black/42"
+                            }`}
+                          >
+                            Reminder
+                          </div>
+                          <div
+                            className={`mt-2 text-[11px] leading-5 ${
+                              darkTheme ? "text-white/70" : "text-black/66"
+                            }`}
+                          >
+                            {safetyUseHint()}
+                          </div>
                         </div>
-                        <a
-                          href={mapHref}
-                          target="_blank"
-                          rel="noreferrer"
-                          className={`mt-2 block text-[12px] font-extrabold underline underline-offset-4 break-all text-center ${coordText}`}
-                          style={{ opacity: 0.96 }}
-                        >
-                          {coordsLabel}
-                        </a>
-                      </div>
-                    )}
-
-                    <div
-                      className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3 text-center`}
-                    >
-                      <div
-                        className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${
-                          darkTheme ? "text-white/42" : "text-black/42"
-                        }`}
-                      >
-                        Reminder
-                      </div>
-                      <div
-                        className={`mt-2 text-[11px] leading-5 ${
-                          darkTheme ? "text-white/70" : "text-black/66"
-                        }`}
-                      >
-                        {safetyUseHint()}
                       </div>
                     </div>
                   </div>
                 </div>
+              </div>
 
-                <div
-                  className={`mt-2 border-t px-3 py-2 text-center text-[8px] font-semibold leading-4 ${
-                    darkTheme
-                      ? "border-white/8 text-white/52"
-                      : "border-black/8 text-black/50"
-                  }`}
-                >
-                  {legalTinyLine()}
-                </div>
+              <div
+                className={`border-t px-3 py-2 text-center text-[8px] font-semibold leading-4 transition-all duration-300 ${
+                  darkTheme
+                    ? "border-white/8 text-white/52"
+                    : "border-black/8 text-black/50"
+                }`}
+              >
+                {legalTinyLine()}
               </div>
             </div>
           </div>
         </div>
       ) : null}
 
-      {showZoomControls && (
-        <div
-          className={`absolute right-4 z-30 flex flex-col gap-2 transition-all duration-300 ${
-            isPhone ? mobileZoomBottom : "bottom-6"
+      <div
+        className={`absolute right-4 z-30 flex flex-col gap-2 transition-all duration-300 ${
+          showZoomControls
+            ? "opacity-100 translate-y-0 pointer-events-auto"
+            : "opacity-0 translate-y-2 pointer-events-none"
+        } ${isPhone ? mobileZoomBottom : "bottom-6"}`}
+      >
+        <button
+          type="button"
+          aria-label="Zoom in"
+          disabled={!mapReady || renderMode !== "map"}
+          onClick={() => {
+            if (!mapReady || renderMode !== "map") return;
+            mapRef.current?.zoomIn({ duration: 220 });
+          }}
+          className={`h-9 w-9 rounded-full border text-[18px] font-black shadow-[0_14px_38px_rgba(0,0,0,0.14)] backdrop-blur-2xl transition-opacity ${
+            !mapReady || renderMode !== "map"
+              ? "border-white/55 bg-white/55 text-black/30 opacity-55 cursor-not-allowed"
+              : "border-white/85 bg-white/86 text-black/70"
           }`}
         >
-          <button
-            type="button"
-            aria-label="Zoom in"
-            disabled={!mapReady || renderMode !== "map"}
-            onClick={() => {
-              if (!mapReady || renderMode !== "map") return;
-              mapRef.current?.zoomIn({ duration: 220 });
-            }}
-            className={`h-9 w-9 rounded-full border text-[18px] font-black shadow-[0_14px_38px_rgba(0,0,0,0.14)] backdrop-blur-2xl transition-opacity ${
-              !mapReady || renderMode !== "map"
-                ? "border-white/55 bg-white/55 text-black/30 opacity-55 cursor-not-allowed"
-                : "border-white/85 bg-white/86 text-black/70"
-            }`}
-          >
-            +
-          </button>
-          <button
-            type="button"
-            aria-label="Zoom out"
-            disabled={!mapReady || renderMode !== "map"}
-            onClick={() => {
-              if (!mapReady || renderMode !== "map") return;
-              mapRef.current?.zoomOut({ duration: 220 });
-            }}
-            className={`h-9 w-9 rounded-full border text-[18px] font-black shadow-[0_14px_38px_rgba(0,0,0,0.14)] backdrop-blur-2xl transition-opacity ${
-              !mapReady || renderMode !== "map"
-                ? "border-white/55 bg-white/55 text-black/30 opacity-55 cursor-not-allowed"
-                : "border-white/85 bg-white/86 text-black/70"
-            }`}
-          >
-            −
-          </button>
-        </div>
-      )}
+          +
+        </button>
+        <button
+          type="button"
+          aria-label="Zoom out"
+          disabled={!mapReady || renderMode !== "map"}
+          onClick={() => {
+            if (!mapReady || renderMode !== "map") return;
+            mapRef.current?.zoomOut({ duration: 220 });
+          }}
+          className={`h-9 w-9 rounded-full border text-[18px] font-black shadow-[0_14px_38px_rgba(0,0,0,0.14)] backdrop-blur-2xl transition-opacity ${
+            !mapReady || renderMode !== "map"
+              ? "border-white/55 bg-white/55 text-black/30 opacity-55 cursor-not-allowed"
+              : "border-white/85 bg-white/86 text-black/70"
+          }`}
+        >
+          −
+        </button>
+      </div>
 
       {accessGateOpen && !accessAccepted && (
         <div className="absolute inset-0 z-[90] flex items-center justify-center bg-black/45 backdrop-blur-md px-4">
