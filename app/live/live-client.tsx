@@ -1116,7 +1116,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
   const showMobileSheet = isPhone && renderMode === "map" && mapReady;
   const showZoomControls = renderMode === "map" && mapReady;
   const mobileSheetBottom = "bottom-[18px]";
-  const mobileZoomBottom = "bottom-[212px]";
+  const mobileZoomBottom = "bottom-[248px]";
   return (
     <div
       className="fixed inset-0 w-screen overflow-hidden bg-transparent"
@@ -1454,10 +1454,10 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
             if (!mapReady || renderMode !== "map") return;
             mapRef.current?.zoomIn({ duration: 220 });
           }}
-          className={`h-7 w-7 rounded-[18px] border text-[16px] font-black shadow-[0_10px_24px_rgba(0,0,0,0.12)] backdrop-blur-xl transition-opacity ${
+          className={`h-7 w-7 rounded-[18px] border text-[16px] font-black shadow-[0_10px_24px_rgba(0,0,0,0.10)] backdrop-blur-xl transition-opacity ${
             !mapReady || renderMode !== "map"
-              ? "border-white/30 bg-white/20 text-black/30 opacity-55 cursor-not-allowed"
-              : "border-white/40 bg-white/22 text-black/62"
+              ? "border-white/35 bg-white/28 text-black/28 opacity-55 cursor-not-allowed"
+              : "border-white/55 bg-white/38 text-black/58"
           }`}
         >
           +
