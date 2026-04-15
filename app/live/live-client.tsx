@@ -795,36 +795,6 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
   }, [renderMode, mapReady, mobileSheetShrunk]);
 
   React.useEffect(() => {
-    if (typeof document === "undefined") return;
-
-    const styleId = "sk-map-surface-fix";
-    let styleTag = document.getElementById(styleId) as HTMLStyleElement | null;
-
-    if (!styleTag) {
-      styleTag = document.createElement("style");
-      styleTag.id = styleId;
-      styleTag.innerHTML = `
-      .maplibregl-map,
-      .maplibregl-canvas-container,
-      .maplibregl-canvas {
-        background: ${darkTheme ? "#111111" : "#eef1f4"} !important;
-      }
-    `;
-      document.head.appendChild(styleTag);
-    } else {
-      styleTag.innerHTML = `
-      .maplibregl-map,
-      .maplibregl-canvas-container,
-      .maplibregl-canvas {
-        background: ${darkTheme ? "#111111" : "#eef1f4"} !important;
-      }
-    `;
-    }
-
-    return () => {};
-  }, [darkTheme]);
-
-  React.useEffect(() => {
     if (!accessAccepted) return;
     if (bootedRef.current) return;
     bootedRef.current = true;
@@ -981,38 +951,6 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
         map.once("load", () => {
           clearTimeout(timeout);
 
-          const style = map.getStyle();
-          const firstLayerId = style?.layers?.[0]?.id;
-
-          const hasBackgroundLayer = Boolean(
-            style?.layers?.some((layer) => layer.type === "background"),
-          );
-
-          if (!hasBackgroundLayer) {
-            map.addLayer(
-              {
-                id: "sk-forced-background",
-                type: "background",
-                paint: {
-                  "background-color": darkTheme ? "#111111" : "#eef1f4",
-                  "background-opacity": 1,
-                },
-              },
-              firstLayerId,
-            );
-          } else {
-            const bgLayerId = style!.layers!.find(
-              (layer) => layer.type === "background",
-            )!.id;
-
-            map.setPaintProperty(
-              bgLayerId,
-              "background-color",
-              darkTheme ? "#111111" : "#eef1f4",
-            );
-            map.setPaintProperty(bgLayerId, "background-opacity", 1);
-          }
-
           setMapReady(true);
 
           map.resize();
@@ -1028,6 +966,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
 
           resolve();
         });
+
         map.once("error", () => {
           clearTimeout(timeout);
           setMapReady(false);
