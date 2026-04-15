@@ -1170,18 +1170,23 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
         >
           <div
             ref={mapDivRef}
-            className="absolute inset-0 h-full w-full transition-all duration-300 ease-out"
+            className="absolute inset-0 h-full w-full"
             style={{
               height: "100dvh",
               minHeight: "100dvh",
               background: darkTheme ? "#111111" : "#eef1f4",
-              paddingBottom:
-                showMobileSheet && !mobileSheetShrunk ? "218px" : "0px",
             }}
           />
 
           {showMobileSheet && !mobileSheetShrunk ? (
-            <div className="absolute inset-x-0 bottom-0 z-10 h-[38dvh] pointer-events-none bg-gradient-to-t from-black/[0.14] via-black/[0.05] to-transparent transition-opacity duration-300" />
+            <div
+              className="absolute inset-x-0 bottom-0 z-10 pointer-events-none transition-opacity duration-300"
+              style={{
+                height: "218px",
+                background:
+                  "linear-gradient(to top, rgba(0,0,0,0.08), rgba(0,0,0,0.03), transparent)",
+              }}
+            />
           ) : null}
 
           {showMobileSheet && isPhone ? (
