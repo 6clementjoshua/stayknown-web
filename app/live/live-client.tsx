@@ -611,7 +611,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
         const padding = {
           top: isDesktop() ? 96 : 88,
           right: 18,
-          bottom: isDesktop() ? 126 : mobileInfoExpanded ? 188 : 116,
+          bottom: isDesktop() ? 126 : mobileInfoExpanded ? 132 : 94,
           left: 18,
         };
 
@@ -911,10 +911,13 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
       });
       mapRef.current = map;
 
-      map.on("click", () => {
-        if (isPhoneViewport()) {
-          setMobileInfoExpanded(false);
-        }
+      map.on("click", (e) => {
+        if (!isPhoneViewport()) return;
+
+        const target = e.originalEvent?.target as HTMLElement | null;
+        if (target?.closest?.("[data-sk-mobile-sheet='1']")) return;
+
+        setMobileInfoExpanded(false);
       });
 
       await new Promise<void>((resolve, reject) => {
@@ -1177,14 +1180,14 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
 
             {infoRows.length > 0 && (
               <div
-                className={`pointer-events-auto flex max-w-[980px] flex-wrap items-center justify-center gap-1 rounded-[18px] border ${cardBorder} ${cardBg} px-2 py-1 shadow-[0_12px_30px_rgba(0,0,0,0.08)] backdrop-blur-2xl`}
+                className={`pointer-events-auto flex max-w-[1080px] flex-wrap items-center justify-center gap-1.5 rounded-[18px] border ${cardBorder} ${cardBg} px-2.5 py-1.5 shadow-[0_12px_30px_rgba(0,0,0,0.08)] backdrop-blur-2xl`}
               >
                 {infoRows.map((item) => (
                   <React.Fragment key={item.label}>
                     <div className="rounded-full border border-white/75 bg-white/88 px-2 py-[6px] text-[8px] font-extrabold uppercase tracking-[0.13em] text-black/46">
                       {item.label} <span className="ml-1 text-black/34">›</span>
                     </div>
-                    <div className="rounded-full border border-white/75 bg-white/92 px-2.5 py-[6px] text-[10px] font-bold text-black/78 max-w-[240px] truncate">
+                    <div className="rounded-[16px] border border-white/75 bg-white/92 px-3 py-[6px] text-[10px] font-bold text-black/78 max-w-[320px] whitespace-normal break-words text-center">
                       {item.value}
                     </div>
                   </React.Fragment>
@@ -1196,25 +1199,38 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
               {safetyUseHint()}
             </div>
 
-            <div className="pointer-events-none max-w-[980px] rounded-[22px] border border-white/70 bg-white/48 px-4 py-[5px] text-center text-[8px] font-semibold leading-4 text-black/50 shadow-[0_10px_28px_rgba(0,0,0,0.06)] backdrop-blur-2xl">
+            <div
+              className={`pointer-events-none max-w-[980px] rounded-[22px] border px-4 py-[5px] text-center text-[8px] font-semibold leading-4 shadow-[0_10px_28px_rgba(0,0,0,0.06)] backdrop-blur-2xl ${
+                darkTheme
+                  ? "border-white/10 bg-black/28 text-white/52"
+                  : "border-white/70 bg-white/48 text-black/50"
+              }`}
+            >
               {legalTinyLine()}
             </div>
           </div>
         </div>
       ) : (
-        <div className="absolute inset-x-0 bottom-4 z-30 px-3">
+        <div className="absolute inset-x-0 bottom-6 z-30 px-3">
           <div className="mx-auto w-full max-w-[640px]">
             <div
-              className={`pointer-events-auto rounded-[30px] ${cardBg} border ${cardBorder} shadow-[0_28px_90px_rgba(0,0,0,0.18)] backdrop-blur-2xl overflow-hidden transition-all duration-300 ease-out ${
-                mobileInfoExpanded ? "translate-y-0" : "translate-y-0"
-              }`}
+              data-sk-mobile-sheet="1"
+              className={`pointer-events-auto rounded-[30px] border shadow-[0_28px_90px_rgba(0,0,0,0.18)] overflow-hidden transition-all duration-300 ease-out ${
+                darkTheme
+                  ? "bg-black/72 border-white/10"
+                  : "bg-white/78 border-white/65"
+              } backdrop-blur-[22px] supports-[backdrop-filter]:bg-white/40`}
             >
               <button
                 type="button"
                 onClick={toggleMobileInfo}
-                className="w-full px-4 pt-3 pb-3 text-left"
+                className="w-full px-4 pt-2.5 pb-3 text-left"
               >
-                <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-black/10" />
+                <div
+                  className={`mx-auto mb-2.5 h-1.5 w-12 rounded-full ${
+                    darkTheme ? "bg-white/12" : "bg-black/10"
+                  }`}
+                />
 
                 <div className="flex items-center justify-between gap-3">
                   <div className="min-w-0">
@@ -1246,7 +1262,13 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
                       {sessionMeta.statusText}
                     </div>
 
-                    <div className="h-8 w-8 rounded-full border border-black/8 bg-white/72 flex items-center justify-center text-black/56">
+                    <div
+                      className={`h-8 w-8 rounded-full border flex items-center justify-center ${
+                        darkTheme
+                          ? "border-white/10 bg-white/10 text-white/70"
+                          : "border-black/8 bg-white/52 text-black/56"
+                      } backdrop-blur-xl`}
+                    >
                       <svg
                         width="14"
                         height="14"
@@ -1276,7 +1298,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
               >
                 <div className="overflow-hidden">
                   <div className="px-4 pb-4">
-                    <div className="space-y-3 max-h-[46vh] overflow-y-auto sk-scroll-hidden">
+                    <div className="space-y-3 max-h-[56vh] overflow-y-auto sk-scroll-hidden pr-[2px]">
                       <div className="grid grid-cols-1 gap-3">
                         <div
                           className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3`}
@@ -1365,12 +1387,28 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
                               {infoRows.map((item) => (
                                 <div
                                   key={item.label}
-                                  className="flex items-start justify-between gap-3 rounded-[14px] border border-black/6 bg-white/55 px-3 py-2"
+                                  className={`rounded-[14px] border px-3 py-2.5 text-center ${
+                                    darkTheme
+                                      ? "border-white/8 bg-white/6"
+                                      : "border-black/6 bg-white/55"
+                                  }`}
                                 >
-                                  <div className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-black/45">
+                                  <div
+                                    className={`text-[10px] font-extrabold uppercase tracking-[0.16em] ${
+                                      darkTheme
+                                        ? "text-white/42"
+                                        : "text-black/45"
+                                    }`}
+                                  >
                                     {item.label}
                                   </div>
-                                  <div className="text-right text-[12px] font-bold leading-5 text-black/78 max-w-[62%] break-words">
+                                  <div
+                                    className={`mt-1 text-[12px] font-bold leading-5 break-words whitespace-pre-wrap ${
+                                      darkTheme
+                                        ? "text-white/82"
+                                        : "text-black/78"
+                                    }`}
+                                  >
                                     {item.value}
                                   </div>
                                 </div>
@@ -1418,7 +1456,11 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
                         <div
                           className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-[7px] text-center`}
                         >
-                          <div className="text-[8px] font-semibold leading-4 text-black/50">
+                          <div
+                            className={`text-[8px] font-semibold leading-4 ${
+                              darkTheme ? "text-white/52" : "text-black/50"
+                            }`}
+                          >
                             {legalTinyLine()}
                           </div>
                         </div>
