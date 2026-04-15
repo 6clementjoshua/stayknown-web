@@ -387,19 +387,21 @@ a:hover {
   animation: sk-flicker 420ms ease-out both;
 }
 
-.mapboxgl-map,
-.mapboxgl-canvas-container,
-.mapboxgl-canvas {
+.maplibregl-map,
+.maplibregl-canvas-container,
+.maplibregl-canvas {
   width: 100% !important;
   height: 100% !important;
 }
 
-.mapboxgl-canvas {
+.maplibregl-canvas-container,
+.maplibregl-canvas {
   position: absolute !important;
   inset: 0 !important;
 }
 
-.mapboxgl-map {
+.maplibregl-map,
+.maplibregl-canvas-container {
   background: transparent !important;
 }
 
