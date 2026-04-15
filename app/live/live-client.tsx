@@ -608,7 +608,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
         const padding = {
           top: isDesktop() ? 96 : 88,
           right: 18,
-          bottom: isDesktop() ? 126 : mobileSheetShrunk ? 120 : 210,
+          bottom: isDesktop() ? 126 : 156,
           left: 18,
         };
 
@@ -1114,11 +1114,9 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
 
   const isPhone = isPhoneViewport();
   const showMobileSheet = isPhone && renderMode === "map" && mapReady;
-  const showZoomControls =
-    renderMode === "map" && mapReady && (!isPhone || mobileSheetShrunk);
+  const showZoomControls = renderMode === "map" && mapReady;
   const mobileSheetBottom = "bottom-[18px]";
-  const mobileZoomBottom = showMobileSheet ? "bottom-[188px]" : "bottom-5";
-
+  const mobileZoomBottom = "bottom-[122px]";
   return (
     <div
       className="fixed inset-0 w-screen overflow-hidden bg-transparent"
@@ -1148,202 +1146,152 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
                 className="mx-auto w-[calc(100%-10px)] max-w-[640px] pointer-events-auto"
               >
                 <div
-                  className={`rounded-[30px] border shadow-[0_24px_60px_rgba(0,0,0,0.24)] overflow-hidden transition-all duration-300 ease-out ${
+                  className={`rounded-[30px] border shadow-[0_24px_60px_rgba(0,0,0,0.24)] overflow-hidden ${
                     darkTheme
                       ? "bg-[#050505] border-white/10"
                       : "bg-[#fbfbfb] border-black/8"
                   }`}
                 >
-                  <button
-                    type="button"
-                    onClick={() => setMobileSheetShrunk((v) => !v)}
-                    className="block w-full px-4 pt-2.5 pb-3 text-left"
-                    aria-label={
-                      mobileSheetShrunk ? "Expand sheet" : "Shrink sheet"
-                    }
-                  >
+                  <div className="px-4 pt-2.5 pb-1">
                     <div
-                      className={`mx-auto mb-2.5 h-1.5 w-12 rounded-full transition-all duration-300 ${
+                      className={`mx-auto mb-2 h-1.5 w-12 rounded-full ${
                         darkTheme ? "bg-white/12" : "bg-black/10"
                       }`}
                     />
 
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="min-w-0">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
                         <div
-                          className={`text-[9px] uppercase tracking-[0.24em] font-extrabold ${mutedText}`}
+                          className={`flex items-center gap-1.5 text-[7px] uppercase tracking-[0.24em] font-extrabold ${mutedText}`}
                         >
-                          {mobileHeaderEyebrow}
+                          <span>Last session</span>
+                          <span>•</span>
+                          <span
+                            className={`rounded-full border px-1.5 py-[2px] text-[6px] leading-none ${
+                              darkTheme
+                                ? "border-white/10 text-white/48"
+                                : "border-black/10 text-black/44"
+                            }`}
+                          >
+                            {sessionMeta.statusText}
+                          </span>
                         </div>
+
                         <div
-                          className={`mt-1 text-[14px] font-black leading-5 ${cardText}`}
+                          className={`mt-1 text-[12px] font-black leading-[1.25] ${cardText}`}
                         >
                           {placeLabel}
                         </div>
+
                         <div
-                          className={`mt-1 text-[11px] leading-4 ${
-                            darkTheme ? "text-white/62" : "text-black/58"
+                          className={`mt-1 text-[9px] leading-4 ${
+                            darkTheme ? "text-white/58" : "text-black/56"
                           }`}
                         >
                           Heading to {destinationLabel}
                         </div>
                       </div>
 
-                      <div className="shrink-0 flex items-center gap-2">
-                        <div
-                          className={`rounded-full border px-2.5 py-1 text-[9px] font-extrabold uppercase tracking-[0.16em] ${
-                            status === "live" && !sosActive
-                              ? "animate-[skLivePulse_2.6s_ease-in-out_infinite]"
-                              : ""
-                          } ${sessionMeta.statusClass}`}
-                        >
-                          {sessionMeta.statusText}
-                        </div>
+                      <div
+                        className={`shrink-0 rounded-full border px-2 py-[5px] text-[6px] font-extrabold uppercase tracking-[0.18em] ${sessionMeta.statusClass}`}
+                      >
+                        {sessionMeta.statusText}
                       </div>
                     </div>
-                  </button>
+                  </div>
 
-                  <div
-                    className={`grid transition-all duration-300 ease-out ${
-                      mobileSheetShrunk
-                        ? "grid-rows-[0fr] opacity-0"
-                        : "grid-rows-[1fr] opacity-100"
-                    }`}
-                  >
-                    <div className="overflow-hidden">
-                      <div className="px-4 pt-1 pb-0">
-                        <div className="space-y-3 max-h-[34dvh] overflow-y-auto sk-scroll-hidden pr-[2px] pb-2">
-                          <div className="grid grid-cols-1 gap-3">
-                            <div className="grid grid-cols-2 gap-3">
+                  <div className="px-4 pb-0">
+                    <div
+                      className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-2`}
+                    >
+                      <div
+                        className={`max-h-[92px] overflow-y-auto sk-scroll-hidden overscroll-contain pr-[2px] text-center`}
+                        style={{ WebkitOverflowScrolling: "touch" }}
+                      >
+                        <div className="space-y-2">
+                          <div>
+                            <div
+                              className={`text-[7px] uppercase tracking-[0.22em] font-extrabold ${
+                                darkTheme ? "text-white/38" : "text-black/40"
+                              }`}
+                            >
+                              Last update
+                            </div>
+                            <div
+                              className={`mt-1 text-[10px] font-bold leading-4 ${cardText}`}
+                            >
+                              {lastUpdatedLabel}
+                            </div>
+                          </div>
+
+                          <div>
+                            <div
+                              className={`text-[7px] uppercase tracking-[0.22em] font-extrabold ${
+                                darkTheme ? "text-white/38" : "text-black/40"
+                              }`}
+                            >
+                              Started
+                            </div>
+                            <div
+                              className={`mt-1 text-[10px] font-bold leading-4 ${cardText}`}
+                            >
+                              {startedTimeLabel}
+                            </div>
+                          </div>
+
+                          {infoRows.map((item) => (
+                            <div key={item.label}>
                               <div
-                                className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3 text-center`}
+                                className={`text-[7px] uppercase tracking-[0.22em] font-extrabold ${
+                                  darkTheme ? "text-white/38" : "text-black/40"
+                                }`}
                               >
-                                <div
-                                  className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${
-                                    darkTheme
-                                      ? "text-white/42"
-                                      : "text-black/42"
-                                  }`}
-                                >
-                                  Last update
-                                </div>
-                                <div
-                                  className={`mt-2 text-[12px] font-bold leading-5 ${cardText}`}
-                                >
-                                  {lastUpdatedLabel}
-                                </div>
+                                {item.label}
                               </div>
-
                               <div
-                                className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3 text-center`}
+                                className={`mt-1 text-[10px] font-bold leading-4 break-words whitespace-pre-wrap ${
+                                  darkTheme ? "text-white/82" : "text-black/78"
+                                }`}
                               >
-                                <div
-                                  className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${
-                                    darkTheme
-                                      ? "text-white/42"
-                                      : "text-black/42"
-                                  }`}
-                                >
-                                  Started
-                                </div>
-                                <div
-                                  className={`mt-2 text-[12px] font-bold leading-5 ${cardText}`}
-                                >
-                                  {startedTimeLabel}
-                                </div>
+                                {item.value}
                               </div>
                             </div>
+                          ))}
 
-                            {infoRows.length > 0 && (
+                          {!!coordsLabel && !!mapHref && (
+                            <div>
                               <div
-                                className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3`}
+                                className={`text-[7px] uppercase tracking-[0.22em] font-extrabold ${
+                                  darkTheme ? "text-white/38" : "text-black/40"
+                                }`}
                               >
-                                <div
-                                  className={`text-center text-[9px] uppercase tracking-[0.22em] font-extrabold ${
-                                    darkTheme
-                                      ? "text-white/42"
-                                      : "text-black/42"
-                                  }`}
-                                >
-                                  Session details
-                                </div>
-
-                                <div className="mt-2 space-y-2">
-                                  {infoRows.map((item) => (
-                                    <div
-                                      key={item.label}
-                                      className={`rounded-[14px] border px-3 py-2.5 text-center ${
-                                        darkTheme
-                                          ? "border-white/8 bg-white/6"
-                                          : "border-black/6 bg-white/55"
-                                      }`}
-                                    >
-                                      <div
-                                        className={`text-[10px] font-extrabold uppercase tracking-[0.16em] ${
-                                          darkTheme
-                                            ? "text-white/42"
-                                            : "text-black/45"
-                                        }`}
-                                      >
-                                        {item.label}
-                                      </div>
-                                      <div
-                                        className={`mt-1 text-[12px] font-bold leading-5 break-words whitespace-pre-wrap ${
-                                          darkTheme
-                                            ? "text-white/82"
-                                            : "text-black/78"
-                                        }`}
-                                      >
-                                        {item.value}
-                                      </div>
-                                    </div>
-                                  ))}
-                                </div>
+                                Coordinates
                               </div>
-                            )}
-
-                            {!!coordsLabel && !!mapHref && (
-                              <div
-                                className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3 text-center`}
+                              <a
+                                href={mapHref}
+                                target="_blank"
+                                rel="noreferrer"
+                                className={`mt-1 block text-[10px] font-bold leading-4 underline underline-offset-4 break-all ${coordText}`}
                               >
-                                <div
-                                  className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${
-                                    darkTheme
-                                      ? "text-white/42"
-                                      : "text-black/42"
-                                  }`}
-                                >
-                                  Coordinates
-                                </div>
-                                <a
-                                  href={mapHref}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className={`mt-2 block text-[12px] font-extrabold underline underline-offset-4 break-all text-center ${coordText}`}
-                                  style={{ opacity: 0.96 }}
-                                >
-                                  {coordsLabel}
-                                </a>
-                              </div>
-                            )}
+                                {coordsLabel}
+                              </a>
+                            </div>
+                          )}
 
+                          <div>
                             <div
-                              className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-3 text-center`}
+                              className={`text-[7px] uppercase tracking-[0.22em] font-extrabold ${
+                                darkTheme ? "text-white/38" : "text-black/40"
+                              }`}
                             >
-                              <div
-                                className={`text-[9px] uppercase tracking-[0.22em] font-extrabold ${
-                                  darkTheme ? "text-white/42" : "text-black/42"
-                                }`}
-                              >
-                                Reminder
-                              </div>
-                              <div
-                                className={`mt-2 text-[11px] leading-5 ${
-                                  darkTheme ? "text-white/70" : "text-black/66"
-                                }`}
-                              >
-                                {safetyUseHint()}
-                              </div>
+                              Reminder
+                            </div>
+                            <div
+                              className={`mt-1 text-[9px] leading-4 ${
+                                darkTheme ? "text-white/70" : "text-black/66"
+                              }`}
+                            >
+                              {safetyUseHint()}
                             </div>
                           </div>
                         </div>
@@ -1352,7 +1300,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
                   </div>
 
                   <div
-                    className={`border-t px-3 py-2 text-center text-[8px] font-semibold leading-4 transition-all duration-300 ${
+                    className={`border-t px-3 py-1.5 text-center text-[7px] font-semibold leading-3 ${
                       darkTheme
                         ? "border-white/8 text-white/52"
                         : "border-black/8 text-black/50"
@@ -1490,10 +1438,10 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
       ) : null}
 
       <div
-        className={`absolute right-4 z-30 flex flex-col gap-2 transition-all duration-300 ${
+        className={`absolute right-4 z-30 flex flex-col gap-2 ${
           showZoomControls
-            ? "opacity-100 translate-y-0 pointer-events-auto"
-            : "opacity-0 translate-y-2 pointer-events-none"
+            ? "opacity-100 pointer-events-auto"
+            : "opacity-0 pointer-events-none"
         } ${isPhone ? mobileZoomBottom : "bottom-6"}`}
       >
         <button
