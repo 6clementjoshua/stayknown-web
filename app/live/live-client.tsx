@@ -1146,10 +1146,10 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
                 className="mx-auto w-[calc(100%-10px)] max-w-[640px] pointer-events-auto"
               >
                 <div
-                  className={`rounded-[30px] border shadow-[0_24px_60px_rgba(0,0,0,0.24)] overflow-hidden ${
+                  className={`rounded-[30px] border shadow-[0_24px_60px_rgba(0,0,0,0.20)] overflow-hidden backdrop-blur-2xl ${
                     darkTheme
-                      ? "bg-[#050505] border-white/10"
-                      : "bg-[#fbfbfb] border-black/8"
+                      ? "bg-black/72 border-white/12"
+                      : "bg-black/68 border-white/10"
                   }`}
                 >
                   <div className="px-4 pt-1.5 pb-[2px]">
