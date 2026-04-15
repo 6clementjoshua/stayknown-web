@@ -1116,7 +1116,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
   const showMobileSheet = isPhone && renderMode === "map" && mapReady;
   const showZoomControls = renderMode === "map" && mapReady;
   const mobileSheetBottom = "bottom-[18px]";
-  const mobileZoomBottom = "bottom-[122px]";
+  const mobileZoomBottom = "bottom-[212px]";
   return (
     <div
       className="fixed inset-0 w-screen overflow-hidden bg-transparent"
@@ -1152,25 +1152,27 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
                       : "bg-[#fbfbfb] border-black/8"
                   }`}
                 >
-                  <div className="px-4 pt-2.5 pb-1">
+                  <div className="px-4 pt-1.5 pb-[2px]">
                     <div
-                      className={`mx-auto mb-2 h-1.5 w-12 rounded-full ${
-                        darkTheme ? "bg-white/12" : "bg-black/10"
+                      className={`mb-1 text-center text-[6px] font-bold uppercase tracking-[0.22em] ${
+                        darkTheme ? "text-white/34" : "text-black/34"
                       }`}
-                    />
+                    >
+                      Scroll to see more info
+                    </div>
 
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0 flex-1">
                         <div
-                          className={`flex items-center gap-1.5 text-[7px] uppercase tracking-[0.24em] font-extrabold ${mutedText}`}
+                          className={`flex items-center gap-1 text-[6px] uppercase tracking-[0.2em] font-extrabold ${mutedText}`}
                         >
                           <span>Last session</span>
                           <span>•</span>
                           <span
-                            className={`rounded-full border px-1.5 py-[2px] text-[6px] leading-none ${
+                            className={`rounded-full border px-1 py-[2px] text-[5px] leading-none ${
                               darkTheme
-                                ? "border-white/10 text-white/48"
-                                : "border-black/10 text-black/44"
+                                ? "border-white/10 text-white/44"
+                                : "border-black/10 text-black/42"
                             }`}
                           >
                             {sessionMeta.statusText}
@@ -1193,7 +1195,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
                       </div>
 
                       <div
-                        className={`shrink-0 rounded-full border px-2 py-[5px] text-[6px] font-extrabold uppercase tracking-[0.18em] ${sessionMeta.statusClass}`}
+                        className={`shrink-0 rounded-full border px-1.5 py-[4px] text-[5px] font-extrabold uppercase tracking-[0.16em] ${sessionMeta.statusClass}`}
                       >
                         {sessionMeta.statusText}
                       </div>
@@ -1438,7 +1440,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
       ) : null}
 
       <div
-        className={`absolute right-4 z-30 flex flex-col gap-2 ${
+        className={`absolute right-4 z-40 flex flex-col gap-2 ${
           showZoomControls
             ? "opacity-100 pointer-events-auto"
             : "opacity-0 pointer-events-none"
@@ -1452,10 +1454,10 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
             if (!mapReady || renderMode !== "map") return;
             mapRef.current?.zoomIn({ duration: 220 });
           }}
-          className={`h-9 w-9 rounded-full border text-[18px] font-black shadow-[0_14px_38px_rgba(0,0,0,0.14)] backdrop-blur-2xl transition-opacity ${
+          className={`h-7 w-7 rounded-[18px] border text-[16px] font-black shadow-[0_10px_24px_rgba(0,0,0,0.12)] backdrop-blur-xl transition-opacity ${
             !mapReady || renderMode !== "map"
-              ? "border-white/55 bg-white/55 text-black/30 opacity-55 cursor-not-allowed"
-              : "border-white/85 bg-white/86 text-black/70"
+              ? "border-white/30 bg-white/20 text-black/30 opacity-55 cursor-not-allowed"
+              : "border-white/40 bg-white/22 text-black/62"
           }`}
         >
           +
@@ -1468,10 +1470,10 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
             if (!mapReady || renderMode !== "map") return;
             mapRef.current?.zoomOut({ duration: 220 });
           }}
-          className={`h-9 w-9 rounded-full border text-[18px] font-black shadow-[0_14px_38px_rgba(0,0,0,0.14)] backdrop-blur-2xl transition-opacity ${
+          className={`h-7 w-7 rounded-[18px] border text-[16px] font-black shadow-[0_10px_24px_rgba(0,0,0,0.12)] backdrop-blur-xl transition-opacity ${
             !mapReady || renderMode !== "map"
-              ? "border-white/55 bg-white/55 text-black/30 opacity-55 cursor-not-allowed"
-              : "border-white/85 bg-white/86 text-black/70"
+              ? "border-white/30 bg-white/20 text-black/30 opacity-55 cursor-not-allowed"
+              : "border-white/40 bg-white/22 text-black/62"
           }`}
         >
           −
