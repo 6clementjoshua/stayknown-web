@@ -603,29 +603,28 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
             MOVE_FOLLOW_THRESHOLD_METERS
           : true;
 
-        const currentZoom = mapRef.current.getZoom();
-
-        const padding = {
-          top: isDesktop() ? 96 : 88,
-          right: 18,
-          bottom: isDesktop() ? 126 : 156,
-          left: 18,
-        };
-
         if (!hasCenteredRef.current) {
           mapRef.current.jumpTo({
             center: nextLngLat,
             zoom: INITIAL_VIEW_ZOOM,
           });
           hasCenteredRef.current = true;
-        } else if (movedEnough) {
-          mapRef.current.easeTo({
-            center: nextLngLat,
-            zoom: currentZoom,
-            padding,
-            duration: 700,
-            essential: true,
-          });
+        } else if (
+          movedEnough &&
+          nextStatus !== "ended" &&
+          !mapRef.current.isMoving()
+        ) {
+          const center = mapRef.current.getCenter();
+          const farFromCenter =
+            distanceMeters(center.lat, center.lng, lat, lng) >= 120;
+
+          if (farFromCenter) {
+            mapRef.current.easeTo({
+              center: nextLngLat,
+              duration: 700,
+              essential: true,
+            });
+          }
         }
 
         window.requestAnimationFrame(() => {
@@ -651,7 +650,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
         void refreshNearbyPois(lat, lng);
       }
     },
-    [mobileSheetShrunk, refreshNearbyPois],
+    [refreshNearbyPois],
   );
 
   const syncFromSeed = React.useCallback(
@@ -978,7 +977,6 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
 
       if (!seed.ended) {
         connectStream();
-        startPolling();
       }
     }
 
