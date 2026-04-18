@@ -918,13 +918,17 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
         typeof seed.latest.lng === "number" &&
         typeof seed.latest.lat === "number";
 
+      const initialCenter: [number, number] = hasLatest
+        ? [seed.latest!.lng, seed.latest!.lat]
+        : [0, 0];
+
+      const initialZoom = hasLatest ? INITIAL_VIEW_ZOOM : 2.4;
+
       const map = new maplibregl.Map({
         container: mapDivRef.current,
         style: tomtomStyleUrl,
-        center: hasLatest
-          ? [seed.latest!.lng, seed.latest!.lat]
-          : FALLBACK_CENTER,
-        zoom: hasLatest ? INITIAL_VIEW_ZOOM : FALLBACK_ZOOM,
+        center: initialCenter,
+        zoom: initialZoom,
         minZoom: 3,
         maxZoom: 19,
         attributionControl: false,

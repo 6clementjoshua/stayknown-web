@@ -41,11 +41,12 @@ type VisitRow = {
   ended_at?: string | null;
   destination_name?: string | null;
   destination_address?: string | null;
+  start_lat?: number | null;
+  start_lng?: number | null;
   end_lat?: number | null;
   end_lng?: number | null;
   payload?: VisitPayload | null;
 };
-
 type SosSessionRow = {
   ended_at?: string | null;
   started_at?: string | null;
@@ -111,7 +112,7 @@ export async function GET(req: Request) {
     const visitRes = await sb
       .from("visits")
       .select(
-        "id,user_id,started_at,ended_at,destination_name,destination_address,end_lat,end_lng,payload",
+        "id,user_id,started_at,ended_at,destination_name,destination_address,start_lat,start_lng,end_lat,end_lng,payload",
       )
       .eq("id", sid)
       .maybeSingle();
@@ -209,7 +210,9 @@ export async function GET(req: Request) {
     const latestPoint =
       latest && typeof latest.lat === "number" && typeof latest.lng === "number"
         ? latest
-        : typeof visit.end_lat === "number" && typeof visit.end_lng === "number"
+        : ended &&
+            typeof visit.end_lat === "number" &&
+            typeof visit.end_lng === "number"
           ? {
               lat: visit.end_lat,
               lng: visit.end_lng,
@@ -221,8 +224,21 @@ export async function GET(req: Request) {
                 null,
               created_at: visit.ended_at ?? latest?.created_at ?? null,
             }
-          : null;
-
+          : !ended &&
+              typeof visit.start_lat === "number" &&
+              typeof visit.start_lng === "number"
+            ? {
+                lat: visit.start_lat,
+                lng: visit.start_lng,
+                accuracy: null,
+                place:
+                  latest?.place ??
+                  visit.destination_name ??
+                  visit.destination_address ??
+                  null,
+                created_at: visit.started_at ?? latest?.created_at ?? null,
+              }
+            : null;
     const payload = (visit.payload ?? {}) as VisitPayload;
 
     const destinationName =
