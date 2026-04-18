@@ -1096,6 +1096,11 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
       show: startedTimeLabel !== "—",
     },
     {
+      label: "Accuracy",
+      value: accuracyLabel,
+      show: accuracyLabel !== "—",
+    },
+    {
       label: "Address / landmark",
       value: destinationAddressLabel,
       show: destinationAddressLabel !== "—",
@@ -1119,11 +1124,6 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
       label: "Extra note",
       value: extraNoteLabel,
       show: extraNoteLabel !== "—",
-    },
-    {
-      label: "Accuracy",
-      value: accuracyLabel,
-      show: accuracyLabel !== "—",
     },
   ].filter((item) => item.show);
 
