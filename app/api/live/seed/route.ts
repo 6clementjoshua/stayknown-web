@@ -47,6 +47,7 @@ type VisitRow = {
   end_lng?: number | null;
   payload?: VisitPayload | null;
 };
+
 type SosSessionRow = {
   ended_at?: string | null;
   started_at?: string | null;
@@ -90,6 +91,55 @@ function displayNameFromProfile(profile: UserProfileRow | null): string | null {
 function payloadString(payload: unknown, key: string): string | null {
   if (!payload || typeof payload !== "object") return null;
   return cleanString((payload as Record<string, unknown>)[key]);
+}
+
+function pickBestRecentPoint(
+  points: VisitLocationRow[],
+): VisitLocationRow | null {
+  const valid = points.filter(
+    (row) => typeof row.lat === "number" && typeof row.lng === "number",
+  );
+
+  if (!valid.length) return null;
+
+  const newest = valid[0];
+  const newestTime = newest.created_at
+    ? new Date(newest.created_at).getTime()
+    : 0;
+
+  const scored = valid.map((row, index) => {
+    const accuracyScore =
+      typeof row.accuracy === "number" && Number.isFinite(row.accuracy)
+        ? row.accuracy
+        : 999999;
+
+    const timeScore = row.created_at
+      ? Math.abs(newestTime - new Date(row.created_at).getTime()) / 1000
+      : 999999;
+
+    return {
+      row,
+      index,
+      accuracyScore,
+      timeScore,
+    };
+  });
+
+  scored.sort((a, b) => {
+    const aGood = a.accuracyScore <= 65;
+    const bGood = b.accuracyScore <= 65;
+
+    if (aGood !== bGood) return aGood ? -1 : 1;
+    if (a.accuracyScore !== b.accuracyScore) {
+      return a.accuracyScore - b.accuracyScore;
+    }
+    if (a.timeScore !== b.timeScore) {
+      return a.timeScore - b.timeScore;
+    }
+    return a.index - b.index;
+  });
+
+  return scored[0]?.row ?? newest;
 }
 
 export async function GET(req: Request) {
@@ -145,8 +195,7 @@ export async function GET(req: Request) {
       .select("lat,lng,accuracy,place,created_at")
       .eq("session_id", sid)
       .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+      .limit(6);
 
     if (latestRes.error) {
       return NextResponse.json(
@@ -159,7 +208,8 @@ export async function GET(req: Request) {
       );
     }
 
-    const latest = (latestRes.data as VisitLocationRow | null) ?? null;
+    const recentPoints = (latestRes.data as VisitLocationRow[] | null) ?? [];
+    const bestRecentPoint = pickBestRecentPoint(recentPoints);
     const ended = Boolean(visit.ended_at);
 
     let sos: SosSessionRow | null = null;
@@ -208,8 +258,10 @@ export async function GET(req: Request) {
     const sos_active = ended ? false : sos ? !Boolean(sos.ended_at) : false;
 
     const latestPoint =
-      latest && typeof latest.lat === "number" && typeof latest.lng === "number"
-        ? latest
+      bestRecentPoint &&
+      typeof bestRecentPoint.lat === "number" &&
+      typeof bestRecentPoint.lng === "number"
+        ? bestRecentPoint
         : ended &&
             typeof visit.end_lat === "number" &&
             typeof visit.end_lng === "number"
@@ -218,11 +270,11 @@ export async function GET(req: Request) {
               lng: visit.end_lng,
               accuracy: null,
               place:
-                latest?.place ??
+                cleanString(recentPoints[0]?.place) ??
                 visit.destination_name ??
                 visit.destination_address ??
                 null,
-              created_at: visit.ended_at ?? latest?.created_at ?? null,
+              created_at: visit.ended_at ?? recentPoints[0]?.created_at ?? null,
             }
           : !ended &&
               typeof visit.start_lat === "number" &&
@@ -232,13 +284,15 @@ export async function GET(req: Request) {
                 lng: visit.start_lng,
                 accuracy: null,
                 place:
-                  latest?.place ??
+                  cleanString(recentPoints[0]?.place) ??
                   visit.destination_name ??
                   visit.destination_address ??
                   null,
-                created_at: visit.started_at ?? latest?.created_at ?? null,
+                created_at:
+                  visit.started_at ?? recentPoints[0]?.created_at ?? null,
               }
             : null;
+
     const payload = (visit.payload ?? {}) as VisitPayload;
 
     const destinationName =

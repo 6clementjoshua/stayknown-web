@@ -449,6 +449,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
   const [mapReady, setMapReady] = React.useState(false);
 
   const [mobileSheetShrunk, setMobileSheetShrunk] = React.useState(false);
+  const [accuracyLabel, setAccuracyLabel] = React.useState("—");
 
   const [accessGateOpen, setAccessGateOpen] = React.useState(true);
   const [accessAccepted, setAccessAccepted] = React.useState(false);
@@ -564,6 +565,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
       place?: string,
       nextStatus: LiveStatus = "live",
       createdAt?: string,
+      accuracy?: number,
     ) => {
       const nextLngLat: [number, number] = [lng, lat];
       const previousPoint = lastPointRef.current;
@@ -645,14 +647,19 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
       setCoordsLabel(formatCoords(lat, lng));
       setMapHref(googleMapsHref(lat, lng));
       setLastUpdatedLabel(formatLiveTime(createdAt));
+      setAccuracyLabel(
+        typeof accuracy === "number" && Number.isFinite(accuracy)
+          ? `± ${accuracy.toFixed(1)} m`
+          : "—",
+      );
       setStatus(nextStatus);
+
       if (nextStatus !== "ended") {
         void refreshNearbyPois(lat, lng);
       }
     },
     [refreshNearbyPois],
   );
-
   const syncFromSeed = React.useCallback(
     (seed: SeedResp) => {
       setDestinationLabel(sessionLabelFromSeed(seed));
@@ -681,6 +688,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
           seed.latest.place,
           seed.ended ? "ended" : "live",
           seed.latest.created_at,
+          seed.latest.accuracy,
         );
       } else {
         setPlaceLabel(
@@ -1111,6 +1119,11 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
       label: "Extra note",
       value: extraNoteLabel,
       show: extraNoteLabel !== "—",
+    },
+    {
+      label: "Accuracy",
+      value: accuracyLabel,
+      show: accuracyLabel !== "—",
     },
   ].filter((item) => item.show);
 
