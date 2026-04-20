@@ -509,21 +509,28 @@ export default function ContactApprovalClient({
       <div className="mx-auto w-full max-w-[720px]">
         <div className="rounded-[34px] border border-black/10 bg-white/92 shadow-[0_30px_100px_rgba(0,0,0,0.12)] backdrop-blur-2xl overflow-hidden">
           <div className="px-6 pt-6 md:px-8 md:pt-8">
-            <div className="flex justify-center">
-              <div className="rounded-[24px] border border-white/90 bg-white/90 px-4 py-3 shadow-[0_14px_38px_rgba(0,0,0,0.12)]">
-                <img
-                  src="/6logo.png"
-                  alt="StayKnown"
-                  className="h-10 w-10 object-contain"
-                />
+            <div className="text-center">
+              <div className="flex justify-center">
+                <div className="rounded-[24px] border border-white/90 bg-white/90 px-4 py-3 shadow-[0_14px_38px_rgba(0,0,0,0.12)]">
+                  <img
+                    src="/6logo.png"
+                    alt="StayKnown"
+                    className="h-10 w-10 object-contain"
+                  />
+                </div>
+              </div>
+
+              <div className="mt-4 text-[11px] font-black uppercase tracking-[0.34em] text-black/42">
+                StayKnown
+              </div>
+
+              <div className="mt-2 text-[10px] font-black uppercase tracking-[0.26em] text-black/34">
+                Contact confirmation
               </div>
             </div>
 
             <div className="mt-5 text-center">
-              <div className="text-[11px] font-black uppercase tracking-[0.34em] text-black/42">
-                StayKnown contact security
-              </div>
-              <h1 className="mt-3 text-[25px] md:text-[29px] font-black tracking-[-0.04em] text-black/92">
+              <h1 className="mt-1 text-[25px] md:text-[29px] font-black tracking-[-0.04em] text-black/92">
                 {uiState === "approved"
                   ? "Confirmation complete"
                   : uiState === "declined"
@@ -552,7 +559,7 @@ export default function ContactApprovalClient({
                           "One confirmation is complete. The request will finish only when the other party also confirms."
                         : uiState === "working"
                           ? "Securely processing your decision…"
-                          : reconfirmText}
+                          : `You were brought to this page because StayKnown requires explicit confirmation before a contact can be added. ${reconfirmText}`}
               </p>
             </div>
 
