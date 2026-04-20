@@ -50,6 +50,8 @@ type UiState =
   | "invalid"
   | "error";
 
+const SUPPORT_EMAIL = "support@stay-known.com";
+
 function actorLabel(actor: Actor) {
   return actor === "owner" ? "account owner" : "contact email owner";
 }
@@ -63,6 +65,12 @@ function typeLabel(v?: string | null) {
   if (s === "sos") return "SOS contact";
   if (s === "emergency") return "emergency contact";
   return "contact";
+}
+
+function safePersonLabel(name?: string | null, emailMasked?: string | null) {
+  const n = (name || "").trim();
+  if (n) return n;
+  return (emailMasked || "the user").trim();
 }
 
 function formatRemaining(exp: number) {
@@ -348,7 +356,7 @@ export default function ContactApprovalClient({
           setUiState("expired");
           setMessage(
             data?.message ||
-              "This request expired for security reasons. Please restart the process.",
+              `This request expired for security reasons and can no longer be used. A fresh approval process is required. For help, contact ${SUPPORT_EMAIL}.`,
           );
           return;
         }
@@ -366,17 +374,38 @@ export default function ContactApprovalClient({
           const req = data.request;
           const ownerApproved = req?.owner_approved === true;
           const targetApproved = req?.target_approved === true;
+          const requester = safePersonLabel(
+            req?.requester_name,
+            req?.requester_email_masked,
+          );
+
+          setOwnerDone(ownerApproved);
+          setTargetDone(targetApproved);
+          setRequestType(typeLabel(req?.added_type));
+          setRequesterName((req?.requester_name || "StayKnown user").trim());
+          setRequesterEmailMasked((req?.requester_email_masked || "").trim());
+          setTargetName((req?.target_name || "contact").trim());
+          setTargetEmailMasked((req?.target_email_masked || "").trim());
 
           if (ownerApproved && targetApproved) {
-            setUiState("approved");
-            setMessage("This request was already completed successfully.");
+            if (decision === "decline") {
+              setUiState("declined");
+              setMessage(
+                `This request was already completed before this link was used, and the contact has already been added. If you made an earlier decision under pressure or now have concerns, please contact ${requester} directly to remove the contact, or reach StayKnown support at ${SUPPORT_EMAIL}.`,
+              );
+            } else {
+              setUiState("approved");
+              setMessage(
+                `This request was already completed successfully earlier. No further action is needed. If you have any safety concerns, contact StayKnown support at ${SUPPORT_EMAIL}.`,
+              );
+            }
             return;
           }
 
           setUiState("invalid");
           setMessage(
             data?.message ||
-              "This request has already been resolved and cannot be changed.",
+              `This request has already been resolved and cannot be changed. For help, contact ${SUPPORT_EMAIL}.`,
           );
           return;
         }
@@ -402,11 +431,16 @@ export default function ContactApprovalClient({
       setTargetEmailMasked((req?.target_email_masked || "").trim());
 
       if (data.state === "declined") {
+        const requester = safePersonLabel(
+          req?.requester_name,
+          req?.requester_email_masked,
+        );
+
         setUiState("declined");
         setMessage(
-          actor === "owner"
-            ? "You declined this request. The email will not be added."
-            : "You declined this request. The email will not be added.",
+          actor === "owner" || actor === "target"
+            ? `This request has been declined, so the email was not added. If this decision was made by mistake or under pressure, do not continue through old links. Contact ${requester} directly if needed, or reach StayKnown support at ${SUPPORT_EMAIL}.`
+            : `This request has been declined, so the email was not added. For help, contact ${SUPPORT_EMAIL}.`,
         );
         return;
       }
@@ -498,7 +532,9 @@ export default function ContactApprovalClient({
                       ? "Request expired"
                       : uiState === "waiting"
                         ? "Waiting for the other confirmation"
-                        : titleText}
+                        : uiState === "invalid"
+                          ? "Request already resolved"
+                          : titleText}
               </h1>
 
               <p className="mt-3 text-[13px] md:text-[14px] leading-6 text-black/62">
@@ -647,6 +683,7 @@ export default function ContactApprovalClient({
             <div className="mt-6 border-t border-black/8 pt-4 text-center text-[11px] leading-5 text-black/46">
               This page is part of StayKnown account protection and contact
               safety review.
+              <div className="mt-1">Support: {SUPPORT_EMAIL}</div>
               <div className="mt-1">
                 A 6Clement Joshua Service™ · © {new Date().getFullYear()}
               </div>

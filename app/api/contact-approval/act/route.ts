@@ -11,6 +11,7 @@ type Decision = "approve" | "decline";
 
 type ApprovalRow = {
   id: string;
+  requester_id?: string | null;
   status?: string | null;
   added_type?: string | null;
   contact_row_id?: string | null;
@@ -141,7 +142,8 @@ async function finalizeContactIfReady(
       .update({
         approval_status: "approved",
       })
-      .eq("id", contactRowId);
+      .eq("id", contactRowId)
+      .eq("approval_status", "pending");
 
     if (error) throw error;
   } else if (addedType === "sos") {
@@ -150,7 +152,8 @@ async function finalizeContactIfReady(
       .update({
         approval_status: "approved",
       })
-      .eq("id", contactRowId);
+      .eq("id", contactRowId)
+      .eq("approval_status", "pending");
 
     if (error) throw error;
   } else {
@@ -169,6 +172,133 @@ async function finalizeContactIfReady(
   if (reqErr) throw reqErr;
 
   return true;
+}
+
+async function removePendingContact(
+  sb: ReturnType<typeof admin>,
+  row: ApprovalRow,
+) {
+  const addedType = clean(row.added_type).toLowerCase();
+  const contactRowId = clean(row.contact_row_id);
+
+  if (!contactRowId) return;
+
+  if (addedType === "emergency") {
+    const { error } = await sb
+      .from("emergency_contacts")
+      .delete()
+      .eq("id", contactRowId)
+      .eq("approval_status", "pending");
+
+    if (error) throw error;
+    return;
+  }
+
+  if (addedType === "sos") {
+    const { error } = await sb
+      .from("sos_contacts")
+      .delete()
+      .eq("id", contactRowId)
+      .eq("approval_status", "pending");
+
+    if (error) throw error;
+    return;
+  }
+
+  throw new Error("Unsupported added_type for pending contact removal");
+}
+
+async function invokeInternalEdge(
+  name: string,
+  payload: Record<string, unknown>,
+) {
+  const baseUrl = (process.env.SUPABASE_FUNCTIONS_URL || "").trim();
+  const anonKey = (process.env.SUPABASE_ANON_KEY || "").trim();
+  const internalSecret = (process.env.INTERNAL_EDGE_SECRET || "").trim();
+
+  if (!baseUrl || !anonKey || !internalSecret) {
+    throw new Error(
+      "Missing edge configuration for approval follow-up notifications.",
+    );
+  }
+
+  const res = await fetch(`${baseUrl}/${name}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      apikey: anonKey,
+      Authorization: `Bearer ${anonKey}`,
+      "x-internal-secret": internalSecret,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const json = await res.json().catch(() => ({}));
+
+  if (!res.ok || (json && json.ok === false)) {
+    throw new Error(
+      `Edge ${name} failed: ${
+        json && typeof json.error === "string"
+          ? json.error
+          : `${res.status} ${res.statusText}`
+      }`,
+    );
+  }
+
+  return json;
+}
+
+async function loadApprovedContactItem(
+  sb: ReturnType<typeof admin>,
+  row: ApprovalRow,
+) {
+  const addedType = clean(row.added_type).toLowerCase();
+  const contactRowId = clean(row.contact_row_id);
+
+  if (!contactRowId) {
+    throw new Error("Missing contact_row_id");
+  }
+
+  if (addedType === "emergency") {
+    const { data, error } = await sb
+      .from("emergency_contacts")
+      .select("name, email")
+      .eq("id", contactRowId)
+      .maybeSingle();
+
+    if (error) throw error;
+    if (!data) throw new Error("Approved emergency contact not found");
+
+    return {
+      addedType: "emergency",
+      item: {
+        name: clean((data as Record<string, unknown>).name),
+        email: clean((data as Record<string, unknown>).email),
+      },
+    };
+  }
+
+  if (addedType === "sos") {
+    const { data, error } = await sb
+      .from("sos_contacts")
+      .select("name, email, role")
+      .eq("id", contactRowId)
+      .maybeSingle();
+
+    if (error) throw error;
+    if (!data) throw new Error("Approved SOS contact not found");
+
+    return {
+      addedType: "sos",
+      item: {
+        name: clean((data as Record<string, unknown>).name),
+        email: clean((data as Record<string, unknown>).email),
+        role: clean((data as Record<string, unknown>).role),
+      },
+    };
+  }
+
+  throw new Error("Unsupported added_type");
 }
 
 export async function POST(req: Request) {
@@ -221,6 +351,7 @@ export async function POST(req: Request) {
       .select(
         `
           id,
+          requester_id,
           status,
           added_type,
           contact_row_id,
@@ -339,6 +470,7 @@ export async function POST(req: Request) {
       .select(
         `
           id,
+          requester_id,
           status,
           added_type,
           contact_row_id,
@@ -366,6 +498,20 @@ export async function POST(req: Request) {
     const nextState = requestState(nextRow);
 
     if (nextState === "declined") {
+      await removePendingContact(sb, nextRow);
+
+      await invokeInternalEdge("contact_declined_notify", {
+        adder_user_id: clean(nextRow.requester_id),
+        added_type: clean(nextRow.added_type),
+        target_display_name:
+          clean(nextRow.target_name) || clean(nextRow.target_email_masked),
+        decline_action: "decline",
+        item: {
+          name: clean(nextRow.target_name),
+          email: clean(nextRow.target_email_masked),
+        },
+      });
+
       return NextResponse.json({
         ok: true,
         state: "declined",
@@ -376,15 +522,23 @@ export async function POST(req: Request) {
         request: nextRow,
       });
     }
-
     if (nextState === "fully_approved") {
       await finalizeContactIfReady(sb, nextRow);
+
+      const approvedContact = await loadApprovedContactItem(sb, nextRow);
+
+      await invokeInternalEdge("contact_added_notify", {
+        added_type: approvedContact.addedType,
+        adder_name: clean(nextRow.requester_name) || "StayKnown User",
+        items: [approvedContact.item],
+      });
 
       const { data: finalData } = await sb
         .from("contact_approval_requests")
         .select(
           `
             id,
+            requester_id,
             status,
             added_type,
             contact_row_id,
