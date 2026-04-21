@@ -95,6 +95,41 @@ function toIsoNow() {
   return new Date().toISOString();
 }
 
+function firstHeader(req: Request, names: string[]) {
+  for (const name of names) {
+    const v = (req.headers.get(name) || "").trim();
+    if (v) return v;
+  }
+  return "";
+}
+
+function extractClientIp(req: Request) {
+  const forwarded = firstHeader(req, [
+    "x-forwarded-for",
+    "cf-connecting-ip",
+    "x-real-ip",
+  ]);
+
+  if (!forwarded) return "";
+  return forwarded.split(",")[0]?.trim() || "";
+}
+
+function coarseLocationFromHeaders(req: Request) {
+  const city = firstHeader(req, ["x-vercel-ip-city", "cf-ipcity"]);
+  const region = firstHeader(req, [
+    "x-vercel-ip-country-region",
+    "cf-region-code",
+  ]);
+  const country = firstHeader(req, ["x-vercel-ip-country", "cf-ipcountry"]);
+
+  return {
+    city,
+    region,
+    country,
+    summary: [city, region, country].filter(Boolean).join(", "),
+  };
+}
+
 function requestState(row: ApprovalRow) {
   const ownerApproved = row.owner_approved === true;
   const targetApproved = row.target_approved === true;
@@ -346,6 +381,10 @@ export async function POST(req: Request) {
 
     const sb = admin();
 
+    const initiatorIp = extractClientIp(req);
+    const initiatorGeo = coarseLocationFromHeaders(req);
+    const initiatorUserAgent = (req.headers.get("user-agent") || "").trim();
+
     const { data, error } = await sb
       .from("contact_approval_requests")
       .select(
@@ -399,6 +438,25 @@ export async function POST(req: Request) {
         })
         .eq("id", requestId);
 
+      const addedType = clean(row.added_type).toLowerCase();
+      const contactRowId = clean(row.contact_row_id);
+
+      if (contactRowId) {
+        if (addedType === "emergency") {
+          await sb
+            .from("emergency_contacts")
+            .update({ approval_status: "expired" })
+            .eq("id", contactRowId)
+            .eq("approval_status", "pending");
+        } else if (addedType === "sos") {
+          await sb
+            .from("sos_contacts")
+            .update({ approval_status: "expired" })
+            .eq("id", contactRowId)
+            .eq("approval_status", "pending");
+        }
+      }
+
       return NextResponse.json({
         ok: false,
         state: "expired",
@@ -428,6 +486,11 @@ export async function POST(req: Request) {
 
     const patch: Record<string, unknown> = {
       updated_at: toIsoNow(),
+      last_action_ip: initiatorIp || null,
+      last_action_user_agent: initiatorUserAgent || null,
+      last_action_country: initiatorGeo.country || null,
+      last_action_region: initiatorGeo.region || null,
+      last_action_city: initiatorGeo.city || null,
     };
 
     if (actor === "owner") {
@@ -435,10 +498,20 @@ export async function POST(req: Request) {
         patch.owner_approved = true;
         patch.owner_declined = false;
         patch.owner_completed_at = toIsoNow();
+        patch.owner_ip = initiatorIp || null;
+        patch.owner_user_agent = initiatorUserAgent || null;
+        patch.owner_country = initiatorGeo.country || null;
+        patch.owner_region = initiatorGeo.region || null;
+        patch.owner_city = initiatorGeo.city || null;
       } else {
         patch.owner_declined = true;
         patch.owner_approved = false;
         patch.owner_completed_at = toIsoNow();
+        patch.owner_ip = initiatorIp || null;
+        patch.owner_user_agent = initiatorUserAgent || null;
+        patch.owner_country = initiatorGeo.country || null;
+        patch.owner_region = initiatorGeo.region || null;
+        patch.owner_city = initiatorGeo.city || null;
         patch.status = "declined";
         patch.decided_at = toIsoNow();
       }
@@ -447,10 +520,20 @@ export async function POST(req: Request) {
         patch.target_approved = true;
         patch.target_declined = false;
         patch.target_completed_at = toIsoNow();
+        patch.target_ip = initiatorIp || null;
+        patch.target_user_agent = initiatorUserAgent || null;
+        patch.target_country = initiatorGeo.country || null;
+        patch.target_region = initiatorGeo.region || null;
+        patch.target_city = initiatorGeo.city || null;
       } else {
         patch.target_declined = true;
         patch.target_approved = false;
         patch.target_completed_at = toIsoNow();
+        patch.target_ip = initiatorIp || null;
+        patch.target_user_agent = initiatorUserAgent || null;
+        patch.target_country = initiatorGeo.country || null;
+        patch.target_region = initiatorGeo.region || null;
+        patch.target_city = initiatorGeo.city || null;
         patch.status = "declined";
         patch.decided_at = toIsoNow();
       }
@@ -528,8 +611,13 @@ export async function POST(req: Request) {
       const approvedContact = await loadApprovedContactItem(sb, nextRow);
 
       await invokeInternalEdge("contact_added_notify", {
+        adder_user_id: clean(nextRow.requester_id),
         added_type: approvedContact.addedType,
         adder_name: clean(nextRow.requester_name) || "StayKnown User",
+        requester_email_masked: clean(nextRow.requester_email_masked),
+        target_name: clean(nextRow.target_name),
+        target_email_masked: clean(nextRow.target_email_masked),
+        request_id: clean(nextRow.id),
         items: [approvedContact.item],
       });
 
