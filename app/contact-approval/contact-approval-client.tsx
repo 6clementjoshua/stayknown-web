@@ -453,14 +453,15 @@ export default function ContactApprovalClient({
         return;
       }
 
-      setUiState("waiting");
       setMessage(
         actor === "owner"
           ? "Your confirmation has been recorded. The request will complete when the contact email owner also confirms."
           : "Your confirmation has been recorded. The request will complete when the account owner also confirms.",
       );
 
-      startPolling();
+      window.setTimeout(() => {
+        startPolling();
+      }, 300);
     } catch {
       setUiState("error");
       setMessage(
@@ -627,6 +628,18 @@ export default function ContactApprovalClient({
                 <AnimatedDecline />
               ) : null}
             </div>
+            <div className="mt-8 flex min-h-[118px] items-center justify-center">
+              {uiState === "working" ? (
+                <GlassSpinner />
+              ) : uiState === "approved" ? (
+                <AnimatedCheck />
+              ) : uiState === "declined" ||
+                uiState === "expired" ||
+                uiState === "invalid" ||
+                uiState === "error" ? (
+                <AnimatedDecline />
+              ) : null}
+            </div>
           </div>
 
           <div className="px-6 pb-6 pt-2 md:px-8 md:pb-8">
@@ -657,13 +670,11 @@ export default function ContactApprovalClient({
             )}
 
             {uiState === "waiting" && (
-              <div className="flex flex-col items-stretch justify-center gap-3 sm:flex-row">
-                <SweepButton
-                  tone="green"
-                  onClick={() => window.location.reload()}
-                >
-                  Refresh status
-                </SweepButton>
+              <div className="flex flex-col items-center justify-center gap-3">
+                <GlassSpinner />
+                <div className="text-center text-[13px] font-bold text-black/62">
+                  Waiting for the other confirmation…
+                </div>
               </div>
             )}
 
