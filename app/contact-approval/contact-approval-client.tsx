@@ -223,12 +223,8 @@ export default function ContactApprovalClient({
   const [busy, setBusy] = React.useState(false);
   const [message, setMessage] = React.useState("");
   const [remaining, setRemaining] = React.useState(formatRemaining(exp));
-  const [ownerDone, setOwnerDone] = React.useState(
-    actor === "owner" && decision === "approve",
-  );
-  const [targetDone, setTargetDone] = React.useState(
-    actor === "target" && decision === "approve",
-  );
+  const [ownerDone, setOwnerDone] = React.useState(false);
+  const [targetDone, setTargetDone] = React.useState(false);
   const [requestType, setRequestType] = React.useState("contact");
   const [requesterName, setRequesterName] = React.useState("StayKnown user");
   const [requesterEmailMasked, setRequesterEmailMasked] = React.useState("");
@@ -252,80 +248,125 @@ export default function ContactApprovalClient({
     return () => window.clearInterval(timer);
   }, [exp]);
 
+  const pollStopRef = React.useRef(false);
+  const pollTimerRef = React.useRef<number | null>(null);
+
+  const clearPolling = React.useCallback(() => {
+    pollStopRef.current = true;
+    if (pollTimerRef.current !== null) {
+      window.clearTimeout(pollTimerRef.current);
+      pollTimerRef.current = null;
+    }
+  }, []);
+
+  const syncApprovalStatus = React.useCallback(async () => {
+    const res = await fetch(
+      `/api/contact-approval/status?rid=${encodeURIComponent(requestId)}`,
+      { cache: "no-store" },
+    );
+
+    const data = (await res.json().catch(() => ({}))) as ActionResp;
+    if (!data?.ok) {
+      return false;
+    }
+
+    const req = data.request;
+    const ownerApproved = req?.owner_approved === true;
+    const targetApproved = req?.target_approved === true;
+    const ownerDeclined = req?.owner_declined === true;
+    const targetDeclined = req?.target_declined === true;
+
+    setOwnerDone(ownerApproved);
+    setTargetDone(targetApproved);
+    setRequestType(typeLabel(req?.added_type));
+    setRequesterName((req?.requester_name || "StayKnown user").trim());
+    setRequesterEmailMasked((req?.requester_email_masked || "").trim());
+    setTargetName((req?.target_name || "contact").trim());
+    setTargetEmailMasked((req?.target_email_masked || "").trim());
+
+    if (ownerDeclined || targetDeclined || data.state === "declined") {
+      setUiState("declined");
+      setMessage("This request was declined. The email will not be added.");
+      return true;
+    }
+
+    if (data.state === "expired" || req?.status === "expired") {
+      setUiState("expired");
+      setMessage(
+        "This request expired for security reasons. A fresh approval process is required.",
+      );
+      return true;
+    }
+
+    if (data.state === "fully_approved" || (ownerApproved && targetApproved)) {
+      setUiState("approved");
+      setMessage(
+        "Both confirmations are complete. The contact has now been added successfully.",
+      );
+      return true;
+    }
+
+    setUiState("waiting");
+    setMessage(
+      actor === "owner"
+        ? "Your confirmation has been recorded. The request will complete when the contact email owner also confirms."
+        : "Your confirmation has been recorded. The request will complete when the account owner also confirms.",
+    );
+
+    return false;
+  }, [actor, requestId]);
+
   const startPolling = React.useCallback(() => {
-    let stop = false;
+    clearPolling();
+    pollStopRef.current = false;
 
     async function tick() {
+      if (pollStopRef.current) return;
+
       try {
-        const res = await fetch(
-          `/api/contact-approval/status?rid=${encodeURIComponent(requestId)}`,
-          { cache: "no-store" },
-        );
-        const data = (await res.json().catch(() => ({}))) as ActionResp;
-
-        if (stop || !data?.ok) return;
-
-        const req = data.request;
-        const ownerApproved = req?.owner_approved === true;
-        const targetApproved = req?.target_approved === true;
-        const ownerDeclined = req?.owner_declined === true;
-        const targetDeclined = req?.target_declined === true;
-
-        setOwnerDone(ownerApproved);
-        setTargetDone(targetApproved);
-        setRequestType(typeLabel(req?.added_type));
-        setRequesterName((req?.requester_name || "StayKnown user").trim());
-        setRequesterEmailMasked((req?.requester_email_masked || "").trim());
-        setTargetName((req?.target_name || "contact").trim());
-        setTargetEmailMasked((req?.target_email_masked || "").trim());
-
-        if (ownerDeclined || targetDeclined || data.state === "declined") {
-          setUiState("declined");
-          setMessage(
-            ownerDeclined && actor === "owner"
-              ? "You declined this request. The email will not be added."
-              : targetDeclined && actor === "target"
-                ? "You declined this request. The email will not be added."
-                : "This request was declined. The email will not be added.",
-          );
-          stop = true;
+        const done = await syncApprovalStatus();
+        if (done || pollStopRef.current) {
+          clearPolling();
           return;
         }
-
-        if (data.state === "expired" || req?.status === "expired") {
-          setUiState("expired");
-          setMessage(
-            "This request expired for security reasons. A fresh approval process is required.",
-          );
-          stop = true;
-          return;
-        }
-
-        if (
-          data.state === "fully_approved" ||
-          (ownerApproved && targetApproved)
-        ) {
-          setUiState("approved");
-          setMessage(
-            "Both confirmations are complete. The contact has now been added successfully.",
-          );
-          stop = true;
-          return;
-        }
-
-        setUiState("waiting");
       } catch {}
-      if (!stop) {
-        window.setTimeout(tick, 2500);
+
+      if (!pollStopRef.current) {
+        pollTimerRef.current = window.setTimeout(tick, 1800);
       }
     }
 
     void tick();
+  }, [clearPolling, syncApprovalStatus]);
+
+  React.useEffect(() => {
+    let cancelled = false;
+
+    async function boot() {
+      try {
+        const done = await syncApprovalStatus();
+        if (cancelled) return;
+
+        if (!done) {
+          startPolling();
+        }
+      } catch {
+        if (!cancelled) {
+          setUiState("error");
+          setMessage(
+            "This request could not be loaded right now. Pull to refresh or try again shortly.",
+          );
+        }
+      }
+    }
+
+    void boot();
 
     return () => {
-      stop = true;
+      cancelled = true;
+      clearPolling();
     };
-  }, [actor, requestId]);
+  }, [clearPolling, startPolling, syncApprovalStatus]);
 
   async function submitFinalDecision() {
     if (busy) return;
@@ -616,18 +657,6 @@ export default function ContactApprovalClient({
               </div>
             )}
 
-            <div className="mt-8 flex min-h-[118px] items-center justify-center">
-              {uiState === "working" ? (
-                <GlassSpinner />
-              ) : uiState === "approved" ? (
-                <AnimatedCheck />
-              ) : uiState === "declined" ||
-                uiState === "expired" ||
-                uiState === "invalid" ||
-                uiState === "error" ? (
-                <AnimatedDecline />
-              ) : null}
-            </div>
             <div className="mt-8 flex min-h-[118px] items-center justify-center">
               {uiState === "working" ? (
                 <GlassSpinner />

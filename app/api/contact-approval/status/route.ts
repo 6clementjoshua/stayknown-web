@@ -49,7 +49,11 @@ function requestState(row: ApprovalRow) {
   const ownerDeclined = row.owner_declined === true;
   const targetDeclined = row.target_declined === true;
 
-  if (ownerDeclined || targetDeclined || row.status === "declined") {
+  if (
+    ownerDeclined ||
+    targetDeclined ||
+    clean(row.status).toLowerCase() === "declined"
+  ) {
     return "declined" as const;
   }
 
@@ -129,7 +133,7 @@ export async function GET(req: Request) {
 
     const state = requestState(row);
 
-    if (state === "expired" && row.status !== "expired") {
+    if (state === "expired" && clean(row.status).toLowerCase() !== "expired") {
       await sb
         .from("contact_approval_requests")
         .update({
