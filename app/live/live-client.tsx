@@ -35,6 +35,9 @@ const INITIAL_VIEW_ZOOM = 14.1;
 const FALLBACK_CENTER: [number, number] = [8.3349, 4.5736];
 const FALLBACK_ZOOM = 12.8;
 const MOVE_FOLLOW_THRESHOLD_METERS = 28;
+const MAP_LOAD_TIMEOUT_MS = 16000;
+const MAP_AUTO_RETRY_LIMIT = 2;
+const MAP_RETRY_DELAY_MS = 900;
 
 function distanceMeters(
   aLat: number,
@@ -441,6 +444,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
   const [lastUpdatedLabel, setLastUpdatedLabel] = React.useState(
     "Waiting for update…",
   );
+  const [mapRetrying, setMapRetrying] = React.useState(false);
   const [destinationLabel, setDestinationLabel] =
     React.useState("Last session");
   const [browserHint, setBrowserHint] = React.useState("");
@@ -909,8 +913,6 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
     };
 
     async function bootTomTomMap(seed: SeedResp) {
-      if (!mapDivRef.current) throw new Error("Map container missing");
-
       const tomtomStyleUrl = getTomTomStyleUrl();
       const tomtomKey = (process.env.NEXT_PUBLIC_TOMTOM_API_KEY || "").trim();
 
@@ -932,64 +934,150 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
 
       const initialZoom = hasLatest ? INITIAL_VIEW_ZOOM : 2.4;
 
-      const map = new maplibregl.Map({
-        container: mapDivRef.current,
-        style: tomtomStyleUrl,
-        center: initialCenter,
-        zoom: initialZoom,
-        minZoom: 3,
-        maxZoom: 19,
-        attributionControl: false,
-        dragRotate: false,
-        pitchWithRotate: false,
-        trackResize: true,
-        fadeDuration: 0,
-        transformRequest: (url) => ({
-          url,
-          headers: {
-            "TomTom-Api-Key": tomtomKey,
-          },
-        }),
-      });
-      mapRef.current = map;
+      let lastError: Error | null = null;
 
-      await new Promise<void>((resolve, reject) => {
-        const timeout = setTimeout(() => {
-          setMapLoadError("The live map could not be rendered.");
-          reject(new Error("The live map could not be rendered."));
-        }, 8000);
+      for (let attempt = 0; attempt <= MAP_AUTO_RETRY_LIMIT; attempt++) {
+        if (!mapDivRef.current) {
+          throw new Error("Map container missing");
+        }
 
-        map.once("load", () => {
-          clearTimeout(timeout);
+        if (closed) return;
 
-          setMapReady(true);
-
-          map.resize();
-          window.requestAnimationFrame(() => {
-            map.resize();
-          });
-          setTimeout(() => {
-            map.resize();
-          }, 150);
-          setTimeout(() => {
-            map.resize();
-          }, 500);
-
-          resolve();
-        });
-
-        map.once("error", () => {
-          clearTimeout(timeout);
+        try {
+          setMapLoadError("");
           setMapReady(false);
-          reject(new Error("The live map could not be rendered."));
-        });
-      });
+          setMapRetrying(attempt > 0);
 
-      syncFromSeed(seed);
+          if (mapRef.current) {
+            try {
+              mapRef.current.remove();
+            } catch {}
+            mapRef.current = null;
+          }
 
-      if (!seed.ended) {
-        connectStream();
+          if (markerRef.current) {
+            try {
+              markerRef.current.remove();
+            } catch {}
+            markerRef.current = null;
+          }
+
+          clearPoiMarkers();
+
+          const map = new maplibregl.Map({
+            container: mapDivRef.current,
+            style: tomtomStyleUrl,
+            center: initialCenter,
+            zoom: initialZoom,
+            minZoom: 3,
+            maxZoom: 19,
+            attributionControl: false,
+            dragRotate: false,
+            pitchWithRotate: false,
+            trackResize: true,
+            fadeDuration: 0,
+            transformRequest: (url) => ({
+              url,
+              headers: {
+                "TomTom-Api-Key": tomtomKey,
+              },
+            }),
+          });
+
+          mapRef.current = map;
+
+          await new Promise<void>((resolve, reject) => {
+            let settled = false;
+
+            const finish = (fn: () => void) => {
+              if (settled) return;
+              settled = true;
+              fn();
+            };
+
+            const timeout = setTimeout(() => {
+              finish(() => {
+                reject(
+                  new Error("The live map is taking longer than expected."),
+                );
+              });
+            }, MAP_LOAD_TIMEOUT_MS);
+
+            map.once("load", () => {
+              finish(() => {
+                clearTimeout(timeout);
+
+                setMapReady(true);
+                setMapLoadError("");
+
+                map.resize();
+                window.requestAnimationFrame(() => {
+                  map.resize();
+                });
+                setTimeout(() => {
+                  map.resize();
+                }, 150);
+                setTimeout(() => {
+                  map.resize();
+                }, 500);
+
+                resolve();
+              });
+            });
+
+            map.once("error", () => {
+              finish(() => {
+                clearTimeout(timeout);
+                setMapReady(false);
+                reject(new Error("The live map could not be rendered yet."));
+              });
+            });
+          });
+
+          setMapRetrying(false);
+          syncFromSeed(seed);
+
+          if (!seed.ended) {
+            connectStream();
+          }
+
+          return;
+        } catch (error) {
+          lastError =
+            error instanceof Error
+              ? error
+              : new Error("The live map could not be rendered.");
+
+          setMapReady(false);
+
+          if (mapRef.current) {
+            try {
+              mapRef.current.remove();
+            } catch {}
+            mapRef.current = null;
+          }
+
+          if (markerRef.current) {
+            try {
+              markerRef.current.remove();
+            } catch {}
+            markerRef.current = null;
+          }
+
+          clearPoiMarkers();
+
+          if (attempt < MAP_AUTO_RETRY_LIMIT) {
+            setMapLoadError("Reloading map…");
+            await new Promise((r) => setTimeout(r, MAP_RETRY_DELAY_MS));
+            continue;
+          }
+
+          setMapRetrying(false);
+          throw lastError;
+        }
       }
+
+      throw lastError ?? new Error("The live map could not be rendered.");
     }
 
     async function bootFallback(seed: SeedResp) {
@@ -1361,8 +1449,18 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
 
       {mapLoadError && (
         <div className="absolute top-[124px] left-1/2 -translate-x-1/2 z-20">
-          <div className="rounded-full bg-red-50 border border-red-200 shadow-md px-3 py-2">
-            <span className="text-[10px] tracking-[0.12em] font-bold text-red-600 whitespace-nowrap">
+          <div
+            className={`rounded-full border shadow-md px-3 py-2 ${
+              mapRetrying
+                ? "bg-white/88 border-white/90"
+                : "bg-red-50 border-red-200"
+            }`}
+          >
+            <span
+              className={`text-[10px] tracking-[0.12em] font-bold whitespace-nowrap ${
+                mapRetrying ? "text-black/62" : "text-red-600"
+              }`}
+            >
               {mapLoadError}
             </span>
           </div>
