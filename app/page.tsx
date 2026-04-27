@@ -32,6 +32,14 @@ export default function Page() {
           "LIVE sharing is tied to an active Visit, helping trusted contacts understand where the user is while safety tracking is active.",
       },
       {
+        id: "live-map",
+        src: "/hero/live-map.png",
+        kind: "device",
+        title: "Live Map for Approved Contacts",
+        teaser:
+          "Approved contacts can open a safety map only from the user’s permitted Visit or SOS flow, with privacy notice, session context, and lawful-use boundaries.",
+      },
+      {
         id: "promax-shell",
         src: "/hero/promax-shell.png",
         kind: "device",
