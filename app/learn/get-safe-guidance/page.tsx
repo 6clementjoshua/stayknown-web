@@ -11,7 +11,7 @@ const seo = {
   description:
     "GET SAFE is the StayKnown mission: helping people move, visit, communicate, and share safety context with trusted people wherever they go.",
   url: "https://stay-known.com/learn/get-safe-guidance",
-  image: "https://stay-known.com/hero/get-safe-guidance.png",
+  image: "https://stay-known.com/hero/get-safe-hints.png",
 };
 
 function MobileNavLink({ href, label }: { href: string; label: string }) {
@@ -559,7 +559,7 @@ export default function LearnGetSafeGuidancePage() {
 
             <div className="order-2 lg:order-none lg:col-start-1 flex items-start justify-center lg:justify-start">
               <img
-                src="/hero/get-safe-guidance.png"
+                src="/hero/get-safe-hints.png"
                 alt="GET SAFE StayKnown safety mission"
                 draggable={false}
                 className="

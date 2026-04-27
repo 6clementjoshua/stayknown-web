@@ -13,7 +13,7 @@ export default function Page() {
         kind: "device",
         title: "GET SAFE",
         teaser:
-          "StayKnown was created by 6 Clement Joshua to help people move, visit, chat, share safety context, and stay connected to trusted people wherever they go.",
+          "StayKnown was created by 6Clement Joshua to help people move, visit, chat, share safety context, and stay connected to trusted people wherever they go.",
       },
       {
         id: "visit-live-sos",
