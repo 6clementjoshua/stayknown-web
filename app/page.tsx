@@ -7,22 +7,29 @@ import HeroSlider, { type HeroSlide } from "../components/HeroSlider";
 export default function Page() {
   const slides: HeroSlide[] = useMemo(
     () => [
-      // ✅ existing 3
+      {
+        id: "get-safe-guidance",
+        src: "/hero/get-safe-hints.png",
+        kind: "device",
+        title: "GET SAFE",
+        teaser:
+          "StayKnown was created by 6 Clement Joshua to help people move, visit, chat, share safety context, and stay connected to trusted people wherever they go.",
+      },
       {
         id: "visit-live-sos",
         src: "/hero/visit-live-sos.png",
         kind: "device",
         title: "Live Visit + SOS Ready",
         teaser:
-          "When a visit starts, Live mode turns on — with SOS on standby to escalate quickly if needed.",
+          "Start a Visit, keep LIVE context active, and keep SOS close when the situation needs urgent escalation.",
       },
       {
         id: "visit-live",
         src: "/hero/visit-live.png",
         kind: "device",
-        title: "Live Location Emitter",
+        title: "Visit + LIVE Protection",
         teaser:
-          "Live updates occur only during an active visit. End the visit and sharing stops immediately.",
+          "LIVE sharing is tied to an active Visit, helping trusted contacts understand where the user is while safety tracking is active.",
       },
       {
         id: "promax-shell",
@@ -30,17 +37,39 @@ export default function Page() {
         kind: "device",
         title: "ProMax MainShell",
         teaser:
-          "A collapsed premium shell — calmer navigation that feels like hardware, while keeping safety one tap away.",
+          "A premium, plan-aware navigation shell built for fast access to safety, contacts, chat, profile, and high-value actions.",
       },
-
-      // ✅ NEW 3 (make sure these images exist in /public/hero/)
+      {
+        id: "manual-capture",
+        src: "/hero/manual-capture.png",
+        kind: "device",
+        title: "Manual Emergency Capture",
+        teaser:
+          "During an active Visit, users can send an extra safety location update without disturbing the normal tracking rhythm.",
+      },
+      {
+        id: "sos-activated",
+        src: "/hero/sos-activated.png",
+        kind: "device",
+        title: "SOS Active State",
+        teaser:
+          "When SOS is active, StayKnown shifts into a high-clarity emergency state so the user knows escalation is running.",
+      },
+      {
+        id: "sos-live-idle",
+        src: "/hero/sos-live-idle.png",
+        kind: "device",
+        title: "SOS Ready, Not Confusing",
+        teaser:
+          "The SOS surface stays simple and readable, helping users understand when SOS is available and when it is not active.",
+      },
       {
         id: "end-sos-verify",
         src: "/hero/end-sos-verify.png",
         kind: "device",
-        title: "End SOS — Verified Stop (Pro / ProMax)",
+        title: "End SOS — Verified Stop",
         teaser:
-          "If verification is enabled, ending SOS requires a secure confirmation to prevent accidental or forced stops.",
+          "When protection is active, ending SOS can require a stronger confirmation so emergency protection is not stopped by mistake.",
       },
       {
         id: "end-visit-verify",
@@ -48,18 +77,66 @@ export default function Page() {
         kind: "device",
         title: "End Visit — Confirmed Finish",
         teaser:
-          "For normal safety visits, enable confirmation so ending a Visit requires biometrics or PIN when your toggle is on.",
+          "Visit completion can use a confirmation-first flow so safety sessions end with intent, not accidental taps.",
       },
       {
-        id: "secure-chat-passcode",
-        src: "/hero/secure-chat-passcode.png",
+        id: "vpn-safety-gate",
+        src: "/hero/vpn-safety-gate.png",
         kind: "device",
-        title: "Secure Chat — Passcode Gate (Pro / ProMax)",
+        title: "VPN Safety Gate",
         teaser:
-          "New chats require a 5-minute passcode delivered to email. Requests include identity + safety context and a labeled image (Live Capture or Gallery).",
+          "StayKnown protects location reliability by warning or blocking flows when VPN usage can reduce safety accuracy.",
+      },
+      {
+        id: "secure-chat-biometric",
+        src: "/hero/secure-chat-biometric.png",
+        kind: "device",
+        title: "Secure Chat Protection",
+        teaser:
+          "StayKnown Chat can work with biometric or device-level protection so private safety conversations stay harder to access.",
+      },
+      {
+        id: "chat-translation",
+        src: "/hero/chat-translation.png",
+        kind: "device",
+        title: "Language-Aware Chat",
+        teaser:
+          "StayKnown Chat is built for multilingual communication with translation-aware message handling and recipient language preferences.",
+      },
+      {
+        id: "chat-stickers-voice",
+        src: "/hero/chat-stickers-voice.png",
+        kind: "device",
+        title: "Voice Notes + Stickers",
+        teaser:
+          "Users can send voice notes, custom stickers, voice stickers, music stickers, video stickers, media, and expressive chat content while the safety-first chat layer stays polished.",
+      },
+      {
+        id: "contact-approval",
+        src: "/hero/contact-approval.png",
+        kind: "device",
+        title: "Consent-Based Contacts",
+        teaser:
+          "Emergency contacts and SOS responders use approval flows so safety access remains intentional, trusted, and auditable.",
+      },
+      {
+        id: "safety-gallery",
+        src: "/hero/safety-gallery.png",
+        kind: "device",
+        title: "Safety Gallery",
+        teaser:
+          "Profile and safety images help trusted contacts recognize the user during Visits, SOS alerts, and safety communication.",
+      },
+      {
+        id: "stories-profile",
+        src: "/hero/stories-profile.png",
+        kind: "device",
+        title: "Stories + Profile Trust",
+        teaser:
+          "Stories, avatars, names, and profile surfaces help users recognize who they are connecting with before conversations begin.",
       },
     ],
-    []
+    [],
   );
 
   return (
@@ -82,20 +159,16 @@ export default function Page() {
         </div>
       </header>
 
-      {/* HERO */}
-      <section className="w-full">
+      {/* HERO ONLY */}
+      <section className="w-full flex-1">
         <div className="mx-auto max-w-6xl px-4 pt-5">
           <HeroSlider slides={slides} intervalMs={6000} />
         </div>
 
-        {/* ✅ Mobile safety spacing (prevents device hitting footer) */}
-        <div className="h-12 sm:h-0" />
+        <div className="h-8 sm:h-10" />
       </section>
 
-      {/* ✅ Reduced gap so footer is closer (helps chevrons sit centered visually) */}
-      <section className="h-8 sm:h-10 md:h-12 lg:h-14" />
-
-      {/* ✅ Footer now visible on mobile too */}
+      {/* Footer */}
       <footer className="w-full">
         <div className="mx-auto max-w-6xl px-4 pb-7 sm:pb-10">
           <div className="h-px bg-white/[0.08]" />

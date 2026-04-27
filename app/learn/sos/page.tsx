@@ -6,19 +6,22 @@ import { useMemo, useState } from "react";
 
 type Tier = "Starter" | "Pro" | "ProMax";
 
+const seo = {
+  title: "SOS Active State | StayKnown Emergency Safety Escalation",
+  description:
+    "Learn how StayKnown SOS changes the app into an urgent safety posture with trusted-contact context, clear state language, Pro and ProMax gating, and law-abiding emergency safety guidance.",
+  url: "https://stay-known.com/learn/sos",
+  image: "https://stay-known.com/hero/sos-activated.png",
+};
+
 function MobileNavLink({ href, label }: { href: string; label: string }) {
   return (
     <Link
       href={href}
       className="
-        relative inline-flex items-center gap-2
-        px-0 py-2
+        relative inline-flex items-center gap-2 px-0 py-2
         text-[11.5px] font-semibold tracking-[-0.01em]
-        text-white/68
-        transition
-        hover:text-white/90
-        active:text-white
-        select-none
+        text-white/68 transition hover:text-white/90 active:text-white select-none
       "
     >
       <span>{label}</span>
@@ -35,9 +38,7 @@ function CTA({ href, label }: { href: string; label: string }) {
       className="
         group relative hidden sm:inline-flex items-center justify-center
         h-8 md:h-[34px] px-3.5 md:px-4 rounded-full
-        border border-white/14
-        bg-white/[0.055]
-        text-white
+        border border-white/14 bg-white/[0.055] text-white
         font-semibold text-[11.5px] md:text-[12px] tracking-[-0.01em]
         shadow-[0_16px_42px_rgba(0,0,0,0.55)]
         transition-all duration-200
@@ -59,13 +60,9 @@ function MonoIcon({ glyph }: { glyph: string }) {
     <div
       className="
         shrink-0 w-9 h-9 rounded-xl
-        border border-white/12
-        bg-white/[0.045]
-        backdrop-blur-md
-        flex items-center justify-center
-        text-white/90
-        text-[14px]
-        leading-none
+        border border-white/12 bg-white/[0.045]
+        backdrop-blur-md flex items-center justify-center
+        text-white/90 text-[14px] leading-none
         shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_14px_35px_rgba(0,0,0,0.35)]
       "
       aria-hidden
@@ -117,6 +114,7 @@ function PlanTabs({
 }) {
   const Tab = ({ t }: { t: Tier }) => {
     const active = tier === t;
+
     return (
       <button
         onClick={() => setTier(t)}
@@ -139,6 +137,7 @@ function PlanTabs({
 
   const Pill = ({ t }: { t: Tier }) => {
     const active = tier === t;
+
     return (
       <button
         onClick={() => setTier(t)}
@@ -187,20 +186,18 @@ function FeatureCard({
     <div
       className="
         group relative overflow-hidden rounded-[24px]
-        border border-white/10
-        bg-white/[0.035]
+        border border-white/10 bg-white/[0.035]
         shadow-[0_24px_78px_rgba(0,0,0,0.58)]
-        p-5 sm:p-6
-        transition-all duration-300
-        hover:-translate-y-0.5
-        hover:border-white/18
-        hover:bg-white/[0.05]
+        p-5 sm:p-6 transition-all duration-300
+        hover:-translate-y-0.5 hover:border-white/18 hover:bg-white/[0.05]
       "
     >
       <div className="pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100 transition duration-300 bg-[radial-gradient(circle_at_18%_12%,rgba(255,255,255,0.12),transparent_60%)]" />
       <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-white/10" />
+
       <div className="relative flex items-start gap-3">
         <MonoIcon glyph={glyph} />
+
         <div className="min-w-0">
           <div className="text-white/95 font-black tracking-[-0.025em] text-[14px] sm:text-[15px]">
             {title}
@@ -232,11 +229,12 @@ function TierBlock({
           <div className="text-white/95 font-black tracking-[-0.025em] text-[14px] sm:text-[15px]">
             {tier}
           </div>
-          {highlight && (
+
+          {highlight ? (
             <div className="text-[10px] font-black tracking-[0.22em] text-white/56">
-              FULL POSTURE
+              HIGHEST READINESS
             </div>
-          )}
+          ) : null}
         </div>
 
         <ul className="mt-4 space-y-2.5">
@@ -308,28 +306,71 @@ function MiniStat({
   );
 }
 
-function SoliloquyBox() {
+function CompareStateCard({
+  image,
+  title,
+  label,
+  body,
+}: {
+  image: string;
+  title: string;
+  label: string;
+  body: string;
+}) {
+  return (
+    <div className="relative overflow-hidden rounded-[24px] border border-white/10 bg-black/25 p-4 shadow-[0_22px_70px_rgba(0,0,0,0.55)]">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_24%_12%,rgba(255,255,255,0.09),transparent_58%)]" />
+
+      <div className="relative grid grid-cols-[92px_1fr] gap-4 items-center sm:grid-cols-[116px_1fr]">
+        <div className="relative flex justify-center">
+          <img
+            src={image}
+            alt={title}
+            draggable={false}
+            className="max-h-[170px] w-auto object-contain drop-shadow-[0_18px_50px_rgba(0,0,0,0.7)]"
+          />
+        </div>
+
+        <div>
+          <div className="text-[10px] font-black tracking-[0.22em] text-white/35 uppercase">
+            {label}
+          </div>
+          <div className="mt-2 text-[15px] sm:text-[17px] font-black tracking-[-0.035em] text-white">
+            {title}
+          </div>
+          <p className="mt-2 text-[12.4px] leading-relaxed font-medium text-white/56">
+            {body}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ScenarioBox() {
   return (
     <PremiumPanel>
       <div className="p-5 sm:p-6">
         <SectionLabel>Scenario thinking</SectionLabel>
+
         <div className="mt-3 text-[19px] sm:text-[24px] font-black tracking-[-0.045em] leading-tight text-white">
-          “I started a Visit. I want someone I trust to understand that I am
-          actively moving, not just guessing where I am.”
+          “When I press SOS, the app should become unmistakably urgent — not
+          loud for decoration, but clear enough that everyone understands the
+          state changed.”
         </div>
+
         <div className="mt-4 space-y-3 text-[12.7px] leading-relaxed text-white/58 font-medium">
           <p>
-            That is the role of the Live Location Emitter. It turns an active
-            Visit into a readable safety posture. The app is not trying to
-            create silent, always-on surveillance. It is trying to make a
-            user-started safety session easier for trusted people to follow.
+            This page focuses on SOS as a state language. It is about what the
+            app communicates after activation: urgency, recipient attention,
+            user identity, current safety context, and the difference between
+            standby and escalation.
           </p>
+
           <p>
-            For visitors, this makes StayKnown easier to understand. For
-            investors, it shows the platform is built around intentional safety
-            sessions, not just location dots. For policy and law-enforcement
-            readers, it clarifies that the product is scoped to user safety and
-            anti-abuse boundaries.
+            The deeper mechanics of Visits, Manual Capture, and Verified Stop
+            are explained on their own pages so SOS can stay focused on what
+            changes when the user enters an urgent protection posture.
           </p>
         </div>
       </div>
@@ -337,28 +378,28 @@ function SoliloquyBox() {
   );
 }
 
-export default function LearnVisitLivePage() {
-  const [tier, setTier] = useState<Tier>("Starter");
+export default function LearnSosPage() {
+  const [tier, setTier] = useState<Tier>("Pro");
 
   const tierCopy = useMemo(() => {
     return {
       Starter: [
-        "Live sharing is scoped to an active Visit. The user starts the Visit, the session becomes active, and LIVE context follows that session.",
-        "When the Visit ends, the live-sharing posture ends too. This keeps the safety boundary clear.",
-        "Trusted recipients can understand the session as a safety update, not a random or confusing location ping.",
-        "Starter is best for everyday check-ins, basic movement safety, and users who want simple Visit-based sharing.",
+        "Starter can learn how SOS works, but active SOS escalation is locked to paid safety plans.",
+        "Starter users should rely on basic Visit safety and trusted setup until they upgrade for SOS readiness.",
+        "The public SOS explanation remains visible so users understand what they unlock before subscribing.",
+        "Starter should still show lawful use, consent, and emergency disclaimer language clearly.",
       ],
       Pro: [
-        "Pro adds SOS escalation on top of the Visit/LIVE flow, so the user can move from routine safety sharing to urgent attention when needed.",
-        "Useful for users who frequently travel at night, meet new people, move through unfamiliar areas, or need stronger safety readiness.",
-        "Recipients can better distinguish ordinary Visit context from urgent escalation.",
-        "Pro is the practical upgrade for users who want more than basic check-ins while keeping the experience direct.",
+        "Pro unlocks SOS activation for urgent safety moments when the user needs trusted people to pay attention immediately.",
+        "The app can shift from ordinary safety context into a clearer emergency posture with stronger visual language.",
+        "Trusted contacts can receive more serious context than a normal Visit update or Manual Capture checkpoint.",
+        "Pro is the practical SOS tier for users who want emergency readiness without needing the full ProMax experience.",
       ],
       ProMax: [
-        "ProMax provides the most complete StayKnown posture: premium UI, stronger readiness, full safety context, and higher-value experiences.",
-        "Designed for users who want maximum clarity, faster safety habits, and a more polished safety layer.",
-        "Works well for repeated high-stakes routines, frequent movement, public-facing work, travel, and unfamiliar meetings.",
-        "ProMax keeps safety communication premium without making it confusing or overly technical.",
+        "ProMax gives the strongest SOS presentation posture across premium safety, identity, and user-confidence surfaces.",
+        "Best for users who want maximum clarity around urgent states, high-risk movement, frequent travel, or repeated safety routines.",
+        "Pairs naturally with Safety Gallery, stronger contact trust, verified stop behavior, premium shell effects, and polished emergency state design.",
+        "ProMax should feel serious, fast, and refined — urgent without looking chaotic or cheap.",
       ],
     } as Record<Tier, string[]>;
   }, []);
@@ -366,16 +407,46 @@ export default function LearnVisitLivePage() {
   const tierNote: Record<Tier, string> = useMemo(
     () => ({
       Starter:
-        "Starter focuses on basic Visit-based safety sharing. SOS remains a Pro / ProMax capability.",
-      Pro: "SOS should be used responsibly and only for genuine safety concerns. It does not replace emergency services.",
+        "SOS is not available on Starter. Upgrade inside the app so entitlement checks stay verified across devices.",
+      Pro: "SOS should be used for real safety concerns. It is not a prank feature, tracking shortcut, or replacement for emergency services.",
       ProMax:
-        "ProMax is the most complete safety posture for users who want the highest level of clarity and polish.",
+        "ProMax is the highest StayKnown safety posture, but users should still contact local emergency services in immediate danger.",
     }),
     [],
   );
 
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "WebPage",
+    name: seo.title,
+    description: seo.description,
+    url: seo.url,
+    image: seo.image,
+    isPartOf: {
+      "@type": "WebSite",
+      name: "StayKnown",
+      url: "https://stay-known.com",
+    },
+    about: [
+      "StayKnown SOS",
+      "SOS active state",
+      "mobile emergency safety app",
+      "trusted contact alert",
+      "personal safety escalation",
+      "biometric verified stop",
+      "lawful safety communication",
+      "Pro safety plan",
+      "ProMax safety plan",
+    ],
+  };
+
   return (
     <main className="min-h-screen bg-black overflow-hidden">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+
       <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(255,255,255,0.075),transparent_38%),radial-gradient(circle_at_18%_38%,rgba(255,255,255,0.04),transparent_34%),radial-gradient(circle_at_82%_56%,rgba(255,255,255,0.035),transparent_34%)]" />
 
       <header className="relative pt-7">
@@ -392,25 +463,22 @@ export default function LearnVisitLivePage() {
               STAYKNOWN
             </div>
             <div className="text-white/40 font-semibold text-[11px]">
-              Learn • Live Location Emitter
+              Learn • SOS Active State
             </div>
           </div>
 
           <div className="sm:hidden mt-3 flex items-center justify-between">
+            <MobileNavLink href="/" label="Back to Home" />
             <MobileNavLink
-              href="/learn/visit-live-sos"
-              label="Previous: Live + SOS"
-            />
-            <MobileNavLink
-              href="/learn/promax-shell"
-              label="Next: ProMax Shell"
+              href="/learn/verified-stop"
+              label="Next: Verified Stop"
             />
           </div>
 
-          <div className="hidden sm:flex mt-5 flex-wrap items-center justify-center gap-3">
+          <div className="hidden sm:flex mt-5 items-center justify-center gap-3">
             <CTA href="/" label="Back to Home" />
-            <CTA href="/learn/visit-live-sos" label="Previous: Live + SOS" />
-            <CTA href="/learn/promax-shell" label="Next: ProMax MainShell" />
+            <CTA href="/learn/manual-capture" label="Manual Capture" />
+            <CTA href="/learn/verified-stop" label="Next: Verified Stop" />
           </div>
         </div>
       </header>
@@ -419,54 +487,56 @@ export default function LearnVisitLivePage() {
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_18%,rgba(255,255,255,0.065),transparent_58%)]" />
 
         <div className="mx-auto max-w-6xl px-4 pt-8 pb-0">
-          <div className="grid grid-cols-1 lg:grid-cols-[0.95fr_1.05fr] items-start gap-8 lg:gap-10">
+          <div className="grid grid-cols-1 lg:grid-cols-[0.9fr_1.1fr] items-start gap-8 lg:gap-8">
             <div className="order-1 lg:order-none lg:col-start-2">
               <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.045] px-3 py-1.5 text-[10.5px] font-black tracking-[0.20em] text-white/46 uppercase">
-                Visit-bound live context
+                Urgent safety state for Pro and ProMax
               </div>
 
               <h1 className="mt-4 text-white/95 font-black tracking-[-0.06em] text-[38px] sm:text-[54px] lg:text-[60px] leading-[0.94]">
-                Live Location Emitter
+                SOS Active State
               </h1>
 
               <div className="mt-4 max-w-[76ch] space-y-3 text-white/62 font-medium text-[13px] sm:text-[14px] leading-relaxed">
                 <p>
-                  Live updates occur only during an active Visit. This matters
-                  because safety sharing should be intentional, readable, and
-                  time-bounded.
+                  SOS is StayKnown’s urgent safety posture. It is the moment the
+                  interface, contact messaging, and user context should stop
+                  feeling routine and start communicating immediate attention.
                 </p>
+
                 <p>
-                  StayKnown’s Live Location Emitter is not built as a silent
-                  always-on tracker. It is a safety layer that helps trusted
-                  contacts understand an active Visit while the user is moving,
-                  meeting, traveling, or checking in.
+                  The goal is not to make the screen noisy. The goal is to make
+                  the state unmistakable: SOS is active, the user may need help,
+                  trusted contacts should pay attention, and the app should
+                  preserve clarity under pressure.
                 </p>
               </div>
 
-              <TintedCallout title="Why this design is intentional">
-                StayKnown avoids passive, unlimited sharing by tying live
-                updates to a Visit. That makes safety sharing{" "}
-                <span className="text-white/78 font-black">explicit</span>,{" "}
-                <span className="text-white/78 font-black">time-bounded</span>,
-                and easier for recipients to interpret correctly.{" "}
-                <em>It is safety-first — not passive tracking.</em>
+              <TintedCallout title="The main difference">
+                Manual Capture says, “send one more checkpoint.” Visit says,
+                “keep my safety session visible.” SOS says, “this situation now
+                needs urgent attention.”{" "}
+                <em>
+                  SOS supports safety communication, but it does not replace
+                  police, ambulance, fire, or other emergency services.
+                </em>
               </TintedCallout>
 
               <div className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <MiniStat
-                  label="LIVE"
-                  value="Only in Visit"
-                  detail="The live posture follows the active safety session."
+                  label="State"
+                  value="Urgent"
+                  detail="The app communicates a serious safety posture."
                 />
                 <MiniStat
-                  label="Boundary"
-                  value="Ends with Visit"
-                  detail="When the user ends the Visit, the live posture stops."
+                  label="Access"
+                  value="Pro+"
+                  detail="SOS activation is gated to paid safety plans."
                 />
                 <MiniStat
-                  label="Purpose"
-                  value="Trusted context"
-                  detail="Designed for safety communication, not public tracking."
+                  label="Recipient"
+                  value="Trusted"
+                  detail="SOS context should go to approved safety contacts."
                 />
               </div>
 
@@ -490,20 +560,20 @@ export default function LearnVisitLivePage() {
               <div className="mt-6">
                 <div className="sm:hidden flex items-center justify-between gap-3">
                   <MobileNavLink
-                    href="/learn/visit-live-sos"
-                    label="Learn: Live + SOS"
+                    href="/learn/manual-capture"
+                    label="Manual Capture"
                   />
-                  <MobileNavLink
-                    href="/learn/promax-shell"
-                    label="Explore: ProMax Shell"
-                  />
+                  <MobileNavLink href="/learn/end-sos-verify" label="End SOS" />
                 </div>
 
                 <div className="hidden sm:flex flex-wrap gap-3">
-                  <CTA href="/learn/visit-live-sos" label="Learn: Live + SOS" />
                   <CTA
-                    href="/learn/promax-shell"
-                    label="Explore: ProMax MainShell"
+                    href="/learn/manual-capture"
+                    label="Learn: Manual Capture"
+                  />
+                  <CTA
+                    href="/learn/end-sos-verify"
+                    label="Learn: End SOS Verification"
                   />
                 </div>
               </div>
@@ -511,8 +581,8 @@ export default function LearnVisitLivePage() {
 
             <div className="order-2 lg:order-none lg:col-start-1 flex items-start justify-center lg:justify-start">
               <img
-                src="/hero/visit-live.png"
-                alt="Live Location Emitter"
+                src="/hero/sos-activated.png"
+                alt="SOS active emergency safety state"
                 draggable={false}
                 className="
                   block object-contain select-none
@@ -521,10 +591,8 @@ export default function LearnVisitLivePage() {
                   sm:max-w-[560px] sm:max-h-[62vh]
                   lg:max-w-[720px] lg:max-h-[74vh]
                   xl:max-w-[780px]
-                  transform-gpu
-                  transition duration-700 ease-out
-                  hover:scale-[1.01]
-                  lg:-translate-y-[720px] xl:-translate-y-[930px] 2xl:-translate-y-[1080px]
+                  transform-gpu transition duration-700 ease-out hover:scale-[1.01]
+                  lg:-translate-y-[760px] xl:-translate-y-[940px] 2xl:-translate-y-[1100px]
                 "
               />
             </div>
@@ -535,125 +603,145 @@ export default function LearnVisitLivePage() {
       <section className="relative w-full">
         <div className="mx-auto max-w-6xl px-4 pb-10 sm:pb-14">
           <div className="mb-5 grid grid-cols-1 lg:grid-cols-[0.95fr_1.05fr] gap-5">
-            <SoliloquyBox />
+            <ScenarioBox />
 
             <PremiumPanel>
               <div className="p-5 sm:p-6">
-                <SectionLabel>Security and anti-abuse posture</SectionLabel>
+                <SectionLabel>Ready versus active</SectionLabel>
+
                 <div className="mt-3 text-[20px] sm:text-[25px] font-black tracking-[-0.045em] leading-tight text-white">
-                  The emitter is scoped so safety sharing does not become
-                  uncontrolled surveillance.
+                  SOS should look different before and after activation.
                 </div>
+
                 <div className="mt-4 space-y-3 text-[12.7px] leading-relaxed text-white/58 font-medium">
                   <p>
-                    A user starts a Visit. LIVE becomes active inside that
-                    Visit. The session has a clear safety meaning. This is
-                    easier to explain to recipients, easier to audit mentally,
-                    and easier to distinguish from stalking behavior.
+                    In a safety product, state confusion is dangerous. A user
+                    should not wonder whether SOS is idle, available,
+                    activating, active, failed, or ended.
                   </p>
+
                   <p>
-                    StayKnown should never be used to secretly track another
-                    person. It should not be used for coercion, stalking,
-                    harassment, or public exposure of someone’s safety status.
-                    Users should contact local emergency services immediately in
-                    life-threatening situations.
+                    StayKnown can use distinct visual posture, short labels, and
+                    recipient-facing language so the user and trusted contacts
+                    understand the same event in the same way.
                   </p>
                 </div>
               </div>
             </PremiumPanel>
           </div>
 
+          <div className="mb-6 grid gap-5 lg:grid-cols-2">
+            <CompareStateCard
+              image="/hero/sos-live-idle.png"
+              label="Reference state"
+              title="SOS ready, not active"
+              body="The idle state should tell users SOS is available without making them think escalation is already running. It stays calm, readable, and ready."
+            />
+
+            <CompareStateCard
+              image="/hero/sos-activated.png"
+              label="Main state"
+              title="SOS activated"
+              body="The active state should immediately communicate urgency. It should feel serious, direct, and unmistakable without becoming visually messy."
+            />
+          </div>
+
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-6">
-            <FeatureCard glyph="▣" title="What the emitter does">
-              During a Visit, StayKnown shares live safety context so trusted
-              people can understand the user’s active session in a readable way.
-              It is less about showing a dot and more about explaining the
-              safety posture.
+            <FeatureCard glyph="!" title="What changes when SOS activates">
+              SOS should create a clear transition:
+              <div className="mt-3 space-y-2 text-white/62">
+                <div>• the user sees a stronger emergency state</div>
+                <div>• trusted contacts receive urgent context</div>
+                <div>• the app prioritizes clarity over decoration</div>
+                <div>• ending the state can route toward Verified Stop</div>
+              </div>
               <div className="mt-3 text-white/45">
-                Example: <em>“Visit active — LIVE updates enabled.”</em>
+                This page is about that transition, not the normal Visit
+                lifecycle.
               </div>
             </FeatureCard>
 
-            <FeatureCard glyph="⌁" title="Why it only runs during a Visit">
-              Always-on tracking can be misused. By scoping LIVE to an active
-              Visit, StayKnown keeps sharing intentional, limited, and easier to
-              trust.
-              <div className="mt-3 text-white/45">
-                <em>Start Visit</em> → LIVE context can begin.{" "}
-                <em>End Visit</em> → active sharing stops.
-              </div>
-            </FeatureCard>
-
-            <FeatureCard glyph="⟂" title="Real-world examples">
-              <div className="space-y-2">
+            <FeatureCard glyph="▣" title="Recipient clarity">
+              A trusted contact should quickly understand the difference between
+              a normal safety update and a serious SOS event.
+              <div className="mt-3 space-y-2 text-white/62">
                 <div>
-                  <span className="text-white/75 font-black">•</span> Late-night
-                  travel: start a Visit so trusted people know your safety
-                  session is active.
+                  • <span className="text-white/80 font-black">Who:</span> the
+                  account owner or protected user
                 </div>
                 <div>
-                  <span className="text-white/75 font-black">•</span> First-time
-                  meetup: keep the Visit active until the meeting is over.
+                  • <span className="text-white/80 font-black">What:</span> SOS
+                  was activated
                 </div>
                 <div>
-                  <span className="text-white/75 font-black">•</span> Long
-                  route: recipients can understand updates as part of one safety
-                  session.
+                  • <span className="text-white/80 font-black">Where:</span>{" "}
+                  latest available location context
+                </div>
+                <div>
+                  • <span className="text-white/80 font-black">When:</span>{" "}
+                  readable event timing
                 </div>
               </div>
             </FeatureCard>
 
-            <FeatureCard glyph="!" title="Where SOS fits">
-              SOS is the escalation layer for Pro and ProMax. LIVE is the active
-              session context; SOS is the stronger urgent signal when normal
-              safety sharing is no longer enough.
+            <FeatureCard glyph="⌁" title="Why SOS needs restraint">
+              Emergency UI can fail if it becomes too dramatic, too crowded, or
+              too hard to read. StayKnown’s SOS state should feel premium but
+              disciplined.
               <div className="mt-3 text-white/45">
-                Starter keeps the basic Visit flow. Pro and ProMax add the
-                stronger emergency posture.
+                The design should make the user feel guided, not overwhelmed.
               </div>
             </FeatureCard>
 
-            <FeatureCard glyph="✦" title="Signals the UI makes obvious">
-              StayKnown uses clear state signaling so users understand what is
-              happening instantly:{" "}
-              <span className="text-white/78 font-black">Idle</span>,{" "}
-              <span className="text-white/78 font-black">LIVE</span>, and{" "}
-              <span className="text-white/78 font-black">SOS</span>.
-              <div className="mt-3 text-white/45">
-                Visual Severity Mode can make these states more distinct
-                visually without changing the underlying behavior.
+            <FeatureCard glyph="⟡" title="Trust signals around SOS">
+              SOS becomes stronger when it is supported by recognition and
+              context:
+              <div className="mt-3 space-y-2 text-white/62">
+                <div>• approved emergency contacts</div>
+                <div>• Safety Gallery identity cues</div>
+                <div>• profile name and trusted relationship context</div>
+                <div>• readable session timing and latest location status</div>
               </div>
             </FeatureCard>
 
-            <FeatureCard glyph="⚖" title="Law-abiding explanation">
-              The emitter should be understood as user-directed safety sharing.
-              It should not be used to monitor someone secretly or to pressure
-              another person. StayKnown’s policy links should remain visible so
-              expectations are clear.
+            <FeatureCard glyph="✔" title="Activation should be intentional">
+              SOS should not feel like a hidden shortcut or accidental
+              background behavior. It should be a clear user action with a clear
+              outcome.
               <div className="mt-3 text-white/45">
-                See <em>Safety &amp; Anti-Stalking</em>, <em>Acceptable Use</em>
-                , and <em>Emergency Disclaimer</em>.
+                The user needs to know: “SOS is now active, and trusted people
+                may be notified.”
               </div>
             </FeatureCard>
 
-            <FeatureCard glyph="◌" title="Why investors should care">
-              The Live Location Emitter is a core platform primitive. It anchors
-              Visit sessions, supports SOS escalation, strengthens safety email
-              context, and connects naturally to chat, profile trust, and plan
-              tiers.
-              <div className="mt-3 text-white/45">
-                This is the type of feature that can create repeat engagement
-                while still staying aligned with safety boundaries.
+            <FeatureCard glyph="◌" title="After activation">
+              After SOS activates, the app should continue explaining what is
+              happening in calm language:
+              <div className="mt-3 space-y-2 text-white/62">
+                <div>• protection is active</div>
+                <div>• trusted contacts may receive updates</div>
+                <div>• location reliability depends on device settings</div>
+                <div>• the user can follow the correct end-SOS flow later</div>
               </div>
             </FeatureCard>
 
-            <FeatureCard glyph="⟡" title="What recipients need to understand">
-              Recipients need simple language. They should know that a Visit is
-              active, LIVE updates are tied to that Visit, and an ended Visit
-              means the active safety session is no longer running.
+            <FeatureCard glyph="⚖" title="Law-abiding safety language">
+              SOS is a personal safety escalation feature. It should not be used
+              to harass, threaten, falsely alarm, stalk, coerce, or create fake
+              emergencies.
               <div className="mt-3 text-white/45">
-                Clear recipient communication reduces panic, confusion, and
-                delayed response.
+                In immediate danger, users should contact local emergency
+                services directly.
+              </div>
+            </FeatureCard>
+
+            <FeatureCard glyph="✦" title="Investor value">
+              SOS gives StayKnown a premium emergency posture beyond casual
+              messaging or map sharing. It shows the product can support a full
+              safety stack: readiness, escalation, trusted contact context,
+              recognition, and verified ending.
+              <div className="mt-3 text-white/45">
+                That makes SOS a serious subscription anchor for Pro and ProMax.
               </div>
             </FeatureCard>
           </div>
@@ -662,32 +750,57 @@ export default function LearnVisitLivePage() {
             <PremiumPanel>
               <div className="grid gap-5 p-5 sm:p-6 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
                 <div>
-                  <SectionLabel>Simple product language</SectionLabel>
+                  <SectionLabel>Related learn pages</SectionLabel>
+
                   <div className="mt-3 text-[21px] sm:text-[28px] font-black tracking-[-0.045em] leading-tight text-white">
-                    The emitter answers one question: is this user currently in
-                    an active safety session?
+                    SOS stays clearer when nearby topics have their own pages.
                   </div>
+
                   <p className="mt-3 text-[12.8px] leading-relaxed text-white/56 font-medium">
-                    That is the language visitors understand. It avoids
-                    overusing technical terms like “background location,” and
-                    focuses on user intent: a Visit is active, LIVE context is
-                    active, and trusted people can follow the safety posture.
+                    Instead of repeating every safety feature here, this page
+                    focuses on the meaning and presentation of SOS. The other
+                    pages explain the surrounding mechanics in more detail.
                   </p>
                 </div>
 
                 <div className="grid gap-3 sm:grid-cols-2">
                   {[
-                    "A user starts a Visit before leaving work late at night.",
-                    "A family member checks the update and understands the Visit is still active.",
-                    "A trusted contact sees the session as safety context, not a random location ping.",
-                    "When the Visit ends, the user’s active LIVE posture ends with it.",
+                    {
+                      title: "Manual Capture",
+                      body: "Extra checkpoint before SOS is needed.",
+                      href: "/learn/manual-capture",
+                    },
+                    {
+                      title: "End SOS Verification",
+                      body: "How urgent states can end deliberately.",
+                      href: "/learn/end-sos-verify",
+                    },
+                    {
+                      title: "Safety Gallery",
+                      body: "Recognition cues for contacts during alerts.",
+                      href: "/learn/safety-gallery",
+                    },
+                    {
+                      title: "Contact Approval",
+                      body: "Trusted recipients and consent-aware setup.",
+                      href: "/learn/contact-approval",
+                    },
                   ].map((item) => (
-                    <div
-                      key={item}
-                      className="rounded-2xl border border-white/10 bg-black/25 p-4 text-[12.4px] leading-relaxed text-white/58 font-medium"
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className="group rounded-2xl border border-white/10 bg-black/25 p-4 transition hover:bg-white/[0.06] hover:border-white/18"
                     >
-                      {item}
-                    </div>
+                      <div className="text-[12.8px] font-black tracking-[-0.02em] text-white/86">
+                        {item.title}
+                      </div>
+                      <div className="mt-2 text-[12.2px] leading-relaxed font-medium text-white/50">
+                        {item.body}
+                      </div>
+                      <div className="mt-3 text-[10px] font-black tracking-[0.2em] text-white/32 group-hover:text-white/56">
+                        OPEN
+                      </div>
+                    </Link>
                   ))}
                 </div>
               </div>
@@ -711,6 +824,7 @@ export default function LearnVisitLivePage() {
                 Privacy Policy
               </a>
               <span className="text-white/18">•</span>
+
               <a
                 href="/terms"
                 target="_blank"
@@ -720,6 +834,7 @@ export default function LearnVisitLivePage() {
                 Terms of Use
               </a>
               <span className="text-white/18">•</span>
+
               <a
                 href="/acceptable-use"
                 target="_blank"
@@ -729,6 +844,7 @@ export default function LearnVisitLivePage() {
                 Acceptable Use
               </a>
               <span className="text-white/18">•</span>
+
               <a
                 href="/safety"
                 target="_blank"
@@ -738,6 +854,7 @@ export default function LearnVisitLivePage() {
                 Safety &amp; Anti-Stalking
               </a>
               <span className="text-white/18">•</span>
+
               <a
                 href="/emergency"
                 target="_blank"
@@ -747,6 +864,7 @@ export default function LearnVisitLivePage() {
                 Emergency Disclaimer
               </a>
               <span className="text-white/18">•</span>
+
               <a
                 href="/minors"
                 target="_blank"
@@ -756,6 +874,7 @@ export default function LearnVisitLivePage() {
                 Child Safety &amp; Minor Use
               </a>
               <span className="text-white/18">•</span>
+
               <a
                 href="/abuse"
                 target="_blank"
@@ -765,6 +884,7 @@ export default function LearnVisitLivePage() {
                 Abuse Reporting
               </a>
               <span className="text-white/18">•</span>
+
               <a
                 href="/retention"
                 target="_blank"
@@ -774,6 +894,7 @@ export default function LearnVisitLivePage() {
                 Data Retention
               </a>
               <span className="text-white/18">•</span>
+
               <a
                 href="/law"
                 target="_blank"
@@ -783,6 +904,7 @@ export default function LearnVisitLivePage() {
                 Law Enforcement
               </a>
               <span className="text-white/18">•</span>
+
               <a
                 href="/security"
                 target="_blank"

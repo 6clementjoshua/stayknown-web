@@ -7,11 +7,12 @@ import { useMemo, useState } from "react";
 type Tier = "Starter" | "Pro" | "ProMax";
 
 const seo = {
-  title: "Secure Chat Biometric Protection | StayKnown",
+  title:
+    "StayKnown Chat | Voice Notes, Stickers, Media, Stories, and Safety Communication",
   description:
-    "Learn how StayKnown Chat uses biometric-aware and device-level protection to help keep safety conversations, media, voice notes, stickers, stories, and trusted profiles more private.",
-  url: "https://stay-known.com/learn/secure-chat-passcode",
-  image: "https://stay-known.com/hero/secure-chat-biometric.png",
+    "Learn how StayKnown Chat brings together messages, voice notes, stickers, media, stories, receipts, presence, and safety-aware communication in a premium trusted chat experience.",
+  url: "https://stay-known.com/learn/chat",
+  image: "https://stay-known.com/hero/chat-stickers-voice.png",
 };
 
 function MobileNavLink({ href, label }: { href: string; label: string }) {
@@ -59,9 +60,11 @@ function MonoIcon({ glyph }: { glyph: string }) {
   return (
     <div
       className="
-        shrink-0 w-9 h-9 rounded-xl border border-white/12 bg-white/[0.045]
-        backdrop-blur-md flex items-center justify-center text-white/90 text-[14px]
-        leading-none shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_14px_35px_rgba(0,0,0,0.35)]
+        shrink-0 w-9 h-9 rounded-xl
+        border border-white/12 bg-white/[0.045]
+        backdrop-blur-md flex items-center justify-center
+        text-white/90 text-[14px] leading-none
+        shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_14px_35px_rgba(0,0,0,0.35)]
       "
       aria-hidden
     >
@@ -89,8 +92,10 @@ function PremiumPanel({
     <div
       className={[
         "relative overflow-hidden rounded-[28px]",
-        "border border-white/[0.09] bg-white/[0.035]",
-        "shadow-[0_28px_100px_rgba(0,0,0,0.62)] backdrop-blur-xl",
+        "border border-white/[0.09]",
+        "bg-white/[0.035]",
+        "shadow-[0_28px_100px_rgba(0,0,0,0.62)]",
+        "backdrop-blur-xl",
         className,
       ].join(" ")}
     >
@@ -110,6 +115,7 @@ function PlanTabs({
 }) {
   const Tab = ({ t }: { t: Tier }) => {
     const active = tier === t;
+
     return (
       <button
         onClick={() => setTier(t)}
@@ -132,12 +138,14 @@ function PlanTabs({
 
   const Pill = ({ t }: { t: Tier }) => {
     const active = tier === t;
+
     return (
       <button
         onClick={() => setTier(t)}
         className={[
           "relative inline-flex items-center justify-center select-none overflow-hidden",
-          "rounded-full border transition-all duration-200 px-3.5 h-[34px] text-[12px]",
+          "rounded-full border transition-all duration-200",
+          "px-3.5 h-[34px] text-[12px]",
           active
             ? "border-white/28 bg-white/[0.11] text-white shadow-[0_12px_34px_rgba(255,255,255,0.04)]"
             : "border-white/14 bg-white/[0.045] text-white/76 hover:bg-white hover:border-white/30 hover:text-black hover:[&_*]:text-black",
@@ -187,8 +195,10 @@ function FeatureCard({
     >
       <div className="pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100 transition duration-300 bg-[radial-gradient(circle_at_18%_12%,rgba(255,255,255,0.12),transparent_60%)]" />
       <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-white/10" />
+
       <div className="relative flex items-start gap-3">
         <MonoIcon glyph={glyph} />
+
         <div className="min-w-0">
           <div className="text-white/95 font-black tracking-[-0.025em] text-[14px] sm:text-[15px]">
             {title}
@@ -220,11 +230,12 @@ function TierBlock({
           <div className="text-white/95 font-black tracking-[-0.025em] text-[14px] sm:text-[15px]">
             {tier}
           </div>
-          {highlight && (
+
+          {highlight ? (
             <div className="text-[10px] font-black tracking-[0.22em] text-white/56">
-              FULL POSTURE
+              FULL CHAT
             </div>
-          )}
+          ) : null}
         </div>
 
         <ul className="mt-4 space-y-2.5">
@@ -296,28 +307,84 @@ function MiniStat({
   );
 }
 
-function SoliloquyBox() {
+function ChatStep({
+  n,
+  title,
+  body,
+}: {
+  n: string;
+  title: string;
+  body: string;
+}) {
+  return (
+    <div className="relative overflow-hidden rounded-[22px] border border-white/10 bg-black/25 p-4">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_12%,rgba(255,255,255,0.08),transparent_58%)]" />
+      <div className="relative">
+        <div className="flex items-center gap-3">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/12 bg-white/[0.055] text-[11px] font-black text-white/70">
+            {n}
+          </div>
+          <div className="text-[13.2px] font-black tracking-[-0.025em] text-white/88">
+            {title}
+          </div>
+        </div>
+        <p className="mt-3 text-[12.3px] leading-relaxed font-medium text-white/52">
+          {body}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function StickerTypeCard({
+  title,
+  label,
+  body,
+}: {
+  title: string;
+  label: string;
+  body: string;
+}) {
+  return (
+    <div className="relative overflow-hidden rounded-[22px] border border-white/10 bg-black/25 p-4">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_12%,rgba(255,255,255,0.08),transparent_58%)]" />
+      <div className="relative">
+        <div className="text-[10px] font-black uppercase tracking-[0.22em] text-white/35">
+          {label}
+        </div>
+        <div className="mt-2 text-[15px] font-black tracking-[-0.035em] text-white/90">
+          {title}
+        </div>
+        <p className="mt-2 text-[12.4px] leading-relaxed font-medium text-white/55">
+          {body}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function ScenarioBox() {
   return (
     <PremiumPanel>
       <div className="p-5 sm:p-6">
-        <SectionLabel>Scenario thinking</SectionLabel>
+        <SectionLabel>Communication promise</SectionLabel>
+
         <div className="mt-3 text-[19px] sm:text-[24px] font-black tracking-[-0.045em] leading-tight text-white">
-          “This is a safety conversation. I want it protected before someone can
-          read, send, or view private chat content.”
+          “Chat should feel expressive, premium, and personal — but still tied
+          to the trust layer of a safety app.”
         </div>
+
         <div className="mt-4 space-y-3 text-[12.7px] leading-relaxed text-white/58 font-medium">
           <p>
-            That is the reason for biometric-aware chat protection. StayKnown
-            Chat can contain personal conversations, voice notes, media,
-            stickers, story replies, profile context, and safety-related
-            information. It deserves a privacy posture that feels visible and
-            serious.
+            StayKnown Chat is the conversation layer around the safety network.
+            It gives users a place for direct messages, voice notes, expressive
+            stickers, media, profile context, and story-linked communication.
           </p>
+
           <p>
-            For users, this builds confidence. For visitors, it explains why the
-            app is not just another chat product. For investors and policy
-            readers, it shows that communication privacy is treated as part of
-            the safety layer, not as an afterthought.
+            This page focuses on the communication product itself. Device-level
+            chat protection, biometric-aware access, and local privacy posture
+            are covered separately on the Secure Chat Protection page.
           </p>
         </div>
       </div>
@@ -325,28 +392,28 @@ function SoliloquyBox() {
   );
 }
 
-export default function LearnSecureChatBiometricPage() {
-  const [tier, setTier] = useState<Tier>("Starter");
+export default function LearnChatPage() {
+  const [tier, setTier] = useState<Tier>("Pro");
 
   const tierCopy = useMemo(() => {
     return {
       Starter: [
-        "Chat access is not available on Starter in the current platform direction.",
-        "Starter remains focused on basic safety features such as Visits, trusted contacts, and essential safety setup.",
-        "Users can still build their profile and safety foundation before upgrading to communication features.",
-        "This keeps the free tier simple while reserving private chat surfaces for paid safety plans.",
+        "Starter can use basic chat access while premium chat layers remain gated.",
+        "Starter can send essential messages, attachments, and location-style context where allowed by the app rules.",
+        "Starter does not include premium translation, advanced story viewing, premium sticker depth, or richer personalization surfaces.",
+        "This keeps everyday communication available while preserving clear upgrade value for Pro and ProMax.",
       ],
       Pro: [
-        "Unlock StayKnown Chat with biometric-aware or device-level protection for private safety conversations.",
-        "Designed for direct messages, media, voice notes, stickers, receipts, presence, and profile-aware communication.",
-        "Helpful for users who want safer conversation access without exposing sensitive chat content casually.",
-        "Pro gives users the practical communication layer connected to the broader safety ecosystem.",
+        "Pro unlocks the stronger StayKnown Chat experience: voice notes, richer media, expressive stickers, receipts, profile trust, and communication polish.",
+        "Voice stickers and advanced expressive tools can be Pro-gated so the chat surface feels premium without overloading Starter.",
+        "Pro is the practical communication tier for users who want more than plain messaging while staying inside a safety-aware network.",
+        "Pairs naturally with secure chat protection, VPN chat gating, profile trust, and translation-ready messaging.",
       ],
       ProMax: [
-        "The most complete private communication posture with premium chat surfaces, stories, profile trust, and richer safety context.",
-        "Best for users who want the full StayKnown experience: safety, communication, personalization, and high-polish UI.",
-        "Supports stronger trust cues across profiles, stories, media, chat presence, and safety-aware messaging.",
-        "ProMax is built for users who want maximum privacy feel, premium presentation, and complete communication readiness.",
+        "ProMax should feel like the full premium chat layer: richer stickers, advanced rows, voice/music/video sticker expression, stories, themes, wallpapers, and highest polish.",
+        "Best for users who want the most expressive StayKnown communication experience without losing the safety-first identity of the app.",
+        "ProMax can support deeper sticker packs, premium visual effects, broader personalization, and the most complete chat presentation.",
+        "The experience should feel smooth, glossy, fast, and intentionally premium across composer, tabs, stickers, voice notes, media, and stories.",
       ],
     } as Record<Tier, string[]>;
   }, []);
@@ -354,10 +421,10 @@ export default function LearnSecureChatBiometricPage() {
   const tierNote: Record<Tier, string> = useMemo(
     () => ({
       Starter:
-        "Starter keeps chat gated so the platform can preserve chat as a premium safety communication layer.",
-      Pro: "Biometric protection depends on the device’s available authentication methods and the user’s local device settings.",
+        "Starter chat should stay useful but simpler. Keep premium translation, advanced stickers, stories, and richer personalization as upgrade value.",
+      Pro: "Pro is the main paid chat upgrade for expressive communication and stronger safety-aware conversation tools.",
       ProMax:
-        "ProMax is the full communication posture: private chat, safety context, profile trust, stories, and premium experience.",
+        "ProMax should present the full chat identity: expressive sticker culture, premium media flow, stories, personalization, and polished safety communication.",
     }),
     [],
   );
@@ -375,12 +442,18 @@ export default function LearnSecureChatBiometricPage() {
       url: "https://stay-known.com",
     },
     about: [
-      "secure chat",
-      "biometric chat protection",
-      "safety communication",
-      "private messaging",
       "StayKnown Chat",
-      "safety app",
+      "voice notes",
+      "chat stickers",
+      "voice stickers",
+      "music stickers",
+      "video stickers",
+      "safety communication",
+      "secure messaging",
+      "profile trust",
+      "chat media",
+      "stories",
+      "premium chat app",
     ],
   };
 
@@ -407,22 +480,25 @@ export default function LearnSecureChatBiometricPage() {
               STAYKNOWN
             </div>
             <div className="text-white/40 font-semibold text-[11px]">
-              Learn • Secure Chat Biometric Protection
+              Learn • StayKnown Chat
             </div>
           </div>
 
           <div className="sm:hidden mt-3 flex items-center justify-between">
             <MobileNavLink href="/" label="Back to Home" />
             <MobileNavLink
-              href="/learn/end-sos-verify"
-              label="Previous: End SOS"
+              href="/learn/secure-chat-protection"
+              label="Next: Secure"
             />
           </div>
 
           <div className="hidden sm:flex mt-5 items-center justify-center gap-3">
             <CTA href="/" label="Back to Home" />
-            <CTA href="/learn/end-sos-verify" label="Previous: End SOS" />
-            <CTA href="/learn/promax-shell" label="Explore ProMax Shell" />
+            <CTA href="/learn/vpn-safety" label="VPN Safety" />
+            <CTA
+              href="/learn/secure-chat-protection"
+              label="Secure Chat Protection"
+            />
           </div>
         </div>
       </header>
@@ -434,49 +510,50 @@ export default function LearnSecureChatBiometricPage() {
           <div className="grid grid-cols-1 lg:grid-cols-[0.9fr_1.1fr] items-start gap-8 lg:gap-8">
             <div className="order-1 lg:order-none lg:col-start-2">
               <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.045] px-3 py-1.5 text-[10.5px] font-black tracking-[0.20em] text-white/46 uppercase">
-                Biometric-aware private chat
+                Messages, voice, stickers, stories, and safety context
               </div>
 
               <h1 className="mt-4 text-white/95 font-black tracking-[-0.06em] text-[38px] sm:text-[54px] lg:text-[60px] leading-[0.94]">
-                Secure Chat Biometric Protection
+                StayKnown Chat
               </h1>
 
               <div className="mt-4 max-w-[76ch] space-y-3 text-white/62 font-medium text-[13px] sm:text-[14px] leading-relaxed">
                 <p>
-                  StayKnown Chat is designed as a safety-aware communication
-                  space, not a casual open inbox. It can carry messages, media,
-                  voice notes, stickers, profile context, story replies, and
-                  safety-sensitive conversation signals.
+                  StayKnown Chat is built to feel richer than plain messaging.
+                  It brings together direct messages, voice notes, media,
+                  stickers, presence, receipts, profile trust, stories, and
+                  safety-aware context inside one premium communication layer.
                 </p>
+
                 <p>
-                  Biometric-aware protection helps make that private surface
-                  feel protected before someone reads, sends, or interacts with
-                  chat content on the device.
+                  The goal is expression without losing seriousness. Users can
+                  communicate naturally while the product still carries the
+                  trust expectations of a safety-first platform.
                 </p>
               </div>
 
-              <TintedCallout title="Centered on biometric and device-level protection">
-                This page no longer describes email passcodes. The platform
-                language should focus on biometric-aware access, device
-                authentication, local privacy expectations, and responsible chat
-                use.
+              <TintedCallout title="The chat difference">
+                StayKnown Chat should not feel like a copied social inbox. It
+                should feel like a premium safety communication space where
+                expressive tools, identity cues, and trusted context work
+                together.
               </TintedCallout>
 
               <div className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <MiniStat
-                  label="Access"
-                  value="Biometric aware"
-                  detail="Uses device authentication posture where available."
+                  label="Expression"
+                  value="Stickers"
+                  detail="Image, voice, music, and video sticker culture."
                 />
                 <MiniStat
-                  label="Surface"
-                  value="Private chat"
-                  detail="Protects a sensitive communication area, not just a screen."
+                  label="Audio"
+                  value="Voice"
+                  detail="Voice notes and voice stickers make messages feel human."
                 />
                 <MiniStat
                   label="Trust"
-                  value="Profile context"
-                  detail="Works with identity, presence, receipts, media, and safety context."
+                  value="Profiles"
+                  detail="Names, avatars, presence, receipts, and stories add context."
                 />
               </div>
 
@@ -500,20 +577,23 @@ export default function LearnSecureChatBiometricPage() {
               <div className="mt-6">
                 <div className="sm:hidden flex items-center justify-between gap-3">
                   <MobileNavLink
-                    href="/learn/visit-live-sos"
-                    label="Live + SOS"
+                    href="/learn/secure-chat-protection"
+                    label="Secure Chat"
                   />
                   <MobileNavLink
-                    href="/learn/promax-shell"
-                    label="ProMax Shell"
+                    href="/learn/language-aware-chat"
+                    label="Language"
                   />
                 </div>
 
                 <div className="hidden sm:flex flex-wrap gap-3">
-                  <CTA href="/learn/visit-live-sos" label="Learn: Live + SOS" />
                   <CTA
-                    href="/learn/promax-shell"
-                    label="Explore: ProMax Shell"
+                    href="/learn/secure-chat-protection"
+                    label="Learn: Secure Chat Protection"
+                  />
+                  <CTA
+                    href="/learn/language-aware-chat"
+                    label="Learn: Language-Aware Chat"
                   />
                 </div>
               </div>
@@ -521,8 +601,8 @@ export default function LearnSecureChatBiometricPage() {
 
             <div className="order-2 lg:order-none lg:col-start-1 flex items-start justify-center lg:justify-start">
               <img
-                src="/hero/secure-chat-biometric.png"
-                alt="Secure Chat Biometric Protection"
+                src="/hero/chat-stickers-voice.png"
+                alt="StayKnown Chat voice notes and stickers"
                 draggable={false}
                 className="
                   block object-contain select-none
@@ -543,122 +623,195 @@ export default function LearnSecureChatBiometricPage() {
       <section className="relative w-full">
         <div className="mx-auto max-w-6xl px-4 pb-10 sm:pb-14">
           <div className="mb-5 grid grid-cols-1 lg:grid-cols-[0.95fr_1.05fr] gap-5">
-            <SoliloquyBox />
+            <ScenarioBox />
 
             <PremiumPanel>
               <div className="p-5 sm:p-6">
-                <SectionLabel>Security and privacy posture</SectionLabel>
+                <SectionLabel>Chat product posture</SectionLabel>
+
                 <div className="mt-3 text-[20px] sm:text-[25px] font-black tracking-[-0.045em] leading-tight text-white">
-                  Secure chat protection is about reducing casual exposure of
-                  sensitive safety conversations.
+                  Chat is where safety relationships become everyday
+                  communication.
                 </div>
+
                 <div className="mt-4 space-y-3 text-[12.7px] leading-relaxed text-white/58 font-medium">
                   <p>
-                    Chat may include personal messages, images, voice notes,
-                    stickers, story replies, presence signals, and profile
-                    context. If a device is shared, left open, or picked up by
-                    someone else, biometric-aware protection can add friction
-                    before private content is exposed.
+                    A user may start with safety features, but repeated product
+                    use often comes from communication: checking in, replying to
+                    stories, sending a voice note, saving a sticker, or sharing
+                    context with someone trusted.
                   </p>
+
                   <p>
-                    This does not make a device impossible to compromise and it
-                    does not replace responsible account security. It is one
-                    visible layer in a larger privacy and safety posture.
+                    That makes Chat a retention surface. The stronger it feels,
+                    the more StayKnown becomes a living network instead of an
+                    emergency-only utility.
                   </p>
                 </div>
               </div>
             </PremiumPanel>
           </div>
 
+          <div className="mb-6 grid gap-3 md:grid-cols-5">
+            <ChatStep
+              n="1"
+              title="Trust starts"
+              body="Users connect through profile identity, names, avatars, and approved safety relationships."
+            />
+            <ChatStep
+              n="2"
+              title="Conversation opens"
+              body="Messages, media, voice notes, and receipts create everyday communication."
+            />
+            <ChatStep
+              n="3"
+              title="Expression grows"
+              body="Stickers, voice stickers, music stickers, and video stickers make chat feel personal."
+            />
+            <ChatStep
+              n="4"
+              title="Context stays useful"
+              body="Presence, stories, language preferences, and safety context help conversations feel alive."
+            />
+            <ChatStep
+              n="5"
+              title="Premium value deepens"
+              body="Pro and ProMax unlock richer expression, personalization, and polished chat flows."
+            />
+          </div>
+
+          <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <StickerTypeCard
+              label="Sticker type"
+              title="Image stickers"
+              body="Fast visual expression for everyday chat. Starter can keep a simple image-sticker layer while premium tiers unlock richer organization and polish."
+            />
+            <StickerTypeCard
+              label="Sticker type"
+              title="Voice stickers"
+              body="Short expressive audio moments that feel more personal than text. This is a strong Pro feature because it adds identity and emotion."
+            />
+            <StickerTypeCard
+              label="Sticker type"
+              title="Music stickers"
+              body="Tiny music-based sticker moments for expressive chat culture, previews, and premium personalization without turning chat into a music app."
+            />
+            <StickerTypeCard
+              label="Sticker type"
+              title="Video stickers"
+              body="Short looping video stickers with controlled duration and polished display, useful for ProMax expression and premium pack experiences."
+            />
+          </div>
+
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-6">
-            <FeatureCard glyph="⌁" title="What biometric protection does">
-              It adds a device-level privacy check around chat access or
-              sensitive chat actions, depending on how the app is configured.
-              The point is simple: private safety conversations should not feel
-              casually open.
+            <FeatureCard glyph="▣" title="Sticker system as a premium identity">
+              Stickers should become one of StayKnown Chat’s strongest visual
+              signatures. They can include system packs, saved stickers, custom
+              stickers, edited copies, voice stickers, music stickers, and short
+              video stickers.
               <div className="mt-3 text-white/45">
-                Example: a user opens Chat and confirms with Face ID,
-                fingerprint, or their device authentication method.
+                The experience should feel fast, polished, compact, and
+                intentionally premium — not like a basic gallery picker.
               </div>
             </FeatureCard>
 
-            <FeatureCard glyph="▣" title="What StayKnown Chat can carry">
-              Chat is not only text. It can include messages, media, files,
-              voice notes, stickers, presence, read receipts, profile previews,
-              stories, and safety context.
-              <div className="mt-3 text-white/45">
-                That makes the chat surface valuable — and worth protecting.
+            <FeatureCard glyph="⌁" title="Voice notes and voice stickers">
+              Voice makes chat feel human. A voice note carries a full message;
+              a voice sticker carries a short expressive moment.
+              <div className="mt-3 space-y-2 text-white/62">
+                <div>• hold to record</div>
+                <div>• lock recording when needed</div>
+                <div>• pause and resume smoothly</div>
+                <div>• send quick voice moments with minimal friction</div>
               </div>
             </FeatureCard>
 
-            <FeatureCard glyph="!" title="What it does not promise">
-              Biometric protection is not a law-enforcement system, not a
-              guarantee against device compromise, and not a substitute for
-              emergency services. It is a privacy layer controlled by the user’s
-              device capability.
+            <FeatureCard glyph="▶" title="Video sticker flow">
+              Video stickers should stay short, lightweight, and controlled.
+              They are not full videos; they are expressive sticker moments that
+              can loop, preview, save, and send cleanly in chat.
               <div className="mt-3 text-white/45">
-                In urgent danger, users should contact local emergency services.
+                Keep display smaller inside messages so stickers feel elegant,
+                not oversized or distracting.
               </div>
             </FeatureCard>
 
-            <FeatureCard glyph="✦" title="Why this improves trust">
-              When users see visible protection around communication, they are
-              more likely to understand that StayKnown treats chat as part of
-              the safety ecosystem — not as a basic social feature.
+            <FeatureCard glyph="♪" title="Music sticker flow">
+              Music stickers can give chat a signature personality. They should
+              feel like compact expressive clips, not full media posts.
               <div className="mt-3 text-white/45">
-                That trust matters for families, new connections, safety
-                contacts, and high-risk routines.
+                The product value is emotional expression: a tiny sound,
+                reaction, mood, or branded pack moment inside a conversation.
               </div>
             </FeatureCard>
 
-            <FeatureCard glyph="⟡" title="Plan gating, explained clearly">
-              <div className="space-y-2">
+            <FeatureCard glyph="✔" title="Saved, Yours, and custom stickers">
+              A strong sticker system lets users save stickers, manage their own
+              custom sticker area, and remove items cleanly.
+              <div className="mt-3 space-y-2 text-white/62">
+                <div>• saved stickers should be easy to find</div>
                 <div>
-                  <span className="text-white/78 font-black">Starter:</span>{" "}
-                  basic safety features; chat is not available in the current
-                  plan posture.
+                  • custom sticker errors should stay inside the custom tab
                 </div>
+                <div>• long-press can support multi-select delete</div>
                 <div>
-                  <span className="text-white/78 font-black">Pro:</span> private
-                  chat access with communication tools and protection posture.
-                </div>
-                <div>
-                  <span className="text-white/78 font-black">ProMax:</span>{" "}
-                  complete premium communication experience with richer
-                  surfaces.
+                  • editing should clone instead of changing the original
                 </div>
               </div>
             </FeatureCard>
 
-            <FeatureCard glyph="⚖" title="Law-abiding explanation">
-              StayKnown Chat should not be used to harass, stalk, coerce, or
-              pressure others. Biometric protection helps protect the user’s own
-              communication surface; it does not authorize misuse of messaging.
-              <div className="mt-3 text-white/45">
-                Users should follow the Acceptable Use, Safety, Privacy, and
-                Abuse Reporting policies.
-              </div>
-            </FeatureCard>
-
-            <FeatureCard glyph="◌" title="Why investors should care">
-              Secure chat expands StayKnown from a safety alert app into a
-              safety-first communication platform. Chat, profile trust, stories,
-              media, translation readiness, and plan tiers create long-term
-              product depth.
-              <div className="mt-3 text-white/45">
-                Biometric-aware protection strengthens the premium perception of
-                that communication layer.
-              </div>
-            </FeatureCard>
-
-            <FeatureCard glyph="▶" title="Simple user guidance">
-              <div className="space-y-2">
-                <div>• Keep your device lock enabled.</div>
-                <div>• Do not let others use your account.</div>
-                <div>• Block or report users who misuse Chat.</div>
+            <FeatureCard glyph="⟡" title="Presence, receipts, and story trust">
+              Chat should show useful context without clutter:
+              <div className="mt-3 space-y-2 text-white/62">
+                <div>• sent, delivered, and read receipt meaning</div>
+                <div>• online or recently seen context where appropriate</div>
                 <div>
-                  • Use SOS or local emergency services when safety is urgent.
+                  • first and last names under story tiles where available
                 </div>
+                <div>
+                  • profile and story surfaces that help users recognize each
+                  other
+                </div>
+              </div>
+            </FeatureCard>
+
+            <FeatureCard glyph="◌" title="Media and attachment polish">
+              Attachments should feel premium and stable: no flicker, no harsh
+              spinners, no broken skeletons, no confusing gallery icons when a
+              sticker should display.
+              <div className="mt-3 text-white/45">
+                Chat media should load with calm feedback and display correctly
+                for both sender and receiver.
+              </div>
+            </FeatureCard>
+
+            <FeatureCard glyph="!" title="Safety-aware chat boundaries">
+              StayKnown Chat should not be used for harassment, threats,
+              stalking, coercion, impersonation, or abuse. Expression should
+              stay tied to lawful, respectful communication.
+              <div className="mt-3 text-white/45">
+                Blocking, reporting, VPN gating, and acceptable-use language
+                help keep chat aligned with the safety mission.
+              </div>
+            </FeatureCard>
+
+            <FeatureCard glyph="✦" title="Investor value">
+              Chat gives StayKnown recurring engagement beyond Visit and SOS
+              moments. Stickers, voice, stories, profile trust, translation,
+              themes, and media create a premium communication engine.
+              <div className="mt-3 text-white/45">
+                This can support retention, upgrades, personalization, and a
+                stronger identity than basic location-sharing apps.
+              </div>
+            </FeatureCard>
+
+            <FeatureCard glyph="⚖" title="Policy and trust position">
+              Because Chat can carry private content and social interaction, it
+              needs strong policy framing: privacy, abuse reporting, acceptable
+              use, child safety, and law-abiding communication.
+              <div className="mt-3 text-white/45">
+                Secure access is explained separately on the biometric
+                protection page.
               </div>
             </FeatureCard>
           </div>
@@ -667,27 +820,90 @@ export default function LearnSecureChatBiometricPage() {
             <PremiumPanel>
               <div className="grid gap-5 p-5 sm:p-6 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
                 <div>
-                  <SectionLabel>Search discovery focus</SectionLabel>
+                  <SectionLabel>Related learn pages</SectionLabel>
+
                   <div className="mt-3 text-[21px] sm:text-[28px] font-black tracking-[-0.045em] leading-tight text-white">
-                    This page is written for users searching for private safety
-                    chat, biometric chat protection, and secure messaging inside
-                    a safety app.
+                    Chat connects to multiple StayKnown safety and trust pages
+                    without repeating them.
                   </div>
+
                   <p className="mt-3 text-[12.8px] leading-relaxed text-white/56 font-medium">
-                    The content uses plain explanations so visitors, investors,
-                    and search engines can understand the feature without
-                    needing app code context. It also makes the product boundary
-                    clear: privacy protection, safety communication, and
-                    anti-abuse expectations.
+                    This page explains the communication product. Use the linked
+                    pages for biometric protection, translation, profile trust,
+                    VPN gate behavior, and privacy boundaries.
                   </p>
                 </div>
 
                 <div className="grid gap-3 sm:grid-cols-2">
                   {[
-                    "A user opens Chat and confirms with device authentication before viewing private messages.",
-                    "A user sends a voice note or media message inside a protected safety communication space.",
-                    "A family member understands that StayKnown Chat is tied to profile trust and safety context.",
-                    "A user blocks or reports misuse instead of allowing harassment to continue.",
+                    {
+                      title: "Secure Chat Protection",
+                      body: "Biometric-aware and device-level protection.",
+                      href: "/learn/secure-chat-protection",
+                    },
+                    {
+                      title: "Language-Aware Chat",
+                      body: "Translation and recipient language preference.",
+                      href: "/learn/language-aware-chat",
+                    },
+                    {
+                      title: "Stories + Profile Trust",
+                      body: "Profiles, stories, names, and recognition context.",
+                      href: "/learn/stories-profile-trust",
+                    },
+                    {
+                      title: "VPN Safety",
+                      body: "Chat entry gate when VPN is active.",
+                      href: "/learn/vpn-safety",
+                    },
+                  ].map((item) => (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className="group rounded-2xl border border-white/10 bg-black/25 p-4 transition hover:bg-white/[0.06] hover:border-white/18"
+                    >
+                      <div className="text-[12.8px] font-black tracking-[-0.02em] text-white/86">
+                        {item.title}
+                      </div>
+                      <div className="mt-2 text-[12.2px] leading-relaxed font-medium text-white/50">
+                        {item.body}
+                      </div>
+                      <div className="mt-3 text-[10px] font-black tracking-[0.2em] text-white/32 group-hover:text-white/56">
+                        OPEN
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            </PremiumPanel>
+          </div>
+
+          <div className="mt-6">
+            <PremiumPanel>
+              <div className="grid gap-5 p-5 sm:p-6 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
+                <div>
+                  <SectionLabel>Search discovery focus</SectionLabel>
+
+                  <div className="mt-3 text-[21px] sm:text-[28px] font-black tracking-[-0.045em] leading-tight text-white">
+                    This page is written for discovery around premium safety
+                    chat, voice notes, stickers, media, and trusted messaging.
+                  </div>
+
+                  <p className="mt-3 text-[12.8px] leading-relaxed text-white/56 font-medium">
+                    Visitors should understand the value quickly: StayKnown Chat
+                    is a premium communication layer with voice notes, sticker
+                    culture, media, presence, receipts, stories, and safety
+                    context. It is expressive, but still aligned with lawful and
+                    trusted safety communication.
+                  </p>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {[
+                    "A user sends a voice note to a trusted contact after a Visit update.",
+                    "A Pro user saves a voice sticker and reuses it in a private conversation.",
+                    "A ProMax user sends a short video sticker from a premium system pack.",
+                    "A conversation uses receipts, presence, story context, and profile identity to feel trusted.",
                   ].map((item) => (
                     <div
                       key={item}
@@ -718,6 +934,7 @@ export default function LearnSecureChatBiometricPage() {
                 Privacy Policy
               </a>
               <span className="text-white/18">•</span>
+
               <a
                 href="/terms"
                 target="_blank"
@@ -727,6 +944,7 @@ export default function LearnSecureChatBiometricPage() {
                 Terms of Use
               </a>
               <span className="text-white/18">•</span>
+
               <a
                 href="/acceptable-use"
                 target="_blank"
@@ -736,6 +954,7 @@ export default function LearnSecureChatBiometricPage() {
                 Acceptable Use
               </a>
               <span className="text-white/18">•</span>
+
               <a
                 href="/safety"
                 target="_blank"
@@ -745,6 +964,7 @@ export default function LearnSecureChatBiometricPage() {
                 Safety &amp; Anti-Stalking
               </a>
               <span className="text-white/18">•</span>
+
               <a
                 href="/emergency"
                 target="_blank"
@@ -754,6 +974,7 @@ export default function LearnSecureChatBiometricPage() {
                 Emergency Disclaimer
               </a>
               <span className="text-white/18">•</span>
+
               <a
                 href="/minors"
                 target="_blank"
@@ -763,6 +984,7 @@ export default function LearnSecureChatBiometricPage() {
                 Child Safety &amp; Minor Use
               </a>
               <span className="text-white/18">•</span>
+
               <a
                 href="/abuse"
                 target="_blank"
@@ -772,6 +994,7 @@ export default function LearnSecureChatBiometricPage() {
                 Abuse Reporting
               </a>
               <span className="text-white/18">•</span>
+
               <a
                 href="/retention"
                 target="_blank"
@@ -781,6 +1004,7 @@ export default function LearnSecureChatBiometricPage() {
                 Data Retention
               </a>
               <span className="text-white/18">•</span>
+
               <a
                 href="/law"
                 target="_blank"
@@ -790,6 +1014,7 @@ export default function LearnSecureChatBiometricPage() {
                 Law Enforcement
               </a>
               <span className="text-white/18">•</span>
+
               <a
                 href="/security"
                 target="_blank"

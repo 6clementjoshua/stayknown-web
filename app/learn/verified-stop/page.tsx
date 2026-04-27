@@ -6,19 +6,22 @@ import { useMemo, useState } from "react";
 
 type Tier = "Starter" | "Pro" | "ProMax";
 
+const seo = {
+  title: "Verified Stop | StayKnown Confirmed Safety Session End Controls",
+  description:
+    "Learn how StayKnown Verified Stop creates a clearer, safer finish layer for sensitive safety states like SOS and active Visits without repeating each detailed flow.",
+  url: "https://stay-known.com/learn/verified-stop",
+  image: "https://stay-known.com/hero/end-sos-verify.png",
+};
+
 function MobileNavLink({ href, label }: { href: string; label: string }) {
   return (
     <Link
       href={href}
       className="
-        relative inline-flex items-center gap-2
-        px-0 py-2
+        relative inline-flex items-center gap-2 px-0 py-2
         text-[11.5px] font-semibold tracking-[-0.01em]
-        text-white/68
-        transition
-        hover:text-white/90
-        active:text-white
-        select-none
+        text-white/68 transition hover:text-white/90 active:text-white select-none
       "
     >
       <span>{label}</span>
@@ -35,9 +38,7 @@ function CTA({ href, label }: { href: string; label: string }) {
       className="
         group relative hidden sm:inline-flex items-center justify-center
         h-8 md:h-[34px] px-3.5 md:px-4 rounded-full
-        border border-white/14
-        bg-white/[0.055]
-        text-white
+        border border-white/14 bg-white/[0.055] text-white
         font-semibold text-[11.5px] md:text-[12px] tracking-[-0.01em]
         shadow-[0_16px_42px_rgba(0,0,0,0.55)]
         transition-all duration-200
@@ -59,13 +60,9 @@ function MonoIcon({ glyph }: { glyph: string }) {
     <div
       className="
         shrink-0 w-9 h-9 rounded-xl
-        border border-white/12
-        bg-white/[0.045]
-        backdrop-blur-md
-        flex items-center justify-center
-        text-white/90
-        text-[14px]
-        leading-none
+        border border-white/12 bg-white/[0.045]
+        backdrop-blur-md flex items-center justify-center
+        text-white/90 text-[14px] leading-none
         shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_14px_35px_rgba(0,0,0,0.35)]
       "
       aria-hidden
@@ -117,6 +114,7 @@ function PlanTabs({
 }) {
   const Tab = ({ t }: { t: Tier }) => {
     const active = tier === t;
+
     return (
       <button
         onClick={() => setTier(t)}
@@ -139,6 +137,7 @@ function PlanTabs({
 
   const Pill = ({ t }: { t: Tier }) => {
     const active = tier === t;
+
     return (
       <button
         onClick={() => setTier(t)}
@@ -187,20 +186,18 @@ function FeatureCard({
     <div
       className="
         group relative overflow-hidden rounded-[24px]
-        border border-white/10
-        bg-white/[0.035]
+        border border-white/10 bg-white/[0.035]
         shadow-[0_24px_78px_rgba(0,0,0,0.58)]
-        p-5 sm:p-6
-        transition-all duration-300
-        hover:-translate-y-0.5
-        hover:border-white/18
-        hover:bg-white/[0.05]
+        p-5 sm:p-6 transition-all duration-300
+        hover:-translate-y-0.5 hover:border-white/18 hover:bg-white/[0.05]
       "
     >
       <div className="pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100 transition duration-300 bg-[radial-gradient(circle_at_18%_12%,rgba(255,255,255,0.12),transparent_60%)]" />
       <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-white/10" />
+
       <div className="relative flex items-start gap-3">
         <MonoIcon glyph={glyph} />
+
         <div className="min-w-0">
           <div className="text-white/95 font-black tracking-[-0.025em] text-[14px] sm:text-[15px]">
             {title}
@@ -232,11 +229,12 @@ function TierBlock({
           <div className="text-white/95 font-black tracking-[-0.025em] text-[14px] sm:text-[15px]">
             {tier}
           </div>
-          {highlight && (
+
+          {highlight ? (
             <div className="text-[10px] font-black tracking-[0.22em] text-white/56">
-              FULL POSTURE
+              STRONGEST POSTURE
             </div>
-          )}
+          ) : null}
         </div>
 
         <ul className="mt-4 space-y-2.5">
@@ -308,28 +306,78 @@ function MiniStat({
   );
 }
 
-function SoliloquyBox() {
+function CompareStopCard({
+  image,
+  label,
+  title,
+  body,
+  href,
+}: {
+  image: string;
+  label: string;
+  title: string;
+  body: string;
+  href: string;
+}) {
+  return (
+    <Link
+      href={href}
+      className="group relative overflow-hidden rounded-[24px] border border-white/10 bg-black/25 p-4 shadow-[0_22px_70px_rgba(0,0,0,0.55)] transition hover:border-white/18 hover:bg-white/[0.055]"
+    >
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_24%_12%,rgba(255,255,255,0.09),transparent_58%)]" />
+
+      <div className="relative grid grid-cols-[94px_1fr] gap-4 items-center sm:grid-cols-[118px_1fr]">
+        <div className="relative flex justify-center">
+          <img
+            src={image}
+            alt={title}
+            draggable={false}
+            className="max-h-[175px] w-auto object-contain drop-shadow-[0_18px_50px_rgba(0,0,0,0.7)] transition duration-300 group-hover:scale-[1.02]"
+          />
+        </div>
+
+        <div>
+          <div className="text-[10px] font-black tracking-[0.22em] text-white/35 uppercase">
+            {label}
+          </div>
+          <div className="mt-2 text-[15px] sm:text-[17px] font-black tracking-[-0.035em] text-white">
+            {title}
+          </div>
+          <p className="mt-2 text-[12.4px] leading-relaxed font-medium text-white/56">
+            {body}
+          </p>
+          <div className="mt-3 text-[10px] font-black tracking-[0.2em] text-white/32 group-hover:text-white/58">
+            OPEN DETAILS
+          </div>
+        </div>
+      </div>
+    </Link>
+  );
+}
+
+function ScenarioBox() {
   return (
     <PremiumPanel>
       <div className="p-5 sm:p-6">
         <SectionLabel>Scenario thinking</SectionLabel>
+
         <div className="mt-3 text-[19px] sm:text-[24px] font-black tracking-[-0.045em] leading-tight text-white">
-          “I started a Visit. I want someone I trust to understand that I am
-          actively moving, not just guessing where I am.”
+          “Starting a safety state is important. Ending it should also feel
+          intentional, understood, and hard to do by mistake.”
         </div>
+
         <div className="mt-4 space-y-3 text-[12.7px] leading-relaxed text-white/58 font-medium">
           <p>
-            That is the role of the Live Location Emitter. It turns an active
-            Visit into a readable safety posture. The app is not trying to
-            create silent, always-on surveillance. It is trying to make a
-            user-started safety session easier for trusted people to follow.
+            Verified Stop is the design principle behind protected endings. It
+            does not belong to only one button. It is the idea that sensitive
+            safety states should not disappear because of panic, pocket taps,
+            casual phone handling, or unclear intent.
           </p>
+
           <p>
-            For visitors, this makes StayKnown easier to understand. For
-            investors, it shows the platform is built around intentional safety
-            sessions, not just location dots. For policy and law-enforcement
-            readers, it clarifies that the product is scoped to user safety and
-            anti-abuse boundaries.
+            This overview connects the two detailed stop flows without repeating
+            them: ending an urgent SOS state and finishing an active Visit
+            session.
           </p>
         </div>
       </div>
@@ -337,28 +385,28 @@ function SoliloquyBox() {
   );
 }
 
-export default function LearnVisitLivePage() {
-  const [tier, setTier] = useState<Tier>("Starter");
+export default function LearnVerifiedStopPage() {
+  const [tier, setTier] = useState<Tier>("Pro");
 
   const tierCopy = useMemo(() => {
     return {
       Starter: [
-        "Live sharing is scoped to an active Visit. The user starts the Visit, the session becomes active, and LIVE context follows that session.",
-        "When the Visit ends, the live-sharing posture ends too. This keeps the safety boundary clear.",
-        "Trusted recipients can understand the session as a safety update, not a random or confusing location ping.",
-        "Starter is best for everyday check-ins, basic movement safety, and users who want simple Visit-based sharing.",
+        "Starter users can understand the Verified Stop concept before upgrading to advanced protection flows.",
+        "Basic Visit ending remains simple, while advanced protected-stop behavior is reserved for paid safety posture.",
+        "Starter should still see clear education about lawful use, device security, and trusted-contact safety expectations.",
+        "The goal is to make upgrade value understandable without confusing Starter users about active SOS access.",
       ],
       Pro: [
-        "Pro adds SOS escalation on top of the Visit/LIVE flow, so the user can move from routine safety sharing to urgent attention when needed.",
-        "Useful for users who frequently travel at night, meet new people, move through unfamiliar areas, or need stronger safety readiness.",
-        "Recipients can better distinguish ordinary Visit context from urgent escalation.",
-        "Pro is the practical upgrade for users who want more than basic check-ins while keeping the experience direct.",
+        "Pro can support stronger finish behavior around sensitive actions when the user enables the related security setting.",
+        "Verified Stop helps the app treat safety endings as meaningful state changes, not casual UI exits.",
+        "Useful for active safety sessions, urgent SOS states, night travel, rides, unfamiliar places, and higher-attention routines.",
+        "Pro is the practical layer for users who want protected endings without needing every ProMax presentation feature.",
       ],
       ProMax: [
-        "ProMax provides the most complete StayKnown posture: premium UI, stronger readiness, full safety context, and higher-value experiences.",
-        "Designed for users who want maximum clarity, faster safety habits, and a more polished safety layer.",
-        "Works well for repeated high-stakes routines, frequent movement, public-facing work, travel, and unfamiliar meetings.",
-        "ProMax keeps safety communication premium without making it confusing or overly technical.",
+        "ProMax is the strongest posture for users who want safety sessions to start, run, escalate, and finish with maximum clarity.",
+        "Best for repeated safety routines where accidental stops, unclear contact signals, or pressured endings are a serious concern.",
+        "Pairs naturally with App Lock, Safety Gallery, trusted contacts, SOS readiness, premium shell behavior, and sensitive-action protection.",
+        "ProMax should make verified endings feel serious, polished, and trustworthy without making the flow slow or confusing.",
       ],
     } as Record<Tier, string[]>;
   }, []);
@@ -366,16 +414,45 @@ export default function LearnVisitLivePage() {
   const tierNote: Record<Tier, string> = useMemo(
     () => ({
       Starter:
-        "Starter focuses on basic Visit-based safety sharing. SOS remains a Pro / ProMax capability.",
-      Pro: "SOS should be used responsibly and only for genuine safety concerns. It does not replace emergency services.",
+        "Starter can learn the model, but the strongest verified-stop behavior is part of the paid safety posture.",
+      Pro: "Verification depends on available device authentication and the user’s enabled security settings.",
       ProMax:
-        "ProMax is the most complete safety posture for users who want the highest level of clarity and polish.",
+        "Verified Stop reduces accidental endings, but it does not replace user judgment, emergency services, or lawful safety use.",
     }),
     [],
   );
 
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "WebPage",
+    name: seo.title,
+    description: seo.description,
+    url: seo.url,
+    image: seo.image,
+    isPartOf: {
+      "@type": "WebSite",
+      name: "StayKnown",
+      url: "https://stay-known.com",
+    },
+    about: [
+      "Verified Stop",
+      "confirmed safety session ending",
+      "biometric safety controls",
+      "End SOS verification",
+      "End Visit verification",
+      "mobile safety app",
+      "trusted contact safety",
+      "device authentication safety",
+    ],
+  };
+
   return (
     <main className="min-h-screen bg-black overflow-hidden">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+
       <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(255,255,255,0.075),transparent_38%),radial-gradient(circle_at_18%_38%,rgba(255,255,255,0.04),transparent_34%),radial-gradient(circle_at_82%_56%,rgba(255,255,255,0.035),transparent_34%)]" />
 
       <header className="relative pt-7">
@@ -392,25 +469,22 @@ export default function LearnVisitLivePage() {
               STAYKNOWN
             </div>
             <div className="text-white/40 font-semibold text-[11px]">
-              Learn • Live Location Emitter
+              Learn • Verified Stop
             </div>
           </div>
 
           <div className="sm:hidden mt-3 flex items-center justify-between">
+            <MobileNavLink href="/" label="Back to Home" />
             <MobileNavLink
-              href="/learn/visit-live-sos"
-              label="Previous: Live + SOS"
-            />
-            <MobileNavLink
-              href="/learn/promax-shell"
-              label="Next: ProMax Shell"
+              href="/learn/contact-approval"
+              label="Next: Contacts"
             />
           </div>
 
-          <div className="hidden sm:flex mt-5 flex-wrap items-center justify-center gap-3">
+          <div className="hidden sm:flex mt-5 items-center justify-center gap-3">
             <CTA href="/" label="Back to Home" />
-            <CTA href="/learn/visit-live-sos" label="Previous: Live + SOS" />
-            <CTA href="/learn/promax-shell" label="Next: ProMax MainShell" />
+            <CTA href="/learn/end-sos-verify" label="End SOS Details" />
+            <CTA href="/learn/end-visit-verify" label="End Visit Details" />
           </div>
         </div>
       </header>
@@ -419,54 +493,56 @@ export default function LearnVisitLivePage() {
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_18%,rgba(255,255,255,0.065),transparent_58%)]" />
 
         <div className="mx-auto max-w-6xl px-4 pt-8 pb-0">
-          <div className="grid grid-cols-1 lg:grid-cols-[0.95fr_1.05fr] items-start gap-8 lg:gap-10">
+          <div className="grid grid-cols-1 lg:grid-cols-[0.9fr_1.1fr] items-start gap-8 lg:gap-8">
             <div className="order-1 lg:order-none lg:col-start-2">
               <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.045] px-3 py-1.5 text-[10.5px] font-black tracking-[0.20em] text-white/46 uppercase">
-                Visit-bound live context
+                Confirmed endings for sensitive safety states
               </div>
 
               <h1 className="mt-4 text-white/95 font-black tracking-[-0.06em] text-[38px] sm:text-[54px] lg:text-[60px] leading-[0.94]">
-                Live Location Emitter
+                Verified Stop
               </h1>
 
               <div className="mt-4 max-w-[76ch] space-y-3 text-white/62 font-medium text-[13px] sm:text-[14px] leading-relaxed">
                 <p>
-                  Live updates occur only during an active Visit. This matters
-                  because safety sharing should be intentional, readable, and
-                  time-bounded.
+                  Verified Stop is the safety principle that says ending an
+                  active protection state should be clear, deliberate, and
+                  harder to confuse with an accidental tap.
                 </p>
+
                 <p>
-                  StayKnown’s Live Location Emitter is not built as a silent
-                  always-on tracker. It is a safety layer that helps trusted
-                  contacts understand an active Visit while the user is moving,
-                  meeting, traveling, or checking in.
+                  It sits above two detailed flows: End SOS verification for
+                  urgent emergency posture, and End Visit verification for
+                  active safety sessions. This page explains the shared logic
+                  without repeating either full page.
                 </p>
               </div>
 
-              <TintedCallout title="Why this design is intentional">
-                StayKnown avoids passive, unlimited sharing by tying live
-                updates to a Visit. That makes safety sharing{" "}
-                <span className="text-white/78 font-black">explicit</span>,{" "}
-                <span className="text-white/78 font-black">time-bounded</span>,
-                and easier for recipients to interpret correctly.{" "}
-                <em>It is safety-first — not passive tracking.</em>
+              <TintedCallout title="The verified-stop promise">
+                When a safety state ends, the app should help everyone
+                understand that the finish action was intentional enough to
+                trust.{" "}
+                <em>
+                  It is a protection layer, not a guarantee of safety or a
+                  replacement for emergency services.
+                </em>
               </TintedCallout>
 
               <div className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <MiniStat
-                  label="LIVE"
-                  value="Only in Visit"
-                  detail="The live posture follows the active safety session."
+                  label="Principle"
+                  value="Intent"
+                  detail="The stop action should feel deliberate."
                 />
                 <MiniStat
-                  label="Boundary"
-                  value="Ends with Visit"
-                  detail="When the user ends the Visit, the live posture stops."
+                  label="Scope"
+                  value="Sensitive"
+                  detail="Used around safety states that should not end casually."
                 />
                 <MiniStat
-                  label="Purpose"
-                  value="Trusted context"
-                  detail="Designed for safety communication, not public tracking."
+                  label="Signal"
+                  value="Clear"
+                  detail="Trusted recipients should understand the transition."
                 />
               </div>
 
@@ -489,21 +565,21 @@ export default function LearnVisitLivePage() {
 
               <div className="mt-6">
                 <div className="sm:hidden flex items-center justify-between gap-3">
+                  <MobileNavLink href="/learn/end-sos-verify" label="End SOS" />
                   <MobileNavLink
-                    href="/learn/visit-live-sos"
-                    label="Learn: Live + SOS"
-                  />
-                  <MobileNavLink
-                    href="/learn/promax-shell"
-                    label="Explore: ProMax Shell"
+                    href="/learn/end-visit-verify"
+                    label="End Visit"
                   />
                 </div>
 
                 <div className="hidden sm:flex flex-wrap gap-3">
-                  <CTA href="/learn/visit-live-sos" label="Learn: Live + SOS" />
                   <CTA
-                    href="/learn/promax-shell"
-                    label="Explore: ProMax MainShell"
+                    href="/learn/end-sos-verify"
+                    label="Read: End SOS Verification"
+                  />
+                  <CTA
+                    href="/learn/end-visit-verify"
+                    label="Read: End Visit Verification"
                   />
                 </div>
               </div>
@@ -511,8 +587,8 @@ export default function LearnVisitLivePage() {
 
             <div className="order-2 lg:order-none lg:col-start-1 flex items-start justify-center lg:justify-start">
               <img
-                src="/hero/visit-live.png"
-                alt="Live Location Emitter"
+                src="/hero/end-sos-verify.png"
+                alt="Verified Stop safety confirmation"
                 draggable={false}
                 className="
                   block object-contain select-none
@@ -521,10 +597,8 @@ export default function LearnVisitLivePage() {
                   sm:max-w-[560px] sm:max-h-[62vh]
                   lg:max-w-[720px] lg:max-h-[74vh]
                   xl:max-w-[780px]
-                  transform-gpu
-                  transition duration-700 ease-out
-                  hover:scale-[1.01]
-                  lg:-translate-y-[720px] xl:-translate-y-[930px] 2xl:-translate-y-[1080px]
+                  transform-gpu transition duration-700 ease-out hover:scale-[1.01]
+                  lg:-translate-y-[760px] xl:-translate-y-[940px] 2xl:-translate-y-[1100px]
                 "
               />
             </div>
@@ -535,125 +609,135 @@ export default function LearnVisitLivePage() {
       <section className="relative w-full">
         <div className="mx-auto max-w-6xl px-4 pb-10 sm:pb-14">
           <div className="mb-5 grid grid-cols-1 lg:grid-cols-[0.95fr_1.05fr] gap-5">
-            <SoliloquyBox />
+            <ScenarioBox />
 
             <PremiumPanel>
               <div className="p-5 sm:p-6">
-                <SectionLabel>Security and anti-abuse posture</SectionLabel>
+                <SectionLabel>Bridge logic</SectionLabel>
+
                 <div className="mt-3 text-[20px] sm:text-[25px] font-black tracking-[-0.045em] leading-tight text-white">
-                  The emitter is scoped so safety sharing does not become
-                  uncontrolled surveillance.
+                  The same idea applies to different safety states, but the
+                  meaning changes by context.
                 </div>
+
                 <div className="mt-4 space-y-3 text-[12.7px] leading-relaxed text-white/58 font-medium">
                   <p>
-                    A user starts a Visit. LIVE becomes active inside that
-                    Visit. The session has a clear safety meaning. This is
-                    easier to explain to recipients, easier to audit mentally,
-                    and easier to distinguish from stalking behavior.
+                    Ending SOS is about leaving the most urgent protection
+                    posture. Ending a Visit is about finishing an active safety
+                    session. They are not the same moment, so each deserves its
+                    own detail page.
                   </p>
+
                   <p>
-                    StayKnown should never be used to secretly track another
-                    person. It should not be used for coercion, stalking,
-                    harassment, or public exposure of someone’s safety status.
-                    Users should contact local emergency services immediately in
-                    life-threatening situations.
+                    Verified Stop is the shared foundation: when the app is
+                    protecting a sensitive state, stopping should be purposeful,
+                    readable, and connected to the user’s security posture.
                   </p>
                 </div>
               </div>
             </PremiumPanel>
           </div>
 
+          <div className="mb-6 grid gap-5 lg:grid-cols-2">
+            <CompareStopCard
+              image="/hero/end-sos-verify.png"
+              label="Urgent state"
+              title="End SOS verification"
+              body="For the highest-alert posture. The focus is preventing an urgent state from being dismissed casually or under unclear intent."
+              href="/learn/end-sos-verify"
+            />
+
+            <CompareStopCard
+              image="/hero/end-visit-verify.png"
+              label="Active session"
+              title="End Visit verification"
+              body="For normal safety sharing. The focus is making sure an active Visit finishes because the user truly meant to end it."
+              href="/learn/end-visit-verify"
+            />
+          </div>
+
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-6">
-            <FeatureCard glyph="▣" title="What the emitter does">
-              During a Visit, StayKnown shares live safety context so trusted
-              people can understand the user’s active session in a readable way.
-              It is less about showing a dot and more about explaining the
-              safety posture.
-              <div className="mt-3 text-white/45">
-                Example: <em>“Visit active — LIVE updates enabled.”</em>
-              </div>
-            </FeatureCard>
-
-            <FeatureCard glyph="⌁" title="Why it only runs during a Visit">
-              Always-on tracking can be misused. By scoping LIVE to an active
-              Visit, StayKnown keeps sharing intentional, limited, and easier to
-              trust.
-              <div className="mt-3 text-white/45">
-                <em>Start Visit</em> → LIVE context can begin.{" "}
-                <em>End Visit</em> → active sharing stops.
-              </div>
-            </FeatureCard>
-
-            <FeatureCard glyph="⟂" title="Real-world examples">
-              <div className="space-y-2">
+            <FeatureCard glyph="✔" title="What Verified Stop means">
+              Verified Stop is not only a button style. It is a state-transition
+              rule:
+              <div className="mt-3 space-y-2 text-white/62">
+                <div>• the current safety state is active</div>
+                <div>• the user requests to stop it</div>
                 <div>
-                  <span className="text-white/75 font-black">•</span> Late-night
-                  travel: start a Visit so trusted people know your safety
-                  session is active.
+                  • the app checks whether stronger confirmation applies
                 </div>
-                <div>
-                  <span className="text-white/75 font-black">•</span> First-time
-                  meetup: keep the Visit active until the meeting is over.
-                </div>
-                <div>
-                  <span className="text-white/75 font-black">•</span> Long
-                  route: recipients can understand updates as part of one safety
-                  session.
-                </div>
+                <div>• the finish state becomes easier to trust</div>
               </div>
             </FeatureCard>
 
-            <FeatureCard glyph="!" title="Where SOS fits">
-              SOS is the escalation layer for Pro and ProMax. LIVE is the active
-              session context; SOS is the stronger urgent signal when normal
-              safety sharing is no longer enough.
+            <FeatureCard glyph="⌁" title="What this page does not repeat">
+              This page does not re-explain every End SOS or End Visit detail.
+              Instead, it explains the shared design reason behind both flows:
+              sensitive protection should not disappear casually.
               <div className="mt-3 text-white/45">
-                Starter keeps the basic Visit flow. Pro and ProMax add the
-                stronger emergency posture.
+                Use the two linked pages for the deeper step-by-step behavior.
               </div>
             </FeatureCard>
 
-            <FeatureCard glyph="✦" title="Signals the UI makes obvious">
-              StayKnown uses clear state signaling so users understand what is
-              happening instantly:{" "}
-              <span className="text-white/78 font-black">Idle</span>,{" "}
-              <span className="text-white/78 font-black">LIVE</span>, and{" "}
-              <span className="text-white/78 font-black">SOS</span>.
+            <FeatureCard glyph="▣" title="Why the transition matters">
+              Safety products are judged by state clarity. Users and contacts
+              need to know whether protection is active, ending, ended, failed,
+              or waiting for confirmation.
               <div className="mt-3 text-white/45">
-                Visual Severity Mode can make these states more distinct
-                visually without changing the underlying behavior.
+                Verified Stop helps make “ended” feel like a meaningful result,
+                not an accidental disappearance.
               </div>
             </FeatureCard>
 
-            <FeatureCard glyph="⚖" title="Law-abiding explanation">
-              The emitter should be understood as user-directed safety sharing.
-              It should not be used to monitor someone secretly or to pressure
-              another person. StayKnown’s policy links should remain visible so
-              expectations are clear.
+            <FeatureCard glyph="⟡" title="Where device authentication fits">
+              Biometric or device-level confirmation can act as the proof layer
+              around selected stop actions. The exact behavior depends on device
+              support, app settings, and the user’s enabled security posture.
               <div className="mt-3 text-white/45">
-                See <em>Safety &amp; Anti-Stalking</em>, <em>Acceptable Use</em>
-                , and <em>Emergency Disclaimer</em>.
+                Public copy should center on biometric/device-level verified
+                stop, not public-facing passcode language.
               </div>
             </FeatureCard>
 
-            <FeatureCard glyph="◌" title="Why investors should care">
-              The Live Location Emitter is a core platform primitive. It anchors
-              Visit sessions, supports SOS escalation, strengthens safety email
-              context, and connects naturally to chat, profile trust, and plan
-              tiers.
-              <div className="mt-3 text-white/45">
-                This is the type of feature that can create repeat engagement
-                while still staying aligned with safety boundaries.
+            <FeatureCard glyph="!" title="When friction is useful">
+              Friction is bad when it slows ordinary use. It is useful when it
+              protects a sensitive ending:
+              <div className="mt-3 space-y-2 text-white/62">
+                <div>• panic tapping</div>
+                <div>• pocket or bag handling</div>
+                <div>• someone else holding the phone</div>
+                <div>• pressure to end protection too early</div>
               </div>
             </FeatureCard>
 
-            <FeatureCard glyph="⟡" title="What recipients need to understand">
-              Recipients need simple language. They should know that a Visit is
-              active, LIVE updates are tied to that Visit, and an ended Visit
-              means the active safety session is no longer running.
+            <FeatureCard glyph="◌" title="Trusted contact interpretation">
+              The recipient should not need to decode raw app behavior. If a
+              safety state ends, the message and state label should make that
+              transition understandable.
               <div className="mt-3 text-white/45">
-                Clear recipient communication reduces panic, confusion, and
-                delayed response.
+                That is especially important during SOS, but it also matters for
+                Visits watched by family, friends, or trusted contacts.
+              </div>
+            </FeatureCard>
+
+            <FeatureCard glyph="⚖" title="Law-abiding safety posture">
+              Verified Stop supports user-directed safety. It does not authorize
+              stalking, coercion, harassment, false alarms, unauthorized
+              monitoring, or misuse of location sharing.
+              <div className="mt-3 text-white/45">
+                In immediate danger, users should contact local emergency
+                services directly.
+              </div>
+            </FeatureCard>
+
+            <FeatureCard glyph="✦" title="Investor value">
+              Verified Stop proves the product thinks beyond activation. A
+              serious safety platform must handle the full lifecycle: start,
+              live state, escalation, trusted-recipient context, and protected
+              finish.
+              <div className="mt-3 text-white/45">
+                That makes StayKnown feel more complete than a simple alert
+                button or location-sharing screen.
               </div>
             </FeatureCard>
           </div>
@@ -662,32 +746,59 @@ export default function LearnVisitLivePage() {
             <PremiumPanel>
               <div className="grid gap-5 p-5 sm:p-6 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
                 <div>
-                  <SectionLabel>Simple product language</SectionLabel>
+                  <SectionLabel>Search discovery focus</SectionLabel>
+
                   <div className="mt-3 text-[21px] sm:text-[28px] font-black tracking-[-0.045em] leading-tight text-white">
-                    The emitter answers one question: is this user currently in
-                    an active safety session?
+                    This page is written for discovery around verified stop,
+                    protected safety endings, and biometric confirmation.
                   </div>
+
                   <p className="mt-3 text-[12.8px] leading-relaxed text-white/56 font-medium">
-                    That is the language visitors understand. It avoids
-                    overusing technical terms like “background location,” and
-                    focuses on user intent: a Visit is active, LIVE context is
-                    active, and trusted people can follow the safety posture.
+                    Visitors should understand the phrase quickly: Verified Stop
+                    means sensitive safety states can require clearer intent
+                    before they end. For deeper examples, the End SOS and End
+                    Visit pages explain each flow separately.
                   </p>
                 </div>
 
                 <div className="grid gap-3 sm:grid-cols-2">
                   {[
-                    "A user starts a Visit before leaving work late at night.",
-                    "A family member checks the update and understands the Visit is still active.",
-                    "A trusted contact sees the session as safety context, not a random location ping.",
-                    "When the Visit ends, the user’s active LIVE posture ends with it.",
+                    {
+                      title: "SOS ends differently",
+                      body: "Urgent safety posture deserves the strongest stop explanation.",
+                      href: "/learn/end-sos-verify",
+                    },
+                    {
+                      title: "Visits finish carefully",
+                      body: "Active sharing should stop only when the user means to finish.",
+                      href: "/learn/end-visit-verify",
+                    },
+                    {
+                      title: "SOS state comes first",
+                      body: "Understand what changes when SOS becomes active.",
+                      href: "/learn/sos",
+                    },
+                    {
+                      title: "Manual Capture is separate",
+                      body: "A checkpoint is not the same as ending a safety state.",
+                      href: "/learn/manual-capture",
+                    },
                   ].map((item) => (
-                    <div
-                      key={item}
-                      className="rounded-2xl border border-white/10 bg-black/25 p-4 text-[12.4px] leading-relaxed text-white/58 font-medium"
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className="group rounded-2xl border border-white/10 bg-black/25 p-4 transition hover:bg-white/[0.06] hover:border-white/18"
                     >
-                      {item}
-                    </div>
+                      <div className="text-[12.8px] font-black tracking-[-0.02em] text-white/86">
+                        {item.title}
+                      </div>
+                      <div className="mt-2 text-[12.2px] leading-relaxed font-medium text-white/50">
+                        {item.body}
+                      </div>
+                      <div className="mt-3 text-[10px] font-black tracking-[0.2em] text-white/32 group-hover:text-white/56">
+                        OPEN
+                      </div>
+                    </Link>
                   ))}
                 </div>
               </div>
@@ -711,6 +822,7 @@ export default function LearnVisitLivePage() {
                 Privacy Policy
               </a>
               <span className="text-white/18">•</span>
+
               <a
                 href="/terms"
                 target="_blank"
@@ -720,6 +832,7 @@ export default function LearnVisitLivePage() {
                 Terms of Use
               </a>
               <span className="text-white/18">•</span>
+
               <a
                 href="/acceptable-use"
                 target="_blank"
@@ -729,6 +842,7 @@ export default function LearnVisitLivePage() {
                 Acceptable Use
               </a>
               <span className="text-white/18">•</span>
+
               <a
                 href="/safety"
                 target="_blank"
@@ -738,6 +852,7 @@ export default function LearnVisitLivePage() {
                 Safety &amp; Anti-Stalking
               </a>
               <span className="text-white/18">•</span>
+
               <a
                 href="/emergency"
                 target="_blank"
@@ -747,6 +862,7 @@ export default function LearnVisitLivePage() {
                 Emergency Disclaimer
               </a>
               <span className="text-white/18">•</span>
+
               <a
                 href="/minors"
                 target="_blank"
@@ -756,6 +872,7 @@ export default function LearnVisitLivePage() {
                 Child Safety &amp; Minor Use
               </a>
               <span className="text-white/18">•</span>
+
               <a
                 href="/abuse"
                 target="_blank"
@@ -765,6 +882,7 @@ export default function LearnVisitLivePage() {
                 Abuse Reporting
               </a>
               <span className="text-white/18">•</span>
+
               <a
                 href="/retention"
                 target="_blank"
@@ -774,6 +892,7 @@ export default function LearnVisitLivePage() {
                 Data Retention
               </a>
               <span className="text-white/18">•</span>
+
               <a
                 href="/law"
                 target="_blank"
@@ -783,6 +902,7 @@ export default function LearnVisitLivePage() {
                 Law Enforcement
               </a>
               <span className="text-white/18">•</span>
+
               <a
                 href="/security"
                 target="_blank"

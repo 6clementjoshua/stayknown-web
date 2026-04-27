@@ -6,19 +6,22 @@ import { useMemo, useState } from "react";
 
 type Tier = "Starter" | "Pro" | "ProMax";
 
+const seo = {
+  title: "Contact Approval | StayKnown Consent-Based Emergency Contact Trust",
+  description:
+    "Learn how StayKnown contact approval protects trusted safety relationships with two-party confirmation, consent-aware setup, clear roles, and anti-abuse safeguards.",
+  url: "https://stay-known.com/learn/contact-approval",
+  image: "https://stay-known.com/hero/contact-approval.png",
+};
+
 function MobileNavLink({ href, label }: { href: string; label: string }) {
   return (
     <Link
       href={href}
       className="
-        relative inline-flex items-center gap-2
-        px-0 py-2
+        relative inline-flex items-center gap-2 px-0 py-2
         text-[11.5px] font-semibold tracking-[-0.01em]
-        text-white/68
-        transition
-        hover:text-white/90
-        active:text-white
-        select-none
+        text-white/68 transition hover:text-white/90 active:text-white select-none
       "
     >
       <span>{label}</span>
@@ -35,9 +38,7 @@ function CTA({ href, label }: { href: string; label: string }) {
       className="
         group relative hidden sm:inline-flex items-center justify-center
         h-8 md:h-[34px] px-3.5 md:px-4 rounded-full
-        border border-white/14
-        bg-white/[0.055]
-        text-white
+        border border-white/14 bg-white/[0.055] text-white
         font-semibold text-[11.5px] md:text-[12px] tracking-[-0.01em]
         shadow-[0_16px_42px_rgba(0,0,0,0.55)]
         transition-all duration-200
@@ -59,13 +60,9 @@ function MonoIcon({ glyph }: { glyph: string }) {
     <div
       className="
         shrink-0 w-9 h-9 rounded-xl
-        border border-white/12
-        bg-white/[0.045]
-        backdrop-blur-md
-        flex items-center justify-center
-        text-white/90
-        text-[14px]
-        leading-none
+        border border-white/12 bg-white/[0.045]
+        backdrop-blur-md flex items-center justify-center
+        text-white/90 text-[14px] leading-none
         shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_14px_35px_rgba(0,0,0,0.35)]
       "
       aria-hidden
@@ -117,6 +114,7 @@ function PlanTabs({
 }) {
   const Tab = ({ t }: { t: Tier }) => {
     const active = tier === t;
+
     return (
       <button
         onClick={() => setTier(t)}
@@ -139,6 +137,7 @@ function PlanTabs({
 
   const Pill = ({ t }: { t: Tier }) => {
     const active = tier === t;
+
     return (
       <button
         onClick={() => setTier(t)}
@@ -187,20 +186,18 @@ function FeatureCard({
     <div
       className="
         group relative overflow-hidden rounded-[24px]
-        border border-white/10
-        bg-white/[0.035]
+        border border-white/10 bg-white/[0.035]
         shadow-[0_24px_78px_rgba(0,0,0,0.58)]
-        p-5 sm:p-6
-        transition-all duration-300
-        hover:-translate-y-0.5
-        hover:border-white/18
-        hover:bg-white/[0.05]
+        p-5 sm:p-6 transition-all duration-300
+        hover:-translate-y-0.5 hover:border-white/18 hover:bg-white/[0.05]
       "
     >
       <div className="pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100 transition duration-300 bg-[radial-gradient(circle_at_18%_12%,rgba(255,255,255,0.12),transparent_60%)]" />
       <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-white/10" />
+
       <div className="relative flex items-start gap-3">
         <MonoIcon glyph={glyph} />
+
         <div className="min-w-0">
           <div className="text-white/95 font-black tracking-[-0.025em] text-[14px] sm:text-[15px]">
             {title}
@@ -232,11 +229,12 @@ function TierBlock({
           <div className="text-white/95 font-black tracking-[-0.025em] text-[14px] sm:text-[15px]">
             {tier}
           </div>
-          {highlight && (
+
+          {highlight ? (
             <div className="text-[10px] font-black tracking-[0.22em] text-white/56">
-              FULL POSTURE
+              TRUST DEPTH
             </div>
-          )}
+          ) : null}
         </div>
 
         <ul className="mt-4 space-y-2.5">
@@ -308,28 +306,58 @@ function MiniStat({
   );
 }
 
-function SoliloquyBox() {
+function FlowStep({
+  n,
+  title,
+  body,
+}: {
+  n: string;
+  title: string;
+  body: string;
+}) {
+  return (
+    <div className="relative overflow-hidden rounded-[22px] border border-white/10 bg-black/25 p-4">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_12%,rgba(255,255,255,0.08),transparent_58%)]" />
+      <div className="relative">
+        <div className="flex items-center gap-3">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/12 bg-white/[0.055] text-[11px] font-black text-white/70">
+            {n}
+          </div>
+          <div className="text-[13.2px] font-black tracking-[-0.025em] text-white/88">
+            {title}
+          </div>
+        </div>
+        <p className="mt-3 text-[12.3px] leading-relaxed font-medium text-white/52">
+          {body}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function ScenarioBox() {
   return (
     <PremiumPanel>
       <div className="p-5 sm:p-6">
-        <SectionLabel>Scenario thinking</SectionLabel>
+        <SectionLabel>Assurance standard</SectionLabel>
+
         <div className="mt-3 text-[19px] sm:text-[24px] font-black tracking-[-0.045em] leading-tight text-white">
-          “I started a Visit. I want someone I trust to understand that I am
-          actively moving, not just guessing where I am.”
+          “No one should become part of my safety circle silently, and no one
+          should be asked to carry safety responsibility without knowing.”
         </div>
+
         <div className="mt-4 space-y-3 text-[12.7px] leading-relaxed text-white/58 font-medium">
           <p>
-            That is the role of the Live Location Emitter. It turns an active
-            Visit into a readable safety posture. The app is not trying to
-            create silent, always-on surveillance. It is trying to make a
-            user-started safety session easier for trusted people to follow.
+            Contact Approval is StayKnown’s trust gate. It helps make sure a
+            safety relationship is intentional before the app depends on that
+            person for Visit alerts, SOS context, or emergency communication.
           </p>
+
           <p>
-            For visitors, this makes StayKnown easier to understand. For
-            investors, it shows the platform is built around intentional safety
-            sessions, not just location dots. For policy and law-enforcement
-            readers, it clarifies that the product is scoped to user safety and
-            anti-abuse boundaries.
+            The experience should feel calm and reassuring: the account owner
+            knows what they requested, the contact knows what role they are
+            accepting, and the request does not complete until the required
+            confirmations are in place.
           </p>
         </div>
       </div>
@@ -337,28 +365,28 @@ function SoliloquyBox() {
   );
 }
 
-export default function LearnVisitLivePage() {
+export default function LearnContactApprovalPage() {
   const [tier, setTier] = useState<Tier>("Starter");
 
   const tierCopy = useMemo(() => {
     return {
       Starter: [
-        "Live sharing is scoped to an active Visit. The user starts the Visit, the session becomes active, and LIVE context follows that session.",
-        "When the Visit ends, the live-sharing posture ends too. This keeps the safety boundary clear.",
-        "Trusted recipients can understand the session as a safety update, not a random or confusing location ping.",
-        "Starter is best for everyday check-ins, basic movement safety, and users who want simple Visit-based sharing.",
+        "Starter users can set up trusted safety relationships with clear approval expectations before relying on Visit sharing.",
+        "A contact should understand who is adding them, what role they are being asked to accept, and why the relationship matters.",
+        "Pending states should stay calm and readable so users know the request is waiting, not broken.",
+        "Starter keeps contact trust understandable while higher tiers expand the safety actions those contacts may support.",
       ],
       Pro: [
-        "Pro adds SOS escalation on top of the Visit/LIVE flow, so the user can move from routine safety sharing to urgent attention when needed.",
-        "Useful for users who frequently travel at night, meet new people, move through unfamiliar areas, or need stronger safety readiness.",
-        "Recipients can better distinguish ordinary Visit context from urgent escalation.",
-        "Pro is the practical upgrade for users who want more than basic check-ins while keeping the experience direct.",
+        "Pro contact approval becomes more important because contacts may receive SOS-related context and urgent safety signals.",
+        "Approved contacts help reduce confusion during escalation because the relationship is already known and intentional.",
+        "The flow should support clear approvals, declines, expired links, and status refresh without raw or alarming error text.",
+        "Pro users benefit from a stronger trust layer before using safety features that depend on emergency communication.",
       ],
       ProMax: [
-        "ProMax provides the most complete StayKnown posture: premium UI, stronger readiness, full safety context, and higher-value experiences.",
-        "Designed for users who want maximum clarity, faster safety habits, and a more polished safety layer.",
-        "Works well for repeated high-stakes routines, frequent movement, public-facing work, travel, and unfamiliar meetings.",
-        "ProMax keeps safety communication premium without making it confusing or overly technical.",
+        "ProMax should present the most complete contact trust posture across emergency contacts, SOS contacts, and responder-style safety roles.",
+        "Best for users who need premium trust clarity, repeated safety routines, stronger consent language, and polished pending-state handling.",
+        "Works best with Safety Gallery, verified stop, SOS readiness, profile identity, and richer safety-recognition surfaces.",
+        "ProMax should make contact approval feel serious and premium without making the process intimidating.",
       ],
     } as Record<Tier, string[]>;
   }, []);
@@ -366,16 +394,46 @@ export default function LearnVisitLivePage() {
   const tierNote: Record<Tier, string> = useMemo(
     () => ({
       Starter:
-        "Starter focuses on basic Visit-based safety sharing. SOS remains a Pro / ProMax capability.",
-      Pro: "SOS should be used responsibly and only for genuine safety concerns. It does not replace emergency services.",
+        "Contact approval is about trust and consent. Only add people who should genuinely receive safety context.",
+      Pro: "Because Pro unlocks SOS readiness, contacts should understand the role before urgent alerts depend on them.",
       ProMax:
-        "ProMax is the most complete safety posture for users who want the highest level of clarity and polish.",
+        "ProMax can support the deepest trust posture, but consent and lawful use remain the foundation.",
     }),
     [],
   );
 
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "WebPage",
+    name: seo.title,
+    description: seo.description,
+    url: seo.url,
+    image: seo.image,
+    isPartOf: {
+      "@type": "WebSite",
+      name: "StayKnown",
+      url: "https://stay-known.com",
+    },
+    about: [
+      "contact approval",
+      "emergency contact consent",
+      "trusted safety contacts",
+      "SOS contact approval",
+      "two-party confirmation",
+      "personal safety app",
+      "anti-stalking safety app",
+      "StayKnown contact confirmation",
+      "consent-based safety sharing",
+    ],
+  };
+
   return (
     <main className="min-h-screen bg-black overflow-hidden">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+
       <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(255,255,255,0.075),transparent_38%),radial-gradient(circle_at_18%_38%,rgba(255,255,255,0.04),transparent_34%),radial-gradient(circle_at_82%_56%,rgba(255,255,255,0.035),transparent_34%)]" />
 
       <header className="relative pt-7">
@@ -392,25 +450,22 @@ export default function LearnVisitLivePage() {
               STAYKNOWN
             </div>
             <div className="text-white/40 font-semibold text-[11px]">
-              Learn • Live Location Emitter
+              Learn • Contact Approval
             </div>
           </div>
 
           <div className="sm:hidden mt-3 flex items-center justify-between">
+            <MobileNavLink href="/" label="Back to Home" />
             <MobileNavLink
-              href="/learn/visit-live-sos"
-              label="Previous: Live + SOS"
-            />
-            <MobileNavLink
-              href="/learn/promax-shell"
-              label="Next: ProMax Shell"
+              href="/learn/safety-gallery"
+              label="Next: Safety Gallery"
             />
           </div>
 
-          <div className="hidden sm:flex mt-5 flex-wrap items-center justify-center gap-3">
+          <div className="hidden sm:flex mt-5 items-center justify-center gap-3">
             <CTA href="/" label="Back to Home" />
-            <CTA href="/learn/visit-live-sos" label="Previous: Live + SOS" />
-            <CTA href="/learn/promax-shell" label="Next: ProMax MainShell" />
+            <CTA href="/learn/verified-stop" label="Verified Stop" />
+            <CTA href="/learn/safety-gallery" label="Next: Safety Gallery" />
           </div>
         </div>
       </header>
@@ -419,54 +474,55 @@ export default function LearnVisitLivePage() {
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_18%,rgba(255,255,255,0.065),transparent_58%)]" />
 
         <div className="mx-auto max-w-6xl px-4 pt-8 pb-0">
-          <div className="grid grid-cols-1 lg:grid-cols-[0.95fr_1.05fr] items-start gap-8 lg:gap-10">
+          <div className="grid grid-cols-1 lg:grid-cols-[0.9fr_1.1fr] items-start gap-8 lg:gap-8">
             <div className="order-1 lg:order-none lg:col-start-2">
               <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.045] px-3 py-1.5 text-[10.5px] font-black tracking-[0.20em] text-white/46 uppercase">
-                Visit-bound live context
+                Consent before trusted safety access
               </div>
 
               <h1 className="mt-4 text-white/95 font-black tracking-[-0.06em] text-[38px] sm:text-[54px] lg:text-[60px] leading-[0.94]">
-                Live Location Emitter
+                Contact Approval
               </h1>
 
               <div className="mt-4 max-w-[76ch] space-y-3 text-white/62 font-medium text-[13px] sm:text-[14px] leading-relaxed">
                 <p>
-                  Live updates occur only during an active Visit. This matters
-                  because safety sharing should be intentional, readable, and
-                  time-bounded.
+                  StayKnown does not treat safety access as casual. A person
+                  should know when they are being added, who is adding them,
+                  what role they are being asked to accept, and why that
+                  relationship matters.
                 </p>
+
                 <p>
-                  StayKnown’s Live Location Emitter is not built as a silent
-                  always-on tracker. It is a safety layer that helps trusted
-                  contacts understand an active Visit while the user is moving,
-                  meeting, traveling, or checking in.
+                  Contact Approval creates a consent-aware trust layer before
+                  safety alerts, Visit context, SOS updates, or emergency
+                  communication depend on the relationship.
                 </p>
               </div>
 
-              <TintedCallout title="Why this design is intentional">
-                StayKnown avoids passive, unlimited sharing by tying live
-                updates to a Visit. That makes safety sharing{" "}
-                <span className="text-white/78 font-black">explicit</span>,{" "}
-                <span className="text-white/78 font-black">time-bounded</span>,
-                and easier for recipients to interpret correctly.{" "}
-                <em>It is safety-first — not passive tracking.</em>
+              <TintedCallout title="The assurance message">
+                StayKnown is designed so trusted safety relationships are clear,
+                intentional, and reviewable.{" "}
+                <em>
+                  A contact can approve, decline, or let an expired request
+                  require a fresh process instead of being silently added.
+                </em>
               </TintedCallout>
 
               <div className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <MiniStat
-                  label="LIVE"
-                  value="Only in Visit"
-                  detail="The live posture follows the active safety session."
+                  label="Trust"
+                  value="Two sides"
+                  detail="Both the account owner and contact side can be represented."
                 />
                 <MiniStat
-                  label="Boundary"
-                  value="Ends with Visit"
-                  detail="When the user ends the Visit, the live posture stops."
+                  label="Safety"
+                  value="Consent"
+                  detail="The role should be known before alerts depend on it."
                 />
                 <MiniStat
-                  label="Purpose"
-                  value="Trusted context"
-                  detail="Designed for safety communication, not public tracking."
+                  label="Status"
+                  value="Clear"
+                  detail="Pending, approved, declined, and expired states stay understandable."
                 />
               </div>
 
@@ -489,21 +545,18 @@ export default function LearnVisitLivePage() {
 
               <div className="mt-6">
                 <div className="sm:hidden flex items-center justify-between gap-3">
+                  <MobileNavLink href="/learn/sos" label="SOS" />
                   <MobileNavLink
-                    href="/learn/visit-live-sos"
-                    label="Learn: Live + SOS"
-                  />
-                  <MobileNavLink
-                    href="/learn/promax-shell"
-                    label="Explore: ProMax Shell"
+                    href="/learn/safety-gallery"
+                    label="Safety Gallery"
                   />
                 </div>
 
                 <div className="hidden sm:flex flex-wrap gap-3">
-                  <CTA href="/learn/visit-live-sos" label="Learn: Live + SOS" />
+                  <CTA href="/learn/sos" label="Learn: SOS Active State" />
                   <CTA
-                    href="/learn/promax-shell"
-                    label="Explore: ProMax MainShell"
+                    href="/learn/safety-gallery"
+                    label="Learn: Safety Gallery"
                   />
                 </div>
               </div>
@@ -511,8 +564,8 @@ export default function LearnVisitLivePage() {
 
             <div className="order-2 lg:order-none lg:col-start-1 flex items-start justify-center lg:justify-start">
               <img
-                src="/hero/visit-live.png"
-                alt="Live Location Emitter"
+                src="/hero/contact-approval.png"
+                alt="StayKnown contact approval confirmation"
                 draggable={false}
                 className="
                   block object-contain select-none
@@ -521,10 +574,8 @@ export default function LearnVisitLivePage() {
                   sm:max-w-[560px] sm:max-h-[62vh]
                   lg:max-w-[720px] lg:max-h-[74vh]
                   xl:max-w-[780px]
-                  transform-gpu
-                  transition duration-700 ease-out
-                  hover:scale-[1.01]
-                  lg:-translate-y-[720px] xl:-translate-y-[930px] 2xl:-translate-y-[1080px]
+                  transform-gpu transition duration-700 ease-out hover:scale-[1.01]
+                  lg:-translate-y-[760px] xl:-translate-y-[940px] 2xl:-translate-y-[1100px]
                 "
               />
             </div>
@@ -535,125 +586,166 @@ export default function LearnVisitLivePage() {
       <section className="relative w-full">
         <div className="mx-auto max-w-6xl px-4 pb-10 sm:pb-14">
           <div className="mb-5 grid grid-cols-1 lg:grid-cols-[0.95fr_1.05fr] gap-5">
-            <SoliloquyBox />
+            <ScenarioBox />
 
             <PremiumPanel>
               <div className="p-5 sm:p-6">
-                <SectionLabel>Security and anti-abuse posture</SectionLabel>
+                <SectionLabel>Trust posture</SectionLabel>
+
                 <div className="mt-3 text-[20px] sm:text-[25px] font-black tracking-[-0.045em] leading-tight text-white">
-                  The emitter is scoped so safety sharing does not become
-                  uncontrolled surveillance.
+                  A safety contact is not just a saved email. It is a trusted
+                  role.
                 </div>
+
                 <div className="mt-4 space-y-3 text-[12.7px] leading-relaxed text-white/58 font-medium">
                   <p>
-                    A user starts a Visit. LIVE becomes active inside that
-                    Visit. The session has a clear safety meaning. This is
-                    easier to explain to recipients, easier to audit mentally,
-                    and easier to distinguish from stalking behavior.
+                    In normal apps, adding a contact may be simple. In a safety
+                    app, that contact may later receive sensitive context about
+                    a Visit, a location update, an SOS alert, or a user’s safety
+                    state.
                   </p>
+
                   <p>
-                    StayKnown should never be used to secretly track another
-                    person. It should not be used for coercion, stalking,
-                    harassment, or public exposure of someone’s safety status.
-                    Users should contact local emergency services immediately in
-                    life-threatening situations.
+                    That is why approval should feel more careful. StayKnown can
+                    show who is asking, what role is being requested, what is
+                    waiting, and whether the relationship has completed or
+                    stopped.
                   </p>
                 </div>
               </div>
             </PremiumPanel>
           </div>
 
+          <div className="mb-6 grid gap-3 md:grid-cols-5">
+            <FlowStep
+              n="1"
+              title="Request starts"
+              body="A user asks to add someone as a trusted contact, emergency contact, or SOS-related contact."
+            />
+            <FlowStep
+              n="2"
+              title="Role is shown"
+              body="The request explains the safety role so the person understands what they are being asked to accept."
+            />
+            <FlowStep
+              n="3"
+              title="Both sides confirm"
+              body="The account owner and contact email owner can be checked so the relationship is intentional."
+            />
+            <FlowStep
+              n="4"
+              title="Status stays clear"
+              body="Pending, declined, expired, and approved states are shown with calm language."
+            />
+            <FlowStep
+              n="5"
+              title="Trust is created"
+              body="Only after approval should the contact become part of the safety relationship."
+            />
+          </div>
+
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-6">
-            <FeatureCard glyph="▣" title="What the emitter does">
-              During a Visit, StayKnown shares live safety context so trusted
-              people can understand the user’s active session in a readable way.
-              It is less about showing a dot and more about explaining the
-              safety posture.
+            <FeatureCard glyph="✔" title="Consent before trust">
+              Contact Approval makes the relationship visible before it becomes
+              relied on. The person being added should not be surprised later
+              when they receive safety communication.
               <div className="mt-3 text-white/45">
-                Example: <em>“Visit active — LIVE updates enabled.”</em>
+                This protects the user, the contact, and the integrity of the
+                safety network.
               </div>
             </FeatureCard>
 
-            <FeatureCard glyph="⌁" title="Why it only runs during a Visit">
-              Always-on tracking can be misused. By scoping LIVE to an active
-              Visit, StayKnown keeps sharing intentional, limited, and easier to
-              trust.
-              <div className="mt-3 text-white/45">
-                <em>Start Visit</em> → LIVE context can begin.{" "}
-                <em>End Visit</em> → active sharing stops.
-              </div>
-            </FeatureCard>
-
-            <FeatureCard glyph="⟂" title="Real-world examples">
-              <div className="space-y-2">
+            <FeatureCard glyph="▣" title="Two-party confirmation">
+              A stronger flow can require both sides to complete their part:
+              <div className="mt-3 space-y-2 text-white/62">
                 <div>
-                  <span className="text-white/75 font-black">•</span> Late-night
-                  travel: start a Visit so trusted people know your safety
-                  session is active.
+                  •{" "}
+                  <span className="text-white/80 font-black">
+                    Account owner:
+                  </span>{" "}
+                  confirms they intentionally started the request.
                 </div>
                 <div>
-                  <span className="text-white/75 font-black">•</span> First-time
-                  meetup: keep the Visit active until the meeting is over.
+                  •{" "}
+                  <span className="text-white/80 font-black">
+                    Contact email owner:
+                  </span>{" "}
+                  confirms they agree to the role.
+                </div>
+              </div>
+              <div className="mt-3 text-white/45">
+                This creates a cleaner trust boundary than silent or one-sided
+                contact additions.
+              </div>
+            </FeatureCard>
+
+            <FeatureCard glyph="⌁" title="Pending should feel safe">
+              A pending request should not look broken. It should quietly tell
+              the user what is still missing and what happens next.
+              <div className="mt-3 space-y-2 text-white/62">
+                <div>• waiting for account owner confirmation</div>
+                <div>• waiting for contact email owner confirmation</div>
+                <div>
+                  • request complete only when required approvals finish
+                </div>
+              </div>
+            </FeatureCard>
+
+            <FeatureCard glyph="!" title="Decline without pressure">
+              A contact should be able to decline a request without feeling
+              trapped. Decline states should be clear, calm, and final enough to
+              prevent old links from being used as pressure.
+              <div className="mt-3 text-white/45">
+                This supports consent and helps protect people from unwanted
+                safety roles.
+              </div>
+            </FeatureCard>
+
+            <FeatureCard glyph="◌" title="Expired links protect the process">
+              Approval links should not stay useful forever. Expiration helps
+              reduce the risk of old emails, forwarded links, or stale requests
+              being used later without fresh context.
+              <div className="mt-3 text-white/45">
+                A fresh approval process is safer than forcing an old request to
+                remain valid.
+              </div>
+            </FeatureCard>
+
+            <FeatureCard glyph="⟡" title="Different contact roles matter">
+              Not every contact carries the same meaning:
+              <div className="mt-3 space-y-2 text-white/62">
+                <div>
+                  • <span className="text-white/80 font-black">Emergency:</span>{" "}
+                  receives safety context for normal protection flows.
                 </div>
                 <div>
-                  <span className="text-white/75 font-black">•</span> Long
-                  route: recipients can understand updates as part of one safety
-                  session.
+                  • <span className="text-white/80 font-black">SOS:</span> may
+                  receive urgent escalation context.
+                </div>
+                <div>
+                  • <span className="text-white/80 font-black">Responder:</span>{" "}
+                  should understand added responsibility before accepting.
                 </div>
               </div>
             </FeatureCard>
 
-            <FeatureCard glyph="!" title="Where SOS fits">
-              SOS is the escalation layer for Pro and ProMax. LIVE is the active
-              session context; SOS is the stronger urgent signal when normal
-              safety sharing is no longer enough.
+            <FeatureCard glyph="⚖" title="Law-abiding safety standard">
+              StayKnown is for known, trusted, legitimate safety relationships.
+              It should not be used to stalk, pressure, monitor, threaten, or
+              track strangers.
               <div className="mt-3 text-white/45">
-                Starter keeps the basic Visit flow. Pro and ProMax add the
-                stronger emergency posture.
+                Abuse, false claims, or suspicious behavior can be handled by
+                restrictions, reporting, or account action where required.
               </div>
             </FeatureCard>
 
-            <FeatureCard glyph="✦" title="Signals the UI makes obvious">
-              StayKnown uses clear state signaling so users understand what is
-              happening instantly:{" "}
-              <span className="text-white/78 font-black">Idle</span>,{" "}
-              <span className="text-white/78 font-black">LIVE</span>, and{" "}
-              <span className="text-white/78 font-black">SOS</span>.
+            <FeatureCard glyph="✦" title="Investor value">
+              Contact Approval turns StayKnown into a trust network, not just a
+              location-sharing tool. The product can prove that safety access is
+              governed by consent, role clarity, and controlled state changes.
               <div className="mt-3 text-white/45">
-                Visual Severity Mode can make these states more distinct
-                visually without changing the underlying behavior.
-              </div>
-            </FeatureCard>
-
-            <FeatureCard glyph="⚖" title="Law-abiding explanation">
-              The emitter should be understood as user-directed safety sharing.
-              It should not be used to monitor someone secretly or to pressure
-              another person. StayKnown’s policy links should remain visible so
-              expectations are clear.
-              <div className="mt-3 text-white/45">
-                See <em>Safety &amp; Anti-Stalking</em>, <em>Acceptable Use</em>
-                , and <em>Emergency Disclaimer</em>.
-              </div>
-            </FeatureCard>
-
-            <FeatureCard glyph="◌" title="Why investors should care">
-              The Live Location Emitter is a core platform primitive. It anchors
-              Visit sessions, supports SOS escalation, strengthens safety email
-              context, and connects naturally to chat, profile trust, and plan
-              tiers.
-              <div className="mt-3 text-white/45">
-                This is the type of feature that can create repeat engagement
-                while still staying aligned with safety boundaries.
-              </div>
-            </FeatureCard>
-
-            <FeatureCard glyph="⟡" title="What recipients need to understand">
-              Recipients need simple language. They should know that a Visit is
-              active, LIVE updates are tied to that Visit, and an ended Visit
-              means the active safety session is no longer running.
-              <div className="mt-3 text-white/45">
-                Clear recipient communication reduces panic, confusion, and
-                delayed response.
+                That strengthens user trust, reduces misuse risk, and supports a
+                more defensible safety platform.
               </div>
             </FeatureCard>
           </div>
@@ -662,32 +754,59 @@ export default function LearnVisitLivePage() {
             <PremiumPanel>
               <div className="grid gap-5 p-5 sm:p-6 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
                 <div>
-                  <SectionLabel>Simple product language</SectionLabel>
+                  <SectionLabel>Search discovery focus</SectionLabel>
+
                   <div className="mt-3 text-[21px] sm:text-[28px] font-black tracking-[-0.045em] leading-tight text-white">
-                    The emitter answers one question: is this user currently in
-                    an active safety session?
+                    This page is written for discovery around emergency contact
+                    consent, SOS contact approval, and anti-abuse safety design.
                   </div>
+
                   <p className="mt-3 text-[12.8px] leading-relaxed text-white/56 font-medium">
-                    That is the language visitors understand. It avoids
-                    overusing technical terms like “background location,” and
-                    focuses on user intent: a Visit is active, LIVE context is
-                    active, and trusted people can follow the safety posture.
+                    Visitors should understand the assurance quickly: StayKnown
+                    uses contact approval so trusted safety relationships are
+                    not silent, vague, or forced. A person should understand the
+                    role before the app depends on them during safety moments.
                   </p>
                 </div>
 
                 <div className="grid gap-3 sm:grid-cols-2">
                   {[
-                    "A user starts a Visit before leaving work late at night.",
-                    "A family member checks the update and understands the Visit is still active.",
-                    "A trusted contact sees the session as safety context, not a random location ping.",
-                    "When the Visit ends, the user’s active LIVE posture ends with it.",
+                    {
+                      title: "Safety Gallery",
+                      body: "Recognition cues help contacts trust who they are helping.",
+                      href: "/learn/safety-gallery",
+                    },
+                    {
+                      title: "SOS Active State",
+                      body: "Approved contacts matter most when urgent context is sent.",
+                      href: "/learn/sos",
+                    },
+                    {
+                      title: "Privacy & Anti-Abuse",
+                      body: "Consent and lawful safety use belong together.",
+                      href: "/learn/privacy-anti-abuse",
+                    },
+                    {
+                      title: "Visit + LIVE + SOS",
+                      body: "See how trusted contacts fit into the wider safety system.",
+                      href: "/learn/visit-live-sos",
+                    },
                   ].map((item) => (
-                    <div
-                      key={item}
-                      className="rounded-2xl border border-white/10 bg-black/25 p-4 text-[12.4px] leading-relaxed text-white/58 font-medium"
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className="group rounded-2xl border border-white/10 bg-black/25 p-4 transition hover:bg-white/[0.06] hover:border-white/18"
                     >
-                      {item}
-                    </div>
+                      <div className="text-[12.8px] font-black tracking-[-0.02em] text-white/86">
+                        {item.title}
+                      </div>
+                      <div className="mt-2 text-[12.2px] leading-relaxed font-medium text-white/50">
+                        {item.body}
+                      </div>
+                      <div className="mt-3 text-[10px] font-black tracking-[0.2em] text-white/32 group-hover:text-white/56">
+                        OPEN
+                      </div>
+                    </Link>
                   ))}
                 </div>
               </div>
@@ -711,6 +830,7 @@ export default function LearnVisitLivePage() {
                 Privacy Policy
               </a>
               <span className="text-white/18">•</span>
+
               <a
                 href="/terms"
                 target="_blank"
@@ -720,6 +840,7 @@ export default function LearnVisitLivePage() {
                 Terms of Use
               </a>
               <span className="text-white/18">•</span>
+
               <a
                 href="/acceptable-use"
                 target="_blank"
@@ -729,6 +850,7 @@ export default function LearnVisitLivePage() {
                 Acceptable Use
               </a>
               <span className="text-white/18">•</span>
+
               <a
                 href="/safety"
                 target="_blank"
@@ -738,6 +860,7 @@ export default function LearnVisitLivePage() {
                 Safety &amp; Anti-Stalking
               </a>
               <span className="text-white/18">•</span>
+
               <a
                 href="/emergency"
                 target="_blank"
@@ -747,6 +870,7 @@ export default function LearnVisitLivePage() {
                 Emergency Disclaimer
               </a>
               <span className="text-white/18">•</span>
+
               <a
                 href="/minors"
                 target="_blank"
@@ -756,6 +880,7 @@ export default function LearnVisitLivePage() {
                 Child Safety &amp; Minor Use
               </a>
               <span className="text-white/18">•</span>
+
               <a
                 href="/abuse"
                 target="_blank"
@@ -765,6 +890,7 @@ export default function LearnVisitLivePage() {
                 Abuse Reporting
               </a>
               <span className="text-white/18">•</span>
+
               <a
                 href="/retention"
                 target="_blank"
@@ -774,6 +900,7 @@ export default function LearnVisitLivePage() {
                 Data Retention
               </a>
               <span className="text-white/18">•</span>
+
               <a
                 href="/law"
                 target="_blank"
@@ -783,6 +910,7 @@ export default function LearnVisitLivePage() {
                 Law Enforcement
               </a>
               <span className="text-white/18">•</span>
+
               <a
                 href="/security"
                 target="_blank"

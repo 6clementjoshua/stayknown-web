@@ -6,19 +6,81 @@ import { useMemo, useState } from "react";
 
 type Tier = "Starter" | "Pro" | "ProMax";
 
+const seo = {
+  title:
+    "Language-Aware Chat | StayKnown Translation Preferences and Multilingual Messaging",
+  description:
+    "Learn how StayKnown Chat supports language-aware messaging, recipient language preferences, translation status, Nigerian languages, global languages, and future expansion.",
+  url: "https://stay-known.com/learn/language-aware-chat",
+  image: "https://stay-known.com/hero/chat-translation.png",
+};
+
+const proLanguages = [
+  "English",
+  "French",
+  "Spanish",
+  "Portuguese",
+  "German",
+  "Arabic",
+  "Igbo",
+  "Hausa",
+  "Yoruba",
+  "Swahili",
+  "Hindi",
+  "Urdu",
+];
+
+const proMaxLanguages = [
+  "Arabic",
+  "Bulgarian",
+  "Czech",
+  "Danish",
+  "German",
+  "Greek",
+  "English",
+  "English (UK)",
+  "English (US)",
+  "Spanish",
+  "Estonian",
+  "Finnish",
+  "French",
+  "Hausa",
+  "Hindi",
+  "Hungarian",
+  "Indonesian",
+  "Igbo",
+  "Italian",
+  "Japanese",
+  "Korean",
+  "Lithuanian",
+  "Latvian",
+  "Norwegian Bokmål",
+  "Dutch",
+  "Polish",
+  "Portuguese",
+  "Portuguese (Brazil)",
+  "Portuguese (Portugal)",
+  "Romanian",
+  "Russian",
+  "Slovak",
+  "Slovenian",
+  "Swedish",
+  "Swahili",
+  "Turkish",
+  "Ukrainian",
+  "Urdu",
+  "Yoruba",
+  "Chinese",
+];
+
 function MobileNavLink({ href, label }: { href: string; label: string }) {
   return (
     <Link
       href={href}
       className="
-        relative inline-flex items-center gap-2
-        px-0 py-2
+        relative inline-flex items-center gap-2 px-0 py-2
         text-[11.5px] font-semibold tracking-[-0.01em]
-        text-white/68
-        transition
-        hover:text-white/90
-        active:text-white
-        select-none
+        text-white/68 transition hover:text-white/90 active:text-white select-none
       "
     >
       <span>{label}</span>
@@ -35,9 +97,7 @@ function CTA({ href, label }: { href: string; label: string }) {
       className="
         group relative hidden sm:inline-flex items-center justify-center
         h-8 md:h-[34px] px-3.5 md:px-4 rounded-full
-        border border-white/14
-        bg-white/[0.055]
-        text-white
+        border border-white/14 bg-white/[0.055] text-white
         font-semibold text-[11.5px] md:text-[12px] tracking-[-0.01em]
         shadow-[0_16px_42px_rgba(0,0,0,0.55)]
         transition-all duration-200
@@ -59,13 +119,9 @@ function MonoIcon({ glyph }: { glyph: string }) {
     <div
       className="
         shrink-0 w-9 h-9 rounded-xl
-        border border-white/12
-        bg-white/[0.045]
-        backdrop-blur-md
-        flex items-center justify-center
-        text-white/90
-        text-[14px]
-        leading-none
+        border border-white/12 bg-white/[0.045]
+        backdrop-blur-md flex items-center justify-center
+        text-white/90 text-[14px] leading-none
         shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_14px_35px_rgba(0,0,0,0.35)]
       "
       aria-hidden
@@ -117,6 +173,7 @@ function PlanTabs({
 }) {
   const Tab = ({ t }: { t: Tier }) => {
     const active = tier === t;
+
     return (
       <button
         onClick={() => setTier(t)}
@@ -139,6 +196,7 @@ function PlanTabs({
 
   const Pill = ({ t }: { t: Tier }) => {
     const active = tier === t;
+
     return (
       <button
         onClick={() => setTier(t)}
@@ -187,20 +245,18 @@ function FeatureCard({
     <div
       className="
         group relative overflow-hidden rounded-[24px]
-        border border-white/10
-        bg-white/[0.035]
+        border border-white/10 bg-white/[0.035]
         shadow-[0_24px_78px_rgba(0,0,0,0.58)]
-        p-5 sm:p-6
-        transition-all duration-300
-        hover:-translate-y-0.5
-        hover:border-white/18
-        hover:bg-white/[0.05]
+        p-5 sm:p-6 transition-all duration-300
+        hover:-translate-y-0.5 hover:border-white/18 hover:bg-white/[0.05]
       "
     >
       <div className="pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100 transition duration-300 bg-[radial-gradient(circle_at_18%_12%,rgba(255,255,255,0.12),transparent_60%)]" />
       <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-white/10" />
+
       <div className="relative flex items-start gap-3">
         <MonoIcon glyph={glyph} />
+
         <div className="min-w-0">
           <div className="text-white/95 font-black tracking-[-0.025em] text-[14px] sm:text-[15px]">
             {title}
@@ -232,11 +288,12 @@ function TierBlock({
           <div className="text-white/95 font-black tracking-[-0.025em] text-[14px] sm:text-[15px]">
             {tier}
           </div>
-          {highlight && (
+
+          {highlight ? (
             <div className="text-[10px] font-black tracking-[0.22em] text-white/56">
-              FULL POSTURE
+              GLOBAL DEPTH
             </div>
-          )}
+          ) : null}
         </div>
 
         <ul className="mt-4 space-y-2.5">
@@ -308,28 +365,66 @@ function MiniStat({
   );
 }
 
-function SoliloquyBox() {
+function LanguagePill({ label }: { label: string }) {
+  return (
+    <div className="rounded-full border border-white/10 bg-black/25 px-3 py-2 text-[11.5px] font-semibold text-white/60">
+      {label}
+    </div>
+  );
+}
+
+function LanguageStep({
+  n,
+  title,
+  body,
+}: {
+  n: string;
+  title: string;
+  body: string;
+}) {
+  return (
+    <div className="relative overflow-hidden rounded-[22px] border border-white/10 bg-black/25 p-4">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_12%,rgba(255,255,255,0.08),transparent_58%)]" />
+      <div className="relative">
+        <div className="flex items-center gap-3">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/12 bg-white/[0.055] text-[11px] font-black text-white/70">
+            {n}
+          </div>
+          <div className="text-[13.2px] font-black tracking-[-0.025em] text-white/88">
+            {title}
+          </div>
+        </div>
+        <p className="mt-3 text-[12.3px] leading-relaxed font-medium text-white/52">
+          {body}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function ScenarioBox() {
   return (
     <PremiumPanel>
       <div className="p-5 sm:p-6">
-        <SectionLabel>Scenario thinking</SectionLabel>
+        <SectionLabel>Language assurance</SectionLabel>
+
         <div className="mt-3 text-[19px] sm:text-[24px] font-black tracking-[-0.045em] leading-tight text-white">
-          “I started a Visit. I want someone I trust to understand that I am
-          actively moving, not just guessing where I am.”
+          “Safety communication should not fail just because two trusted people
+          prefer different languages.”
         </div>
+
         <div className="mt-4 space-y-3 text-[12.7px] leading-relaxed text-white/58 font-medium">
           <p>
-            That is the role of the Live Location Emitter. It turns an active
-            Visit into a readable safety posture. The app is not trying to
-            create silent, always-on surveillance. It is trying to make a
-            user-started safety session easier for trusted people to follow.
+            Language-Aware Chat lets StayKnown treat language preference as part
+            of the communication layer. The sender’s message, the receiver’s
+            preference, and the translation state can travel with the message so
+            the app can explain what is happening clearly.
           </p>
+
           <p>
-            For visitors, this makes StayKnown easier to understand. For
-            investors, it shows the platform is built around intentional safety
-            sessions, not just location dots. For policy and law-enforcement
-            readers, it clarifies that the product is scoped to user safety and
-            anti-abuse boundaries.
+            This page focuses on language preference, translation readiness, and
+            expansion. Secure access, chat stickers, and the wider chat product
+            are explained on their own pages.
           </p>
         </div>
       </div>
@@ -337,28 +432,28 @@ function SoliloquyBox() {
   );
 }
 
-export default function LearnVisitLivePage() {
-  const [tier, setTier] = useState<Tier>("Starter");
+export default function LearnLanguageAwareChatPage() {
+  const [tier, setTier] = useState<Tier>("Pro");
 
   const tierCopy = useMemo(() => {
     return {
       Starter: [
-        "Live sharing is scoped to an active Visit. The user starts the Visit, the session becomes active, and LIVE context follows that session.",
-        "When the Visit ends, the live-sharing posture ends too. This keeps the safety boundary clear.",
-        "Trusted recipients can understand the session as a safety update, not a random or confusing location ping.",
-        "Starter is best for everyday check-ins, basic movement safety, and users who want simple Visit-based sharing.",
+        "Starter should keep language behavior simple and default to English where premium translation is not available.",
+        "Starter can still understand the feature from this page before upgrading to translation-ready chat.",
+        "Manual language preference controls should remain limited so free users are not confused by locked translation behavior.",
+        "The goal is clarity: basic chat stays usable, while multilingual automation becomes upgrade value.",
       ],
       Pro: [
-        "Pro adds SOS escalation on top of the Visit/LIVE flow, so the user can move from routine safety sharing to urgent attention when needed.",
-        "Useful for users who frequently travel at night, meet new people, move through unfamiliar areas, or need stronger safety readiness.",
-        "Recipients can better distinguish ordinary Visit context from urgent escalation.",
-        "Pro is the practical upgrade for users who want more than basic check-ins while keeping the experience direct.",
+        "Pro supports a focused language set for practical multilingual chat, including English, French, Spanish, Portuguese, German, Arabic, Igbo, Hausa, Yoruba, Swahili, Hindi, and Urdu.",
+        "Pro is ideal for users who need common global languages plus key Nigerian and African language support in trusted conversations.",
+        "Messages can carry sender and receiver language preference metadata so translation can be requested when needed.",
+        "Pro should present translation as a helpful safety communication layer, not as a perfect replacement for human judgment.",
       ],
       ProMax: [
-        "ProMax provides the most complete StayKnown posture: premium UI, stronger readiness, full safety context, and higher-value experiences.",
-        "Designed for users who want maximum clarity, faster safety habits, and a more polished safety layer.",
-        "Works well for repeated high-stakes routines, frequent movement, public-facing work, travel, and unfamiliar meetings.",
-        "ProMax keeps safety communication premium without making it confusing or overly technical.",
+        "ProMax supports the full current language catalog for the broadest multilingual communication posture.",
+        "Best for users who want the strongest global chat readiness across English variants, European languages, African languages, Asian languages, and expansion-ready architecture.",
+        "ProMax should feel premium because language support becomes part of the full chat experience: messages, media captions, voice/media context, and safety communication.",
+        "The language catalog can expand over time as provider support, quality checks, and product safety rules improve.",
       ],
     } as Record<Tier, string[]>;
   }, []);
@@ -366,16 +461,49 @@ export default function LearnVisitLivePage() {
   const tierNote: Record<Tier, string> = useMemo(
     () => ({
       Starter:
-        "Starter focuses on basic Visit-based safety sharing. SOS remains a Pro / ProMax capability.",
-      Pro: "SOS should be used responsibly and only for genuine safety concerns. It does not replace emergency services.",
+        "Starter should remain simple: English-first behavior, with premium translation and richer language controls reserved for upgrades.",
+      Pro: "Pro includes Nigerian languages in the supported product catalog: Igbo, Hausa, and Yoruba, alongside Swahili and other global languages.",
       ProMax:
-        "ProMax is the most complete safety posture for users who want the highest level of clarity and polish.",
+        "ProMax uses the full supported catalog today and should remain open to expansion when new languages meet quality and safety expectations.",
     }),
     [],
   );
 
+  const languageList = tier === "ProMax" ? proMaxLanguages : proLanguages;
+
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "WebPage",
+    name: seo.title,
+    description: seo.description,
+    url: seo.url,
+    image: seo.image,
+    isPartOf: {
+      "@type": "WebSite",
+      name: "StayKnown",
+      url: "https://stay-known.com",
+    },
+    about: [
+      "language-aware chat",
+      "chat translation",
+      "recipient language preference",
+      "Nigerian language chat",
+      "Igbo translation",
+      "Hausa translation",
+      "Yoruba translation",
+      "multilingual safety communication",
+      "StayKnown Chat",
+      "translation-ready messaging",
+    ],
+  };
+
   return (
     <main className="min-h-screen bg-black overflow-hidden">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+
       <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(255,255,255,0.075),transparent_38%),radial-gradient(circle_at_18%_38%,rgba(255,255,255,0.04),transparent_34%),radial-gradient(circle_at_82%_56%,rgba(255,255,255,0.035),transparent_34%)]" />
 
       <header className="relative pt-7">
@@ -392,25 +520,25 @@ export default function LearnVisitLivePage() {
               STAYKNOWN
             </div>
             <div className="text-white/40 font-semibold text-[11px]">
-              Learn • Live Location Emitter
+              Learn • Language-Aware Chat
             </div>
           </div>
 
           <div className="sm:hidden mt-3 flex items-center justify-between">
+            <MobileNavLink href="/" label="Back to Home" />
             <MobileNavLink
-              href="/learn/visit-live-sos"
-              label="Previous: Live + SOS"
-            />
-            <MobileNavLink
-              href="/learn/promax-shell"
-              label="Next: ProMax Shell"
+              href="/learn/stories-profile-trust"
+              label="Next: Stories"
             />
           </div>
 
-          <div className="hidden sm:flex mt-5 flex-wrap items-center justify-center gap-3">
+          <div className="hidden sm:flex mt-5 items-center justify-center gap-3">
             <CTA href="/" label="Back to Home" />
-            <CTA href="/learn/visit-live-sos" label="Previous: Live + SOS" />
-            <CTA href="/learn/promax-shell" label="Next: ProMax MainShell" />
+            <CTA href="/learn/chat" label="StayKnown Chat" />
+            <CTA
+              href="/learn/stories-profile-trust"
+              label="Next: Stories + Profile"
+            />
           </div>
         </div>
       </header>
@@ -419,54 +547,57 @@ export default function LearnVisitLivePage() {
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_18%,rgba(255,255,255,0.065),transparent_58%)]" />
 
         <div className="mx-auto max-w-6xl px-4 pt-8 pb-0">
-          <div className="grid grid-cols-1 lg:grid-cols-[0.95fr_1.05fr] items-start gap-8 lg:gap-10">
+          <div className="grid grid-cols-1 lg:grid-cols-[0.9fr_1.1fr] items-start gap-8 lg:gap-8">
             <div className="order-1 lg:order-none lg:col-start-2">
               <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.045] px-3 py-1.5 text-[10.5px] font-black tracking-[0.20em] text-white/46 uppercase">
-                Visit-bound live context
+                Translation-ready trusted communication
               </div>
 
               <h1 className="mt-4 text-white/95 font-black tracking-[-0.06em] text-[38px] sm:text-[54px] lg:text-[60px] leading-[0.94]">
-                Live Location Emitter
+                Language-Aware Chat
               </h1>
 
               <div className="mt-4 max-w-[76ch] space-y-3 text-white/62 font-medium text-[13px] sm:text-[14px] leading-relaxed">
                 <p>
-                  Live updates occur only during an active Visit. This matters
-                  because safety sharing should be intentional, readable, and
-                  time-bounded.
+                  StayKnown Chat can understand that the sender and receiver may
+                  prefer different languages. That matters when communication is
+                  tied to trust, safety, location context, voice notes, media,
+                  and urgent follow-up.
                 </p>
+
                 <p>
-                  StayKnown’s Live Location Emitter is not built as a silent
-                  always-on tracker. It is a safety layer that helps trusted
-                  contacts understand an active Visit while the user is moving,
-                  meeting, traveling, or checking in.
+                  The language layer can store sender preference, receiver
+                  preference, translation status, translated text, and source
+                  language so the app can explain whether a message is pending,
+                  translated, or not needed.
                 </p>
               </div>
 
-              <TintedCallout title="Why this design is intentional">
-                StayKnown avoids passive, unlimited sharing by tying live
-                updates to a Visit. That makes safety sharing{" "}
-                <span className="text-white/78 font-black">explicit</span>,{" "}
-                <span className="text-white/78 font-black">time-bounded</span>,
-                and easier for recipients to interpret correctly.{" "}
-                <em>It is safety-first — not passive tracking.</em>
+              <TintedCallout title="Built for Nigeria and global use">
+                The current catalog includes Nigerian languages such as Igbo,
+                Hausa, and Yoruba, plus Swahili and a broad global language set.
+                <em>
+                  {" "}
+                  StayKnown should remain open to expansion as translation
+                  quality, provider coverage, and safety review improve.
+                </em>
               </TintedCallout>
 
               <div className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <MiniStat
-                  label="LIVE"
-                  value="Only in Visit"
-                  detail="The live posture follows the active safety session."
+                  label="Pro"
+                  value="12"
+                  detail="Focused language set for practical multilingual chat."
                 />
                 <MiniStat
-                  label="Boundary"
-                  value="Ends with Visit"
-                  detail="When the user ends the Visit, the live posture stops."
+                  label="ProMax"
+                  value="40"
+                  detail="Full current supported language catalog."
                 />
                 <MiniStat
-                  label="Purpose"
-                  value="Trusted context"
-                  detail="Designed for safety communication, not public tracking."
+                  label="Expansion"
+                  value="Open"
+                  detail="More languages can be added after quality review."
                 />
               </div>
 
@@ -489,21 +620,18 @@ export default function LearnVisitLivePage() {
 
               <div className="mt-6">
                 <div className="sm:hidden flex items-center justify-between gap-3">
+                  <MobileNavLink href="/learn/chat" label="Chat" />
                   <MobileNavLink
-                    href="/learn/visit-live-sos"
-                    label="Learn: Live + SOS"
-                  />
-                  <MobileNavLink
-                    href="/learn/promax-shell"
-                    label="Explore: ProMax Shell"
+                    href="/learn/secure-chat-protection"
+                    label="Secure"
                   />
                 </div>
 
                 <div className="hidden sm:flex flex-wrap gap-3">
-                  <CTA href="/learn/visit-live-sos" label="Learn: Live + SOS" />
+                  <CTA href="/learn/chat" label="Learn: StayKnown Chat" />
                   <CTA
-                    href="/learn/promax-shell"
-                    label="Explore: ProMax MainShell"
+                    href="/learn/secure-chat-protection"
+                    label="Learn: Secure Chat Protection"
                   />
                 </div>
               </div>
@@ -511,8 +639,8 @@ export default function LearnVisitLivePage() {
 
             <div className="order-2 lg:order-none lg:col-start-1 flex items-start justify-center lg:justify-start">
               <img
-                src="/hero/visit-live.png"
-                alt="Live Location Emitter"
+                src="/hero/chat-translation.png"
+                alt="StayKnown language-aware chat translation"
                 draggable={false}
                 className="
                   block object-contain select-none
@@ -521,10 +649,8 @@ export default function LearnVisitLivePage() {
                   sm:max-w-[560px] sm:max-h-[62vh]
                   lg:max-w-[720px] lg:max-h-[74vh]
                   xl:max-w-[780px]
-                  transform-gpu
-                  transition duration-700 ease-out
-                  hover:scale-[1.01]
-                  lg:-translate-y-[720px] xl:-translate-y-[930px] 2xl:-translate-y-[1080px]
+                  transform-gpu transition duration-700 ease-out hover:scale-[1.01]
+                  lg:-translate-y-[760px] xl:-translate-y-[940px] 2xl:-translate-y-[1100px]
                 "
               />
             </div>
@@ -535,125 +661,151 @@ export default function LearnVisitLivePage() {
       <section className="relative w-full">
         <div className="mx-auto max-w-6xl px-4 pb-10 sm:pb-14">
           <div className="mb-5 grid grid-cols-1 lg:grid-cols-[0.95fr_1.05fr] gap-5">
-            <SoliloquyBox />
+            <ScenarioBox />
 
             <PremiumPanel>
               <div className="p-5 sm:p-6">
-                <SectionLabel>Security and anti-abuse posture</SectionLabel>
+                <SectionLabel>Current supported languages</SectionLabel>
+
                 <div className="mt-3 text-[20px] sm:text-[25px] font-black tracking-[-0.045em] leading-tight text-white">
-                  The emitter is scoped so safety sharing does not become
-                  uncontrolled surveillance.
+                  {tier === "ProMax"
+                    ? "ProMax shows the full language catalog."
+                    : tier === "Pro"
+                      ? "Pro shows the focused language catalog."
+                      : "Starter learns the catalog, while translation remains upgrade value."}
                 </div>
-                <div className="mt-4 space-y-3 text-[12.7px] leading-relaxed text-white/58 font-medium">
-                  <p>
-                    A user starts a Visit. LIVE becomes active inside that
-                    Visit. The session has a clear safety meaning. This is
-                    easier to explain to recipients, easier to audit mentally,
-                    and easier to distinguish from stalking behavior.
-                  </p>
-                  <p>
-                    StayKnown should never be used to secretly track another
-                    person. It should not be used for coercion, stalking,
-                    harassment, or public exposure of someone’s safety status.
-                    Users should contact local emergency services immediately in
-                    life-threatening situations.
-                  </p>
+
+                <p className="mt-4 text-[12.7px] leading-relaxed text-white/58 font-medium">
+                  Use the tabs above to preview plan-aware language support. The
+                  catalog is written clearly for visitors, investors, and users
+                  who want to know whether their preferred language is part of
+                  the current StayKnown direction.
+                </p>
+
+                <div className="mt-5 flex flex-wrap gap-2">
+                  {(tier === "Starter" ? proLanguages : languageList).map(
+                    (lang) => (
+                      <LanguagePill key={lang} label={lang} />
+                    ),
+                  )}
                 </div>
+
+                {tier === "Starter" ? (
+                  <div className="mt-4 rounded-2xl border border-white/10 bg-black/25 p-4 text-[12.3px] leading-relaxed font-medium text-white/50">
+                    Starter preview shows the Pro language set for education,
+                    but premium translation behavior should remain gated.
+                  </div>
+                ) : null}
               </div>
             </PremiumPanel>
           </div>
 
+          <div className="mb-6 grid gap-3 md:grid-cols-5">
+            <LanguageStep
+              n="1"
+              title="User preference"
+              body="Each user can have a language preference for chat or a thread."
+            />
+            <LanguageStep
+              n="2"
+              title="Message sent"
+              body="The message stores sender and receiver language context where available."
+            />
+            <LanguageStep
+              n="3"
+              title="Translation requested"
+              body="If the receiver has a different supported preference, translation can be marked pending."
+            />
+            <LanguageStep
+              n="4"
+              title="Result delivered"
+              body="Translated text, target language, source language, and status can be patched onto the message."
+            />
+            <LanguageStep
+              n="5"
+              title="UI explains"
+              body="The app can show translated text, tiny progress states, or retry affordances without confusing the chat."
+            />
+          </div>
+
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-6">
-            <FeatureCard glyph="▣" title="What the emitter does">
-              During a Visit, StayKnown shares live safety context so trusted
-              people can understand the user’s active session in a readable way.
-              It is less about showing a dot and more about explaining the
-              safety posture.
+            <FeatureCard glyph="✔" title="Recipient-first translation">
+              Language-Aware Chat should care about the receiver’s selected
+              language. The sender can write naturally, while the app prepares
+              the message for the person who needs to read it.
               <div className="mt-3 text-white/45">
-                Example: <em>“Visit active — LIVE updates enabled.”</em>
+                This is important in safety conversations, where meaning should
+                arrive clearly.
               </div>
             </FeatureCard>
 
-            <FeatureCard glyph="⌁" title="Why it only runs during a Visit">
-              Always-on tracking can be misused. By scoping LIVE to an active
-              Visit, StayKnown keeps sharing intentional, limited, and easier to
-              trust.
+            <FeatureCard glyph="▣" title="Translation status should be visible">
+              A message can move through clear states:
+              <div className="mt-3 space-y-2 text-white/62">
+                <div>• not needed</div>
+                <div>• pending</div>
+                <div>• done</div>
+                <div>• delayed or failed with a tiny retry affordance</div>
+              </div>
               <div className="mt-3 text-white/45">
-                <em>Start Visit</em> → LIVE context can begin.{" "}
-                <em>End Visit</em> → active sharing stops.
+                The UI should stay calm, small, and premium.
               </div>
             </FeatureCard>
 
-            <FeatureCard glyph="⟂" title="Real-world examples">
-              <div className="space-y-2">
-                <div>
-                  <span className="text-white/75 font-black">•</span> Late-night
-                  travel: start a Visit so trusted people know your safety
-                  session is active.
-                </div>
-                <div>
-                  <span className="text-white/75 font-black">•</span> First-time
-                  meetup: keep the Visit active until the meeting is over.
-                </div>
-                <div>
-                  <span className="text-white/75 font-black">•</span> Long
-                  route: recipients can understand updates as part of one safety
-                  session.
-                </div>
+            <FeatureCard glyph="⌁" title="Nigerian language support">
+              The current catalog includes Igbo, Hausa, and Yoruba. This matters
+              because StayKnown’s identity is not only global; it also needs to
+              feel useful for Nigerian users and families.
+              <div className="mt-3 text-white/45">
+                Treat these languages as first-class product entries, not hidden
+                experimental extras.
               </div>
             </FeatureCard>
 
-            <FeatureCard glyph="!" title="Where SOS fits">
-              SOS is the escalation layer for Pro and ProMax. LIVE is the active
-              session context; SOS is the stronger urgent signal when normal
-              safety sharing is no longer enough.
+            <FeatureCard glyph="⟡" title="Voice, media, and files">
+              Language awareness should not stop at text. Voice notes, media,
+              files, and sticker-related context can show translated captions or
+              translated text where the app has enough content to translate.
               <div className="mt-3 text-white/45">
-                Starter keeps the basic Visit flow. Pro and ProMax add the
-                stronger emergency posture.
+                Keep the spinner tiny under the message, then shift layout
+                smoothly when the translation arrives.
               </div>
             </FeatureCard>
 
-            <FeatureCard glyph="✦" title="Signals the UI makes obvious">
-              StayKnown uses clear state signaling so users understand what is
-              happening instantly:{" "}
-              <span className="text-white/78 font-black">Idle</span>,{" "}
-              <span className="text-white/78 font-black">LIVE</span>, and{" "}
-              <span className="text-white/78 font-black">SOS</span>.
+            <FeatureCard glyph="!" title="Quality and safety boundary">
+              Translation helps communication, but it should not be presented as
+              perfect legal, medical, or emergency interpretation.
               <div className="mt-3 text-white/45">
-                Visual Severity Mode can make these states more distinct
-                visually without changing the underlying behavior.
+                In immediate danger, users should contact local emergency
+                services directly and use clear local language where possible.
               </div>
             </FeatureCard>
 
-            <FeatureCard glyph="⚖" title="Law-abiding explanation">
-              The emitter should be understood as user-directed safety sharing.
-              It should not be used to monitor someone secretly or to pressure
-              another person. StayKnown’s policy links should remain visible so
-              expectations are clear.
+            <FeatureCard glyph="◌" title="Open to expansion">
+              More languages can be added later when support is reliable enough.
+              The page should make that future clear without promising every
+              language immediately.
               <div className="mt-3 text-white/45">
-                See <em>Safety &amp; Anti-Stalking</em>, <em>Acceptable Use</em>
-                , and <em>Emergency Disclaimer</em>.
+                Expansion should consider provider coverage, translation
+                quality, safety wording, and user demand.
               </div>
             </FeatureCard>
 
-            <FeatureCard glyph="◌" title="Why investors should care">
-              The Live Location Emitter is a core platform primitive. It anchors
-              Visit sessions, supports SOS escalation, strengthens safety email
-              context, and connects naturally to chat, profile trust, and plan
-              tiers.
+            <FeatureCard glyph="⚖" title="Law-abiding communication">
+              Translation should not be used to harass, impersonate, manipulate,
+              threaten, or mislead another person. Language support belongs
+              inside the same acceptable-use and anti-abuse rules as Chat.
               <div className="mt-3 text-white/45">
-                This is the type of feature that can create repeat engagement
-                while still staying aligned with safety boundaries.
+                Blocking, reporting, and privacy controls remain important.
               </div>
             </FeatureCard>
 
-            <FeatureCard glyph="⟡" title="What recipients need to understand">
-              Recipients need simple language. They should know that a Visit is
-              active, LIVE updates are tied to that Visit, and an ended Visit
-              means the active safety session is no longer running.
+            <FeatureCard glyph="✦" title="Investor value">
+              Language-Aware Chat helps StayKnown become more than a local
+              safety app. It supports families, travel, cross-border
+              relationships, diaspora communities, and premium global expansion.
               <div className="mt-3 text-white/45">
-                Clear recipient communication reduces panic, confusion, and
-                delayed response.
+                ProMax language depth becomes a strong subscription story.
               </div>
             </FeatureCard>
           </div>
@@ -662,25 +814,92 @@ export default function LearnVisitLivePage() {
             <PremiumPanel>
               <div className="grid gap-5 p-5 sm:p-6 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
                 <div>
-                  <SectionLabel>Simple product language</SectionLabel>
+                  <SectionLabel>Related learn pages</SectionLabel>
+
                   <div className="mt-3 text-[21px] sm:text-[28px] font-black tracking-[-0.045em] leading-tight text-white">
-                    The emitter answers one question: is this user currently in
-                    an active safety session?
+                    Language-Aware Chat connects to Chat, Secure Chat, and
+                    profile trust without repeating them.
                   </div>
+
                   <p className="mt-3 text-[12.8px] leading-relaxed text-white/56 font-medium">
-                    That is the language visitors understand. It avoids
-                    overusing technical terms like “background location,” and
-                    focuses on user intent: a Visit is active, LIVE context is
-                    active, and trusted people can follow the safety posture.
+                    Use the linked pages for the communication product,
+                    biometric/device protection, and recognition context. This
+                    page stays focused on languages, translation status, and
+                    multilingual safety communication.
                   </p>
                 </div>
 
                 <div className="grid gap-3 sm:grid-cols-2">
                   {[
-                    "A user starts a Visit before leaving work late at night.",
-                    "A family member checks the update and understands the Visit is still active.",
-                    "A trusted contact sees the session as safety context, not a random location ping.",
-                    "When the Visit ends, the user’s active LIVE posture ends with it.",
+                    {
+                      title: "StayKnown Chat",
+                      body: "Messages, media, stickers, stories, and voice notes.",
+                      href: "/learn/chat",
+                    },
+                    {
+                      title: "Secure Chat Protection",
+                      body: "Biometric-aware and device-level privacy posture.",
+                      href: "/learn/secure-chat-protection",
+                    },
+                    {
+                      title: "Stories + Profile Trust",
+                      body: "Names, avatars, stories, and recognition cues.",
+                      href: "/learn/stories-profile-trust",
+                    },
+                    {
+                      title: "Privacy & Anti-Abuse",
+                      body: "Language support must stay lawful and respectful.",
+                      href: "/learn/privacy-anti-abuse",
+                    },
+                  ].map((item) => (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className="group rounded-2xl border border-white/10 bg-black/25 p-4 transition hover:bg-white/[0.06] hover:border-white/18"
+                    >
+                      <div className="text-[12.8px] font-black tracking-[-0.02em] text-white/86">
+                        {item.title}
+                      </div>
+                      <div className="mt-2 text-[12.2px] leading-relaxed font-medium text-white/50">
+                        {item.body}
+                      </div>
+                      <div className="mt-3 text-[10px] font-black tracking-[0.2em] text-white/32 group-hover:text-white/56">
+                        OPEN
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            </PremiumPanel>
+          </div>
+
+          <div className="mt-6">
+            <PremiumPanel>
+              <div className="grid gap-5 p-5 sm:p-6 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
+                <div>
+                  <SectionLabel>Search discovery focus</SectionLabel>
+
+                  <div className="mt-3 text-[21px] sm:text-[28px] font-black tracking-[-0.045em] leading-tight text-white">
+                    This page is written for discovery around multilingual
+                    safety chat, Nigerian language support, and
+                    translation-ready messaging.
+                  </div>
+
+                  <p className="mt-3 text-[12.8px] leading-relaxed text-white/56 font-medium">
+                    Visitors should understand the value quickly: StayKnown Chat
+                    can support language preferences, translation status, Igbo,
+                    Hausa, Yoruba, Swahili, global languages, and future
+                    expansion for safer communication across different language
+                    communities.
+                  </p>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {[
+                    "A Pro user chats with a contact who prefers Yoruba while the sender uses English.",
+                    "A Pro user keeps Hausa, Igbo, Swahili, Arabic, Hindi, and Urdu available in the focused language set.",
+                    "A ProMax user accesses the full language catalog for broader global communication.",
+                    "A translated message shows a tiny pending state before the translated text appears smoothly.",
                   ].map((item) => (
                     <div
                       key={item}
@@ -711,6 +930,7 @@ export default function LearnVisitLivePage() {
                 Privacy Policy
               </a>
               <span className="text-white/18">•</span>
+
               <a
                 href="/terms"
                 target="_blank"
@@ -720,6 +940,7 @@ export default function LearnVisitLivePage() {
                 Terms of Use
               </a>
               <span className="text-white/18">•</span>
+
               <a
                 href="/acceptable-use"
                 target="_blank"
@@ -729,6 +950,7 @@ export default function LearnVisitLivePage() {
                 Acceptable Use
               </a>
               <span className="text-white/18">•</span>
+
               <a
                 href="/safety"
                 target="_blank"
@@ -738,6 +960,7 @@ export default function LearnVisitLivePage() {
                 Safety &amp; Anti-Stalking
               </a>
               <span className="text-white/18">•</span>
+
               <a
                 href="/emergency"
                 target="_blank"
@@ -747,6 +970,7 @@ export default function LearnVisitLivePage() {
                 Emergency Disclaimer
               </a>
               <span className="text-white/18">•</span>
+
               <a
                 href="/minors"
                 target="_blank"
@@ -756,6 +980,7 @@ export default function LearnVisitLivePage() {
                 Child Safety &amp; Minor Use
               </a>
               <span className="text-white/18">•</span>
+
               <a
                 href="/abuse"
                 target="_blank"
@@ -765,6 +990,7 @@ export default function LearnVisitLivePage() {
                 Abuse Reporting
               </a>
               <span className="text-white/18">•</span>
+
               <a
                 href="/retention"
                 target="_blank"
@@ -774,6 +1000,7 @@ export default function LearnVisitLivePage() {
                 Data Retention
               </a>
               <span className="text-white/18">•</span>
+
               <a
                 href="/law"
                 target="_blank"
@@ -783,6 +1010,7 @@ export default function LearnVisitLivePage() {
                 Law Enforcement
               </a>
               <span className="text-white/18">•</span>
+
               <a
                 href="/security"
                 target="_blank"

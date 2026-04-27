@@ -6,19 +6,22 @@ import { useMemo, useState } from "react";
 
 type Tier = "Starter" | "Pro" | "ProMax";
 
+const seo = {
+  title: "Safety Gallery | StayKnown Recognition Images for Trusted Contacts",
+  description:
+    "Learn how StayKnown Safety Gallery helps trusted contacts recognize the protected user during Visits, SOS alerts, and safety communication with consent-aware identity context.",
+  url: "https://stay-known.com/learn/safety-gallery",
+  image: "https://stay-known.com/hero/safety-gallery.png",
+};
+
 function MobileNavLink({ href, label }: { href: string; label: string }) {
   return (
     <Link
       href={href}
       className="
-        relative inline-flex items-center gap-2
-        px-0 py-2
+        relative inline-flex items-center gap-2 px-0 py-2
         text-[11.5px] font-semibold tracking-[-0.01em]
-        text-white/68
-        transition
-        hover:text-white/90
-        active:text-white
-        select-none
+        text-white/68 transition hover:text-white/90 active:text-white select-none
       "
     >
       <span>{label}</span>
@@ -35,9 +38,7 @@ function CTA({ href, label }: { href: string; label: string }) {
       className="
         group relative hidden sm:inline-flex items-center justify-center
         h-8 md:h-[34px] px-3.5 md:px-4 rounded-full
-        border border-white/14
-        bg-white/[0.055]
-        text-white
+        border border-white/14 bg-white/[0.055] text-white
         font-semibold text-[11.5px] md:text-[12px] tracking-[-0.01em]
         shadow-[0_16px_42px_rgba(0,0,0,0.55)]
         transition-all duration-200
@@ -59,13 +60,9 @@ function MonoIcon({ glyph }: { glyph: string }) {
     <div
       className="
         shrink-0 w-9 h-9 rounded-xl
-        border border-white/12
-        bg-white/[0.045]
-        backdrop-blur-md
-        flex items-center justify-center
-        text-white/90
-        text-[14px]
-        leading-none
+        border border-white/12 bg-white/[0.045]
+        backdrop-blur-md flex items-center justify-center
+        text-white/90 text-[14px] leading-none
         shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_14px_35px_rgba(0,0,0,0.35)]
       "
       aria-hidden
@@ -117,6 +114,7 @@ function PlanTabs({
 }) {
   const Tab = ({ t }: { t: Tier }) => {
     const active = tier === t;
+
     return (
       <button
         onClick={() => setTier(t)}
@@ -139,6 +137,7 @@ function PlanTabs({
 
   const Pill = ({ t }: { t: Tier }) => {
     const active = tier === t;
+
     return (
       <button
         onClick={() => setTier(t)}
@@ -187,20 +186,18 @@ function FeatureCard({
     <div
       className="
         group relative overflow-hidden rounded-[24px]
-        border border-white/10
-        bg-white/[0.035]
+        border border-white/10 bg-white/[0.035]
         shadow-[0_24px_78px_rgba(0,0,0,0.58)]
-        p-5 sm:p-6
-        transition-all duration-300
-        hover:-translate-y-0.5
-        hover:border-white/18
-        hover:bg-white/[0.05]
+        p-5 sm:p-6 transition-all duration-300
+        hover:-translate-y-0.5 hover:border-white/18 hover:bg-white/[0.05]
       "
     >
       <div className="pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100 transition duration-300 bg-[radial-gradient(circle_at_18%_12%,rgba(255,255,255,0.12),transparent_60%)]" />
       <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-white/10" />
+
       <div className="relative flex items-start gap-3">
         <MonoIcon glyph={glyph} />
+
         <div className="min-w-0">
           <div className="text-white/95 font-black tracking-[-0.025em] text-[14px] sm:text-[15px]">
             {title}
@@ -232,11 +229,12 @@ function TierBlock({
           <div className="text-white/95 font-black tracking-[-0.025em] text-[14px] sm:text-[15px]">
             {tier}
           </div>
-          {highlight && (
+
+          {highlight ? (
             <div className="text-[10px] font-black tracking-[0.22em] text-white/56">
-              FULL POSTURE
+              RECOGNITION DEPTH
             </div>
-          )}
+          ) : null}
         </div>
 
         <ul className="mt-4 space-y-2.5">
@@ -308,28 +306,57 @@ function MiniStat({
   );
 }
 
-function SoliloquyBox() {
+function RecognitionStep({
+  n,
+  title,
+  body,
+}: {
+  n: string;
+  title: string;
+  body: string;
+}) {
+  return (
+    <div className="relative overflow-hidden rounded-[22px] border border-white/10 bg-black/25 p-4">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_12%,rgba(255,255,255,0.08),transparent_58%)]" />
+      <div className="relative">
+        <div className="flex items-center gap-3">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/12 bg-white/[0.055] text-[11px] font-black text-white/70">
+            {n}
+          </div>
+          <div className="text-[13.2px] font-black tracking-[-0.025em] text-white/88">
+            {title}
+          </div>
+        </div>
+        <p className="mt-3 text-[12.3px] leading-relaxed font-medium text-white/52">
+          {body}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function ScenarioBox() {
   return (
     <PremiumPanel>
       <div className="p-5 sm:p-6">
-        <SectionLabel>Scenario thinking</SectionLabel>
+        <SectionLabel>Recognition assurance</SectionLabel>
+
         <div className="mt-3 text-[19px] sm:text-[24px] font-black tracking-[-0.045em] leading-tight text-white">
-          “I started a Visit. I want someone I trust to understand that I am
-          actively moving, not just guessing where I am.”
+          “If my trusted contacts receive a safety alert, I want them to
+          recognize me quickly and understand who the alert is about.”
         </div>
+
         <div className="mt-4 space-y-3 text-[12.7px] leading-relaxed text-white/58 font-medium">
           <p>
-            That is the role of the Live Location Emitter. It turns an active
-            Visit into a readable safety posture. The app is not trying to
-            create silent, always-on surveillance. It is trying to make a
-            user-started safety session easier for trusted people to follow.
+            Safety Gallery gives StayKnown a recognition layer. It is not social
+            posting and it is not decoration. It helps trusted contacts connect
+            safety alerts, names, profiles, and emergency context to the right
+            person.
           </p>
+
           <p>
-            For visitors, this makes StayKnown easier to understand. For
-            investors, it shows the platform is built around intentional safety
-            sessions, not just location dots. For policy and law-enforcement
-            readers, it clarifies that the product is scoped to user safety and
-            anti-abuse boundaries.
+            When used responsibly, a clear safety image can reduce uncertainty
+            during Visits, SOS alerts, manual captures, and contact review.
           </p>
         </div>
       </div>
@@ -337,28 +364,28 @@ function SoliloquyBox() {
   );
 }
 
-export default function LearnVisitLivePage() {
-  const [tier, setTier] = useState<Tier>("Starter");
+export default function LearnSafetyGalleryPage() {
+  const [tier, setTier] = useState<Tier>("Pro");
 
   const tierCopy = useMemo(() => {
     return {
       Starter: [
-        "Live sharing is scoped to an active Visit. The user starts the Visit, the session becomes active, and LIVE context follows that session.",
-        "When the Visit ends, the live-sharing posture ends too. This keeps the safety boundary clear.",
-        "Trusted recipients can understand the session as a safety update, not a random or confusing location ping.",
-        "Starter is best for everyday check-ins, basic movement safety, and users who want simple Visit-based sharing.",
+        "Starter can learn why recognition images matter for trusted safety relationships and profile confidence.",
+        "Basic identity cues help contacts understand who is sharing safety context before deeper safety features are used.",
+        "Starter should still keep images respectful, accurate, and appropriate for trusted safety recognition.",
+        "Safety Gallery supports the wider trust model even when advanced SOS readiness is not available on Starter.",
       ],
       Pro: [
-        "Pro adds SOS escalation on top of the Visit/LIVE flow, so the user can move from routine safety sharing to urgent attention when needed.",
-        "Useful for users who frequently travel at night, meet new people, move through unfamiliar areas, or need stronger safety readiness.",
-        "Recipients can better distinguish ordinary Visit context from urgent escalation.",
-        "Pro is the practical upgrade for users who want more than basic check-ins while keeping the experience direct.",
+        "Pro can use Safety Gallery as part of stronger safety readiness, especially around SOS setup and trusted-contact confidence.",
+        "At least one safety-gallery image can be required before completing Pro SOS setup or first-time safety contact setup.",
+        "Recognition images help approved contacts understand who needs attention when a safety state becomes urgent.",
+        "Best used with accurate profile identity, approved contacts, Visit sharing, and SOS readiness.",
       ],
       ProMax: [
-        "ProMax provides the most complete StayKnown posture: premium UI, stronger readiness, full safety context, and higher-value experiences.",
-        "Designed for users who want maximum clarity, faster safety habits, and a more polished safety layer.",
-        "Works well for repeated high-stakes routines, frequent movement, public-facing work, travel, and unfamiliar meetings.",
-        "ProMax keeps safety communication premium without making it confusing or overly technical.",
+        "ProMax should present the strongest recognition posture across premium safety, SOS readiness, responders, and contact trust.",
+        "At least one safety-gallery image can be required before completing ProMax SOS setup or first-time safety contact setup.",
+        "Best for users who want trusted contacts to have clearer identity context during repeated movement, travel, or high-attention routines.",
+        "Pairs naturally with contact approval, verified stop, premium shell behavior, and stronger emergency state presentation.",
       ],
     } as Record<Tier, string[]>;
   }, []);
@@ -366,16 +393,46 @@ export default function LearnVisitLivePage() {
   const tierNote: Record<Tier, string> = useMemo(
     () => ({
       Starter:
-        "Starter focuses on basic Visit-based safety sharing. SOS remains a Pro / ProMax capability.",
-      Pro: "SOS should be used responsibly and only for genuine safety concerns. It does not replace emergency services.",
+        "Safety images should support trust and recognition. They should not be used to impersonate, mislead, shame, or expose someone.",
+      Pro: "For Pro, Safety Gallery can become part of SOS readiness so trusted contacts are not relying on name text alone.",
       ProMax:
-        "ProMax is the most complete safety posture for users who want the highest level of clarity and polish.",
+        "For ProMax, recognition depth should feel premium, polished, and security-aware without turning the gallery into public social content.",
     }),
     [],
   );
 
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "WebPage",
+    name: seo.title,
+    description: seo.description,
+    url: seo.url,
+    image: seo.image,
+    isPartOf: {
+      "@type": "WebSite",
+      name: "StayKnown",
+      url: "https://stay-known.com",
+    },
+    about: [
+      "Safety Gallery",
+      "trusted contact recognition",
+      "emergency contact identity",
+      "SOS recognition images",
+      "personal safety app",
+      "StayKnown Safety Gallery",
+      "consent-aware safety sharing",
+      "profile trust signals",
+      "emergency safety recognition",
+    ],
+  };
+
   return (
     <main className="min-h-screen bg-black overflow-hidden">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+
       <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(255,255,255,0.075),transparent_38%),radial-gradient(circle_at_18%_38%,rgba(255,255,255,0.04),transparent_34%),radial-gradient(circle_at_82%_56%,rgba(255,255,255,0.035),transparent_34%)]" />
 
       <header className="relative pt-7">
@@ -392,25 +449,19 @@ export default function LearnVisitLivePage() {
               STAYKNOWN
             </div>
             <div className="text-white/40 font-semibold text-[11px]">
-              Learn • Live Location Emitter
+              Learn • Safety Gallery
             </div>
           </div>
 
           <div className="sm:hidden mt-3 flex items-center justify-between">
-            <MobileNavLink
-              href="/learn/visit-live-sos"
-              label="Previous: Live + SOS"
-            />
-            <MobileNavLink
-              href="/learn/promax-shell"
-              label="Next: ProMax Shell"
-            />
+            <MobileNavLink href="/" label="Back to Home" />
+            <MobileNavLink href="/learn/vpn-safety" label="Next: VPN" />
           </div>
 
-          <div className="hidden sm:flex mt-5 flex-wrap items-center justify-center gap-3">
+          <div className="hidden sm:flex mt-5 items-center justify-center gap-3">
             <CTA href="/" label="Back to Home" />
-            <CTA href="/learn/visit-live-sos" label="Previous: Live + SOS" />
-            <CTA href="/learn/promax-shell" label="Next: ProMax MainShell" />
+            <CTA href="/learn/contact-approval" label="Contact Approval" />
+            <CTA href="/learn/vpn-safety" label="Next: VPN Safety" />
           </div>
         </div>
       </header>
@@ -419,54 +470,56 @@ export default function LearnVisitLivePage() {
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_18%,rgba(255,255,255,0.065),transparent_58%)]" />
 
         <div className="mx-auto max-w-6xl px-4 pt-8 pb-0">
-          <div className="grid grid-cols-1 lg:grid-cols-[0.95fr_1.05fr] items-start gap-8 lg:gap-10">
+          <div className="grid grid-cols-1 lg:grid-cols-[0.9fr_1.1fr] items-start gap-8 lg:gap-8">
             <div className="order-1 lg:order-none lg:col-start-2">
               <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.045] px-3 py-1.5 text-[10.5px] font-black tracking-[0.20em] text-white/46 uppercase">
-                Visit-bound live context
+                Recognition layer for trusted safety
               </div>
 
               <h1 className="mt-4 text-white/95 font-black tracking-[-0.06em] text-[38px] sm:text-[54px] lg:text-[60px] leading-[0.94]">
-                Live Location Emitter
+                Safety Gallery
               </h1>
 
               <div className="mt-4 max-w-[76ch] space-y-3 text-white/62 font-medium text-[13px] sm:text-[14px] leading-relaxed">
                 <p>
-                  Live updates occur only during an active Visit. This matters
-                  because safety sharing should be intentional, readable, and
-                  time-bounded.
+                  Safety Gallery helps approved contacts recognize the protected
+                  user during Visits, SOS alerts, manual captures, and safety
+                  communication. It gives emergency context a human identity
+                  layer.
                 </p>
+
                 <p>
-                  StayKnown’s Live Location Emitter is not built as a silent
-                  always-on tracker. It is a safety layer that helps trusted
-                  contacts understand an active Visit while the user is moving,
-                  meeting, traveling, or checking in.
+                  The purpose is not public display. The purpose is trusted
+                  recognition: helping the right people understand who needs
+                  attention when safety context is shared.
                 </p>
               </div>
 
-              <TintedCallout title="Why this design is intentional">
-                StayKnown avoids passive, unlimited sharing by tying live
-                updates to a Visit. That makes safety sharing{" "}
-                <span className="text-white/78 font-black">explicit</span>,{" "}
-                <span className="text-white/78 font-black">time-bounded</span>,
-                and easier for recipients to interpret correctly.{" "}
-                <em>It is safety-first — not passive tracking.</em>
+              <TintedCallout title="Why recognition matters">
+                In a serious moment, a trusted contact should not rely on a name
+                alone. Safety Gallery helps connect the alert to the person,
+                their profile, and the safety relationship.{" "}
+                <em>
+                  It supports recognition and trust, not surveillance or public
+                  exposure.
+                </em>
               </TintedCallout>
 
               <div className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <MiniStat
-                  label="LIVE"
-                  value="Only in Visit"
-                  detail="The live posture follows the active safety session."
-                />
-                <MiniStat
-                  label="Boundary"
-                  value="Ends with Visit"
-                  detail="When the user ends the Visit, the live posture stops."
-                />
-                <MiniStat
                   label="Purpose"
-                  value="Trusted context"
-                  detail="Designed for safety communication, not public tracking."
+                  value="Recognize"
+                  detail="Trusted contacts can identify who the alert concerns."
+                />
+                <MiniStat
+                  label="Setup"
+                  value="At least 1"
+                  detail="Pro and ProMax readiness can require one safety image."
+                />
+                <MiniStat
+                  label="Context"
+                  value="Private"
+                  detail="Built for trusted safety use, not public social display."
                 />
               </div>
 
@@ -490,29 +543,26 @@ export default function LearnVisitLivePage() {
               <div className="mt-6">
                 <div className="sm:hidden flex items-center justify-between gap-3">
                   <MobileNavLink
-                    href="/learn/visit-live-sos"
-                    label="Learn: Live + SOS"
+                    href="/learn/contact-approval"
+                    label="Contacts"
                   />
-                  <MobileNavLink
-                    href="/learn/promax-shell"
-                    label="Explore: ProMax Shell"
-                  />
+                  <MobileNavLink href="/learn/sos" label="SOS" />
                 </div>
 
                 <div className="hidden sm:flex flex-wrap gap-3">
-                  <CTA href="/learn/visit-live-sos" label="Learn: Live + SOS" />
                   <CTA
-                    href="/learn/promax-shell"
-                    label="Explore: ProMax MainShell"
+                    href="/learn/contact-approval"
+                    label="Learn: Contact Approval"
                   />
+                  <CTA href="/learn/sos" label="Learn: SOS Active State" />
                 </div>
               </div>
             </div>
 
             <div className="order-2 lg:order-none lg:col-start-1 flex items-start justify-center lg:justify-start">
               <img
-                src="/hero/visit-live.png"
-                alt="Live Location Emitter"
+                src="/hero/safety-gallery.png"
+                alt="StayKnown Safety Gallery recognition images"
                 draggable={false}
                 className="
                   block object-contain select-none
@@ -521,10 +571,8 @@ export default function LearnVisitLivePage() {
                   sm:max-w-[560px] sm:max-h-[62vh]
                   lg:max-w-[720px] lg:max-h-[74vh]
                   xl:max-w-[780px]
-                  transform-gpu
-                  transition duration-700 ease-out
-                  hover:scale-[1.01]
-                  lg:-translate-y-[720px] xl:-translate-y-[930px] 2xl:-translate-y-[1080px]
+                  transform-gpu transition duration-700 ease-out hover:scale-[1.01]
+                  lg:-translate-y-[760px] xl:-translate-y-[940px] 2xl:-translate-y-[1100px]
                 "
               />
             </div>
@@ -535,125 +583,140 @@ export default function LearnVisitLivePage() {
       <section className="relative w-full">
         <div className="mx-auto max-w-6xl px-4 pb-10 sm:pb-14">
           <div className="mb-5 grid grid-cols-1 lg:grid-cols-[0.95fr_1.05fr] gap-5">
-            <SoliloquyBox />
+            <ScenarioBox />
 
             <PremiumPanel>
               <div className="p-5 sm:p-6">
-                <SectionLabel>Security and anti-abuse posture</SectionLabel>
+                <SectionLabel>Identity context</SectionLabel>
+
                 <div className="mt-3 text-[20px] sm:text-[25px] font-black tracking-[-0.045em] leading-tight text-white">
-                  The emitter is scoped so safety sharing does not become
-                  uncontrolled surveillance.
+                  A safety alert becomes clearer when contacts can recognize the
+                  person behind it.
                 </div>
+
                 <div className="mt-4 space-y-3 text-[12.7px] leading-relaxed text-white/58 font-medium">
                   <p>
-                    A user starts a Visit. LIVE becomes active inside that
-                    Visit. The session has a clear safety meaning. This is
-                    easier to explain to recipients, easier to audit mentally,
-                    and easier to distinguish from stalking behavior.
+                    Contact approval answers “who is allowed to receive safety
+                    context?” Safety Gallery answers “can this trusted person
+                    recognize who the context is about?”
                   </p>
+
                   <p>
-                    StayKnown should never be used to secretly track another
-                    person. It should not be used for coercion, stalking,
-                    harassment, or public exposure of someone’s safety status.
-                    Users should contact local emergency services immediately in
-                    life-threatening situations.
+                    This difference matters. Safety Gallery should not repeat
+                    contact consent logic; it strengthens the recognition layer
+                    after trust relationships are created.
                   </p>
                 </div>
               </div>
             </PremiumPanel>
           </div>
 
+          <div className="mb-6 grid gap-3 md:grid-cols-5">
+            <RecognitionStep
+              n="1"
+              title="User adds image"
+              body="The protected user adds at least one clear safety image."
+            />
+            <RecognitionStep
+              n="2"
+              title="Profile gains context"
+              body="The app can use the image as a recognition cue in trusted safety surfaces."
+            />
+            <RecognitionStep
+              n="3"
+              title="Contacts identify faster"
+              body="Approved contacts have more than text when reviewing safety context."
+            />
+            <RecognitionStep
+              n="4"
+              title="Alerts feel clearer"
+              body="Visits, SOS, and manual captures can feel more recognizable."
+            />
+            <RecognitionStep
+              n="5"
+              title="Readiness improves"
+              body="Pro and ProMax setup can require gallery readiness before stronger flows complete."
+            />
+          </div>
+
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-6">
-            <FeatureCard glyph="▣" title="What the emitter does">
-              During a Visit, StayKnown shares live safety context so trusted
-              people can understand the user’s active session in a readable way.
-              It is less about showing a dot and more about explaining the
-              safety posture.
+            <FeatureCard glyph="✔" title="Recognition, not decoration">
+              Safety Gallery is not designed as a public photo album. It is a
+              recognition feature for trusted safety moments.
               <div className="mt-3 text-white/45">
-                Example: <em>“Visit active — LIVE updates enabled.”</em>
+                The image should help contacts identify the user quickly and
+                responsibly when safety context is shared.
               </div>
             </FeatureCard>
 
-            <FeatureCard glyph="⌁" title="Why it only runs during a Visit">
-              Always-on tracking can be misused. By scoping LIVE to an active
-              Visit, StayKnown keeps sharing intentional, limited, and easier to
-              trust.
-              <div className="mt-3 text-white/45">
-                <em>Start Visit</em> → LIVE context can begin.{" "}
-                <em>End Visit</em> → active sharing stops.
+            <FeatureCard glyph="▣" title="Where it helps most">
+              Safety Gallery can strengthen context across:
+              <div className="mt-3 space-y-2 text-white/62">
+                <div>• active Visits and LIVE safety sessions</div>
+                <div>• SOS alert review</div>
+                <div>• manual emergency captures</div>
+                <div>• contact approval confidence</div>
+                <div>• profile trust and safety communication</div>
               </div>
             </FeatureCard>
 
-            <FeatureCard glyph="⟂" title="Real-world examples">
-              <div className="space-y-2">
-                <div>
-                  <span className="text-white/75 font-black">•</span> Late-night
-                  travel: start a Visit so trusted people know your safety
-                  session is active.
-                </div>
-                <div>
-                  <span className="text-white/75 font-black">•</span> First-time
-                  meetup: keep the Visit active until the meeting is over.
-                </div>
-                <div>
-                  <span className="text-white/75 font-black">•</span> Long
-                  route: recipients can understand updates as part of one safety
-                  session.
-                </div>
+            <FeatureCard glyph="⟡" title="Pro and ProMax readiness rule">
+              For Pro and ProMax, require at least one safety-gallery image
+              before completing SOS setup or first-time safety contact setup.
+              <div className="mt-3 text-white/45">
+                This helps ensure stronger safety flows are not activated with
+                weak recognition context.
               </div>
             </FeatureCard>
 
-            <FeatureCard glyph="!" title="Where SOS fits">
-              SOS is the escalation layer for Pro and ProMax. LIVE is the active
-              session context; SOS is the stronger urgent signal when normal
-              safety sharing is no longer enough.
+            <FeatureCard glyph="⌁" title="Why it supports contacts">
+              A trusted contact may receive a safety message quickly, under
+              stress, or while deciding whether to call, check in, or follow up.
+              Recognition cues help reduce hesitation.
               <div className="mt-3 text-white/45">
-                Starter keeps the basic Visit flow. Pro and ProMax add the
-                stronger emergency posture.
+                The contact can connect the alert to a familiar face or safety
+                profile instead of relying only on a name.
               </div>
             </FeatureCard>
 
-            <FeatureCard glyph="✦" title="Signals the UI makes obvious">
-              StayKnown uses clear state signaling so users understand what is
-              happening instantly:{" "}
-              <span className="text-white/78 font-black">Idle</span>,{" "}
-              <span className="text-white/78 font-black">LIVE</span>, and{" "}
-              <span className="text-white/78 font-black">SOS</span>.
-              <div className="mt-3 text-white/45">
-                Visual Severity Mode can make these states more distinct
-                visually without changing the underlying behavior.
+            <FeatureCard glyph="!" title="Quality matters">
+              Safety images should be accurate, respectful, and useful for
+              recognition:
+              <div className="mt-3 space-y-2 text-white/62">
+                <div>• clear face or identifying context where appropriate</div>
+                <div>• recent enough to be useful</div>
+                <div>• not misleading or impersonating someone</div>
+                <div>• not exposing another person without permission</div>
               </div>
             </FeatureCard>
 
-            <FeatureCard glyph="⚖" title="Law-abiding explanation">
-              The emitter should be understood as user-directed safety sharing.
-              It should not be used to monitor someone secretly or to pressure
-              another person. StayKnown’s policy links should remain visible so
-              expectations are clear.
+            <FeatureCard glyph="◌" title="Privacy boundary">
+              The gallery should support trusted safety relationships, not open
+              browsing. Public copy should make clear that recognition context
+              is tied to lawful, consent-aware safety use.
               <div className="mt-3 text-white/45">
-                See <em>Safety &amp; Anti-Stalking</em>, <em>Acceptable Use</em>
-                , and <em>Emergency Disclaimer</em>.
+                It should never be positioned as a tool for stalking, shaming,
+                harassment, or unauthorized identification.
               </div>
             </FeatureCard>
 
-            <FeatureCard glyph="◌" title="Why investors should care">
-              The Live Location Emitter is a core platform primitive. It anchors
-              Visit sessions, supports SOS escalation, strengthens safety email
-              context, and connects naturally to chat, profile trust, and plan
-              tiers.
+            <FeatureCard glyph="⚖" title="Law-abiding safety standard">
+              Safety Gallery must not be used to impersonate, expose, monitor,
+              shame, or mislead another person. Images should support legitimate
+              user-directed safety relationships.
               <div className="mt-3 text-white/45">
-                This is the type of feature that can create repeat engagement
-                while still staying aligned with safety boundaries.
+                Abuse reporting, privacy rules, and anti-stalking language
+                should remain easy to find.
               </div>
             </FeatureCard>
 
-            <FeatureCard glyph="⟡" title="What recipients need to understand">
-              Recipients need simple language. They should know that a Visit is
-              active, LIVE updates are tied to that Visit, and an ended Visit
-              means the active safety session is no longer running.
+            <FeatureCard glyph="✦" title="Investor value">
+              Safety Gallery gives StayKnown a stronger trust surface. It
+              connects profile identity, contact approval, Visits, SOS, and
+              emergency context into a more complete safety experience.
               <div className="mt-3 text-white/45">
-                Clear recipient communication reduces panic, confusion, and
-                delayed response.
+                That makes the platform feel more serious than basic location
+                sharing.
               </div>
             </FeatureCard>
           </div>
@@ -662,32 +725,59 @@ export default function LearnVisitLivePage() {
             <PremiumPanel>
               <div className="grid gap-5 p-5 sm:p-6 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
                 <div>
-                  <SectionLabel>Simple product language</SectionLabel>
+                  <SectionLabel>Search discovery focus</SectionLabel>
+
                   <div className="mt-3 text-[21px] sm:text-[28px] font-black tracking-[-0.045em] leading-tight text-white">
-                    The emitter answers one question: is this user currently in
-                    an active safety session?
+                    This page is written for discovery around safety images,
+                    trusted contact recognition, and SOS identity context.
                   </div>
+
                   <p className="mt-3 text-[12.8px] leading-relaxed text-white/56 font-medium">
-                    That is the language visitors understand. It avoids
-                    overusing technical terms like “background location,” and
-                    focuses on user intent: a Visit is active, LIVE context is
-                    active, and trusted people can follow the safety posture.
+                    Visitors should understand the value quickly: Safety Gallery
+                    helps trusted contacts recognize the protected user during
+                    safety moments. It is an identity assurance layer for
+                    StayKnown, not a public gallery.
                   </p>
                 </div>
 
                 <div className="grid gap-3 sm:grid-cols-2">
                   {[
-                    "A user starts a Visit before leaving work late at night.",
-                    "A family member checks the update and understands the Visit is still active.",
-                    "A trusted contact sees the session as safety context, not a random location ping.",
-                    "When the Visit ends, the user’s active LIVE posture ends with it.",
+                    {
+                      title: "Contact Approval",
+                      body: "Trust decides who can receive safety context.",
+                      href: "/learn/contact-approval",
+                    },
+                    {
+                      title: "SOS Active State",
+                      body: "Recognition becomes most important during urgent alerts.",
+                      href: "/learn/sos",
+                    },
+                    {
+                      title: "Visit + LIVE + SOS",
+                      body: "See how recognition supports the wider safety session.",
+                      href: "/learn/visit-live-sos",
+                    },
+                    {
+                      title: "Privacy & Anti-Abuse",
+                      body: "Safety images must stay lawful and consent-aware.",
+                      href: "/learn/privacy-anti-abuse",
+                    },
                   ].map((item) => (
-                    <div
-                      key={item}
-                      className="rounded-2xl border border-white/10 bg-black/25 p-4 text-[12.4px] leading-relaxed text-white/58 font-medium"
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className="group rounded-2xl border border-white/10 bg-black/25 p-4 transition hover:bg-white/[0.06] hover:border-white/18"
                     >
-                      {item}
-                    </div>
+                      <div className="text-[12.8px] font-black tracking-[-0.02em] text-white/86">
+                        {item.title}
+                      </div>
+                      <div className="mt-2 text-[12.2px] leading-relaxed font-medium text-white/50">
+                        {item.body}
+                      </div>
+                      <div className="mt-3 text-[10px] font-black tracking-[0.2em] text-white/32 group-hover:text-white/56">
+                        OPEN
+                      </div>
+                    </Link>
                   ))}
                 </div>
               </div>
@@ -711,6 +801,7 @@ export default function LearnVisitLivePage() {
                 Privacy Policy
               </a>
               <span className="text-white/18">•</span>
+
               <a
                 href="/terms"
                 target="_blank"
@@ -720,6 +811,7 @@ export default function LearnVisitLivePage() {
                 Terms of Use
               </a>
               <span className="text-white/18">•</span>
+
               <a
                 href="/acceptable-use"
                 target="_blank"
@@ -729,6 +821,7 @@ export default function LearnVisitLivePage() {
                 Acceptable Use
               </a>
               <span className="text-white/18">•</span>
+
               <a
                 href="/safety"
                 target="_blank"
@@ -738,6 +831,7 @@ export default function LearnVisitLivePage() {
                 Safety &amp; Anti-Stalking
               </a>
               <span className="text-white/18">•</span>
+
               <a
                 href="/emergency"
                 target="_blank"
@@ -747,6 +841,7 @@ export default function LearnVisitLivePage() {
                 Emergency Disclaimer
               </a>
               <span className="text-white/18">•</span>
+
               <a
                 href="/minors"
                 target="_blank"
@@ -756,6 +851,7 @@ export default function LearnVisitLivePage() {
                 Child Safety &amp; Minor Use
               </a>
               <span className="text-white/18">•</span>
+
               <a
                 href="/abuse"
                 target="_blank"
@@ -765,6 +861,7 @@ export default function LearnVisitLivePage() {
                 Abuse Reporting
               </a>
               <span className="text-white/18">•</span>
+
               <a
                 href="/retention"
                 target="_blank"
@@ -774,6 +871,7 @@ export default function LearnVisitLivePage() {
                 Data Retention
               </a>
               <span className="text-white/18">•</span>
+
               <a
                 href="/law"
                 target="_blank"
@@ -783,6 +881,7 @@ export default function LearnVisitLivePage() {
                 Law Enforcement
               </a>
               <span className="text-white/18">•</span>
+
               <a
                 href="/security"
                 target="_blank"
