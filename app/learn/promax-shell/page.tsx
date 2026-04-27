@@ -529,7 +529,7 @@ export default function LearnProMaxShellPage() {
                   lg:max-w-[780px] lg:max-h-[74vh]
                   xl:max-w-[860px]
                   transform-gpu transition duration-700 ease-out hover:scale-[1.01]
-                  lg:-translate-y-[800px] xl:-translate-y-[940px] 2xl:-translate-y-[1100px]
+                   lg:-translate-y-[1080px] xl:-translate-y-[1180px] 2xl:-translate-y-[1360px]
                 "
                 draggable={false}
               />

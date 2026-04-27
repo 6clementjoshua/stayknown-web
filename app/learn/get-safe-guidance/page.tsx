@@ -467,7 +467,7 @@ export default function LearnGetSafeGuidancePage() {
         </div>
       </header>
 
-      <section className="relative w-full lg:-mb-[360px]">
+      <section className="relative w-full pb-10 sm:pb-12 lg:pb-16">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_18%,rgba(255,255,255,0.065),transparent_58%)]" />
 
         <div className="mx-auto max-w-6xl px-4 pt-8 pb-0">
@@ -477,10 +477,8 @@ export default function LearnGetSafeGuidancePage() {
                 A 6 Clement Joshua safety mission
               </div>
 
-              <h1 className="mt-4 text-white/95 font-black tracking-[-0.075em] text-[58px] sm:text-[82px] lg:text-[96px] leading-[0.82]">
-                GET
-                <br />
-                SAFE
+              <h1 className="mt-4 whitespace-nowrap text-white/95 font-black tracking-[-0.08em] text-[52px] sm:text-[82px] lg:text-[96px] xl:text-[108px] leading-[0.82]">
+                GET SAFE
               </h1>
 
               <div className="mt-5 max-w-[76ch] space-y-3 text-white/62 font-medium text-[13px] sm:text-[14px] leading-relaxed">
@@ -557,28 +555,27 @@ export default function LearnGetSafeGuidancePage() {
               </div>
             </div>
 
-            <div className="order-2 lg:order-none lg:col-start-1 flex items-start justify-center lg:justify-start">
+            <div className="order-2 lg:order-none lg:col-start-1 flex items-start justify-center lg:justify-start lg:-translate-y-[1100px] xl:-translate-y-[860px] 2xl:-translate-y-[980px]">
               <img
                 src="/hero/get-safe-hints.png"
                 alt="GET SAFE StayKnown safety mission"
                 draggable={false}
                 className="
-                  block object-contain select-none
-                  drop-shadow-[0_26px_95px_rgba(0,0,0,0.78)]
-                  max-w-[86vw] max-h-[44vh]
-                  sm:max-w-[560px] sm:max-h-[62vh]
-                  lg:max-w-[720px] lg:max-h-[74vh]
-                  xl:max-w-[780px]
-                  transform-gpu transition duration-700 ease-out hover:scale-[1.01]
-                  lg:-translate-y-[760px] xl:-translate-y-[940px] 2xl:-translate-y-[1100px]
-                "
+      block object-contain select-none
+      drop-shadow-[0_26px_95px_rgba(0,0,0,0.78)]
+      max-w-[86vw] max-h-[44vh]
+      sm:max-w-[560px] sm:max-h-[62vh]
+      lg:max-w-[720px] lg:max-h-[74vh]
+      xl:max-w-[780px]
+      transform-gpu transition duration-700 ease-out hover:scale-[1.01]
+    "
               />
             </div>
           </div>
         </div>
       </section>
 
-      <section className="relative w-full">
+      <section className="relative w-full -mt-[420px] lg:-mt-[500px] xl:-mt-[760px] 2xl:-mt-[880px]">
         <div className="mx-auto max-w-6xl px-4 pb-10 sm:pb-14">
           <div className="mb-5 grid grid-cols-1 lg:grid-cols-[0.95fr_1.05fr] gap-5">
             <ScenarioBox />

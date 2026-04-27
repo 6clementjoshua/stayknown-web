@@ -544,7 +544,7 @@ export default function LearnManualCapturePage() {
                   lg:max-w-[720px] lg:max-h-[74vh]
                   xl:max-w-[780px]
                   transform-gpu transition duration-700 ease-out hover:scale-[1.01]
-                  lg:-translate-y-[760px] xl:-translate-y-[940px] 2xl:-translate-y-[1100px]
+                  lg:-translate-y-[1080px] xl:-translate-y-[1180px] 2xl:-translate-y-[1360px]
                 "
               />
             </div>
