@@ -1,12 +1,10 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
 
 const UPDATED_AT = "2026-04-30";
-const VERSION = "1.0";
-
-type ThemeMode = "dark" | "light";
+const VERSION = "1.1";
 
 function fmtDate(iso: string) {
   const d = new Date(iso + "T00:00:00Z");
@@ -15,40 +13,6 @@ function fmtDate(iso: string) {
     month: "long",
     day: "2-digit",
   });
-}
-
-function cx(...classes: Array<string | false | null | undefined>) {
-  return classes.filter(Boolean).join(" ");
-}
-
-function useThemeMode() {
-  const [theme, setTheme] = useState<ThemeMode>("dark");
-
-  useEffect(() => {
-    const saved =
-      typeof window !== "undefined"
-        ? window.localStorage.getItem("stayknown-policy-theme")
-        : null;
-
-    if (saved === "light" || saved === "dark") {
-      setTheme(saved);
-      return;
-    }
-
-    const prefersLight =
-      typeof window !== "undefined" &&
-      window.matchMedia("(prefers-color-scheme: light)").matches;
-
-    setTheme(prefersLight ? "light" : "dark");
-  }, []);
-
-  useEffect(() => {
-    if (typeof document === "undefined") return;
-    document.documentElement.dataset.skTheme = theme;
-    window.localStorage.setItem("stayknown-policy-theme", theme);
-  }, [theme]);
-
-  return { theme, setTheme };
 }
 
 function useSeoMeta() {
@@ -290,11 +254,11 @@ function H2({
   return (
     <h2
       id={id}
-      className="scroll-mt-24 text-[18px] md:text-[20px] font-black tracking-[-0.025em] text-zinc-950 dark:text-white/94"
+      className="scroll-mt-24 text-[18px] font-black tracking-[-0.025em] text-white md:text-[20px]"
     >
       <span className="inline-flex items-center gap-2.5">
         {icon ? (
-          <span className="grid h-8 w-8 place-items-center rounded-2xl border border-black/10 bg-black/[0.04] text-zinc-900 shadow-sm dark:border-white/10 dark:bg-white/[0.05] dark:text-white/85">
+          <span className="grid h-8 w-8 place-items-center rounded-2xl border border-white/10 bg-white/[0.04] text-white/85 shadow-sm">
             {icon}
           </span>
         ) : null}
@@ -306,7 +270,7 @@ function H2({
 
 function H3({ children }: { children: React.ReactNode }) {
   return (
-    <div className="mt-4 text-[14px] font-extrabold text-zinc-900 dark:text-white/88">
+    <div className="mt-4 text-[14px] font-extrabold text-white/88">
       {children}
     </div>
   );
@@ -314,7 +278,7 @@ function H3({ children }: { children: React.ReactNode }) {
 
 function P({ children }: { children: React.ReactNode }) {
   return (
-    <p className="text-[13.5px] md:text-[14px] font-semibold leading-relaxed text-zinc-700 dark:text-white/62">
+    <p className="text-[13.5px] font-semibold leading-relaxed text-white/62 md:text-[14px]">
       {children}
     </p>
   );
@@ -322,7 +286,7 @@ function P({ children }: { children: React.ReactNode }) {
 
 function UL({ items }: { items: string[] }) {
   return (
-    <ul className="ml-5 list-disc space-y-1.5 text-[13.5px] md:text-[14px] font-semibold leading-relaxed text-zinc-700 dark:text-white/62">
+    <ul className="ml-5 list-disc space-y-1.5 text-[13.5px] font-semibold leading-relaxed text-white/60 md:text-[14px]">
       {items.map((t, i) => (
         <li key={`${t}-${i}`}>{t}</li>
       ))}
@@ -332,69 +296,61 @@ function UL({ items }: { items: string[] }) {
 
 function Pill({ children }: { children: React.ReactNode }) {
   return (
-    <span className="rounded-full border border-black/10 bg-black/[0.035] px-3 py-1 text-[11px] font-black uppercase tracking-[0.16em] text-zinc-700 dark:border-white/10 dark:bg-white/[0.05] dark:text-white/55">
+    <span className="rounded-full border border-white/10 bg-white/[0.045] px-3 py-1 text-[11px] font-black uppercase tracking-[0.16em] text-white/58">
       {children}
     </span>
+  );
+}
+
+function SoftBadge({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="rounded-full border border-white/10 bg-white/[0.045] px-4 py-2 text-[12px] font-black text-white/55">
+      {children}
+    </div>
+  );
+}
+
+function PrimaryButton({
+  href,
+  children,
+}: {
+  href: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <a
+      href={href}
+      className="group relative inline-flex items-center justify-center overflow-hidden rounded-full border border-white/22 bg-transparent px-5 py-3 text-[12px] font-black text-white shadow-sm transition duration-300 hover:-translate-y-0.5 hover:border-white/50 hover:bg-white hover:text-black focus:outline-none focus:ring-2 focus:ring-white/30"
+    >
+      <span className="relative z-10">{children}</span>
+    </a>
   );
 }
 
 function Callout({
   title,
   body,
-  tone = "normal",
   icon,
 }: {
   title: string;
   body: string;
-  tone?: "normal" | "danger" | "safe" | "billing" | "law" | "report";
   icon?: React.ReactNode;
 }) {
   return (
-    <div
-      className={cx(
-        "group relative overflow-hidden rounded-[1.35rem] border p-4 shadow-sm transition duration-300 hover:-translate-y-0.5",
-        tone === "danger" &&
-          "border-red-500/20 bg-red-500/[0.06] dark:border-red-400/20 dark:bg-red-400/[0.07]",
-        tone === "safe" &&
-          "border-emerald-600/20 bg-emerald-600/[0.06] dark:border-emerald-300/20 dark:bg-emerald-300/[0.07]",
-        tone === "billing" &&
-          "border-amber-600/20 bg-amber-500/[0.08] dark:border-amber-300/20 dark:bg-amber-300/[0.07]",
-        tone === "law" &&
-          "border-sky-700/20 bg-sky-700/[0.055] dark:border-sky-300/20 dark:bg-sky-300/[0.07]",
-        tone === "report" &&
-          "border-violet-600/20 bg-violet-500/[0.07] dark:border-violet-300/20 dark:bg-violet-300/[0.07]",
-        tone === "normal" &&
-          "border-black/10 bg-white/70 dark:border-white/10 dark:bg-white/[0.035]",
-      )}
-    >
-      <div className="absolute -right-8 -top-8 h-24 w-24 rounded-full bg-black/[0.04] blur-2xl dark:bg-white/[0.06]" />
+    <div className="group relative overflow-hidden rounded-[1.35rem] border border-white/10 bg-white/[0.032] p-4 shadow-sm transition duration-300 hover:-translate-y-0.5 hover:border-white/18 hover:bg-white/[0.052]">
+      <div className="absolute -right-8 -top-8 h-24 w-24 rounded-full bg-white/[0.04] blur-2xl" />
       <div className="relative flex gap-3">
         {icon ? (
-          <div className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-2xl border border-black/10 bg-white/70 text-zinc-900 dark:border-white/10 dark:bg-black/30 dark:text-white/80">
+          <div className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-2xl border border-white/10 bg-black/40 text-white/82">
             {icon}
           </div>
         ) : null}
         <div>
-          <div className="text-[13px] font-black text-zinc-950 dark:text-white/90">
-            {title}
-          </div>
-          <div className="mt-2 text-[13px] font-semibold leading-relaxed text-zinc-700 dark:text-white/62">
+          <div className="text-[13px] font-black text-white/92">{title}</div>
+          <div className="mt-2 text-[13px] font-semibold leading-relaxed text-white/60">
             {body}
           </div>
         </div>
-      </div>
-    </div>
-  );
-}
-
-function Example({ title, items }: { title: string; items: string[] }) {
-  return (
-    <div className="rounded-[1.35rem] border border-black/10 bg-black/[0.025] p-4 dark:border-white/10 dark:bg-white/[0.03]">
-      <div className="text-[12.5px] font-black text-zinc-900 dark:text-white/86">
-        {title}
-      </div>
-      <div className="mt-2">
-        <UL items={items} />
       </div>
     </div>
   );
@@ -412,18 +368,16 @@ function LinkCard({
   return (
     <a
       href={href}
-      className="group rounded-[1.35rem] border border-black/10 bg-white/70 p-4 shadow-sm transition duration-300 hover:-translate-y-0.5 hover:bg-white dark:border-white/10 dark:bg-white/[0.035] dark:hover:bg-white/[0.06]"
+      className="group rounded-[1.35rem] border border-white/10 bg-white/[0.032] p-4 shadow-sm transition duration-300 hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/[0.06]"
     >
       <div className="flex items-start justify-between gap-3">
         <div>
-          <div className="text-[13px] font-black text-zinc-950 dark:text-white/90">
-            {title}
-          </div>
-          <p className="mt-1.5 text-[12.5px] font-semibold leading-relaxed text-zinc-600 dark:text-white/50">
+          <div className="text-[13px] font-black text-white/92">{title}</div>
+          <p className="mt-1.5 text-[12.5px] font-semibold leading-relaxed text-white/52">
             {body}
           </p>
         </div>
-        <span className="text-zinc-400 transition group-hover:translate-x-0.5 group-hover:text-zinc-900 dark:text-white/30 dark:group-hover:text-white/75">
+        <span className="text-white/35 transition group-hover:translate-x-0.5 group-hover:text-white/80">
           →
         </span>
       </div>
@@ -434,10 +388,11 @@ function LinkCard({
 function FloatingBackdrop() {
   return (
     <div aria-hidden="true" className="pointer-events-none fixed inset-0 -z-10">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.08),transparent_34%),radial-gradient(circle_at_15%_20%,rgba(245,158,11,0.12),transparent_28%),radial-gradient(circle_at_85%_12%,rgba(16,185,129,0.10),transparent_25%)] dark:bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.08),transparent_34%),radial-gradient(circle_at_15%_20%,rgba(245,158,11,0.10),transparent_28%),radial-gradient(circle_at_85%_12%,rgba(16,185,129,0.08),transparent_25%)]" />
-      <div className="absolute left-[7%] top-[18%] h-48 w-48 animate-[floatSlow_9s_ease-in-out_infinite] rounded-full bg-amber-400/10 blur-3xl" />
-      <div className="absolute right-[8%] top-[32%] h-56 w-56 animate-[floatSlow_11s_ease-in-out_infinite_reverse] rounded-full bg-emerald-400/10 blur-3xl" />
-      <div className="absolute bottom-[8%] left-[30%] h-60 w-60 animate-[floatSlow_13s_ease-in-out_infinite] rounded-full bg-white/8 blur-3xl" />
+      <div className="absolute inset-0 bg-black" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.08),transparent_34%),radial-gradient(circle_at_15%_20%,rgba(255,255,255,0.055),transparent_28%),radial-gradient(circle_at_85%_12%,rgba(255,255,255,0.045),transparent_25%)]" />
+      <div className="absolute left-[7%] top-[18%] h-48 w-48 animate-[floatSlow_9s_ease-in-out_infinite] rounded-full bg-white/[0.035] blur-3xl" />
+      <div className="absolute right-[8%] top-[32%] h-56 w-56 animate-[floatSlow_11s_ease-in-out_infinite_reverse] rounded-full bg-white/[0.03] blur-3xl" />
+      <div className="absolute bottom-[8%] left-[30%] h-60 w-60 animate-[floatSlow_13s_ease-in-out_infinite] rounded-full bg-white/[0.02] blur-3xl" />
     </div>
   );
 }
@@ -445,19 +400,20 @@ function FloatingBackdrop() {
 function BillingIllustration() {
   return (
     <div className="relative mx-auto h-[280px] w-[190px] md:h-[320px] md:w-[220px]">
-      <div className="absolute inset-0 animate-[softPulse_4s_ease-in-out_infinite] rounded-[2.2rem] bg-amber-400/15 blur-2xl" />
-      <div className="relative h-full w-full rounded-[2rem] border border-black/15 bg-white/75 p-3 shadow-2xl backdrop-blur dark:border-white/15 dark:bg-white/[0.055]">
-        <div className="mx-auto mb-3 h-1.5 w-14 rounded-full bg-black/20 dark:bg-white/20" />
-        <div className="rounded-[1.5rem] border border-black/10 bg-gradient-to-b from-white to-zinc-100 p-4 dark:border-white/10 dark:from-white/[0.10] dark:to-white/[0.03]">
+      <div className="absolute inset-0 animate-[softPulse_4s_ease-in-out_infinite] rounded-[2.2rem] bg-white/[0.045] blur-2xl" />
+      <div className="relative h-full w-full rounded-[2rem] border border-white/15 bg-white/[0.055] p-3 shadow-2xl shadow-black/40 backdrop-blur">
+        <div className="mx-auto mb-3 h-1.5 w-14 rounded-full bg-white/20" />
+
+        <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-4">
           <div className="flex items-center gap-2">
-            <div className="grid h-9 w-9 place-items-center rounded-2xl bg-black text-white dark:bg-white dark:text-black">
+            <div className="grid h-9 w-9 place-items-center rounded-2xl bg-white text-black">
               <WalletIcon className="h-5 w-5" />
             </div>
             <div>
-              <div className="text-[11px] font-black tracking-[0.18em] text-zinc-500 dark:text-white/35">
+              <div className="text-[11px] font-black tracking-[0.18em] text-white/35">
                 BILLING CENTER
               </div>
-              <div className="text-[13px] font-black text-zinc-950 dark:text-white">
+              <div className="text-[13px] font-black text-white">
                 Plans & Wallet
               </div>
             </div>
@@ -472,13 +428,13 @@ function BillingIllustration() {
             ].map(([title, body], index) => (
               <div
                 key={title}
-                className="animate-[riseIn_0.7s_ease_both] rounded-2xl border border-black/10 bg-white/80 p-3 dark:border-white/10 dark:bg-black/20"
+                className="animate-[riseIn_0.7s_ease_both] rounded-2xl border border-white/10 bg-black/30 p-3"
                 style={{ animationDelay: `${index * 120}ms` }}
               >
-                <div className="text-[12px] font-black text-zinc-900 dark:text-white/90">
+                <div className="text-[12px] font-black text-white/90">
                   {title}
                 </div>
-                <div className="mt-1 text-[10.5px] font-semibold text-zinc-500 dark:text-white/45">
+                <div className="mt-1 text-[10.5px] font-semibold text-white/45">
                   {body}
                 </div>
               </div>
@@ -486,11 +442,11 @@ function BillingIllustration() {
           </div>
         </div>
 
-        <div className="mt-3 flex items-center justify-between rounded-2xl border border-black/10 bg-black/[0.035] px-3 py-2 dark:border-white/10 dark:bg-white/[0.04]">
-          <div className="text-[10.5px] font-black uppercase tracking-[0.16em] text-zinc-500 dark:text-white/35">
+        <div className="mt-3 flex items-center justify-between rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-2">
+          <div className="text-[10.5px] font-black uppercase tracking-[0.16em] text-white/35">
             Billing governed
           </div>
-          <div className="h-2 w-2 rounded-full bg-amber-500 shadow-[0_0_14px_rgba(245,158,11,0.9)]" />
+          <div className="h-2 w-2 rounded-full bg-white shadow-[0_0_14px_rgba(255,255,255,0.9)]" />
         </div>
       </div>
     </div>
@@ -498,7 +454,6 @@ function BillingIllustration() {
 }
 
 export default function BillingPage() {
-  const { theme, setTheme } = useThemeMode();
   useSeoMeta();
 
   const nav = useMemo(
@@ -542,7 +497,7 @@ export default function BillingPage() {
   };
 
   return (
-    <main className="min-h-screen overflow-hidden bg-zinc-50 text-zinc-950 transition-colors duration-500 dark:bg-black dark:text-white">
+    <main className="min-h-screen overflow-hidden bg-black text-white">
       <FloatingBackdrop />
 
       <style jsx global>{`
@@ -559,7 +514,7 @@ export default function BillingPage() {
         @keyframes softPulse {
           0%,
           100% {
-            opacity: 0.6;
+            opacity: 0.55;
             transform: scale(1);
           }
           50% {
@@ -579,6 +534,16 @@ export default function BillingPage() {
           }
         }
 
+        html {
+          scroll-behavior: smooth;
+          color-scheme: dark;
+          background: #000;
+        }
+
+        body {
+          background: #000;
+        }
+
         @media (prefers-reduced-motion: reduce) {
           * {
             animation-duration: 0.001ms !important;
@@ -586,26 +551,6 @@ export default function BillingPage() {
             scroll-behavior: auto !important;
             transition-duration: 0.001ms !important;
           }
-        }
-
-        html {
-          scroll-behavior: smooth;
-        }
-
-        html[data-sk-theme="dark"] {
-          color-scheme: dark;
-        }
-
-        html[data-sk-theme="light"] {
-          color-scheme: light;
-        }
-
-        html[data-sk-theme="dark"] body {
-          background: #000;
-        }
-
-        html[data-sk-theme="light"] body {
-          background: #fafafa;
         }
       `}</style>
 
@@ -623,9 +568,9 @@ export default function BillingPage() {
               width={38}
               height={38}
               priority
-              className="rounded-full"
+              className="rounded-full bg-white object-contain p-0.5"
             />
-            <div className="font-extrabold tracking-[0.28em] text-[12px] text-zinc-900 dark:text-white">
+            <div className="text-[12px] font-extrabold tracking-[0.28em] text-white">
               STAYKNOWN
             </div>
           </div>
@@ -633,10 +578,10 @@ export default function BillingPage() {
       </header>
 
       <section className="relative z-10 w-full">
-        <div className="mx-auto max-w-6xl px-4 pt-8 pb-16 md:pt-12">
-          <article className="overflow-hidden rounded-[2rem] border border-black/10 bg-white/80 shadow-2xl shadow-black/[0.05] backdrop-blur-2xl dark:border-white/10 dark:bg-white/[0.045] dark:shadow-black/40">
-            <div className="relative overflow-hidden border-b border-black/10 px-5 py-7 dark:border-white/10 md:px-8 md:py-9">
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_15%_0%,rgba(245,158,11,0.16),transparent_30%),radial-gradient(circle_at_80%_10%,rgba(16,185,129,0.14),transparent_28%)]" />
+        <div className="mx-auto max-w-6xl px-4 pb-16 pt-8 md:pt-12">
+          <article className="overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.03] shadow-2xl shadow-black/60 backdrop-blur-2xl">
+            <div className="relative overflow-hidden border-b border-white/10 px-5 py-7 md:px-8 md:py-9">
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_15%_0%,rgba(255,255,255,0.105),transparent_30%),radial-gradient(circle_at_80%_10%,rgba(255,255,255,0.05),transparent_28%)]" />
 
               <div className="relative grid gap-8 md:grid-cols-[1fr_260px] md:items-center">
                 <div>
@@ -646,12 +591,12 @@ export default function BillingPage() {
                     <Pill>Wallet & Coins</Pill>
                   </div>
 
-                  <h1 className="mt-5 max-w-3xl text-[30px] font-black tracking-[-0.045em] text-zinc-950 dark:text-white/95 md:text-[46px] md:leading-[1.02]">
+                  <h1 className="mt-5 max-w-3xl text-[30px] font-black tracking-[-0.045em] text-white md:text-[46px] md:leading-[1.02]">
                     StayKnown Billing & Refunds Policy for subscriptions, coins,
                     wallet, receipts, cancellations, and payment safety.
                   </h1>
 
-                  <p className="mt-5 max-w-3xl text-[14.5px] font-semibold leading-relaxed text-zinc-700 dark:text-white/62 md:text-[15px]">
+                  <p className="mt-5 max-w-3xl text-[14.5px] font-semibold leading-relaxed text-white/62 md:text-[15px]">
                     This policy explains how StayKnown handles Starter, Pro, Pro
                     Max, subscription billing, renewal, failed payments,
                     cancellations, refunds, app-store purchases, Paystack or
@@ -660,21 +605,11 @@ export default function BillingPage() {
                   </p>
 
                   <div className="mt-6 flex flex-wrap items-center gap-3">
-                    <div className="rounded-full border border-black/10 bg-white/70 px-4 py-2 text-[12px] font-black text-zinc-700 dark:border-white/10 dark:bg-white/[0.05] dark:text-white/55">
-                      Version {VERSION}
-                    </div>
-                    <div className="rounded-full border border-black/10 bg-white/70 px-4 py-2 text-[12px] font-black text-zinc-700 dark:border-white/10 dark:bg-white/[0.05] dark:text-white/55">
-                      Updated: {fmtDate(UPDATED_AT)}
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setTheme(theme === "dark" ? "light" : "dark")
-                      }
-                      className="rounded-full border border-black/10 bg-zinc-950 px-4 py-2 text-[12px] font-black text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-black dark:border-white/10 dark:bg-white dark:text-black dark:hover:bg-white/90"
-                    >
-                      {theme === "dark" ? "Light mode" : "Dark mode"}
-                    </button>
+                    <SoftBadge>Version {VERSION}</SoftBadge>
+                    <SoftBadge>Updated: {fmtDate(UPDATED_AT)}</SoftBadge>
+                    <PrimaryButton href="/contact">
+                      Billing support
+                    </PrimaryButton>
                   </div>
                 </div>
 
@@ -683,8 +618,8 @@ export default function BillingPage() {
             </div>
 
             <div className="grid gap-0 lg:grid-cols-[260px_1fr]">
-              <aside className="border-b border-black/10 bg-black/[0.02] p-5 dark:border-white/10 dark:bg-black/20 lg:sticky lg:top-0 lg:h-screen lg:border-b-0 lg:border-r lg:p-6">
-                <div className="text-[12px] font-black uppercase tracking-[0.2em] text-zinc-500 dark:text-white/35">
+              <aside className="border-b border-white/10 bg-black/35 p-5 lg:sticky lg:top-0 lg:h-screen lg:border-b-0 lg:border-r lg:p-6">
+                <div className="text-[12px] font-black uppercase tracking-[0.2em] text-white/35">
                   On this page
                 </div>
 
@@ -696,19 +631,19 @@ export default function BillingPage() {
                     <a
                       key={id}
                       href={`#${id}`}
-                      className="rounded-2xl px-3 py-2 text-[12.5px] font-bold text-zinc-600 transition hover:bg-black/[0.04] hover:text-zinc-950 dark:text-white/48 dark:hover:bg-white/[0.05] dark:hover:text-white/86"
+                      className="rounded-2xl px-3 py-2 text-[12.5px] font-bold text-white/50 transition hover:bg-white/[0.06] hover:text-white"
                     >
                       {label}
                     </a>
                   ))}
                 </nav>
 
-                <div className="mt-6 rounded-[1.4rem] border border-amber-500/20 bg-amber-500/[0.08] p-4 dark:border-amber-300/20 dark:bg-amber-300/[0.07]">
-                  <div className="flex items-center gap-2 text-[12px] font-black text-zinc-950 dark:text-white/86">
+                <div className="mt-6 rounded-[1.4rem] border border-white/10 bg-white/[0.032] p-4">
+                  <div className="flex items-center gap-2 text-[12px] font-black text-white/88">
                     <WalletIcon className="h-4 w-4" />
                     Billing rule
                   </div>
-                  <p className="mt-2 text-[12px] font-semibold leading-relaxed text-zinc-700 dark:text-white/55">
+                  <p className="mt-2 text-[12px] font-semibold leading-relaxed text-white/50">
                     Paid features improve access, but they do not guarantee
                     rescue, exact location, contact response, or official
                     emergency service action.
@@ -735,19 +670,16 @@ export default function BillingPage() {
                       <Callout
                         title="Plans control feature access"
                         body="Starter, Pro, and Pro Max may have different limits, gates, and safety-feature access."
-                        tone="billing"
                         icon={<WalletIcon className="h-5 w-5" />}
                       />
                       <Callout
                         title="Refunds are limited"
                         body="Refunds depend on provider rules, app-store rules, local law, product use, fraud review, and payment status."
-                        tone="law"
                         icon={<ReceiptIcon className="h-5 w-5" />}
                       />
                       <Callout
                         title="No payment abuse"
                         body="Chargeback abuse, receipt manipulation, fake purchases, wallet abuse, and payment fraud are prohibited."
-                        tone="danger"
                         icon={<AlertIcon className="h-5 w-5" />}
                       />
                     </div>
@@ -882,7 +814,6 @@ export default function BillingPage() {
                     <Callout
                       title="Safety-product note"
                       body="Dissatisfaction with a contact’s response, emergency outcome, map accuracy, GPS quality, network delay, device issue, or third-party emergency response does not automatically create a refund right."
-                      tone="law"
                       icon={<ShieldIcon className="h-5 w-5" />}
                     />
                   </section>
@@ -1174,7 +1105,7 @@ export default function BillingPage() {
                     </div>
                   </section>
 
-                  <section className="space-y-3 rounded-[1.6rem] border border-black/10 bg-black/[0.025] p-5 dark:border-white/10 dark:bg-white/[0.03]">
+                  <section className="space-y-3 rounded-[1.6rem] border border-white/10 bg-white/[0.032] p-5">
                     <H2>18) Changes to this Billing & Refunds Policy</H2>
                     <P>
                       StayKnown may update this policy to reflect new plans,
@@ -1188,7 +1119,7 @@ export default function BillingPage() {
                     </P>
                   </section>
 
-                  <section className="space-y-3 rounded-[1.6rem] border border-black/10 bg-white/70 p-5 dark:border-white/10 dark:bg-white/[0.035]">
+                  <section className="space-y-3 rounded-[1.6rem] border border-white/10 bg-white/[0.032] p-5">
                     <H2>Appendix A — In-app short billing notice</H2>
                     <P>
                       StayKnown may offer Starter, Pro, Pro Max, subscriptions,
@@ -1206,25 +1137,38 @@ export default function BillingPage() {
                   </section>
                 </div>
 
-                <div className="mt-10 h-px bg-black/10 dark:bg-white/10" />
+                <div className="mx-auto mt-12 h-px max-w-3xl bg-white/10" />
 
-                <footer className="mt-6 text-center">
-                  <div className="text-[12px] font-semibold text-zinc-600 dark:text-white/50">
-                    A 6 Clement Joshua service
-                    <span className="ml-1 align-super text-[10px] text-zinc-400 dark:text-white/25">
-                      ™
-                    </span>
+                <footer className="mx-auto mt-7 max-w-4xl text-center">
+                  <div className="mx-auto rounded-[1.6rem] border border-white/10 bg-black/35 px-5 py-6">
+                    <div className="flex items-center justify-center gap-3">
+                      <Image
+                        src="/6logo.png"
+                        alt="6 Clement Joshua service logo"
+                        width={28}
+                        height={28}
+                        className="rounded-md bg-white object-contain p-0.5"
+                      />
+                      <div className="text-[12px] font-semibold text-white/55">
+                        A 6 Clement Joshua service
+                        <span className="ml-1 align-super text-[10px] text-white/28">
+                          ™
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="mt-2 text-[11px] font-semibold text-white/32">
+                      {new Date().getFullYear()} • stay-known.com
+                    </div>
+
+                    <p className="mx-auto mt-3 max-w-2xl text-[11px] font-semibold leading-relaxed text-white/30">
+                      This policy is provided for product transparency and
+                      should be reviewed by qualified legal counsel before
+                      public launch, regulatory filing, investor review,
+                      app-store submission, payment-provider onboarding, or
+                      law-enforcement request handling.
+                    </p>
                   </div>
-                  <div className="mt-2 text-[11px] font-semibold text-zinc-500 dark:text-white/30">
-                    {new Date().getFullYear()} • stay-known.com
-                  </div>
-                  <p className="mx-auto mt-3 max-w-2xl text-[11px] font-semibold leading-relaxed text-zinc-500 dark:text-white/30">
-                    This policy is provided for product transparency and should
-                    be reviewed by qualified legal counsel before public launch,
-                    regulatory filing, investor review, app-store submission,
-                    payment-provider onboarding, or law-enforcement request
-                    handling.
-                  </p>
                 </footer>
               </div>
             </div>

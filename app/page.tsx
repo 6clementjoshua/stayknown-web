@@ -150,9 +150,35 @@ export default function Page() {
 
   return (
     <main className="min-h-screen bg-black flex flex-col">
+      <style jsx global>{`
+        .sk-menu-wrap > button,
+        .sk-menu-wrap > div > button {
+          background: transparent !important;
+          backdrop-filter: none !important;
+          -webkit-backdrop-filter: none !important;
+          box-shadow: none !important;
+          border: 1px solid transparent !important;
+          color: rgba(255, 255, 255, 0.92) !important;
+        }
+
+        .sk-menu-wrap > button:hover,
+        .sk-menu-wrap > div > button:hover {
+          background: rgba(255, 255, 255, 0.06) !important;
+          border-color: rgba(255, 255, 255, 0.1) !important;
+          color: #ffffff !important;
+        }
+
+        .sk-menu-wrap > button:focus-visible,
+        .sk-menu-wrap > div > button:focus-visible {
+          outline: none !important;
+          border-color: rgba(255, 255, 255, 0.16) !important;
+          box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.05) !important;
+        }
+      `}</style>
+
       {/* Brand */}
-      <header className="relative z-50 pt-7">
-        <div className="mx-auto grid max-w-6xl grid-cols-[44px_1fr_44px] items-center px-4">
+      <header className="relative z-50 pt-6">
+        <div className="mx-auto grid max-w-6xl grid-cols-[34px_1fr_34px] items-center px-2 sm:px-3">
           <div />
 
           <div className="flex flex-col items-center gap-2">
@@ -168,8 +194,10 @@ export default function Page() {
             </div>
           </div>
 
-          <div className="flex justify-end">
-            <StayKnownActionMenu />
+          <div className="flex justify-end -mr-1 sm:-mr-2">
+            <div className="sk-menu-wrap">
+              <StayKnownActionMenu />
+            </div>
           </div>
         </div>
       </header>

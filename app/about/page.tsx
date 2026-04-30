@@ -617,12 +617,12 @@ export default function AboutPage() {
         <div className="mx-auto flex max-w-6xl items-center justify-center px-4">
           <div className="flex flex-col items-center gap-2">
             <Image
-              src={STAYKNOWN_LOGO_SRC}
+              src="/6logo.png"
               alt="StayKnown"
-              width={42}
-              height={42}
+              width={38}
+              height={38}
               priority
-              className="rounded-2xl bg-white object-contain p-1 shadow-sm"
+              className="rounded-full bg-white object-contain p-0.5"
             />
             <div className="text-[12px] font-extrabold tracking-[0.28em] text-white">
               STAYKNOWN
@@ -630,7 +630,6 @@ export default function AboutPage() {
           </div>
         </div>
       </header>
-
       <section className="relative z-10 w-full">
         <div className="mx-auto max-w-6xl px-4 pb-16 pt-8 md:pt-12">
           <article className="overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.03] shadow-2xl shadow-black/60 backdrop-blur-2xl">
@@ -1167,8 +1166,8 @@ export default function AboutPage() {
 
                     <div className="mt-6 flex items-center justify-center gap-3">
                       <Image
-                        src={CLEMENT_LOGO_SRC}
-                        alt="6 Clement Joshua official logo"
+                        src="/6logo.png"
+                        alt="6 Clement Joshua service logo"
                         width={28}
                         height={28}
                         className="rounded-md bg-white object-contain p-0.5"

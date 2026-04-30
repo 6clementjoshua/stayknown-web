@@ -5,9 +5,6 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 
 const UPDATED_AT = "2026-04-30";
 
-const STAYKNOWN_LOGO_SRC = "/hero/stay-known-logo.png";
-
-type ThemeMode = "dark" | "light";
 type SubmitState = "idle" | "sending" | "success" | "error";
 
 function fmtDate(iso: string) {
@@ -21,36 +18,6 @@ function fmtDate(iso: string) {
 
 function cx(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
-}
-
-function useThemeMode() {
-  const [theme, setTheme] = useState<ThemeMode>("dark");
-
-  useEffect(() => {
-    const saved =
-      typeof window !== "undefined"
-        ? window.localStorage.getItem("stayknown-policy-theme")
-        : null;
-
-    if (saved === "light" || saved === "dark") {
-      setTheme(saved);
-      return;
-    }
-
-    const prefersLight =
-      typeof window !== "undefined" &&
-      window.matchMedia("(prefers-color-scheme: light)").matches;
-
-    setTheme(prefersLight ? "light" : "dark");
-  }, []);
-
-  useEffect(() => {
-    if (typeof document === "undefined") return;
-    document.documentElement.dataset.skTheme = theme;
-    window.localStorage.setItem("stayknown-policy-theme", theme);
-  }, [theme]);
-
-  return { theme, setTheme };
 }
 
 function useSeoMeta() {
@@ -228,10 +195,10 @@ function H2({
   icon?: React.ReactNode;
 }) {
   return (
-    <h2 className="text-[18px] md:text-[20px] font-black tracking-[-0.025em] text-zinc-950 dark:text-white/94">
+    <h2 className="text-[18px] font-black tracking-[-0.025em] text-white md:text-[20px]">
       <span className="inline-flex items-center gap-2.5">
         {icon ? (
-          <span className="grid h-8 w-8 place-items-center rounded-2xl border border-black/10 bg-black/[0.04] text-zinc-900 shadow-sm dark:border-white/10 dark:bg-white/[0.05] dark:text-white/85">
+          <span className="grid h-8 w-8 place-items-center rounded-2xl border border-white/10 bg-white/[0.04] text-white/85 shadow-sm">
             {icon}
           </span>
         ) : null}
@@ -243,7 +210,7 @@ function H2({
 
 function P({ children }: { children: React.ReactNode }) {
   return (
-    <p className="text-[13.5px] md:text-[14px] font-semibold leading-relaxed text-zinc-700 dark:text-white/62">
+    <p className="text-[13.5px] font-semibold leading-relaxed text-white/62 md:text-[14px]">
       {children}
     </p>
   );
@@ -251,7 +218,7 @@ function P({ children }: { children: React.ReactNode }) {
 
 function Pill({ children }: { children: React.ReactNode }) {
   return (
-    <span className="rounded-full border border-black/10 bg-black/[0.035] px-3 py-1 text-[11px] font-black uppercase tracking-[0.16em] text-zinc-700 dark:border-white/10 dark:bg-white/[0.05] dark:text-white/55">
+    <span className="rounded-full border border-white/10 bg-white/[0.045] px-3 py-1 text-[11px] font-black uppercase tracking-[0.16em] text-white/58">
       {children}
     </span>
   );
@@ -259,7 +226,7 @@ function Pill({ children }: { children: React.ReactNode }) {
 
 function Label({ children }: { children: React.ReactNode }) {
   return (
-    <label className="text-[12px] font-black uppercase tracking-[0.14em] text-zinc-600 dark:text-white/42">
+    <label className="text-[12px] font-black uppercase tracking-[0.14em] text-white/45">
       {children}
     </label>
   );
@@ -288,7 +255,7 @@ function Input({
       value={value}
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
-      className="mt-2 w-full rounded-[1.15rem] border border-black/10 bg-white/75 px-4 py-3 text-[14px] font-bold text-zinc-950 outline-none shadow-sm transition placeholder:text-zinc-400 focus:border-black/25 focus:bg-white focus:ring-4 focus:ring-black/[0.04] dark:border-white/10 dark:bg-white/[0.045] dark:text-white dark:placeholder:text-white/25 dark:focus:border-white/20 dark:focus:bg-white/[0.07] dark:focus:ring-white/[0.05]"
+      className="mt-2 w-full rounded-[1.15rem] border border-white/10 bg-white/[0.045] px-4 py-3 text-[14px] font-bold text-white outline-none shadow-sm transition placeholder:text-white/25 focus:border-white/22 focus:bg-white/[0.07] focus:ring-4 focus:ring-white/[0.05]"
     />
   );
 }
@@ -309,7 +276,7 @@ function Select({
       name={name}
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="mt-2 w-full rounded-[1.15rem] border border-black/10 bg-white/75 px-4 py-3 text-[14px] font-bold text-zinc-950 outline-none shadow-sm transition focus:border-black/25 focus:bg-white focus:ring-4 focus:ring-black/[0.04] dark:border-white/10 dark:bg-white/[0.045] dark:text-white dark:focus:border-white/20 dark:focus:bg-white/[0.07] dark:focus:ring-white/[0.05]"
+      className="mt-2 w-full rounded-[1.15rem] border border-white/10 bg-white/[0.045] px-4 py-3 text-[14px] font-bold text-white outline-none shadow-sm transition focus:border-white/22 focus:bg-white/[0.07] focus:ring-4 focus:ring-white/[0.05]"
     >
       {children}
     </select>
@@ -337,7 +304,7 @@ function Textarea({
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
       rows={7}
-      className="mt-2 w-full resize-none rounded-[1.15rem] border border-black/10 bg-white/75 px-4 py-3 text-[14px] font-bold leading-relaxed text-zinc-950 outline-none shadow-sm transition placeholder:text-zinc-400 focus:border-black/25 focus:bg-white focus:ring-4 focus:ring-black/[0.04] dark:border-white/10 dark:bg-white/[0.045] dark:text-white dark:placeholder:text-white/25 dark:focus:border-white/20 dark:focus:bg-white/[0.07] dark:focus:ring-white/[0.05]"
+      className="mt-2 w-full resize-none rounded-[1.15rem] border border-white/10 bg-white/[0.045] px-4 py-3 text-[14px] font-bold leading-relaxed text-white outline-none shadow-sm transition placeholder:text-white/25 focus:border-white/22 focus:bg-white/[0.07] focus:ring-4 focus:ring-white/[0.05]"
     />
   );
 }
@@ -345,34 +312,35 @@ function Textarea({
 function FloatingBackdrop() {
   return (
     <div aria-hidden="true" className="pointer-events-none fixed inset-0 -z-10">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.08),transparent_34%),radial-gradient(circle_at_15%_20%,rgba(0,0,0,0.08),transparent_28%),radial-gradient(circle_at_85%_12%,rgba(16,185,129,0.10),transparent_25%)] dark:bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.08),transparent_34%),radial-gradient(circle_at_15%_20%,rgba(255,255,255,0.10),transparent_28%),radial-gradient(circle_at_85%_12%,rgba(16,185,129,0.08),transparent_25%)]" />
-      <div className="absolute left-[7%] top-[18%] h-48 w-48 animate-[floatSlow_9s_ease-in-out_infinite] rounded-full bg-white/10 blur-3xl" />
-      <div className="absolute right-[8%] top-[32%] h-56 w-56 animate-[floatSlow_11s_ease-in-out_infinite_reverse] rounded-full bg-emerald-400/10 blur-3xl" />
-      <div className="absolute bottom-[8%] left-[30%] h-60 w-60 animate-[floatSlow_13s_ease-in-out_infinite] rounded-full bg-sky-400/8 blur-3xl" />
+      <div className="absolute inset-0 bg-black" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.08),transparent_34%),radial-gradient(circle_at_15%_20%,rgba(255,255,255,0.055),transparent_28%),radial-gradient(circle_at_85%_12%,rgba(255,255,255,0.045),transparent_25%)]" />
+      <div className="absolute left-[7%] top-[18%] h-48 w-48 animate-[floatSlow_9s_ease-in-out_infinite] rounded-full bg-white/[0.035] blur-3xl" />
+      <div className="absolute right-[8%] top-[32%] h-56 w-56 animate-[floatSlow_11s_ease-in-out_infinite_reverse] rounded-full bg-white/[0.03] blur-3xl" />
+      <div className="absolute bottom-[8%] left-[30%] h-60 w-60 animate-[floatSlow_13s_ease-in-out_infinite] rounded-full bg-white/[0.02] blur-3xl" />
     </div>
   );
 }
 
 function SuccessPanel({ submissionId }: { submissionId: string }) {
   return (
-    <div className="animate-[riseIn_0.55s_ease_both] rounded-[1.6rem] border border-black/10 bg-white/75 p-5 shadow-sm dark:border-white/10 dark:bg-white/[0.04]">
+    <div className="animate-[riseIn_0.55s_ease_both] rounded-[1.6rem] border border-white/10 bg-white/[0.04] p-5 shadow-sm">
       <div className="flex items-start gap-4">
-        <div className="grid h-12 w-12 shrink-0 place-items-center rounded-full border border-black/10 bg-black text-white shadow-xl dark:border-white/15 dark:bg-white dark:text-black">
+        <div className="grid h-12 w-12 shrink-0 place-items-center rounded-full border border-white/15 bg-white text-black shadow-xl">
           <CheckIcon className="h-7 w-7" />
         </div>
 
         <div>
-          <div className="text-[16px] font-black text-zinc-950 dark:text-white/92">
+          <div className="text-[16px] font-black text-white/92">
             Message received
           </div>
-          <p className="mt-2 text-[13.5px] font-semibold leading-relaxed text-zinc-700 dark:text-white/58">
+          <p className="mt-2 text-[13.5px] font-semibold leading-relaxed text-white/58">
             StayKnown has received your contact message. A confirmation email
             with your summary has been sent to the address you provided. We will
             reach back as soon as the information requires a response.
           </p>
 
           {submissionId ? (
-            <div className="mt-4 rounded-2xl border border-black/10 bg-black/[0.035] px-4 py-3 text-[12px] font-black text-zinc-700 dark:border-white/10 dark:bg-white/[0.045] dark:text-white/55">
+            <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.045] px-4 py-3 text-[12px] font-black text-white/55">
               Submission ID: {submissionId}
             </div>
           ) : null}
@@ -394,18 +362,16 @@ function LinkCard({
   return (
     <a
       href={href}
-      className="group rounded-[1.35rem] border border-black/10 bg-white/70 p-4 shadow-sm transition duration-300 hover:-translate-y-0.5 hover:bg-white dark:border-white/10 dark:bg-white/[0.035] dark:hover:bg-white/[0.06]"
+      className="group rounded-[1.35rem] border border-white/10 bg-white/[0.032] p-4 shadow-sm transition duration-300 hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/[0.06]"
     >
       <div className="flex items-start justify-between gap-3">
         <div>
-          <div className="text-[13px] font-black text-zinc-950 dark:text-white/90">
-            {title}
-          </div>
-          <p className="mt-1.5 text-[12.5px] font-semibold leading-relaxed text-zinc-600 dark:text-white/50">
+          <div className="text-[13px] font-black text-white/92">{title}</div>
+          <p className="mt-1.5 text-[12.5px] font-semibold leading-relaxed text-white/52">
             {body}
           </p>
         </div>
-        <span className="text-zinc-400 transition group-hover:translate-x-0.5 group-hover:text-zinc-900 dark:text-white/30 dark:group-hover:text-white/75">
+        <span className="text-white/35 transition group-hover:translate-x-0.5 group-hover:text-white/80">
           →
         </span>
       </div>
@@ -414,7 +380,6 @@ function LinkCard({
 }
 
 export default function ContactPage() {
-  const { theme, setTheme } = useThemeMode();
   useSeoMeta();
 
   const [fullName, setFullName] = useState("");
@@ -525,7 +490,7 @@ export default function ContactPage() {
   };
 
   return (
-    <main className="min-h-screen overflow-hidden bg-zinc-50 text-zinc-950 transition-colors duration-500 dark:bg-black dark:text-white">
+    <main className="min-h-screen overflow-hidden bg-black text-white">
       <FloatingBackdrop />
 
       <style jsx global>{`
@@ -542,7 +507,7 @@ export default function ContactPage() {
         @keyframes softPulse {
           0%,
           100% {
-            opacity: 0.6;
+            opacity: 0.55;
             transform: scale(1);
           }
           50% {
@@ -562,6 +527,16 @@ export default function ContactPage() {
           }
         }
 
+        html {
+          scroll-behavior: smooth;
+          color-scheme: dark;
+          background: #000;
+        }
+
+        body {
+          background: #000;
+        }
+
         @media (prefers-reduced-motion: reduce) {
           * {
             animation-duration: 0.001ms !important;
@@ -569,26 +544,6 @@ export default function ContactPage() {
             scroll-behavior: auto !important;
             transition-duration: 0.001ms !important;
           }
-        }
-
-        html {
-          scroll-behavior: smooth;
-        }
-
-        html[data-sk-theme="dark"] {
-          color-scheme: dark;
-        }
-
-        html[data-sk-theme="light"] {
-          color-scheme: light;
-        }
-
-        html[data-sk-theme="dark"] body {
-          background: #000;
-        }
-
-        html[data-sk-theme="light"] body {
-          background: #fafafa;
         }
       `}</style>
 
@@ -601,14 +556,14 @@ export default function ContactPage() {
         <div className="mx-auto flex max-w-6xl items-center justify-center px-4">
           <div className="flex flex-col items-center gap-2">
             <Image
-              src={STAYKNOWN_LOGO_SRC}
+              src="/6logo.png"
               alt="StayKnown"
-              width={46}
-              height={46}
+              width={38}
+              height={38}
               priority
-              className="rounded-2xl bg-white object-contain p-1 shadow-sm"
+              className="rounded-full bg-white object-contain p-0.5"
             />
-            <div className="font-extrabold tracking-[0.28em] text-[12px] text-zinc-900 dark:text-white">
+            <div className="text-[12px] font-extrabold tracking-[0.28em] text-white">
               STAYKNOWN
             </div>
           </div>
@@ -616,10 +571,10 @@ export default function ContactPage() {
       </header>
 
       <section className="relative z-10 w-full">
-        <div className="mx-auto max-w-6xl px-4 pt-8 pb-16 md:pt-12">
-          <article className="overflow-hidden rounded-[2rem] border border-black/10 bg-white/80 shadow-2xl shadow-black/[0.05] backdrop-blur-2xl dark:border-white/10 dark:bg-white/[0.045] dark:shadow-black/40">
-            <div className="relative overflow-hidden border-b border-black/10 px-5 py-7 dark:border-white/10 md:px-8 md:py-9">
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_15%_0%,rgba(255,255,255,0.18),transparent_30%),radial-gradient(circle_at_80%_10%,rgba(16,185,129,0.14),transparent_28%)]" />
+        <div className="mx-auto max-w-6xl px-4 pb-16 pt-8 md:pt-12">
+          <article className="overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.03] shadow-2xl shadow-black/60 backdrop-blur-2xl">
+            <div className="relative overflow-hidden border-b border-white/10 px-5 py-7 md:px-8 md:py-9">
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_15%_0%,rgba(255,255,255,0.105),transparent_30%),radial-gradient(circle_at_80%_10%,rgba(255,255,255,0.05),transparent_28%)]" />
 
               <div className="relative">
                 <div className="flex flex-wrap items-center gap-2">
@@ -628,12 +583,12 @@ export default function ContactPage() {
                   <Pill>A 6 Clement Joshua Service™</Pill>
                 </div>
 
-                <h1 className="mt-5 max-w-4xl text-[30px] font-black tracking-[-0.045em] text-zinc-950 dark:text-white/95 md:text-[46px] md:leading-[1.02]">
+                <h1 className="mt-5 max-w-4xl text-[30px] font-black tracking-[-0.045em] text-white md:text-[46px] md:leading-[1.02]">
                   Contact StayKnown for brand, product, support, safety, policy,
                   and responsible communication.
                 </h1>
 
-                <p className="mt-5 max-w-3xl text-[14.5px] font-semibold leading-relaxed text-zinc-700 dark:text-white/62 md:text-[15px]">
+                <p className="mt-5 max-w-3xl text-[14.5px] font-semibold leading-relaxed text-white/62 md:text-[15px]">
                   Use this official contact page for general messages,
                   responsible support communication, brand inquiries, policy
                   questions, partnership interest, product questions, and
@@ -641,26 +596,17 @@ export default function ContactPage() {
                 </p>
 
                 <div className="mt-6 flex flex-wrap items-center gap-3">
-                  <div className="rounded-full border border-black/10 bg-white/70 px-4 py-2 text-[12px] font-black text-zinc-700 dark:border-white/10 dark:bg-white/[0.05] dark:text-white/55">
+                  <div className="rounded-full border border-white/10 bg-white/[0.045] px-4 py-2 text-[12px] font-black text-white/55">
                     Updated: {fmtDate(UPDATED_AT)}
                   </div>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setTheme(theme === "dark" ? "light" : "dark")
-                    }
-                    className="rounded-full border border-black/10 bg-zinc-950 px-4 py-2 text-[12px] font-black text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-black dark:border-white/10 dark:bg-white dark:text-black dark:hover:bg-white/90"
-                  >
-                    {theme === "dark" ? "Light mode" : "Dark mode"}
-                  </button>
                 </div>
               </div>
             </div>
 
             <div className="grid gap-0 lg:grid-cols-[360px_1fr]">
-              <aside className="border-b border-black/10 bg-black/[0.02] p-5 dark:border-white/10 dark:bg-black/20 lg:border-b-0 lg:border-r lg:p-7">
+              <aside className="border-b border-white/10 bg-black/35 p-5 lg:border-b-0 lg:border-r lg:p-7">
                 <div className="space-y-4">
-                  <div className="rounded-[1.5rem] border border-black/10 bg-white/70 p-5 shadow-sm dark:border-white/10 dark:bg-white/[0.035]">
+                  <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.032] p-5 shadow-sm">
                     <H2 icon={<ContactIcon className="h-4 w-4" />}>
                       What this page is for
                     </H2>
@@ -674,7 +620,7 @@ export default function ContactPage() {
                     </div>
                   </div>
 
-                  <div className="rounded-[1.5rem] border border-red-500/20 bg-red-500/[0.06] p-5 shadow-sm dark:border-red-400/20 dark:bg-red-400/[0.07]">
+                  <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.032] p-5 shadow-sm">
                     <H2 icon={<AlertIcon className="h-4 w-4" />}>
                       Not for unlawful contact
                     </H2>
@@ -690,7 +636,7 @@ export default function ContactPage() {
                     </div>
                   </div>
 
-                  <div className="rounded-[1.5rem] border border-black/10 bg-white/70 p-5 shadow-sm dark:border-white/10 dark:bg-white/[0.035]">
+                  <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.032] p-5 shadow-sm">
                     <H2 icon={<ShieldIcon className="h-4 w-4" />}>
                       Faster routes
                     </H2>
@@ -733,12 +679,12 @@ export default function ContactPage() {
                   ) : null}
 
                   {state === "error" && error ? (
-                    <div className="rounded-[1.35rem] border border-red-500/20 bg-red-500/[0.06] p-4 text-[13px] font-bold leading-relaxed text-red-700 dark:border-red-400/20 dark:bg-red-400/[0.07] dark:text-red-100">
+                    <div className="rounded-[1.35rem] border border-white/10 bg-white/[0.045] p-4 text-[13px] font-bold leading-relaxed text-white/75">
                       {error}
                     </div>
                   ) : null}
 
-                  <section className="rounded-[1.6rem] border border-black/10 bg-white/70 p-5 shadow-sm dark:border-white/10 dark:bg-white/[0.035]">
+                  <section className="rounded-[1.6rem] border border-white/10 bg-white/[0.032] p-5 shadow-sm">
                     <H2 icon={<ContactIcon className="h-4 w-4" />}>
                       Contact details
                     </H2>
@@ -824,7 +770,7 @@ export default function ContactPage() {
                     </div>
                   </section>
 
-                  <section className="rounded-[1.6rem] border border-black/10 bg-white/70 p-5 shadow-sm dark:border-white/10 dark:bg-white/[0.035]">
+                  <section className="rounded-[1.6rem] border border-white/10 bg-white/[0.032] p-5 shadow-sm">
                     <H2 icon={<SparkIcon className="h-4 w-4" />}>
                       Your message
                     </H2>
@@ -850,7 +796,7 @@ export default function ContactPage() {
                           required
                           name="message"
                         />
-                        <div className="mt-2 text-[11px] font-bold text-zinc-500 dark:text-white/35">
+                        <div className="mt-2 text-[11px] font-bold text-white/35">
                           Minimum 20 characters. Do not include passwords, OTPs,
                           full card numbers, or unnecessary private data.
                         </div>
@@ -858,7 +804,7 @@ export default function ContactPage() {
                     </div>
                   </section>
 
-                  <section className="rounded-[1.6rem] border border-black/10 bg-white/70 p-5 shadow-sm dark:border-white/10 dark:bg-white/[0.035]">
+                  <section className="rounded-[1.6rem] border border-white/10 bg-white/[0.032] p-5 shadow-sm">
                     <H2 icon={<ShieldIcon className="h-4 w-4" />}>Context</H2>
 
                     <div className="mt-5 grid gap-4 md:grid-cols-2">
@@ -914,15 +860,15 @@ export default function ContactPage() {
                     </div>
                   </section>
 
-                  <section className="rounded-[1.6rem] border border-black/10 bg-white/70 p-5 shadow-sm dark:border-white/10 dark:bg-white/[0.035]">
+                  <section className="rounded-[1.6rem] border border-white/10 bg-white/[0.032] p-5 shadow-sm">
                     <label className="flex cursor-pointer items-start gap-3">
                       <input
                         type="checkbox"
                         checked={consentToContact}
                         onChange={(e) => setConsentToContact(e.target.checked)}
-                        className="mt-1 h-4 w-4 accent-black dark:accent-white"
+                        className="mt-1 h-4 w-4 accent-white"
                       />
-                      <span className="text-[13px] font-semibold leading-relaxed text-zinc-700 dark:text-white/60">
+                      <span className="text-[13px] font-semibold leading-relaxed text-white/60">
                         I agree that StayKnown may contact me about this message
                         using the email address I provided. I understand this
                         page must only be used for responsible communication
@@ -936,7 +882,7 @@ export default function ContactPage() {
                   </section>
 
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="text-[11px] font-bold leading-relaxed text-zinc-500 dark:text-white/35">
+                    <div className="text-[11px] font-bold leading-relaxed text-white/35">
                       By submitting, you agree that StayKnown may process this
                       message under its Privacy, Terms, Safety, Retention, and
                       Acceptable Use policies.
@@ -946,10 +892,10 @@ export default function ContactPage() {
                       type="submit"
                       disabled={!canSubmit}
                       className={cx(
-                        "min-w-[190px] rounded-full px-6 py-3 text-[13px] font-black shadow-xl transition",
+                        "min-w-[190px] rounded-full border px-6 py-3 text-[13px] font-black shadow-xl transition",
                         canSubmit
-                          ? "bg-zinc-950 text-white hover:-translate-y-0.5 hover:bg-black dark:bg-white dark:text-black dark:hover:bg-white/90"
-                          : "cursor-not-allowed bg-zinc-300 text-zinc-500 dark:bg-white/10 dark:text-white/30",
+                          ? "border-white/22 bg-transparent text-white hover:-translate-y-0.5 hover:border-white/50 hover:bg-white hover:text-black"
+                          : "cursor-not-allowed border-white/10 bg-white/[0.06] text-white/30",
                       )}
                     >
                       {state === "sending" ? "Sending..." : "Send message"}
@@ -957,56 +903,59 @@ export default function ContactPage() {
                   </div>
                 </form>
 
-                <div className="mt-10 h-px bg-black/10 dark:bg-white/10" />
+                <div className="mx-auto mt-12 h-px max-w-3xl bg-white/10" />
 
-                <footer className="mt-6 text-center">
-                  <div className="flex flex-wrap justify-center gap-x-4 gap-y-2 text-[11px] font-black uppercase tracking-[0.12em] text-zinc-500 dark:text-white/35">
-                    <a
-                      href="/privacy"
-                      className="hover:text-zinc-950 dark:hover:text-white"
-                    >
-                      Privacy
-                    </a>
-                    <a
-                      href="/terms"
-                      className="hover:text-zinc-950 dark:hover:text-white"
-                    >
-                      Terms
-                    </a>
-                    <a
-                      href="/safety"
-                      className="hover:text-zinc-950 dark:hover:text-white"
-                    >
-                      Safety
-                    </a>
-                    <a
-                      href="/acceptable-use"
-                      className="hover:text-zinc-950 dark:hover:text-white"
-                    >
-                      Acceptable Use
-                    </a>
-                    <a
-                      href="/billing-policy"
-                      className="hover:text-zinc-950 dark:hover:text-white"
-                    >
-                      Billing Policy
-                    </a>
-                    <a
-                      href="/about"
-                      className="hover:text-zinc-950 dark:hover:text-white"
-                    >
-                      About
-                    </a>
-                  </div>
+                <footer className="mx-auto mt-7 max-w-4xl text-center">
+                  <div className="mx-auto rounded-[1.6rem] border border-white/10 bg-black/35 px-5 py-6">
+                    <div className="flex flex-wrap justify-center gap-x-4 gap-y-2 text-[11px] font-black uppercase tracking-[0.12em] text-white/38">
+                      <a
+                        href="/privacy"
+                        className="transition hover:text-white"
+                      >
+                        Privacy
+                      </a>
+                      <a href="/terms" className="transition hover:text-white">
+                        Terms
+                      </a>
+                      <a href="/safety" className="transition hover:text-white">
+                        Safety
+                      </a>
+                      <a
+                        href="/acceptable-use"
+                        className="transition hover:text-white"
+                      >
+                        Acceptable Use
+                      </a>
+                      <a
+                        href="/billing-policy"
+                        className="transition hover:text-white"
+                      >
+                        Billing Policy
+                      </a>
+                      <a href="/about" className="transition hover:text-white">
+                        About
+                      </a>
+                    </div>
 
-                  <div className="mt-5 text-[12px] font-semibold text-zinc-600 dark:text-white/50">
-                    A 6 Clement Joshua service
-                    <span className="ml-1 align-super text-[10px] text-zinc-400 dark:text-white/25">
-                      ™
-                    </span>
-                  </div>
-                  <div className="mt-2 text-[11px] font-semibold text-zinc-500 dark:text-white/30">
-                    {new Date().getFullYear()} • stay-known.com
+                    <div className="mt-6 flex items-center justify-center gap-3">
+                      <Image
+                        src="/6logo.png"
+                        alt="6 Clement Joshua service logo"
+                        width={28}
+                        height={28}
+                        className="rounded-md bg-white object-contain p-0.5"
+                      />
+                      <div className="text-[12px] font-semibold text-white/55">
+                        A 6 Clement Joshua service
+                        <span className="ml-1 align-super text-[10px] text-white/28">
+                          ™
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="mt-2 text-[11px] font-semibold text-white/32">
+                      {new Date().getFullYear()} • stay-known.com
+                    </div>
                   </div>
                 </footer>
               </div>

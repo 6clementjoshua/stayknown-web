@@ -106,11 +106,11 @@ export default function StayKnownActionMenu() {
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
         className={cn(
-          "grid h-11 w-11 place-items-center rounded-full",
-          "border border-white/12 bg-white/[0.08] text-white",
-          "shadow-[0_18px_45px_rgba(0,0,0,0.30)] backdrop-blur-xl",
-          "transition hover:-translate-y-0.5 hover:bg-white/[0.12] active:scale-[0.97]",
-          "dark:border-white/10 dark:bg-white/[0.055] dark:text-white dark:hover:bg-white/[0.085]",
+          "grid h-10 w-10 place-items-center rounded-full",
+          "border border-transparent bg-transparent text-white/90",
+          "shadow-none backdrop-blur-0",
+          "transition hover:-translate-y-0.5 hover:border-white/10 hover:bg-white/[0.055] hover:text-white active:scale-[0.97]",
+          "focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-white/[0.055]",
         )}
       >
         <DotsIcon className="h-6 w-6" />
@@ -122,30 +122,32 @@ export default function StayKnownActionMenu() {
             type="button"
             aria-label="Close StayKnown menu"
             onClick={() => setOpen(false)}
-            className="fixed inset-0 z-40 cursor-default bg-black/0 md:hidden"
+            className="fixed inset-0 z-40 cursor-default bg-black/35 backdrop-blur-[2px] md:bg-black/0 md:backdrop-blur-0"
           />
 
           <div
             className={cn(
-              "fixed inset-x-3 top-[76px] z-50",
+              "fixed inset-x-3 top-[74px] z-50",
               "origin-top animate-[skMenuIn_0.18s_ease-out_both]",
               "overflow-hidden rounded-[1.65rem]",
-              "border border-black/10 bg-white/92",
-              "p-2 shadow-2xl shadow-black/15 backdrop-blur-2xl",
-              "dark:border-white/10 dark:bg-zinc-950/92 dark:shadow-black/50",
+              "border border-white/10 bg-black/[0.72]",
+              "p-2 shadow-2xl shadow-black/60 backdrop-blur-2xl",
+              "ring-1 ring-white/[0.035]",
               "md:absolute md:inset-auto md:right-0 md:top-[calc(100%+12px)] md:w-[360px]",
             )}
           >
-            <div className="px-3 pb-2 pt-3">
-              <div className="text-[11px] font-black uppercase tracking-[0.2em] text-zinc-500 dark:text-white/35">
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.12),transparent_34%),radial-gradient(circle_at_bottom_left,rgba(255,255,255,0.055),transparent_34%)]" />
+
+            <div className="relative px-3 pb-2 pt-3">
+              <div className="text-[11px] font-black uppercase tracking-[0.2em] text-white/35">
                 StayKnown
               </div>
-              <div className="mt-1 text-[14px] font-black tracking-[-0.02em] text-zinc-950 dark:text-white/92">
+              <div className="mt-1 text-[14px] font-black tracking-[-0.02em] text-white/92">
                 Quick actions
               </div>
             </div>
 
-            <div className="grid gap-1.5">
+            <div className="relative grid gap-1.5">
               {menuItems.map((item) => (
                 <a
                   key={item.href}
@@ -154,14 +156,15 @@ export default function StayKnownActionMenu() {
                   className={cn(
                     "group flex items-start justify-between gap-3",
                     "rounded-[1.25rem] px-3 py-3",
-                    "transition hover:bg-black/[0.045] dark:hover:bg-white/[0.06]",
+                    "border border-transparent",
+                    "transition hover:border-white/10 hover:bg-white/[0.065]",
                   )}
                 >
                   <span>
-                    <span className="block text-[13px] font-black text-zinc-950 dark:text-white/90">
+                    <span className="block text-[13px] font-black text-white/92">
                       {item.title}
                     </span>
-                    <span className="mt-1 block text-[12px] font-semibold leading-relaxed text-zinc-600 dark:text-white/46">
+                    <span className="mt-1 block text-[12px] font-semibold leading-relaxed text-white/48">
                       {item.body}
                     </span>
                   </span>
@@ -169,9 +172,8 @@ export default function StayKnownActionMenu() {
                   <span
                     className={cn(
                       "mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full",
-                      "border border-black/10 bg-white/70 text-zinc-500",
-                      "transition group-hover:translate-x-0.5 group-hover:text-zinc-950",
-                      "dark:border-white/10 dark:bg-white/[0.05] dark:text-white/35 dark:group-hover:text-white",
+                      "border border-white/10 bg-white/[0.045] text-white/38",
+                      "transition group-hover:translate-x-0.5 group-hover:border-white/16 group-hover:bg-white/[0.075] group-hover:text-white",
                     )}
                   >
                     <ArrowIcon className="h-4 w-4" />
@@ -180,8 +182,8 @@ export default function StayKnownActionMenu() {
               ))}
             </div>
 
-            <div className="mt-2 border-t border-black/10 px-3 py-3 dark:border-white/10">
-              <p className="text-[11px] font-semibold leading-relaxed text-zinc-500 dark:text-white/32">
+            <div className="relative mt-2 border-t border-white/10 px-3 py-3">
+              <p className="text-[11px] font-semibold leading-relaxed text-white/34">
                 Use these pages responsibly. StayKnown does not accept abusive,
                 unlawful, threatening, fraudulent, spam, or irrelevant contact.
               </p>
