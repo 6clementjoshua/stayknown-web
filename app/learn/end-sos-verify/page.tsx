@@ -768,7 +768,7 @@ export default function LearnEndSosVerifyPage() {
                 rel="noopener noreferrer"
                 className="hover:text-white/75 transition"
               >
-                Terms of Use
+                Terms of service
               </a>
               <span className="text-white/18">•</span>
               <a

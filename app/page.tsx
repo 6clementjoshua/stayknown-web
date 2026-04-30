@@ -199,7 +199,27 @@ export default function Page() {
                 rel="noopener noreferrer"
                 className="hover:text-white/75 transition"
               >
-                Terms of Use
+                Terms of Service
+              </a>
+              <span className="text-white/18">•</span>
+
+              <a
+                href="/location-safety"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-white/75 transition"
+              >
+                Location &amp; Live Safety
+              </a>
+              <span className="text-white/18">•</span>
+
+              <a
+                href="/contact-consent"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-white/75 transition"
+              >
+                Contact Consent
               </a>
               <span className="text-white/18">•</span>
 
@@ -269,7 +289,7 @@ export default function Page() {
                 rel="noopener noreferrer"
                 className="hover:text-white/75 transition"
               >
-                Law Enforcement
+                Law Enforcement Requests
               </a>
               <span className="text-white/18">•</span>
 
@@ -280,6 +300,16 @@ export default function Page() {
                 className="hover:text-white/75 transition"
               >
                 Security Disclosure
+              </a>
+              <span className="text-white/18">•</span>
+
+              <a
+                href="/billing-policy"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-white/75 transition"
+              >
+                Billing &amp; Refunds
               </a>
             </div>
 

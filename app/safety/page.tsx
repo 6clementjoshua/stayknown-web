@@ -1,9 +1,12 @@
 "use client";
 
 import Image from "next/image";
+import { useEffect, useMemo, useState } from "react";
 
-const UPDATED_AT = "2026-02-22";
-const VERSION = "1.0";
+const UPDATED_AT = "2026-04-30";
+const VERSION = "2.0";
+
+type ThemeMode = "dark" | "light";
 
 function fmtDate(iso: string) {
   const d = new Date(iso + "T00:00:00Z");
@@ -14,20 +17,329 @@ function fmtDate(iso: string) {
   });
 }
 
-function H2({ children, id }: { children: React.ReactNode; id?: string }) {
+function cx(...classes: Array<string | false | null | undefined>) {
+  return classes.filter(Boolean).join(" ");
+}
+
+function useThemeMode() {
+  const [theme, setTheme] = useState<ThemeMode>("dark");
+
+  useEffect(() => {
+    const saved =
+      typeof window !== "undefined"
+        ? window.localStorage.getItem("stayknown-policy-theme")
+        : null;
+
+    if (saved === "light" || saved === "dark") {
+      setTheme(saved);
+      return;
+    }
+
+    const prefersLight =
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-color-scheme: light)").matches;
+
+    setTheme(prefersLight ? "light" : "dark");
+  }, []);
+
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    document.documentElement.dataset.skTheme = theme;
+    window.localStorage.setItem("stayknown-policy-theme", theme);
+  }, [theme]);
+
+  return { theme, setTheme };
+}
+
+function useSeoMeta() {
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+
+    document.title =
+      "StayKnown Safety & Anti-Stalking Policy | Consent, SOS, Live Location, Chat Safety & Abuse Prevention";
+
+    const upsertMeta = (name: string, content: string) => {
+      let tag = document.querySelector<HTMLMetaElement>(`meta[name="${name}"]`);
+      if (!tag) {
+        tag = document.createElement("meta");
+        tag.setAttribute("name", name);
+        document.head.appendChild(tag);
+      }
+      tag.setAttribute("content", content);
+    };
+
+    const upsertProperty = (property: string, content: string) => {
+      let tag = document.querySelector<HTMLMetaElement>(
+        `meta[property="${property}"]`,
+      );
+      if (!tag) {
+        tag = document.createElement("meta");
+        tag.setAttribute("property", property);
+        document.head.appendChild(tag);
+      }
+      tag.setAttribute("content", content);
+    };
+
+    upsertMeta(
+      "description",
+      "Read the StayKnown Safety & Anti-Stalking Policy covering consent-based safety use, approved contacts, live location sharing, SOS alerts, chat safety, abuse reporting, minors, Nigeria and global emergency-use limits.",
+    );
+    upsertMeta(
+      "keywords",
+      "StayKnown safety policy, anti-stalking safety app, approved contacts, consent-based location sharing, SOS safety app, live location anti-harassment, Nigeria safety app, emergency contact app, chat safety policy, abuse reporting, anti-coercion policy",
+    );
+    upsertMeta("robots", "index, follow");
+    upsertMeta("author", "6 Clement Joshua");
+    upsertProperty(
+      "og:title",
+      "StayKnown Safety & Anti-Stalking Policy | Consent-Based Safety App Rules",
+    );
+    upsertProperty(
+      "og:description",
+      "StayKnown safety rules for lawful use, approved contacts, SOS, live maps, chat, anti-stalking, anti-harassment, minors, reporting, enforcement, and global emergency limits.",
+    );
+    upsertProperty("og:type", "website");
+    upsertProperty("og:site_name", "StayKnown");
+  }, []);
+}
+
+function ShieldIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+      className={className}
+    >
+      <path
+        d="M12 3.2 19 6v5.5c0 4.45-2.85 8.45-7 9.8-4.15-1.35-7-5.35-7-9.8V6l7-2.8Z"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinejoin="round"
+      />
+      <path
+        d="m8.8 12.1 2.15 2.15 4.55-5"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function AlertIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+      className={className}
+    >
+      <path
+        d="M12 3.8 21 19.2H3L12 3.8Z"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M12 9v4.6M12 16.8h.01"
+        stroke="currentColor"
+        strokeWidth="1.9"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function ContactIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+      className={className}
+    >
+      <path
+        d="M8.6 11.2a3.1 3.1 0 1 0 0-6.2 3.1 3.1 0 0 0 0 6.2Z"
+        stroke="currentColor"
+        strokeWidth="1.7"
+      />
+      <path
+        d="M3.8 19.2c.55-3.1 2.3-4.9 4.8-4.9s4.25 1.8 4.8 4.9"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+      />
+      <path
+        d="M16.4 6.2c1.7.35 2.8 1.65 2.8 3.35s-1.1 3-2.8 3.35"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+      />
+      <path
+        d="M15.1 15.1c2.6.35 4.25 1.85 5.1 4.1"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function LocationIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+      className={className}
+    >
+      <path
+        d="M12 21s6.2-5.55 6.2-11.1A6.2 6.2 0 1 0 5.8 9.9C5.8 15.45 12 21 12 21Z"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M12 12.25a2.35 2.35 0 1 0 0-4.7 2.35 2.35 0 0 0 0 4.7Z"
+        stroke="currentColor"
+        strokeWidth="1.7"
+      />
+    </svg>
+  );
+}
+
+function LockIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+      className={className}
+    >
+      <path
+        d="M7.5 10.4V8.25A4.5 4.5 0 0 1 12 3.75a4.5 4.5 0 0 1 4.5 4.5v2.15"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+      />
+      <path
+        d="M6.6 10.4h10.8c1.1 0 2 .9 2 2v5.85c0 1.1-.9 2-2 2H6.6c-1.1 0-2-.9-2-2V12.4c0-1.1.9-2 2-2Z"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M12 14.25v2.6"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function ChatIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+      className={className}
+    >
+      <path
+        d="M5 5.4h14v9.2H9.4L5 18.7V5.4Z"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M8.2 8.8h7.6M8.2 11.5h5.6"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function GlobeIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+      className={className}
+    >
+      <path
+        d="M12 20.5a8.5 8.5 0 1 0 0-17 8.5 8.5 0 0 0 0 17Z"
+        stroke="currentColor"
+        strokeWidth="1.7"
+      />
+      <path
+        d="M3.8 12h16.4M12 3.5c2.15 2.25 3.25 5.05 3.25 8.5S14.15 18.25 12 20.5C9.85 18.25 8.75 15.45 8.75 12S9.85 5.75 12 3.5Z"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function ReportIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+      className={className}
+    >
+      <path
+        d="M6.4 4.5h8.4l2.8 2.8v12.2H6.4v-15Z"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M14.8 4.5v2.8h2.8M9 10.5h6M9 13.4h6M9 16.3h3.5"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function H2({
+  children,
+  id,
+  icon,
+}: {
+  children: React.ReactNode;
+  id?: string;
+  icon?: React.ReactNode;
+}) {
   return (
     <h2
       id={id}
-      className="text-white/92 font-black tracking-[-0.02em] text-[16px] md:text-[17px] scroll-mt-24"
+      className="scroll-mt-24 text-[18px] md:text-[20px] font-black tracking-[-0.025em] text-zinc-950 dark:text-white/94"
     >
-      {children}
+      <span className="inline-flex items-center gap-2.5">
+        {icon ? (
+          <span className="grid h-8 w-8 place-items-center rounded-2xl border border-black/10 bg-black/[0.04] text-zinc-900 shadow-sm dark:border-white/10 dark:bg-white/[0.05] dark:text-white/85">
+            {icon}
+          </span>
+        ) : null}
+        <span>{children}</span>
+      </span>
     </h2>
   );
 }
 
 function H3({ children }: { children: React.ReactNode }) {
   return (
-    <div className="text-white/85 font-extrabold text-[13.5px] mt-3">
+    <div className="mt-4 text-[14px] font-extrabold text-zinc-900 dark:text-white/88">
       {children}
     </div>
   );
@@ -35,7 +347,7 @@ function H3({ children }: { children: React.ReactNode }) {
 
 function P({ children }: { children: React.ReactNode }) {
   return (
-    <p className="text-white/62 font-semibold text-[13px] leading-relaxed">
+    <p className="text-[13.5px] md:text-[14px] font-semibold leading-relaxed text-zinc-700 dark:text-white/62">
       {children}
     </p>
   );
@@ -43,20 +355,64 @@ function P({ children }: { children: React.ReactNode }) {
 
 function UL({ items }: { items: string[] }) {
   return (
-    <ul className="ml-5 list-disc space-y-1 text-white/62 font-semibold text-[13px] leading-relaxed">
+    <ul className="ml-5 list-disc space-y-1.5 text-[13.5px] md:text-[14px] font-semibold leading-relaxed text-zinc-700 dark:text-white/62">
       {items.map((t, i) => (
-        <li key={i}>{t}</li>
+        <li key={`${t}-${i}`}>{t}</li>
       ))}
     </ul>
   );
 }
 
-function Callout({ title, body }: { title: string; body: string }) {
+function Pill({ children }: { children: React.ReactNode }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-      <div className="text-white/90 font-extrabold text-[12.5px]">{title}</div>
-      <div className="mt-2 text-white/62 font-semibold text-[13px] leading-relaxed">
-        {body}
+    <span className="rounded-full border border-black/10 bg-black/[0.035] px-3 py-1 text-[11px] font-black uppercase tracking-[0.16em] text-zinc-700 dark:border-white/10 dark:bg-white/[0.05] dark:text-white/55">
+      {children}
+    </span>
+  );
+}
+
+function Callout({
+  title,
+  body,
+  tone = "normal",
+  icon,
+}: {
+  title: string;
+  body: string;
+  tone?: "normal" | "danger" | "safe" | "law" | "report";
+  icon?: React.ReactNode;
+}) {
+  return (
+    <div
+      className={cx(
+        "group relative overflow-hidden rounded-[1.35rem] border p-4 shadow-sm transition duration-300 hover:-translate-y-0.5",
+        tone === "danger" &&
+          "border-red-500/20 bg-red-500/[0.06] dark:border-red-400/20 dark:bg-red-400/[0.07]",
+        tone === "safe" &&
+          "border-emerald-600/20 bg-emerald-600/[0.06] dark:border-emerald-300/20 dark:bg-emerald-300/[0.07]",
+        tone === "law" &&
+          "border-sky-700/20 bg-sky-700/[0.055] dark:border-sky-300/20 dark:bg-sky-300/[0.07]",
+        tone === "report" &&
+          "border-violet-600/20 bg-violet-500/[0.07] dark:border-violet-300/20 dark:bg-violet-300/[0.07]",
+        tone === "normal" &&
+          "border-black/10 bg-white/70 dark:border-white/10 dark:bg-white/[0.035]",
+      )}
+    >
+      <div className="absolute -right-8 -top-8 h-24 w-24 rounded-full bg-black/[0.04] blur-2xl dark:bg-white/[0.06]" />
+      <div className="relative flex gap-3">
+        {icon ? (
+          <div className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-2xl border border-black/10 bg-white/70 text-zinc-900 dark:border-white/10 dark:bg-black/30 dark:text-white/80">
+            {icon}
+          </div>
+        ) : null}
+        <div>
+          <div className="text-[13px] font-black text-zinc-950 dark:text-white/90">
+            {title}
+          </div>
+          <div className="mt-2 text-[13px] font-semibold leading-relaxed text-zinc-700 dark:text-white/62">
+            {body}
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -64,8 +420,10 @@ function Callout({ title, body }: { title: string; body: string }) {
 
 function Example({ title, items }: { title: string; items: string[] }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-      <div className="text-white/85 font-extrabold text-[12.5px]">{title}</div>
+    <div className="rounded-[1.35rem] border border-black/10 bg-black/[0.025] p-4 dark:border-white/10 dark:bg-white/[0.03]">
+      <div className="text-[12.5px] font-black text-zinc-900 dark:text-white/86">
+        {title}
+      </div>
       <div className="mt-2">
         <UL items={items} />
       </div>
@@ -73,690 +431,884 @@ function Example({ title, items }: { title: string; items: string[] }) {
   );
 }
 
+function LinkCard({
+  href,
+  title,
+  body,
+}: {
+  href: string;
+  title: string;
+  body: string;
+}) {
+  return (
+    <a
+      href={href}
+      className="group rounded-[1.35rem] border border-black/10 bg-white/70 p-4 shadow-sm transition duration-300 hover:-translate-y-0.5 hover:bg-white dark:border-white/10 dark:bg-white/[0.035] dark:hover:bg-white/[0.06]"
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="text-[13px] font-black text-zinc-950 dark:text-white/90">
+            {title}
+          </div>
+          <p className="mt-1.5 text-[12.5px] font-semibold leading-relaxed text-zinc-600 dark:text-white/50">
+            {body}
+          </p>
+        </div>
+        <span className="text-zinc-400 transition group-hover:translate-x-0.5 group-hover:text-zinc-900 dark:text-white/30 dark:group-hover:text-white/75">
+          →
+        </span>
+      </div>
+    </a>
+  );
+}
+
+function FloatingBackdrop() {
+  return (
+    <div aria-hidden="true" className="pointer-events-none fixed inset-0 -z-10">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.08),transparent_34%),radial-gradient(circle_at_15%_20%,rgba(59,130,246,0.12),transparent_28%),radial-gradient(circle_at_85%_12%,rgba(16,185,129,0.10),transparent_25%)] dark:bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.08),transparent_34%),radial-gradient(circle_at_15%_20%,rgba(59,130,246,0.10),transparent_28%),radial-gradient(circle_at_85%_12%,rgba(16,185,129,0.08),transparent_25%)]" />
+      <div className="absolute left-[7%] top-[18%] h-48 w-48 animate-[floatSlow_9s_ease-in-out_infinite] rounded-full bg-sky-400/10 blur-3xl" />
+      <div className="absolute right-[8%] top-[32%] h-56 w-56 animate-[floatSlow_11s_ease-in-out_infinite_reverse] rounded-full bg-emerald-400/10 blur-3xl" />
+      <div className="absolute bottom-[8%] left-[30%] h-60 w-60 animate-[floatSlow_13s_ease-in-out_infinite] rounded-full bg-white/8 blur-3xl" />
+    </div>
+  );
+}
+
+function SafetyIllustration() {
+  return (
+    <div className="relative mx-auto h-[280px] w-[190px] md:h-[320px] md:w-[220px]">
+      <div className="absolute inset-0 animate-[softPulse_4s_ease-in-out_infinite] rounded-[2.2rem] bg-emerald-400/15 blur-2xl" />
+      <div className="relative h-full w-full rounded-[2rem] border border-black/15 bg-white/75 p-3 shadow-2xl backdrop-blur dark:border-white/15 dark:bg-white/[0.055]">
+        <div className="mx-auto mb-3 h-1.5 w-14 rounded-full bg-black/20 dark:bg-white/20" />
+        <div className="rounded-[1.5rem] border border-black/10 bg-gradient-to-b from-white to-zinc-100 p-4 dark:border-white/10 dark:from-white/[0.10] dark:to-white/[0.03]">
+          <div className="flex items-center gap-2">
+            <div className="grid h-9 w-9 place-items-center rounded-2xl bg-black text-white dark:bg-white dark:text-black">
+              <ShieldIcon className="h-5 w-5" />
+            </div>
+            <div>
+              <div className="text-[11px] font-black tracking-[0.18em] text-zinc-500 dark:text-white/35">
+                SAFETY CENTER
+              </div>
+              <div className="text-[13px] font-black text-zinc-950 dark:text-white">
+                Anti-Stalking Rules
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-5 space-y-3">
+            {[
+              ["Consent first", "No hidden tracking"],
+              ["Approved people", "Trusted contacts only"],
+              ["Report misuse", "Abuse review available"],
+              ["Emergency limits", "Official help still matters"],
+            ].map(([title, body], index) => (
+              <div
+                key={title}
+                className="animate-[riseIn_0.7s_ease_both] rounded-2xl border border-black/10 bg-white/80 p-3 dark:border-white/10 dark:bg-black/20"
+                style={{ animationDelay: `${index * 120}ms` }}
+              >
+                <div className="text-[12px] font-black text-zinc-900 dark:text-white/90">
+                  {title}
+                </div>
+                <div className="mt-1 text-[10.5px] font-semibold text-zinc-500 dark:text-white/45">
+                  {body}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="mt-3 flex items-center justify-between rounded-2xl border border-black/10 bg-black/[0.035] px-3 py-2 dark:border-white/10 dark:bg-white/[0.04]">
+          <div className="text-[10.5px] font-black uppercase tracking-[0.16em] text-zinc-500 dark:text-white/35">
+            Misuse blocked
+          </div>
+          <div className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_14px_rgba(16,185,129,0.9)]" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function SafetyPage() {
-  const nav = [
-    ["overview", "Overview"],
-    ["mission", "Safety mission"],
-    ["userduties", "User duties"],
-    ["design", "Safety-by-design"],
-    ["consent", "Consent and notice"],
-    ["contacts", "Trusted contacts"],
-    ["location", "Location safety"],
-    ["visit", "Visit and LIVE rules"],
-    ["sos", "SOS rules"],
-    ["capture", "Manual Capture"],
-    ["verified", "Verified stop"],
-    ["gallery", "Safety Gallery"],
-    ["chat", "Chat and media"],
-    ["stories", "Stories and profiles"],
-    ["language", "Translation safety"],
-    ["vpn", "VPN and reliability"],
-    ["minors", "Minor safety"],
-    ["stalking", "Anti-stalking"],
-    ["prohibited", "Prohibited uses"],
-    ["recipient", "Recipient duties"],
-    ["misuse", "Misuse prevention"],
-    ["enforcement", "Enforcement"],
-    ["legal", "Legal cooperation"],
-    ["report", "Reporting abuse"],
-    ["emergency", "Emergency reminder"],
-    ["apptext", "App text"],
-  ] as const;
+  const { theme, setTheme } = useThemeMode();
+  useSeoMeta();
+
+  const nav = useMemo(
+    () =>
+      [
+        ["summary", "Summary"],
+        ["mission", "Mission"],
+        ["consent", "Consent"],
+        ["contacts", "Contacts"],
+        ["location", "Location"],
+        ["sos", "SOS"],
+        ["chat", "Chat & media"],
+        ["stories", "Stories"],
+        ["minors", "Minors"],
+        ["vpn", "VPN"],
+        ["global", "Nigeria & global"],
+        ["prohibited", "Prohibited"],
+        ["recipient", "Recipients"],
+        ["report", "Reporting"],
+        ["enforcement", "Enforcement"],
+        ["legal", "Legal"],
+        ["contact", "Contact"],
+      ] as const,
+    [],
+  );
+
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "WebPage",
+    name: "StayKnown Safety & Anti-Stalking Policy",
+    dateModified: UPDATED_AT,
+    version: VERSION,
+    publisher: {
+      "@type": "Organization",
+      name: "StayKnown",
+      brand: "A 6 Clement Joshua service™",
+      url: "https://stay-known.com",
+    },
+    description:
+      "Safety and anti-stalking policy for StayKnown covering consent-based safety use, approved contacts, live location, SOS, chat, minors, Nigeria and global use, reporting, enforcement, and legal cooperation.",
+  };
 
   return (
-    <main className="min-h-screen bg-black flex flex-col">
-      <header className="pt-7">
-        <div className="mx-auto max-w-6xl px-4 flex items-center justify-center">
+    <main className="min-h-screen overflow-hidden bg-zinc-50 text-zinc-950 transition-colors duration-500 dark:bg-black dark:text-white">
+      <FloatingBackdrop />
+
+      <style jsx global>{`
+        @keyframes floatSlow {
+          0%,
+          100% {
+            transform: translate3d(0, 0, 0) scale(1);
+          }
+          50% {
+            transform: translate3d(0, -18px, 0) scale(1.04);
+          }
+        }
+
+        @keyframes softPulse {
+          0%,
+          100% {
+            opacity: 0.6;
+            transform: scale(1);
+          }
+          50% {
+            opacity: 1;
+            transform: scale(1.04);
+          }
+        }
+
+        @keyframes riseIn {
+          from {
+            opacity: 0;
+            transform: translateY(12px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          * {
+            animation-duration: 0.001ms !important;
+            animation-iteration-count: 1 !important;
+            scroll-behavior: auto !important;
+            transition-duration: 0.001ms !important;
+          }
+        }
+
+        html {
+          scroll-behavior: smooth;
+        }
+
+        html[data-sk-theme="dark"] {
+          color-scheme: dark;
+        }
+
+        html[data-sk-theme="light"] {
+          color-scheme: light;
+        }
+
+        html[data-sk-theme="dark"] body {
+          background: #000;
+        }
+
+        html[data-sk-theme="light"] body {
+          background: #fafafa;
+        }
+      `}</style>
+
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+
+      <header className="relative z-10 pt-7">
+        <div className="mx-auto flex max-w-6xl items-center justify-center px-4">
           <div className="flex flex-col items-center gap-2">
             <Image
               src="/6logo.png"
               alt="StayKnown"
-              width={34}
-              height={34}
+              width={38}
+              height={38}
               priority
+              className="rounded-full"
             />
-            <div className="text-white font-extrabold tracking-[0.28em] text-[12px]">
+            <div className="font-extrabold tracking-[0.28em] text-[12px] text-zinc-900 dark:text-white">
               STAYKNOWN
             </div>
           </div>
         </div>
       </header>
 
-      <section className="w-full">
-        <div className="mx-auto max-w-4xl px-4 pt-10 pb-16">
-          <article className="card glass p-6 md:p-7">
-            <div className="flex items-baseline justify-between gap-4 flex-wrap">
-              <h1 className="text-white/92 font-black tracking-[-0.02em] text-[22px] md:text-[26px]">
-                Safety & Anti-Stalking Policy
-              </h1>
-              <div className="text-white/40 font-semibold text-[12px]">
-                Version {VERSION} • Updated: {fmtDate(UPDATED_AT)}
+      <section className="relative z-10 w-full">
+        <div className="mx-auto max-w-6xl px-4 pt-8 pb-16 md:pt-12">
+          <article className="overflow-hidden rounded-[2rem] border border-black/10 bg-white/80 shadow-2xl shadow-black/[0.05] backdrop-blur-2xl dark:border-white/10 dark:bg-white/[0.045] dark:shadow-black/40">
+            <div className="relative overflow-hidden border-b border-black/10 px-5 py-7 dark:border-white/10 md:px-8 md:py-9">
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_15%_0%,rgba(16,185,129,0.16),transparent_30%),radial-gradient(circle_at_80%_10%,rgba(239,68,68,0.10),transparent_28%)]" />
+
+              <div className="relative grid gap-8 md:grid-cols-[1fr_260px] md:items-center">
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Pill>Safety Policy</Pill>
+                    <Pill>Anti-Stalking</Pill>
+                    <Pill>Consent Always</Pill>
+                  </div>
+
+                  <h1 className="mt-5 max-w-3xl text-[30px] font-black tracking-[-0.045em] text-zinc-950 dark:text-white/95 md:text-[46px] md:leading-[1.02]">
+                    StayKnown Safety & Anti-Stalking Policy for lawful,
+                    consent-based protection.
+                  </h1>
+
+                  <p className="mt-5 max-w-3xl text-[14.5px] font-semibold leading-relaxed text-zinc-700 dark:text-white/62 md:text-[15px]">
+                    This policy explains the safety rules for StayKnown users,
+                    approved contacts, SOS responders, chat participants, map
+                    viewers, guardians, and recipients. StayKnown is built for
+                    protection, trusted communication, and responsible safety
+                    awareness — not stalking, harassment, coercion, hidden
+                    tracking, false emergencies, or abuse.
+                  </p>
+
+                  <div className="mt-6 flex flex-wrap items-center gap-3">
+                    <div className="rounded-full border border-black/10 bg-white/70 px-4 py-2 text-[12px] font-black text-zinc-700 dark:border-white/10 dark:bg-white/[0.05] dark:text-white/55">
+                      Version {VERSION}
+                    </div>
+                    <div className="rounded-full border border-black/10 bg-white/70 px-4 py-2 text-[12px] font-black text-zinc-700 dark:border-white/10 dark:bg-white/[0.05] dark:text-white/55">
+                      Updated: {fmtDate(UPDATED_AT)}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setTheme(theme === "dark" ? "light" : "dark")
+                      }
+                      className="rounded-full border border-black/10 bg-zinc-950 px-4 py-2 text-[12px] font-black text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-black dark:border-white/10 dark:bg-white dark:text-black dark:hover:bg-white/90"
+                    >
+                      {theme === "dark" ? "Light mode" : "Dark mode"}
+                    </button>
+                  </div>
+                </div>
+
+                <SafetyIllustration />
               </div>
             </div>
 
-            <P>
-              StayKnown is a safety-focused service built for lawful, voluntary,
-              consent-aware check-ins, Visit sessions, SOS alerts, trusted
-              contacts, secure communication, and responsible safety context.
-              This policy explains the safety obligations every user, contact,
-              recipient, guardian, and account holder must follow.
-            </P>
+            <div className="grid gap-0 lg:grid-cols-[260px_1fr]">
+              <aside className="border-b border-black/10 bg-black/[0.02] p-5 dark:border-white/10 dark:bg-black/20 lg:sticky lg:top-0 lg:h-screen lg:border-b-0 lg:border-r lg:p-6">
+                <div className="text-[12px] font-black uppercase tracking-[0.2em] text-zinc-500 dark:text-white/35">
+                  On this page
+                </div>
 
-            <Callout
-              title="Safety first. Consent always."
-              body="StayKnown is designed for personal safety, not covert tracking, stalking, harassment, intimidation, surveillance, coercion, fraud, or abuse. Users must use the service lawfully, transparently, and only for safety-focused purposes."
-            />
-
-            <div className="mt-6 h-px bg-white/10" />
-
-            <div className="mt-6 flex flex-wrap gap-2 text-[12px] font-semibold">
-              {nav.map(([id, label]) => (
-                <a
-                  key={id}
-                  href={`#${id}`}
-                  className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-white/60 hover:text-white/85 hover:bg-white/[0.06] transition"
+                <nav
+                  aria-label="Safety and Anti-Stalking Policy sections"
+                  className="mt-4 grid gap-1.5"
                 >
-                  {label}
-                </a>
-              ))}
-            </div>
+                  {nav.map(([id, label]) => (
+                    <a
+                      key={id}
+                      href={`#${id}`}
+                      className="rounded-2xl px-3 py-2 text-[12.5px] font-bold text-zinc-600 transition hover:bg-black/[0.04] hover:text-zinc-950 dark:text-white/48 dark:hover:bg-white/[0.05] dark:hover:text-white/86"
+                    >
+                      {label}
+                    </a>
+                  ))}
+                </nav>
 
-            <div className="mt-8 space-y-8">
-              <div className="space-y-3">
-                <H2 id="overview">1) Overview</H2>
-                <P>
-                  Safety tools must be built and used carefully because they can
-                  help people, but they can also be abused. StayKnown’s safety
-                  approach is based on consent, user control, transparency,
-                  trusted contacts, anti-abuse protections, reporting, and
-                  lawful cooperation.
-                </P>
-                <P>
-                  This policy applies to all StayKnown features, including
-                  Visits, LIVE location sharing, SOS, Manual Capture, verified
-                  stop flows, contact approval, Safety Gallery, notifications,
-                  chat, stories, stickers, media, voice notes, translation,
-                  profile trust, and any future safety features.
-                </P>
-              </div>
+                <div className="mt-6 rounded-[1.4rem] border border-black/10 bg-white/70 p-4 dark:border-white/10 dark:bg-white/[0.035]">
+                  <div className="flex items-center gap-2 text-[12px] font-black text-zinc-950 dark:text-white/86">
+                    <ShieldIcon className="h-4 w-4" />
+                    Core rule
+                  </div>
+                  <p className="mt-2 text-[12px] font-semibold leading-relaxed text-zinc-600 dark:text-white/45">
+                    StayKnown must never be used for stalking, harassment,
+                    coercive control, false emergencies, or hidden monitoring.
+                  </p>
+                </div>
+              </aside>
 
-              <div className="space-y-3">
-                <H2 id="mission">2) StayKnown safety mission</H2>
-                <P>
-                  StayKnown exists to help people get safe and stay connected to
-                  trusted people wherever they go. The service is intended to
-                  reduce uncertainty during travel, late-night movement, first
-                  meetings, errands, rides, visits, emergencies, and moments
-                  where a person wants trusted people to understand their safety
-                  context.
-                </P>
-                <Example
-                  title="What StayKnown is for"
-                  items={[
-                    "A user starts a Visit so trusted contacts know a safety session is active.",
-                    "A user shares LIVE safety context during movement or a visit.",
-                    "A user triggers SOS when they need urgent trusted-contact attention.",
-                    "A user sends Manual Capture to provide an extra safety checkpoint.",
-                    "A user uses Chat, voice notes, translation, and stories to communicate safely with trusted people.",
-                    "A trusted contact receives an alert and responds responsibly.",
-                  ]}
-                />
-              </div>
+              <div className="p-5 md:p-8">
+                <div className="space-y-8">
+                  <section id="summary" className="scroll-mt-24 space-y-4">
+                    <H2 icon={<ShieldIcon className="h-4 w-4" />}>
+                      1) Safety summary
+                    </H2>
+                    <P>
+                      Safety tools can protect people, but they can also be
+                      abused when used without consent, transparency, or lawful
+                      purpose. StayKnown’s safety model is based on user
+                      control, approved contacts, consent-aware communication,
+                      anti-stalking protections, reporting, enforcement, and
+                      lawful cooperation where necessary.
+                    </P>
 
-              <div className="space-y-3">
-                <H2 id="userduties">3) User duties and required behavior</H2>
-                <P>
-                  Every StayKnown user must use the service in a lawful,
-                  responsible, respectful, safety-focused way.
-                </P>
-                <UL
-                  items={[
-                    "Use StayKnown only for lawful personal safety, trusted communication, and consent-aware safety support.",
-                    "Provide accurate account, profile, contact, and safety information where required.",
-                    "Keep your device, account, and login access secure.",
-                    "Only add contacts you have permission or lawful basis to notify.",
-                    "Tell contacts they may receive StayKnown alerts or safety emails.",
-                    "Do not create false emergencies, fake Visit sessions, misleading SOS events, or deceptive safety claims.",
-                    "Do not misuse location, chat, stories, media, stickers, voice notes, or profile details to pressure another person.",
-                    "Respect blocks, reports, contact preferences, invite settings, and requests to stop.",
-                    "Follow local law, platform rules, and any legal orders that apply to you.",
-                    "Contact emergency services directly in immediate danger.",
-                  ]}
-                />
-              </div>
+                    <div className="grid gap-3 md:grid-cols-3">
+                      <Callout
+                        title="Safety first"
+                        body="StayKnown exists to help real people stay connected to trusted people during safety moments."
+                        tone="safe"
+                        icon={<ShieldIcon className="h-5 w-5" />}
+                      />
+                      <Callout
+                        title="No stalking"
+                        body="Do not use StayKnown to secretly track, pressure, threaten, expose, or control another person."
+                        tone="danger"
+                        icon={<AlertIcon className="h-5 w-5" />}
+                      />
+                      <Callout
+                        title="Report misuse"
+                        body="Unsafe behavior, impersonation, unwanted contact, fake emergencies, and coercive use should be reported."
+                        tone="report"
+                        icon={<ReportIcon className="h-5 w-5" />}
+                      />
+                    </div>
+                  </section>
 
-              <div className="space-y-3">
-                <H2 id="design">4) Safety-by-design principles</H2>
-                <P>
-                  StayKnown is designed around safety controls and responsible
-                  product behavior. These controls may evolve as new features
-                  are added.
-                </P>
-                <UL
-                  items={[
-                    "User initiated: Visit, LIVE, SOS, and safety actions are started by the account holder.",
-                    "User controlled: users can stop sessions and manage safety settings.",
-                    "Trusted contacts: contacts should be people the user lawfully and intentionally selects.",
-                    "Consent-based contact approval: certain contact roles may require approval or consent flows.",
-                    "No stealth safety posture: StayKnown is not built as a hidden tracking service.",
-                    "Plan-aware limits: feature limits help reduce abuse and keep premium safety features sustainable.",
-                    "Security controls: rate limits, device checks, VPN reliability rules, reports, and restrictions may be used to reduce misuse.",
-                    "Audit and history: certain records may be retained to support safety history, abuse prevention, and lawful review.",
-                  ]}
-                />
-              </div>
+                  <section id="mission" className="scroll-mt-24 space-y-3">
+                    <H2 icon={<ShieldIcon className="h-4 w-4" />}>
+                      2) StayKnown safety mission
+                    </H2>
+                    <P>
+                      StayKnown was created to reduce uncertainty when a person
+                      is moving, visiting, meeting someone, travelling, working,
+                      going to school, commuting, chatting with trusted
+                      contacts, or facing a possible safety concern. It is
+                      designed as a safety-awareness and trusted-contact
+                      service.
+                    </P>
+                    <UL
+                      items={[
+                        "To help users share safety context with people they trust.",
+                        "To help approved contacts understand a user’s Visit, SOS, manual capture, chat map, or safety alert.",
+                        "To support responsible communication across families, friends, workplaces, schools, communities, and travel situations where lawful.",
+                        "To discourage hidden tracking, stalking, harassment, coercion, and misuse of location or contact data.",
+                        "To give users and contacts clearer safety context while still reminding them that official emergency services must be used for immediate danger.",
+                      ]}
+                    />
+                  </section>
 
-              <div className="space-y-3">
-                <H2 id="consent">5) Consent, notice, and transparency</H2>
-                <P>
-                  Consent and notice are core parts of StayKnown safety. Users
-                  must not use the service to secretly monitor, pressure, or
-                  target people.
-                </P>
-                <UL
-                  items={[
-                    "You must have permission or lawful basis before adding a person as a contact or safety recipient.",
-                    "You must inform contacts that they may receive safety alerts, emails, or notifications.",
-                    "You must not add a person for harassment, intimidation, spam, punishment, coercion, or non-safety reasons.",
-                    "If a contact asks you to stop sending alerts, you must remove them unless a lawful safety basis requires otherwise.",
-                    "You must not use StayKnown to bypass someone’s privacy settings or contact preferences.",
-                    "You must not misrepresent what StayKnown alerts mean.",
-                  ]}
-                />
-                <Example
-                  title="Consent examples"
-                  items={[
-                    "Allowed: adding a sibling after telling them they may receive Visit and SOS alerts.",
-                    "Allowed: adding a guardian or trusted adult for commute safety with proper permission.",
-                    "Not allowed: adding a stranger, ex-partner, or unwilling contact to repeatedly send alerts.",
-                    "Not allowed: using alerts to pressure someone to answer you or reveal their location.",
-                  ]}
-                />
-              </div>
+                  <section id="consent" className="scroll-mt-24 space-y-3">
+                    <H2 icon={<ContactIcon className="h-4 w-4" />}>
+                      3) Consent, notice, and transparency
+                    </H2>
+                    <P>
+                      Consent is central to StayKnown. A user must not use
+                      StayKnown to secretly place people into safety roles,
+                      repeatedly target someone who declined, or turn safety
+                      alerts into harassment.
+                    </P>
+                    <UL
+                      items={[
+                        "Only add contacts where you have permission, lawful basis, or a legitimate safety relationship.",
+                        "Tell contacts they may receive StayKnown alerts, map links, emails, push notifications, or safety context.",
+                        "Do not pressure someone into accepting contact approval or SOS responder responsibility.",
+                        "Respect declined, expired, removed, blocked, or withdrawn contact status.",
+                        "Do not use StayKnown to bypass privacy settings, blocked-add settings, contact preferences, or no-contact boundaries.",
+                        "Do not misrepresent what a StayKnown alert, map, SOS, or contact request means.",
+                      ]}
+                    />
+                    <LinkCard
+                      href="/contact-consent"
+                      title="Contact Approval & Consent"
+                      body="Dedicated rules for approved contacts, SOS responders, consent records, removal, blocked-add settings, and trusted-contact duties."
+                    />
+                  </section>
 
-              <div className="space-y-3">
-                <H2 id="contacts">
-                  6) Trusted contacts and responder responsibility
-                </H2>
-                <P>
-                  Contacts, emergency contacts, SOS contacts, and responders
-                  must treat alerts responsibly. Receiving a StayKnown alert
-                  does not give anyone permission to harass, threaten, expose,
-                  or control the user.
-                </P>
-                <UL
-                  items={[
-                    "Contacts should use alerts to support safety, not to shame or control the user.",
-                    "Contacts should call or message the user directly when safe and appropriate.",
-                    "Contacts should contact local emergency services if danger seems likely.",
-                    "Contacts should not share sensitive location, alert, or profile information unnecessarily.",
-                    "Responders must understand their role and act lawfully.",
-                    "Contacts who misuse alerts may be removed, blocked, reported, or restricted.",
-                  ]}
-                />
-              </div>
+                  <section id="contacts" className="scroll-mt-24 space-y-3">
+                    <H2 icon={<ContactIcon className="h-4 w-4" />}>
+                      4) Trusted contacts and responder responsibility
+                    </H2>
+                    <P>
+                      Approved contacts and SOS responders must treat safety
+                      information with care. Receiving an alert does not give a
+                      person the right to shame, control, follow, expose, or
+                      threaten the user.
+                    </P>
+                    <UL
+                      items={[
+                        "Use alerts only for the safety purpose intended.",
+                        "Do not share live map links, chat map details, safety gallery images, profile information, or alert screenshots unnecessarily.",
+                        "Do not use location information to confront someone unsafely or take reckless action.",
+                        "Call or message the user where safe and appropriate.",
+                        "Contact appropriate local emergency channels if danger appears credible.",
+                        "Report abusive or suspicious alerts if StayKnown is being used to target, frighten, manipulate, or harass you.",
+                      ]}
+                    />
+                  </section>
 
-              <div className="space-y-3">
-                <H2 id="location">
-                  7) Location safety, accuracy, and permissions
-                </H2>
-                <P>
-                  Location is sensitive. StayKnown location features must be
-                  used only for lawful, user-controlled safety purposes.
-                </P>
-                <UL
-                  items={[
-                    "Location accuracy depends on GPS, device hardware, operating system permissions, battery settings, network quality, and environment.",
-                    "Location updates may be delayed, inaccurate, blocked, or unavailable.",
-                    "Users are responsible for enabling permissions needed for safety features they choose to use.",
-                    "Users must not rely on StayKnown as the only method for life-critical decisions.",
-                    "Location data must not be used to stalk, threaten, shame, punish, exploit, or control another person.",
-                    "Recipients should treat location as approximate and time-sensitive, not guaranteed.",
-                  ]}
-                />
-                <Callout
-                  title="Location is not a guarantee"
-                  body="StayKnown can support awareness, but it cannot guarantee perfect GPS accuracy, perfect delivery, or real-world intervention."
-                />
-              </div>
+                  <section id="location" className="scroll-mt-24 space-y-3">
+                    <H2 icon={<LocationIcon className="h-4 w-4" />}>
+                      5) Location safety, LIVE map, and accuracy limits
+                    </H2>
+                    <P>
+                      Location is sensitive. StayKnown location features must be
+                      used only for lawful, user-controlled, safety-focused
+                      purposes.
+                    </P>
+                    <UL
+                      items={[
+                        "Location accuracy depends on GPS, device hardware, operating system permissions, battery settings, network quality, VPN status, app state, and provider coverage.",
+                        "Location may be delayed, stale, approximate, missing, or wrong.",
+                        "Live maps and chat maps are safety context, not a legally certified or emergency-dispatch-grade location source.",
+                        "Users must not rely on StayKnown as their only method for life-critical decisions.",
+                        "Recipients should treat location as time-sensitive and approximate unless confirmed through other reliable channels.",
+                        "Location must not be used to stalk, threaten, shame, punish, expose, exploit, follow, or control another person.",
+                      ]}
+                    />
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <LinkCard
+                        href="/location-safety"
+                        title="Location & Live Safety"
+                        body="Detailed rules for Visit sessions, LIVE sharing, SOS, manual capture, chat maps, VPN gates, and accuracy limits."
+                      />
+                      <LinkCard
+                        href="/privacy"
+                        title="Privacy Policy"
+                        body="How StayKnown handles location, contact, chat, media, safety, payment, and legal-request data."
+                      />
+                    </div>
+                  </section>
 
-              <div className="space-y-3">
-                <H2 id="visit">8) Visit and LIVE safety rules</H2>
-                <P>
-                  Visit and LIVE features are meant to help trusted people
-                  understand that a user has started a safety session. They must
-                  not be used to create false records, manipulate contacts, or
-                  mislead others.
-                </P>
-                <UL
-                  items={[
-                    "Start Visit only for real safety-focused check-ins or movement context.",
-                    "Do not create fake Visit sessions to deceive, frame, threaten, or pressure someone.",
-                    "Do not use Visit history to shame or control another person.",
-                    "Do not send LIVE links for stalking or harassment.",
-                    "Do not share a LIVE link with people who should not receive it.",
-                    "End Visit responsibly when the safety session is complete.",
-                  ]}
-                />
-              </div>
+                  <section id="sos" className="scroll-mt-24 space-y-3">
+                    <H2 icon={<AlertIcon className="h-4 w-4" />}>
+                      6) SOS, manual capture, and emergency posture
+                    </H2>
+                    <P>
+                      SOS and manual capture are high-seriousness safety flows.
+                      They must not be used for jokes, revenge, manipulation,
+                      panic creation, or fake emergencies.
+                    </P>
+                    <UL
+                      items={[
+                        "Do not trigger SOS as a prank, test, punishment, threat, or manipulation.",
+                        "Do not create fake SOS alerts, fake Visit sessions, or misleading manual capture events.",
+                        "Do not use SOS or manual capture to force someone to answer, meet, send money, or reveal information.",
+                        "Do not misuse alerts to involve police, family, employers, schools, or public agencies under false pretenses.",
+                        "If danger is immediate, use official emergency services first.",
+                        "Repeated false emergency use may lead to restrictions, suspension, permanent ban, preservation of records, and lawful reporting where appropriate.",
+                      ]}
+                    />
+                    <LinkCard
+                      href="/emergency"
+                      title="Emergency Disclaimer"
+                      body="StayKnown does not replace Nigerian emergency agencies, U.S. 911, U.K./EU 999/112, police, ambulance, fire, medical, or official rescue services."
+                    />
+                  </section>
 
-              <div className="space-y-3">
-                <H2 id="sos">9) SOS rules and emergency posture</H2>
-                <P>
-                  SOS is a high-seriousness safety state. It should be used only
-                  when the user needs urgent attention from trusted contacts.
-                </P>
-                <UL
-                  items={[
-                    "Do not trigger SOS as a joke, prank, punishment, test, threat, or manipulation.",
-                    "Do not create false SOS alerts to cause panic.",
-                    "Do not misuse SOS to force someone to respond.",
-                    "Do not use SOS to mislead contacts, emergency services, or the public.",
-                    "If danger is immediate, contact local emergency services directly.",
-                    "Repeated false SOS misuse may result in restrictions, suspension, or permanent ban.",
-                  ]}
-                />
-              </div>
+                  <section id="chat" className="scroll-mt-24 space-y-3">
+                    <H2 icon={<ChatIcon className="h-4 w-4" />}>
+                      7) Chat, voice notes, stickers, media, and translation
+                      safety
+                    </H2>
+                    <P>
+                      StayKnown Chat and expressive tools must be used lawfully
+                      and respectfully. Private communication remains subject to
+                      safety, abuse, privacy, and acceptable-use rules.
+                    </P>
+                    <UL
+                      items={[
+                        "Do not use chat to threaten, harass, exploit, stalk, impersonate, coerce, groom, or intimidate anyone.",
+                        "Do not use voice notes, stickers, video stickers, music stickers, media, files, or reactions to target or abuse someone.",
+                        "Do not upload or send illegal, hateful, exploitative, stolen, private, threatening, or abusive content.",
+                        "Do not use translation to impersonate, mislead, manipulate, threaten, or hide abuse.",
+                        "Do not rely on translation as legal, medical, or emergency interpretation.",
+                        "Report abusive chat behavior, unsafe media, or repeated unwanted contact.",
+                      ]}
+                    />
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <LinkCard
+                        href="/acceptable-use"
+                        title="Acceptable Use"
+                        body="Full behavior rules for chat, media, stories, stickers, location, contact alerts, and safety features."
+                      />
+                      <LinkCard
+                        href="/abuse"
+                        title="Abuse Reporting"
+                        body="Report harassment, impersonation, threatening messages, unwanted contact, unsafe media, or fake emergency behavior."
+                      />
+                    </div>
+                  </section>
 
-              <div className="space-y-3">
-                <H2 id="capture">10) Manual Capture safety rules</H2>
-                <P>
-                  Manual Capture is intended as an extra safety checkpoint
-                  during an active safety flow. It must not be abused.
-                </P>
-                <UL
-                  items={[
-                    "Use Manual Capture for genuine safety updates.",
-                    "Do not use Manual Capture to spam contacts.",
-                    "Do not use Manual Capture to mislead contacts about your safety state.",
-                    "Do not use it to harass, intimidate, or pressure recipients.",
-                    "Plan limits may apply to reduce abuse and preserve service reliability.",
-                  ]}
-                />
-              </div>
+                  <section id="stories" className="scroll-mt-24 space-y-3">
+                    <H2 icon={<ChatIcon className="h-4 w-4" />}>
+                      8) Stories, profiles, and public-facing trust surfaces
+                    </H2>
+                    <P>
+                      Stories, avatars, names, profiles, and safety gallery
+                      information can help people recognize who they are
+                      communicating with. They must not be used to expose,
+                      shame, stalk, impersonate, or pressure anyone.
+                    </P>
+                    <UL
+                      items={[
+                        "Do not post stories to target, shame, threaten, or expose another person.",
+                        "Do not impersonate another person using names, avatars, videos, images, or profile details.",
+                        "Do not use story replies to pressure or harass someone.",
+                        "Do not use place labels, backgrounds, profile cues, or media to reveal someone’s private location without permission.",
+                        "Do not upload another person’s image or private content without permission or lawful basis.",
+                      ]}
+                    />
+                  </section>
 
-              <div className="space-y-3">
-                <H2 id="verified">11) Verified stop and sensitive endings</H2>
-                <P>
-                  Some safety flows may require a stronger confirmation before
-                  ending protection. This helps reduce accidental or improper
-                  stopping of a safety state.
-                </P>
-                <UL
-                  items={[
-                    "Do not pressure a user to end SOS, Visit, or LIVE protection.",
-                    "Do not attempt to stop another user’s safety flow without authorization.",
-                    "Do not bypass biometric or device-level confirmation where required.",
-                    "Verified stop does not replace emergency services.",
-                    "If something feels unsafe, the user should seek real-world help immediately.",
-                  ]}
-                />
-              </div>
+                  <section id="minors" className="scroll-mt-24 space-y-3">
+                    <H2 icon={<ShieldIcon className="h-4 w-4" />}>
+                      9) Minor safety, guardians, schools, and vulnerable users
+                    </H2>
+                    <P>
+                      Minors and vulnerable users require heightened care.
+                      StayKnown must never be used to exploit, groom, threaten,
+                      manipulate, secretly monitor, or control a child, teen,
+                      dependent, student, employee, or vulnerable person.
+                    </P>
+                    <UL
+                      items={[
+                        "Under 13 users are not permitted to create an account or use StayKnown.",
+                        "Ages 13–15 may use StayKnown only with active permission and supervision of a parent or legal guardian where allowed.",
+                        "Ages 16–17 may use StayKnown with parent or legal guardian permission/consent and lawful safety purpose where required.",
+                        "Adults must not use StayKnown to secretly monitor minors unless they have lawful authority and the use is consistent with applicable law and safety purpose.",
+                        "Schools, organizations, churches, nonprofits, workplaces, and youth programs should use StayKnown only with proper notice, consent, and role clarity.",
+                        "Reports involving minors, grooming, exploitation, stalking, coercion, or credible threats may receive heightened review and enforcement.",
+                      ]}
+                    />
+                    <LinkCard
+                      href="/minors"
+                      title="Child Safety & Minor Use"
+                      body="Dedicated child, teen, guardian, school, family, and vulnerable-user safety policy."
+                    />
+                  </section>
 
-              <div className="space-y-3">
-                <H2 id="gallery">12) Safety Gallery and recognition images</H2>
-                <P>
-                  Safety Gallery exists to help trusted people recognize the
-                  user in safety contexts. It must not be used for harassment,
-                  shaming, impersonation, or non-consensual exposure.
-                </P>
-                <UL
-                  items={[
-                    "Upload only lawful, appropriate images connected to your own safety profile.",
-                    "Do not upload another person’s image without permission or lawful basis.",
-                    "Do not use Safety Gallery to impersonate, defame, shame, or expose someone.",
-                    "Do not use recognition images for stalking or targeting.",
-                    "Premium or ProMax image access does not remove consent and privacy obligations.",
-                  ]}
-                />
-              </div>
+                  <section id="vpn" className="scroll-mt-24 space-y-3">
+                    <H2 icon={<LockIcon className="h-4 w-4" />}>
+                      10) VPN, device integrity, and reliability rules
+                    </H2>
+                    <P>
+                      StayKnown may warn, restrict, or block certain flows where
+                      VPN, fake GPS, modified-device behavior, emulators, or
+                      suspicious signals can reduce safety reliability.
+                    </P>
+                    <UL
+                      items={[
+                        "Do not use VPNs, fake GPS, spoofing tools, emulators, automation, modified apps, or device manipulation to mislead StayKnown or contacts.",
+                        "Do not bypass safety gates, plan limits, contact approval, biometric checks, SOS verification, or enforcement restrictions.",
+                        "VPN use may reduce location confidence and may cause safety gates, warnings, restrictions, or Visit interruption behavior.",
+                        "Mid-Visit VPN disruption may affect alerts and trusted-contact confidence.",
+                        "Device and network integrity checks exist to protect users and reduce abuse.",
+                      ]}
+                    />
+                    <LinkCard
+                      href="/security"
+                      title="Security Disclosure"
+                      body="Responsible disclosure route for vulnerability reports and platform-integrity concerns."
+                    />
+                  </section>
 
-              <div className="space-y-3">
-                <H2 id="chat">
-                  13) Chat, voice notes, stickers, and media safety
-                </H2>
-                <P>
-                  StayKnown Chat and expressive tools must be used lawfully and
-                  respectfully. Private communication is still subject to
-                  safety, abuse, and policy rules.
-                </P>
-                <UL
-                  items={[
-                    "Do not use chat to threaten, harass, exploit, stalk, impersonate, or coerce another person.",
-                    "Do not use voice notes, stickers, video stickers, music stickers, media, or files to intimidate or target someone.",
-                    "Do not share illegal, hateful, exploitative, or abusive content.",
-                    "Do not bypass blocking, reporting, VPN gates, plan limits, or privacy controls.",
-                    "Do not use translation to mislead, manipulate, or impersonate.",
-                    "Report abusive chat behavior to support.",
-                  ]}
-                />
-              </div>
+                  <section id="global" className="scroll-mt-24 space-y-3">
+                    <H2 icon={<GlobeIcon className="h-4 w-4" />}>
+                      11) Nigeria, United States, United Kingdom, EU, and global
+                      use
+                    </H2>
+                    <P>
+                      StayKnown may support users in different countries, but
+                      privacy laws, emergency systems, telecom reliability, map
+                      coverage, school rules, workplace rules, and consent
+                      expectations differ by region.
+                    </P>
 
-              <div className="space-y-3">
-                <H2 id="stories">
-                  14) Stories, profile trust, and public-facing surfaces
-                </H2>
-                <P>
-                  Stories and profile features help people recognize each other,
-                  but they must not be used to expose, shame, stalk, or pressure
-                  anyone.
-                </P>
-                <UL
-                  items={[
-                    "Do not post stories to target, shame, threaten, or expose another person.",
-                    "Do not use place labels or profile cues for stalking or harassment.",
-                    "Do not impersonate another person through names, avatars, images, or stories.",
-                    "Do not use story replies to pressure or harass someone.",
-                    "Use reporting tools for abusive stories or profile misuse.",
-                  ]}
-                />
-              </div>
+                    <H3>Nigeria usage language</H3>
+                    <UL
+                      items={[
+                        "In Nigeria, StayKnown should be used for lawful personal, family, community, travel, workplace, school, and safety awareness with trusted people.",
+                        "Users must not use StayKnown to shame, threaten, monitor, extort, pressure, or control another person.",
+                        "Contacts should understand that network issues, power, road conditions, rural coverage, city congestion, device quality, and provider delays may affect alerts.",
+                        "If immediate danger is suspected, contacts should use appropriate local channels, which may include trusted family, local police, medical help, FRSC, NSCDC, NEMA, state emergency agencies, private security, or nearby responsible responders depending on the situation.",
+                        "StayKnown does not replace Nigerian police, ambulance, hospitals, fire service, road safety, civil defence, disaster management, or any official authority.",
+                      ]}
+                    />
 
-              <div className="space-y-3">
-                <H2 id="language">15) Translation and language safety</H2>
-                <P>
-                  Language support can help trusted people communicate, but
-                  translation must not be treated as perfect or used to deceive.
-                </P>
-                <UL
-                  items={[
-                    "Do not use translation to impersonate, mislead, threaten, or manipulate someone.",
-                    "Do not rely on translation as legal, medical, or emergency interpretation.",
-                    "If a message is safety-critical, use clear direct communication and emergency services where needed.",
-                    "Translation delays or failures may occur.",
-                    "Language features remain subject to acceptable-use and anti-abuse rules.",
-                  ]}
-                />
-              </div>
+                    <H3>United States usage language</H3>
+                    <UL
+                      items={[
+                        "In the United States, StayKnown is not 911, a public safety answering point, law enforcement, EMS, fire department, or rescue provider.",
+                        "Users must respect state and federal laws on stalking, harassment, privacy, location sharing, minors, workplace monitoring, and protective orders.",
+                        "If immediate danger is suspected, contact 911 or the correct local emergency service.",
+                      ]}
+                    />
 
-              <div className="space-y-3">
-                <H2 id="vpn">
-                  16) VPN, device integrity, and reliability rules
-                </H2>
-                <P>
-                  StayKnown may require VPN to be off or may warn users when VPN
-                  usage affects location reliability, safety integrity, or abuse
-                  prevention.
-                </P>
-                <UL
-                  items={[
-                    "Do not use VPN or network tools to bypass safety checks, location reliability rules, plan limits, restrictions, or enforcement.",
-                    "Do not use device manipulation, spoofing, emulators, fake GPS, or automation to mislead StayKnown.",
-                    "VPN warnings may appear at app launch, during safety flows, or before chat entry depending on context.",
-                    "Mid-Visit VPN disruption may affect safety alerts and trusted-contact confidence.",
-                    "Device and network integrity checks exist to protect users and reduce abuse.",
-                  ]}
-                />
-              </div>
+                    <H3>United Kingdom, EU, and other countries</H3>
+                    <UL
+                      items={[
+                        "In the U.K. and EU, users and contacts should use official emergency numbers such as 999 or 112 where immediate danger is suspected.",
+                        "European users may have stricter consent, data protection, transparency, and privacy rights for location, contact, and safety data.",
+                        "In all countries, users must not use StayKnown to violate local laws, privacy rules, employment rules, school rules, family court orders, child-protection rules, sanctions rules, telecom rules, or emergency-service laws.",
+                      ]}
+                    />
+                  </section>
 
-              <div className="space-y-3">
-                <H2 id="minors">17) Minor safety and vulnerable users</H2>
-                <P>
-                  Minors and vulnerable users require heightened care. StayKnown
-                  must never be used to exploit, groom, threaten, manipulate, or
-                  secretly monitor a minor or vulnerable person.
-                </P>
-                <UL
-                  items={[
-                    "Under 13 users are not permitted to create an account or use StayKnown.",
-                    "13–15 users require active permission and supervision of a parent or legal guardian.",
-                    "16–17 users require parent or guardian permission or consent and lawful safety use.",
-                    "Local law controls if it requires a higher age threshold or stronger consent.",
-                    "Do not use StayKnown to facilitate grooming, coercion, trafficking, kidnapping, forced movement, or exploitation.",
-                    "Reports involving minors may require urgent review, preservation, and lawful cooperation.",
-                  ]}
-                />
-              </div>
+                  <section id="prohibited" className="scroll-mt-24 space-y-3">
+                    <H2 icon={<AlertIcon className="h-4 w-4" />}>
+                      12) Prohibited uses
+                    </H2>
+                    <P>
+                      The following uses are prohibited and may lead to
+                      warnings, restrictions, suspensions, permanent bans,
+                      preservation of records, official reporting, or legal
+                      cooperation where appropriate.
+                    </P>
+                    <UL
+                      items={[
+                        "Stalking, harassment, intimidation, threats, coercion, retaliation, bullying, or control.",
+                        "Hidden tracking, covert surveillance, unauthorized monitoring, or location collection without lawful basis and required consent.",
+                        "False emergencies, fake SOS alerts, prank alerts, hoaxes, swatting, or misleading safety claims.",
+                        "Impersonation of users, contacts, guardians, responders, officials, medical workers, law enforcement, or StayKnown staff.",
+                        "Violence, kidnapping, trafficking, forced movement, exploitation, grooming, extortion, blackmail, doxxing, or physical-harm coordination.",
+                        "Fraud, scams, payment abuse, account deception, chargeback abuse, money laundering, or illegal financial activity.",
+                        "Violating protective orders, restraining orders, custody rules, school rules, workplace restrictions, or similar legal boundaries.",
+                        "Spamming contacts, mass messaging, unwanted notifications, or repeated requests after someone declines or blocks.",
+                        "Bypassing plan limits, safety gates, contact approval, device checks, VPN rules, SOS verification, or enforcement restrictions.",
+                        "Reverse engineering, scraping, API abuse, automation, fake GPS, bot activity, or interference with service integrity.",
+                        "Uploading or sending illegal, hateful, exploitative, stolen, threatening, or abusive content.",
+                      ]}
+                    />
+                  </section>
 
-              <div className="space-y-3">
-                <H2 id="stalking">
-                  18) Anti-stalking and anti-harassment rules
-                </H2>
-                <P>
-                  StayKnown has zero tolerance for use connected to stalking,
-                  harassment, coercion, intimidation, threats, or secret
-                  tracking.
-                </P>
-                <UL
-                  items={[
-                    "No tracking without consent or knowledge.",
-                    "No repeated unwanted alerts.",
-                    "No using location or safety logs to control another person.",
-                    "No using StayKnown to violate protective orders, restraining orders, custody orders, workplace restrictions, school restrictions, or legal boundaries.",
-                    "No threatening someone with their location, history, profile, messages, stories, or contacts.",
-                    "No using StayKnown to follow, monitor, expose, or punish someone.",
-                  ]}
-                />
-                <Example
-                  title="Strictly not allowed"
-                  items={[
-                    "Sending repeated alerts to someone who asked you to stop.",
-                    "Using safety logs to threaten someone with location knowledge.",
-                    "Adding a contact to intimidate them.",
-                    "Using Stories or Chat to pressure someone into meeting.",
-                    "Using fake GPS or VPN tools to mislead contacts.",
-                  ]}
-                />
-              </div>
+                  <section id="recipient" className="scroll-mt-24 space-y-3">
+                    <H2 icon={<ContactIcon className="h-4 w-4" />}>
+                      13) Recipient and trusted-contact duties
+                    </H2>
+                    <P>
+                      Recipients of StayKnown alerts must act responsibly.
+                      Receiving safety context does not grant ownership over the
+                      user, the user’s movement, or the user’s private
+                      information.
+                    </P>
+                    <UL
+                      items={[
+                        "Use alerts to support safety, not to shame, monitor, follow, threaten, or control the user.",
+                        "Treat location and timestamps as approximate and possibly delayed.",
+                        "Do not share alert links, screenshots, map links, profile details, or private information unnecessarily.",
+                        "Do not attempt unsafe confrontation or reckless intervention.",
+                        "Contact official emergency services or appropriate local safety channels if danger seems credible.",
+                        "Report misuse if alerts appear abusive, fake, coercive, or unsafe.",
+                      ]}
+                    />
+                  </section>
 
-              <div className="space-y-3">
-                <H2 id="prohibited">19) Prohibited uses</H2>
-                <P>
-                  The following uses are prohibited and may lead to
-                  restrictions, suspension, permanent ban, reporting, record
-                  preservation, or legal cooperation.
-                </P>
-                <UL
-                  items={[
-                    "Stalking, harassment, intimidation, threats, coercion, or control.",
-                    "Covert surveillance or tracking without permission.",
-                    "False emergencies, fake SOS alerts, or misleading safety claims.",
-                    "Fraud, scams, extortion, blackmail, payment misuse, or account deception.",
-                    "Kidnapping, trafficking, forced movement, exploitation, grooming, or physical-harm coordination.",
-                    "Violating protective orders, restraining orders, custody rules, school rules, workplace restrictions, or similar legal limits.",
-                    "Spamming contacts, mass messaging, or unwanted notifications.",
-                    "Impersonation of a user, contact, guardian, responder, emergency official, or StayKnown staff.",
-                    "Bypassing plan limits, safety gates, contact approval, device checks, VPN rules, or enforcement restrictions.",
-                    "Reverse engineering, scraping, API abuse, automation, fake GPS, bot activity, or interference with service integrity.",
-                    "Uploading or sending illegal, hateful, exploitative, threatening, or abusive content.",
-                  ]}
-                />
-              </div>
+                  <section id="report" className="scroll-mt-24 space-y-3">
+                    <H2 icon={<ReportIcon className="h-4 w-4" />}>
+                      14) Reporting abuse or safety concerns
+                    </H2>
+                    <P>
+                      Report abuse when StayKnown is used for stalking,
+                      harassment, threats, fraud, false alerts, coercion,
+                      contact abuse, minor exploitation, impersonation, or
+                      unsafe behavior.
+                    </P>
+                    <UL
+                      items={[
+                        "Use the subject line: StayKnown Safety Report.",
+                        "Include dates, times, usernames, emails, profiles, alert examples, screenshots, or session details if safe.",
+                        "Explain whether you asked the person to stop.",
+                        "Tell us if there is a minor, protective order, immediate danger, or legal concern.",
+                        "Do not put yourself in danger to collect evidence.",
+                        "If immediate danger exists, contact local emergency services first.",
+                      ]}
+                    />
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <LinkCard
+                        href="/abuse"
+                        title="Abuse Reporting"
+                        body="Dedicated route for reporting stalking, harassment, unwanted contact, impersonation, false emergencies, and unsafe use."
+                      />
+                      <LinkCard
+                        href="/law"
+                        title="Law Enforcement & Emergency Requests"
+                        body="Official request handling, emergency disclosure, preservation, and legal process."
+                      />
+                    </div>
+                  </section>
 
-              <div className="space-y-3">
-                <H2 id="recipient">
-                  20) Recipient and trusted-contact responsibilities
-                </H2>
-                <P>
-                  Recipients of StayKnown alerts must act responsibly. Receiving
-                  safety context does not grant ownership over the user or the
-                  right to expose private information.
-                </P>
-                <UL
-                  items={[
-                    "Use alerts to support safety, not to shame, control, or monitor the user outside consent.",
-                    "Treat location and timestamps as approximate and possibly delayed.",
-                    "Do not share alert links or private details unnecessarily.",
-                    "Do not attempt unsafe intervention.",
-                    "Contact local emergency services if danger seems likely.",
-                    "Report misuse if alerts appear abusive, fake, coercive, or unsafe.",
-                  ]}
-                />
-              </div>
+                  <section id="enforcement" className="scroll-mt-24 space-y-3">
+                    <H2 icon={<LockIcon className="h-4 w-4" />}>
+                      15) Enforcement, safety review, and appeals
+                    </H2>
+                    <P>
+                      StayKnown may use technical, policy, and support processes
+                      to reduce misuse and protect users, contacts, and the
+                      public.
+                    </P>
+                    <UL
+                      items={[
+                        "Warnings or safety education.",
+                        "Temporary or permanent restrictions on contacts, alerts, chat, stories, media, manual capture, SOS, Visit, or account features.",
+                        "Contact removal, request blocking, thread blocking, or visibility limits.",
+                        "Account suspension or permanent account ban.",
+                        "Device, network, payment, or identifier restrictions.",
+                        "Removal or restriction of abusive content.",
+                        "Preservation of records where appropriate.",
+                        "Cooperation with valid legal process or emergency disclosure rules where applicable.",
+                      ]}
+                    />
+                    <P>
+                      If you believe an enforcement action was a mistake, you
+                      may contact support for review. StayKnown is not required
+                      to restore access where risk remains.
+                    </P>
+                  </section>
 
-              <div className="space-y-3">
-                <H2 id="misuse">21) Misuse prevention and safety review</H2>
-                <P>
-                  StayKnown may use technical, policy, and support processes to
-                  reduce misuse and protect users.
-                </P>
-                <UL
-                  items={[
-                    "Rate limits may apply to contacts, alerts, manual captures, messages, and safety actions.",
-                    "Suspicious patterns may trigger restriction, review, or blocking.",
-                    "Repeated false alerts, reported abuse, mass messaging, and high-risk network signals may lead to enforcement.",
-                    "Device, account, contact, payment, and network identifiers may be considered for abuse prevention.",
-                    "StayKnown may preserve relevant records when abuse, threats, fraud, or safety risks are reported.",
-                  ]}
-                />
-              </div>
+                  <section id="legal" className="scroll-mt-24 space-y-3">
+                    <H2 icon={<ShieldIcon className="h-4 w-4" />}>
+                      16) Legal cooperation and preservation
+                    </H2>
+                    <P>
+                      StayKnown respects applicable law and may respond to valid
+                      legal process. We may preserve or disclose information if
+                      required by law or if necessary to enforce policies,
+                      protect rights and safety, prevent fraud, or prevent harm.
+                    </P>
+                    <UL
+                      items={[
+                        "StayKnown may preserve logs and records where required by law or reasonably needed to investigate abuse, threats, fraud, or safety risks.",
+                        "StayKnown may cooperate with valid legal process.",
+                        "StayKnown may review emergency disclosure requests where there is credible risk of serious harm.",
+                        "StayKnown does not support covert surveillance or unlawful monitoring.",
+                        "StayKnown may reject, narrow, or challenge requests that are overbroad, unlawful, unsafe, unclear, or connected to misuse.",
+                      ]}
+                    />
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <LinkCard
+                        href="/law"
+                        title="Law Enforcement & Emergency Requests"
+                        body="Dedicated policy for official requests, emergency disclosure, preservation, and legal process."
+                      />
+                      <LinkCard
+                        href="/retention"
+                        title="Data Retention"
+                        body="How safety logs, contact records, location records, chat metadata, and legal holds may be kept."
+                      />
+                    </div>
+                  </section>
 
-              <div className="space-y-3">
-                <H2 id="enforcement">22) Enforcement</H2>
-                <P>
-                  StayKnown may take action when users, contacts, or feature use
-                  violate safety rules or create risk.
-                </P>
-                <UL
-                  items={[
-                    "Warning or safety education.",
-                    "Temporary restriction of features.",
-                    "Contact, chat, story, notification, SOS, Manual Capture, Visit, or media limits.",
-                    "Account suspension.",
-                    "Permanent account ban.",
-                    "Device, network, payment, or identifier restrictions.",
-                    "Removal or restriction of abusive content.",
-                    "Preservation of records where appropriate.",
-                    "Cooperation with valid legal process or emergency disclosure rules where applicable.",
-                  ]}
-                />
-              </div>
+                  <section id="contact" className="scroll-mt-24 space-y-3">
+                    <H2 icon={<ReportIcon className="h-4 w-4" />}>
+                      17) Contact and related policies
+                    </H2>
+                    <P>
+                      For safety questions, abuse reports, contact approval
+                      concerns, privacy concerns, legal concerns, or security
+                      reports, use the appropriate StayKnown support route.
+                    </P>
+                    <UL
+                      items={[
+                        "Support: support@stay-known.com",
+                        "Report immediate danger to official emergency services first.",
+                        "Use Abuse Reporting for stalking, harassment, unwanted contact, impersonation, false emergency use, or unsafe behavior.",
+                        "Use Security Disclosure for vulnerability reports or platform-integrity concerns.",
+                        "Use Law Enforcement & Emergency Requests for valid official requests, preservation, or urgent legal concerns.",
+                      ]}
+                    />
 
-              <div className="space-y-3">
-                <H2 id="legal">23) Legal cooperation and preservation</H2>
-                <P>
-                  StayKnown respects applicable law and may respond to valid
-                  legal process. We may preserve or disclose information if
-                  required by law or if necessary to enforce policies, protect
-                  rights and safety, prevent fraud, or prevent harm.
-                </P>
-                <UL
-                  items={[
-                    "We may preserve logs and records where required by law or reasonably needed to investigate abuse or threats.",
-                    "We may cooperate with valid legal process.",
-                    "We may review emergency disclosure requests where there is credible risk of serious harm.",
-                    "We do not support covert surveillance or unlawful monitoring.",
-                    "We may reject, narrow, or challenge requests that are overbroad, unlawful, unsafe, or connected to misuse.",
-                  ]}
-                />
-              </div>
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <LinkCard
+                        href="/terms"
+                        title="Terms of Service"
+                        body="Main agreement for accounts, lawful use, safety limits, subscriptions, enforcement, and liability limits."
+                      />
+                      <LinkCard
+                        href="/privacy"
+                        title="Privacy Policy"
+                        body="How StayKnown processes account, location, contact, chat, media, payment, retention, and legal request data."
+                      />
+                      <LinkCard
+                        href="/location-safety"
+                        title="Location & Live Safety"
+                        body="Visit sessions, LIVE sharing, SOS, manual capture, chat maps, VPN gates, and accuracy limits."
+                      />
+                      <LinkCard
+                        href="/contact-consent"
+                        title="Contact Approval & Consent"
+                        body="Approved contacts, SOS responders, consent records, blocked-add settings, and removal rights."
+                      />
+                      <LinkCard
+                        href="/acceptable-use"
+                        title="Acceptable Use"
+                        body="Detailed prohibited-use rules for accounts, chat, media, stories, location, alerts, and contact features."
+                      />
+                      <LinkCard
+                        href="/emergency"
+                        title="Emergency Disclaimer"
+                        body="StayKnown is not an official emergency service in Nigeria, the U.S., U.K./EU, or any country."
+                      />
+                    </div>
+                  </section>
 
-              <div className="space-y-3">
-                <H2 id="report">24) Reporting abuse or safety concerns</H2>
-                <P>
-                  Report abuse when StayKnown is used for stalking, harassment,
-                  threats, fraud, false alerts, coercion, contact abuse, minor
-                  exploitation, impersonation, or unsafe behavior.
-                </P>
-                <Callout title="Report email" body="support@stay-known.com" />
-                <UL
-                  items={[
-                    "Use the subject line: StayKnown Safety Report.",
-                    "Include dates, times, usernames, emails, profiles, alert examples, screenshots, or session details if safe.",
-                    "Explain whether you asked the person to stop.",
-                    "Tell us if there is a minor, protective order, immediate danger, or legal concern.",
-                    "Do not put yourself in danger to collect evidence.",
-                    "If immediate danger exists, contact local emergency services first.",
-                  ]}
-                />
-              </div>
+                  <section className="space-y-3 rounded-[1.6rem] border border-black/10 bg-black/[0.025] p-5 dark:border-white/10 dark:bg-white/[0.03]">
+                    <H2>18) Changes to this Safety & Anti-Stalking Policy</H2>
+                    <P>
+                      StayKnown may update this policy to reflect new safety
+                      features, contact flows, SOS behavior, chat rules, abuse
+                      reporting improvements, legal requirements,
+                      country-specific expectations, or operational needs. If
+                      updates are material, StayKnown may provide notice through
+                      the app, website, email, or another reasonable method.
+                    </P>
+                  </section>
 
-              <div className="space-y-3">
-                <H2 id="emergency">25) Emergency reminder</H2>
-                <P>
-                  StayKnown is not emergency services, law enforcement, medical
-                  services, or a rescue organization. It is a safety support
-                  tool that can help notify trusted contacts and provide safety
-                  context.
-                </P>
-                <UL
-                  items={[
-                    "If you are in immediate danger, contact your local emergency number first.",
-                    "Notifications and emails may be delayed, blocked, filtered, or missed.",
-                    "Contacts may not see or respond to alerts.",
-                    "Location may be inaccurate or unavailable.",
-                    "StayKnown cannot guarantee intervention or outcome.",
-                  ]}
-                />
-              </div>
+                  <section className="space-y-3 rounded-[1.6rem] border border-black/10 bg-white/70 p-5 dark:border-white/10 dark:bg-white/[0.035]">
+                    <H2>Appendix A — In-app short safety notice</H2>
+                    <P>
+                      StayKnown is built for lawful, voluntary, consent-aware
+                      safety use. Do not use StayKnown for stalking, harassment,
+                      intimidation, hidden tracking, coercion, impersonation,
+                      false emergencies, fraud, exploitation, or unlawful
+                      monitoring. Contacts and SOS responders must use safety
+                      information responsibly. StayKnown does not replace
+                      official emergency services in Nigeria, the United States,
+                      the United Kingdom, the European Union, or any country. If
+                      immediate danger exists, contact local emergency services
+                      first.
+                    </P>
+                  </section>
+                </div>
 
-              <div className="space-y-3">
-                <H2 id="apptext">
-                  Appendix A — In-app text this policy expands
-                </H2>
-                <P>
-                  This page expands the safety and anti-stalking language shown
-                  inside the StayKnown app.
-                </P>
+                <div className="mt-10 h-px bg-black/10 dark:bg-white/10" />
 
-                <H3>Purpose & Humanitarian Motive</H3>
-                <UL
-                  items={[
-                    "StayKnown is built to help people stay safe by enabling voluntary safety check-ins, visit status sharing, and emergency notifications to trusted contacts.",
-                    "The service exists to reduce uncertainty during travel, late-night movement, first meetings, or any situation where someone wants a trusted person to know they are safe.",
-                    "StayKnown is designed with humanitarian intent: to support safety and protection of human life and dignity across communities globally.",
-                    "StayKnown is not designed for covert surveillance and is not intended for stalking, harassment, or monitoring anyone without permission.",
-                  ]}
-                />
-
-                <H3>Consent, Transparency & Notice to Contacts</H3>
-                <UL
-                  items={[
-                    "You must have a lawful basis and consent to share location or safety updates with any person.",
-                    "You are responsible for informing your contacts that they may receive safety emails, notifications, or alerts.",
-                    "StayKnown is designed so recipients can understand that alerts are from a safety product and are initiated by the user.",
-                    "You may not add contacts for the purpose of harassment, intimidation, spam, or any non-safety purpose.",
-                    "If a contact requests you to stop contacting them, you must respect that request and remove them.",
-                  ]}
-                />
-
-                <H3>Prohibited Uses</H3>
-                <UL
-                  items={[
-                    "You may not use StayKnown to stalk, harass, intimidate, or threaten anyone.",
-                    "You may not track people without consent or knowledge.",
-                    "You may not facilitate physical harm, kidnapping, extortion, trafficking, or violence.",
-                    "You may not collect location data to target or exploit a person.",
-                    "You may not abuse email delivery by spamming contacts or third parties.",
-                    "You may not attempt to access accounts, sessions, or data that are not yours.",
-                    "You may not reverse engineer, interfere with, or disrupt the service.",
-                    "You may not use the service to violate restraining orders, protective orders, or similar legal restrictions.",
-                  ]}
-                />
-
-                <H3>Fraud, Scam, Kidnapping & Abuse Prevention</H3>
-                <UL
-                  items={[
-                    "StayKnown is a safety product. Misuse can cause serious harm.",
-                    "We may restrict accounts, devices, or features if we detect suspicious usage patterns including high-risk network signals, unusual session behaviors, repeated mass messaging, reported abuse, or attempts to bypass safeguards.",
-                    "You must never use StayKnown to lure someone, coordinate harm, or mislead emergency contacts.",
-                    "Where required by law or where necessary to prevent harm, we may preserve relevant logs and cooperate with lawful requests.",
-                    "If you believe someone is using StayKnown to target you or another person, contact support immediately and contact local authorities if needed.",
-                  ]}
-                />
-
-                <H3>Reporting, Enforcement & Appeals</H3>
-                <UL
-                  items={[
-                    "Violations may result in warnings, feature restrictions, account/device suspensions, or permanent bans.",
-                    "We may investigate reports of misuse to protect users, contacts, and the public.",
-                    "If you believe an enforcement action was a mistake, you may contact support to request review.",
-                  ]}
-                />
-              </div>
-            </div>
-
-            <div className="mt-10 h-px bg-white/10" />
-
-            <div className="mt-6 text-center">
-              <div className="text-[12px] font-semibold text-white/50">
-                A 6 Clement Joshua service
-                <span className="text-white/25 ml-1 align-super text-[10px]">
-                  ™
-                </span>
-              </div>
-              <div className="mt-2 text-[11px] font-semibold text-white/30">
-                {new Date().getFullYear()} • stay-known.com
+                <footer className="mt-6 text-center">
+                  <div className="text-[12px] font-semibold text-zinc-600 dark:text-white/50">
+                    A 6 Clement Joshua service
+                    <span className="ml-1 align-super text-[10px] text-zinc-400 dark:text-white/25">
+                      ™
+                    </span>
+                  </div>
+                  <div className="mt-2 text-[11px] font-semibold text-zinc-500 dark:text-white/30">
+                    {new Date().getFullYear()} • stay-known.com
+                  </div>
+                  <p className="mx-auto mt-3 max-w-2xl text-[11px] font-semibold leading-relaxed text-zinc-500 dark:text-white/30">
+                    This policy is provided for product transparency and should
+                    be reviewed by qualified legal counsel before public launch,
+                    regulatory filing, investor review, app-store submission, or
+                    law-enforcement request handling.
+                  </p>
+                </footer>
               </div>
             </div>
           </article>

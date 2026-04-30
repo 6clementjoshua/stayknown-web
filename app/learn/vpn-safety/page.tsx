@@ -806,7 +806,7 @@ export default function LearnVpnSafetyPage() {
                 rel="noopener noreferrer"
                 className="hover:text-white/75 transition"
               >
-                Terms of Use
+                Terms of Service
               </a>
               <span className="text-white/18">•</span>
 
