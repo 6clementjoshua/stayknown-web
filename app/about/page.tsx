@@ -1,15 +1,13 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
 
 const UPDATED_AT = "2026-04-30";
-const VERSION = "1.0";
+const VERSION = "1.2";
 
 const STAYKNOWN_LOGO_SRC = "/hero/stay-known-logo.png";
 const CLEMENT_LOGO_SRC = "/hero/6-clement-joshua-official-logo.png";
-
-type ThemeMode = "dark" | "light";
 
 function fmtDate(iso: string) {
   const d = new Date(iso + "T00:00:00Z");
@@ -22,36 +20,6 @@ function fmtDate(iso: string) {
 
 function cx(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
-}
-
-function useThemeMode() {
-  const [theme, setTheme] = useState<ThemeMode>("dark");
-
-  useEffect(() => {
-    const saved =
-      typeof window !== "undefined"
-        ? window.localStorage.getItem("stayknown-policy-theme")
-        : null;
-
-    if (saved === "light" || saved === "dark") {
-      setTheme(saved);
-      return;
-    }
-
-    const prefersLight =
-      typeof window !== "undefined" &&
-      window.matchMedia("(prefers-color-scheme: light)").matches;
-
-    setTheme(prefersLight ? "light" : "dark");
-  }, []);
-
-  useEffect(() => {
-    if (typeof document === "undefined") return;
-    document.documentElement.dataset.skTheme = theme;
-    window.localStorage.setItem("stayknown-policy-theme", theme);
-  }, [theme]);
-
-  return { theme, setTheme };
 }
 
 function useSeoMeta() {
@@ -373,11 +341,11 @@ function H2({
   return (
     <h2
       id={id}
-      className="scroll-mt-24 text-[18px] md:text-[20px] font-black tracking-[-0.025em] text-zinc-950 dark:text-white/94"
+      className="scroll-mt-24 text-[18px] font-black tracking-[-0.025em] text-white md:text-[20px]"
     >
       <span className="inline-flex items-center gap-2.5">
         {icon ? (
-          <span className="grid h-8 w-8 place-items-center rounded-2xl border border-black/10 bg-black/[0.04] text-zinc-900 shadow-sm dark:border-white/10 dark:bg-white/[0.05] dark:text-white/85">
+          <span className="grid h-8 w-8 place-items-center rounded-2xl border border-white/10 bg-white/[0.04] text-white/85 shadow-sm">
             {icon}
           </span>
         ) : null}
@@ -387,17 +355,9 @@ function H2({
   );
 }
 
-function H3({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="mt-4 text-[14px] font-extrabold text-zinc-900 dark:text-white/88">
-      {children}
-    </div>
-  );
-}
-
 function P({ children }: { children: React.ReactNode }) {
   return (
-    <p className="text-[13.5px] md:text-[14px] font-semibold leading-relaxed text-zinc-700 dark:text-white/62">
+    <p className="text-[13.5px] font-semibold leading-relaxed text-white/62 md:text-[14px]">
       {children}
     </p>
   );
@@ -405,7 +365,7 @@ function P({ children }: { children: React.ReactNode }) {
 
 function UL({ items }: { items: string[] }) {
   return (
-    <ul className="ml-5 list-disc space-y-1.5 text-[13.5px] md:text-[14px] font-semibold leading-relaxed text-zinc-700 dark:text-white/62">
+    <ul className="ml-5 list-disc space-y-1.5 text-[13.5px] font-semibold leading-relaxed text-white/60 md:text-[14px]">
       {items.map((t, i) => (
         <li key={`${t}-${i}`}>{t}</li>
       ))}
@@ -415,53 +375,67 @@ function UL({ items }: { items: string[] }) {
 
 function Pill({ children }: { children: React.ReactNode }) {
   return (
-    <span className="rounded-full border border-black/10 bg-black/[0.035] px-3 py-1 text-[11px] font-black uppercase tracking-[0.16em] text-zinc-700 dark:border-white/10 dark:bg-white/[0.05] dark:text-white/55">
+    <span className="rounded-full border border-white/10 bg-white/[0.045] px-3 py-1 text-[11px] font-black uppercase tracking-[0.16em] text-white/58">
       {children}
     </span>
+  );
+}
+
+function PrimaryButton({
+  href,
+  children,
+}: {
+  href: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <a
+      href={href}
+      className="group relative inline-flex items-center justify-center overflow-hidden rounded-full border border-white/22 bg-transparent px-5 py-3 text-[12px] font-black text-white shadow-sm transition duration-300 hover:-translate-y-0.5 hover:border-white/50 hover:bg-white hover:text-black focus:outline-none focus:ring-2 focus:ring-white/30"
+    >
+      <span className="relative z-10">{children}</span>
+    </a>
+  );
+}
+
+function SecondaryButton({
+  href,
+  children,
+}: {
+  href: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <a
+      href={href}
+      className="group relative inline-flex items-center justify-center overflow-hidden rounded-full border border-white/12 bg-white/[0.035] px-5 py-3 text-[12px] font-black text-white/90 shadow-sm transition duration-300 hover:-translate-y-0.5 hover:border-white/28 hover:bg-white/[0.095] hover:text-white focus:outline-none focus:ring-2 focus:ring-white/25"
+    >
+      <span className="relative z-10">{children}</span>
+    </a>
   );
 }
 
 function Callout({
   title,
   body,
-  tone = "normal",
   icon,
 }: {
   title: string;
   body: string;
-  tone?: "normal" | "danger" | "safe" | "law" | "premium" | "report";
   icon?: React.ReactNode;
 }) {
   return (
-    <div
-      className={cx(
-        "group relative overflow-hidden rounded-[1.35rem] border p-4 shadow-sm transition duration-300 hover:-translate-y-0.5",
-        tone === "danger" &&
-          "border-red-500/20 bg-red-500/[0.06] dark:border-red-400/20 dark:bg-red-400/[0.07]",
-        tone === "safe" &&
-          "border-emerald-600/20 bg-emerald-600/[0.06] dark:border-emerald-300/20 dark:bg-emerald-300/[0.07]",
-        tone === "law" &&
-          "border-sky-700/20 bg-sky-700/[0.055] dark:border-sky-300/20 dark:bg-sky-300/[0.07]",
-        tone === "premium" &&
-          "border-violet-600/20 bg-violet-500/[0.07] dark:border-violet-300/20 dark:bg-violet-300/[0.07]",
-        tone === "report" &&
-          "border-amber-600/20 bg-amber-500/[0.08] dark:border-amber-300/20 dark:bg-amber-300/[0.07]",
-        tone === "normal" &&
-          "border-black/10 bg-white/70 dark:border-white/10 dark:bg-white/[0.035]",
-      )}
-    >
-      <div className="absolute -right-8 -top-8 h-24 w-24 rounded-full bg-black/[0.04] blur-2xl dark:bg-white/[0.06]" />
+    <div className="group relative overflow-hidden rounded-[1.35rem] border border-white/10 bg-white/[0.032] p-4 shadow-sm transition duration-300 hover:-translate-y-0.5 hover:border-white/18 hover:bg-white/[0.052]">
+      <div className="absolute -right-8 -top-8 h-24 w-24 rounded-full bg-white/[0.04] blur-2xl" />
       <div className="relative flex gap-3">
         {icon ? (
-          <div className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-2xl border border-black/10 bg-white/70 text-zinc-900 dark:border-white/10 dark:bg-black/30 dark:text-white/80">
+          <div className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-2xl border border-white/10 bg-black/40 text-white/82">
             {icon}
           </div>
         ) : null}
         <div>
-          <div className="text-[13px] font-black text-zinc-950 dark:text-white/90">
-            {title}
-          </div>
-          <div className="mt-2 text-[13px] font-semibold leading-relaxed text-zinc-700 dark:text-white/62">
+          <div className="text-[13px] font-black text-white/92">{title}</div>
+          <div className="mt-2 text-[13px] font-semibold leading-relaxed text-white/60">
             {body}
           </div>
         </div>
@@ -482,18 +456,16 @@ function LinkCard({
   return (
     <a
       href={href}
-      className="group rounded-[1.35rem] border border-black/10 bg-white/70 p-4 shadow-sm transition duration-300 hover:-translate-y-0.5 hover:bg-white dark:border-white/10 dark:bg-white/[0.035] dark:hover:bg-white/[0.06]"
+      className="group rounded-[1.35rem] border border-white/10 bg-white/[0.032] p-4 shadow-sm transition duration-300 hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/[0.06]"
     >
       <div className="flex items-start justify-between gap-3">
         <div>
-          <div className="text-[13px] font-black text-zinc-950 dark:text-white/90">
-            {title}
-          </div>
-          <p className="mt-1.5 text-[12.5px] font-semibold leading-relaxed text-zinc-600 dark:text-white/50">
+          <div className="text-[13px] font-black text-white/92">{title}</div>
+          <p className="mt-1.5 text-[12.5px] font-semibold leading-relaxed text-white/52">
             {body}
           </p>
         </div>
-        <span className="text-zinc-400 transition group-hover:translate-x-0.5 group-hover:text-zinc-900 dark:text-white/30 dark:group-hover:text-white/75">
+        <span className="text-white/35 transition group-hover:translate-x-0.5 group-hover:text-white/80">
           →
         </span>
       </div>
@@ -504,56 +476,67 @@ function LinkCard({
 function FloatingBackdrop() {
   return (
     <div aria-hidden="true" className="pointer-events-none fixed inset-0 -z-10">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.08),transparent_34%),radial-gradient(circle_at_15%_20%,rgba(255,255,255,0.12),transparent_28%),radial-gradient(circle_at_85%_12%,rgba(16,185,129,0.10),transparent_25%)] dark:bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.08),transparent_34%),radial-gradient(circle_at_15%_20%,rgba(255,255,255,0.09),transparent_28%),radial-gradient(circle_at_85%_12%,rgba(16,185,129,0.08),transparent_25%)]" />
-      <div className="absolute left-[7%] top-[18%] h-48 w-48 animate-[floatSlow_9s_ease-in-out_infinite] rounded-full bg-white/10 blur-3xl" />
-      <div className="absolute right-[8%] top-[32%] h-56 w-56 animate-[floatSlow_11s_ease-in-out_infinite_reverse] rounded-full bg-emerald-400/10 blur-3xl" />
-      <div className="absolute bottom-[8%] left-[30%] h-60 w-60 animate-[floatSlow_13s_ease-in-out_infinite] rounded-full bg-violet-400/8 blur-3xl" />
+      <div className="absolute inset-0 bg-black" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.08),transparent_34%),radial-gradient(circle_at_15%_20%,rgba(255,255,255,0.055),transparent_28%),radial-gradient(circle_at_85%_12%,rgba(255,255,255,0.045),transparent_25%)]" />
+      <div className="absolute left-[7%] top-[18%] h-48 w-48 animate-[floatSlow_9s_ease-in-out_infinite] rounded-full bg-white/[0.035] blur-3xl" />
+      <div className="absolute right-[8%] top-[32%] h-56 w-56 animate-[floatSlow_11s_ease-in-out_infinite_reverse] rounded-full bg-white/[0.03] blur-3xl" />
+      <div className="absolute bottom-[8%] left-[30%] h-60 w-60 animate-[floatSlow_13s_ease-in-out_infinite] rounded-full bg-white/[0.02] blur-3xl" />
     </div>
   );
 }
 
-function LogoStage() {
+function BrandHeroCard({
+  logo,
+  alt,
+  eyebrow,
+  title,
+  body,
+  reverse = false,
+}: {
+  logo: string;
+  alt: string;
+  eyebrow: string;
+  title: string;
+  body: string;
+  reverse?: boolean;
+}) {
   return (
-    <div className="relative mx-auto grid max-w-[420px] gap-4 sm:grid-cols-2">
-      <div className="absolute inset-0 animate-[softPulse_4s_ease-in-out_infinite] rounded-[2.4rem] bg-black/10 blur-3xl dark:bg-white/10" />
-
-      <div className="relative rounded-[1.8rem] border border-black/10 bg-white/85 p-5 shadow-2xl backdrop-blur dark:border-white/10 dark:bg-white/[0.055]">
-        <div className="grid aspect-square place-items-center rounded-[1.35rem] border border-black/10 bg-white p-5 dark:border-white/10 dark:bg-white/95">
+    <div
+      className={cx(
+        "grid gap-6 rounded-[2rem] border border-white/10 bg-white/[0.032] p-5 shadow-2xl shadow-black/40 backdrop-blur-2xl md:grid-cols-2 md:items-center md:p-7",
+        reverse && "md:[&>*:first-child]:order-2",
+      )}
+    >
+      <div className="relative overflow-hidden rounded-[1.6rem] border border-white/10 bg-white/[0.035] p-5">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.105),transparent_42%)]" />
+        <div className="relative grid min-h-[240px] place-items-center rounded-[1.25rem] border border-white/10 bg-black p-8">
           <Image
-            src={STAYKNOWN_LOGO_SRC}
-            alt="StayKnown logo"
-            width={150}
-            height={150}
+            src={logo}
+            alt={alt}
+            width={230}
+            height={230}
             priority
-            className="h-auto w-[140px] object-contain"
+            className="h-auto w-[180px] object-contain md:w-[220px]"
           />
-        </div>
-        <div className="mt-4 text-center text-[12px] font-black uppercase tracking-[0.16em] text-zinc-600 dark:text-white/45">
-          StayKnown
         </div>
       </div>
 
-      <div className="relative rounded-[1.8rem] border border-black/10 bg-white/85 p-5 shadow-2xl backdrop-blur dark:border-white/10 dark:bg-white/[0.055]">
-        <div className="grid aspect-square place-items-center rounded-[1.35rem] border border-black/10 bg-white p-5 dark:border-white/10 dark:bg-white/95">
-          <Image
-            src={CLEMENT_LOGO_SRC}
-            alt="6 Clement Joshua official logo"
-            width={150}
-            height={150}
-            priority
-            className="h-auto w-[140px] object-contain"
-          />
+      <div>
+        <div className="text-[11px] font-black uppercase tracking-[0.18em] text-white/42">
+          {eyebrow}
         </div>
-        <div className="mt-4 text-center text-[12px] font-black uppercase tracking-[0.16em] text-zinc-600 dark:text-white/45">
-          6 Clement Joshua
-        </div>
+        <h3 className="mt-3 text-[24px] font-black leading-tight tracking-[-0.04em] text-white md:text-[32px]">
+          {title}
+        </h3>
+        <p className="mt-4 text-[14px] font-semibold leading-relaxed text-white/62">
+          {body}
+        </p>
       </div>
     </div>
   );
 }
 
 export default function AboutPage() {
-  const { theme, setTheme } = useThemeMode();
   useSeoMeta();
 
   const nav = useMemo(
@@ -591,7 +574,7 @@ export default function AboutPage() {
   };
 
   return (
-    <main className="min-h-screen overflow-hidden bg-zinc-50 text-zinc-950 transition-colors duration-500 dark:bg-black dark:text-white">
+    <main className="min-h-screen overflow-hidden bg-black text-white">
       <FloatingBackdrop />
 
       <style jsx global>{`
@@ -605,27 +588,14 @@ export default function AboutPage() {
           }
         }
 
-        @keyframes softPulse {
-          0%,
-          100% {
-            opacity: 0.6;
-            transform: scale(1);
-          }
-          50% {
-            opacity: 1;
-            transform: scale(1.04);
-          }
+        html {
+          scroll-behavior: smooth;
+          color-scheme: dark;
+          background: #000;
         }
 
-        @keyframes riseIn {
-          from {
-            opacity: 0;
-            transform: translateY(12px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
+        body {
+          background: #000;
         }
 
         @media (prefers-reduced-motion: reduce) {
@@ -635,26 +605,6 @@ export default function AboutPage() {
             scroll-behavior: auto !important;
             transition-duration: 0.001ms !important;
           }
-        }
-
-        html {
-          scroll-behavior: smooth;
-        }
-
-        html[data-sk-theme="dark"] {
-          color-scheme: dark;
-        }
-
-        html[data-sk-theme="light"] {
-          color-scheme: light;
-        }
-
-        html[data-sk-theme="dark"] body {
-          background: #000;
-        }
-
-        html[data-sk-theme="light"] body {
-          background: #fafafa;
         }
       `}</style>
 
@@ -669,12 +619,12 @@ export default function AboutPage() {
             <Image
               src={STAYKNOWN_LOGO_SRC}
               alt="StayKnown"
-              width={46}
-              height={46}
+              width={42}
+              height={42}
               priority
               className="rounded-2xl bg-white object-contain p-1 shadow-sm"
             />
-            <div className="font-extrabold tracking-[0.28em] text-[12px] text-zinc-900 dark:text-white">
+            <div className="text-[12px] font-extrabold tracking-[0.28em] text-white">
               STAYKNOWN
             </div>
           </div>
@@ -682,71 +632,73 @@ export default function AboutPage() {
       </header>
 
       <section className="relative z-10 w-full">
-        <div className="mx-auto max-w-6xl px-4 pt-8 pb-16 md:pt-12">
-          <article className="overflow-hidden rounded-[2rem] border border-black/10 bg-white/80 shadow-2xl shadow-black/[0.05] backdrop-blur-2xl dark:border-white/10 dark:bg-white/[0.045] dark:shadow-black/40">
-            <div className="relative overflow-hidden border-b border-black/10 px-5 py-7 dark:border-white/10 md:px-8 md:py-9">
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_15%_0%,rgba(255,255,255,0.18),transparent_30%),radial-gradient(circle_at_80%_10%,rgba(16,185,129,0.14),transparent_28%)]" />
+        <div className="mx-auto max-w-6xl px-4 pb-16 pt-8 md:pt-12">
+          <article className="overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.03] shadow-2xl shadow-black/60 backdrop-blur-2xl">
+            <div className="relative overflow-hidden border-b border-white/10 px-5 py-7 md:px-8 md:py-10">
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_15%_0%,rgba(255,255,255,0.105),transparent_30%),radial-gradient(circle_at_80%_10%,rgba(255,255,255,0.05),transparent_28%)]" />
 
-              <div className="relative grid gap-8 md:grid-cols-[1fr_430px] md:items-center">
-                <div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Pill>About StayKnown</Pill>
-                    <Pill>A 6 Clement Joshua Service™</Pill>
-                    <Pill>Safety-first technology</Pill>
-                  </div>
-
-                  <h1 className="mt-5 max-w-4xl text-[30px] font-black tracking-[-0.045em] text-zinc-950 dark:text-white/95 md:text-[46px] md:leading-[1.02]">
-                    StayKnown is built so trusted people can know where you are,
-                    understand your safety context, and respond with confidence
-                    when it matters.
-                  </h1>
-
-                  <p className="mt-5 max-w-3xl text-[14.5px] font-semibold leading-relaxed text-zinc-700 dark:text-white/62 md:text-[15px]">
-                    StayKnown is a 6 Clement Joshua service™ created around one
-                    simple human reality: when someone leaves home, travels,
-                    visits, meets someone, or faces uncertainty, trusted people
-                    should not be left guessing. StayKnown helps turn silence
-                    into safety context through approved contacts, live
-                    location, SOS awareness, secure communication, consent
-                    controls, and anti-misuse rules.
-                  </p>
-
-                  <div className="mt-6 flex flex-wrap items-center gap-3">
-                    <a
-                      href="/submit-request"
-                      className="rounded-full border border-black/10 bg-zinc-950 px-5 py-3 text-[12px] font-black text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-black dark:border-white/10 dark:bg-white dark:text-black dark:hover:bg-white/90"
-                    >
-                      Submit a request
-                    </a>
-                    <a
-                      href="/submit-feature"
-                      className="rounded-full border border-black/10 bg-white/70 px-5 py-3 text-[12px] font-black text-zinc-900 shadow-sm transition hover:-translate-y-0.5 hover:bg-white dark:border-white/10 dark:bg-white/[0.055] dark:text-white dark:hover:bg-white/[0.08]"
-                    >
-                      Submit an app feature
-                    </a>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setTheme(theme === "dark" ? "light" : "dark")
-                      }
-                      className="rounded-full border border-black/10 bg-white/70 px-5 py-3 text-[12px] font-black text-zinc-900 shadow-sm transition hover:-translate-y-0.5 hover:bg-white dark:border-white/10 dark:bg-white/[0.055] dark:text-white dark:hover:bg-white/[0.08]"
-                    >
-                      {theme === "dark" ? "Light mode" : "Dark mode"}
-                    </button>
-                  </div>
-
-                  <div className="mt-4 text-[12px] font-black text-zinc-500 dark:text-white/35">
-                    Updated: {fmtDate(UPDATED_AT)}
-                  </div>
+              <div className="relative">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Pill>About StayKnown</Pill>
+                  <Pill>A 6 Clement Joshua Service™</Pill>
+                  <Pill>Safety-first technology</Pill>
                 </div>
 
-                <LogoStage />
+                <h1 className="mt-5 max-w-5xl text-[32px] font-black tracking-[-0.055em] text-white md:text-[58px] md:leading-[1.01]">
+                  StayKnown is built for real people, trusted contacts, safety
+                  awareness, and serious protection.
+                </h1>
+
+                <p className="mt-5 max-w-3xl text-[14.5px] font-semibold leading-relaxed text-white/62 md:text-[15px]">
+                  StayKnown is a 6 Clement Joshua service™ created around one
+                  simple human reality: when someone leaves home, travels,
+                  visits, meets someone, or faces uncertainty, trusted people
+                  should not be left guessing. StayKnown helps turn silence into
+                  safety context through approved contacts, live location, SOS
+                  awareness, secure communication, consent controls, and
+                  anti-misuse rules.
+                </p>
+
+                <div className="mt-7 flex flex-wrap items-center gap-3">
+                  <PrimaryButton href="/submit-request">
+                    Submit a request
+                  </PrimaryButton>
+                  <SecondaryButton href="/submit-feature">
+                    Submit an app feature
+                  </SecondaryButton>
+                  <SecondaryButton href="/contact">
+                    Contact StayKnown
+                  </SecondaryButton>
+                </div>
+
+                <div className="mt-4 text-[12px] font-black text-white/35">
+                  Updated: {fmtDate(UPDATED_AT)}
+                </div>
+
+                <div className="mt-9 grid gap-4">
+                  <BrandHeroCard
+                    logo={STAYKNOWN_LOGO_SRC}
+                    alt="StayKnown logo"
+                    eyebrow="The safety product"
+                    title="StayKnown keeps safety centered on approved people, clear context, and responsible sharing."
+                    body="StayKnown is the product identity for the safety app, Visit sessions, LIVE map sharing, SOS awareness, manual capture, trusted contacts, secure chat, media, translation, and the communication flows that help people stay known when it matters."
+                  />
+
+                  <BrandHeroCard
+                    logo={CLEMENT_LOGO_SRC}
+                    alt="6 Clement Joshua official logo"
+                    eyebrow="The service mark"
+                    title="6 Clement Joshua represents the ownership, discipline, and long-term standard behind StayKnown."
+                    body="The 6 Clement Joshua mark represents the service ownership, creative direction, product responsibility, safety philosophy, design quality, and brand authority behind StayKnown as a serious safety and security platform."
+                    reverse
+                  />
+                </div>
               </div>
             </div>
 
             <div className="grid gap-0 lg:grid-cols-[260px_1fr]">
-              <aside className="border-b border-black/10 bg-black/[0.02] p-5 dark:border-white/10 dark:bg-black/20 lg:sticky lg:top-0 lg:h-screen lg:border-b-0 lg:border-r lg:p-6">
-                <div className="text-[12px] font-black uppercase tracking-[0.2em] text-zinc-500 dark:text-white/35">
+              <aside className="border-b border-white/10 bg-black/35 p-5 lg:sticky lg:top-0 lg:h-screen lg:border-b-0 lg:border-r lg:p-6">
+                <div className="text-[12px] font-black uppercase tracking-[0.2em] text-white/35">
                   On this page
                 </div>
 
@@ -758,19 +710,19 @@ export default function AboutPage() {
                     <a
                       key={id}
                       href={`#${id}`}
-                      className="rounded-2xl px-3 py-2 text-[12.5px] font-bold text-zinc-600 transition hover:bg-black/[0.04] hover:text-zinc-950 dark:text-white/48 dark:hover:bg-white/[0.05] dark:hover:text-white/86"
+                      className="rounded-2xl px-3 py-2 text-[12.5px] font-bold text-white/50 transition hover:bg-white/[0.06] hover:text-white"
                     >
                       {label}
                     </a>
                   ))}
                 </nav>
 
-                <div className="mt-6 rounded-[1.4rem] border border-emerald-500/20 bg-emerald-500/[0.07] p-4 dark:border-emerald-300/20 dark:bg-emerald-300/[0.07]">
-                  <div className="flex items-center gap-2 text-[12px] font-black text-zinc-950 dark:text-white/86">
+                <div className="mt-6 rounded-[1.4rem] border border-white/10 bg-white/[0.032] p-4">
+                  <div className="flex items-center gap-2 text-[12px] font-black text-white/88">
                     <ShieldIcon className="h-4 w-4" />
                     Core standard
                   </div>
-                  <p className="mt-2 text-[12px] font-semibold leading-relaxed text-zinc-700 dark:text-white/55">
+                  <p className="mt-2 text-[12px] font-semibold leading-relaxed text-white/55">
                     StayKnown is not built for spying. It is built for
                     consent-aware safety, trusted relationships, emergency
                     awareness, and responsible communication.
@@ -798,19 +750,16 @@ export default function AboutPage() {
                       <Callout
                         title="Known by trusted people"
                         body="StayKnown is centered on approved contacts and clear safety relationships, not random public tracking."
-                        tone="safe"
                         icon={<ContactIcon className="h-5 w-5" />}
                       />
                       <Callout
                         title="Safety context, not panic"
                         body="The app helps trusted people understand where a user is, what safety flow is active, and what action may be needed."
-                        tone="premium"
                         icon={<LocationIcon className="h-5 w-5" />}
                       />
                       <Callout
                         title="Built against misuse"
                         body="StayKnown includes anti-stalking, anti-harassment, consent, location, emergency, abuse, and legal policies."
-                        tone="law"
                         icon={<LockIcon className="h-5 w-5" />}
                       />
                     </div>
@@ -844,18 +793,17 @@ export default function AboutPage() {
                       3) Ownership and brand
                     </H2>
                     <P>
-                      StayKnown is presented as a 6 Clement Joshua service™.
-                      That means the product is tied to a larger standard of
-                      identity, responsibility, brand discipline, and long-term
-                      service vision. The StayKnown name represents the product:
-                      a safety platform focused on keeping people known to the
-                      people they approve and trust. The 6 Clement Joshua mark
-                      represents the service ownership, creative direction, and
-                      brand authority behind the platform.
+                      StayKnown is presented as a 6 Clement Joshua service™. The
+                      StayKnown name represents the product: a safety platform
+                      focused on keeping people known to the people they approve
+                      and trust. The 6 Clement Joshua mark represents the
+                      service ownership, creative direction, public identity,
+                      brand authority, and long-term platform ambition behind
+                      the product.
                     </P>
 
                     <div className="grid gap-4 md:grid-cols-2">
-                      <div className="rounded-[1.5rem] border border-black/10 bg-white/70 p-5 shadow-sm dark:border-white/10 dark:bg-white/[0.035]">
+                      <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.032] p-5 shadow-sm">
                         <Image
                           src={STAYKNOWN_LOGO_SRC}
                           alt="StayKnown logo"
@@ -863,17 +811,18 @@ export default function AboutPage() {
                           height={82}
                           className="rounded-2xl bg-white object-contain p-2"
                         />
-                        <div className="mt-4 text-[15px] font-black text-zinc-950 dark:text-white/90">
+                        <div className="mt-4 text-[15px] font-black text-white/92">
                           StayKnown
                         </div>
-                        <p className="mt-2 text-[13px] font-semibold leading-relaxed text-zinc-700 dark:text-white/58">
+                        <p className="mt-2 text-[13px] font-semibold leading-relaxed text-white/58">
                           The product identity for the safety app, live safety
-                          sharing, trusted contact system, and secure
+                          sharing, trusted contact system, Visit sessions, SOS
+                          awareness, manual capture, secure chat, and
                           people-centered communication experience.
                         </p>
                       </div>
 
-                      <div className="rounded-[1.5rem] border border-black/10 bg-white/70 p-5 shadow-sm dark:border-white/10 dark:bg-white/[0.035]">
+                      <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.032] p-5 shadow-sm">
                         <Image
                           src={CLEMENT_LOGO_SRC}
                           alt="6 Clement Joshua official logo"
@@ -881,13 +830,14 @@ export default function AboutPage() {
                           height={82}
                           className="rounded-2xl bg-white object-contain p-2"
                         />
-                        <div className="mt-4 text-[15px] font-black text-zinc-950 dark:text-white/90">
+                        <div className="mt-4 text-[15px] font-black text-white/92">
                           6 Clement Joshua
                         </div>
-                        <p className="mt-2 text-[13px] font-semibold leading-relaxed text-zinc-700 dark:text-white/58">
+                        <p className="mt-2 text-[13px] font-semibold leading-relaxed text-white/58">
                           The official service mark and ownership brand behind
                           StayKnown’s product direction, safety philosophy,
-                          design quality, and long-term platform ambition.
+                          design quality, legal seriousness, and premium
+                          platform standard.
                         </p>
                       </div>
                     </div>
@@ -908,49 +858,41 @@ export default function AboutPage() {
                       <Callout
                         title="Visit sessions"
                         body="A user can start a safety-aware Visit flow so trusted people understand movement, destination context, and active safety status."
-                        tone="normal"
                         icon={<LocationIcon className="h-5 w-5" />}
                       />
                       <Callout
                         title="LIVE map sharing"
                         body="Approved contacts can receive live safety context when the user intentionally shares it through supported flows."
-                        tone="safe"
                         icon={<LocationIcon className="h-5 w-5" />}
                       />
                       <Callout
                         title="SOS awareness"
                         body="SOS flows help escalate urgent trusted-contact attention, while clearly stating that official emergency services must be contacted first in immediate danger."
-                        tone="danger"
                         icon={<AlertIcon className="h-5 w-5" />}
                       />
                       <Callout
                         title="Manual capture"
                         body="Manual capture can send a current safety update during supported active flows, with limits and safeguards to reduce spam or misuse."
-                        tone="premium"
                         icon={<ShieldIcon className="h-5 w-5" />}
                       />
                       <Callout
                         title="Approved contacts"
                         body="StayKnown is built around people the user approves, with consent-centered contact handling and removal rules."
-                        tone="safe"
                         icon={<ContactIcon className="h-5 w-5" />}
                       />
                       <Callout
                         title="Secure communication"
                         body="Chat, voice notes, media, stickers, translation, and safety context are designed to support communication between approved people."
-                        tone="normal"
                         icon={<ChatIcon className="h-5 w-5" />}
                       />
                       <Callout
                         title="Safety gallery"
                         body="Recognition-focused safety gallery support can help trusted contacts identify the user in serious safety contexts where enabled."
-                        tone="law"
                         icon={<ShieldIcon className="h-5 w-5" />}
                       />
                       <Callout
                         title="Plan-aware access"
                         body="Starter, Pro, and Pro Max may provide different feature access while safety, policy, and anti-misuse rules remain active for everyone."
-                        tone="report"
                         icon={<WalletIcon className="h-5 w-5" />}
                       />
                     </div>
@@ -965,9 +907,7 @@ export default function AboutPage() {
                       be intentional, approved, and responsible. The platform is
                       not designed for secret spying, harassment, romantic
                       control, employer abuse, family intimidation, or random
-                      location watching. A person’s safety data is sensitive, so
-                      the system is built around consent, approved contacts,
-                      accountability, and safety-first language.
+                      location watching.
                     </P>
                     <UL
                       items={[
@@ -1038,8 +978,7 @@ export default function AboutPage() {
                       mobile-first flows, server-backed data, policy-governed
                       records, live-map experiences, secure email notices,
                       payment-aware plan access, and safety controls across the
-                      app and website. The product philosophy is to make safety
-                      feel premium without making it confusing.
+                      app and website.
                     </P>
                     <UL
                       items={[
@@ -1085,7 +1024,6 @@ export default function AboutPage() {
                     <Callout
                       title="Product philosophy"
                       body="StayKnown should feel powerful enough for serious safety use, but careful enough to protect against misuse, stalking, fake emergencies, fraud, and careless exposure of private information."
-                      tone="premium"
                       icon={<ShieldIcon className="h-5 w-5" />}
                     />
                   </section>
@@ -1189,7 +1127,7 @@ export default function AboutPage() {
                     </div>
                   </section>
 
-                  <section className="space-y-3 rounded-[1.6rem] border border-black/10 bg-black/[0.025] p-5 dark:border-white/10 dark:bg-white/[0.03]">
+                  <section className="space-y-3 rounded-[1.6rem] border border-white/10 bg-white/[0.032] p-5">
                     <H2>12) About-page statement</H2>
                     <P>
                       StayKnown is a serious safety product with a premium brand
@@ -1203,72 +1141,49 @@ export default function AboutPage() {
                   </section>
                 </div>
 
-                <div className="mt-10 h-px bg-black/10 dark:bg-white/10" />
+                <div className="mx-auto mt-12 h-px max-w-3xl bg-white/10" />
 
-                <footer className="mt-6 text-center">
-                  <div className="flex flex-wrap justify-center gap-x-4 gap-y-2 text-[11px] font-black uppercase tracking-[0.12em] text-zinc-500 dark:text-white/35">
-                    <a
-                      href="/privacy"
-                      className="hover:text-zinc-950 dark:hover:text-white"
-                    >
-                      Privacy
-                    </a>
-                    <a
-                      href="/terms"
-                      className="hover:text-zinc-950 dark:hover:text-white"
-                    >
-                      Terms
-                    </a>
-                    <a
-                      href="/safety"
-                      className="hover:text-zinc-950 dark:hover:text-white"
-                    >
-                      Safety
-                    </a>
-                    <a
-                      href="/acceptable-use"
-                      className="hover:text-zinc-950 dark:hover:text-white"
-                    >
-                      Acceptable Use
-                    </a>
-                    <a
-                      href="/billing-policy"
-                      className="hover:text-zinc-950 dark:hover:text-white"
-                    >
-                      Billing Policy
-                    </a>
-                    <a
-                      href="/security"
-                      className="hover:text-zinc-950 dark:hover:text-white"
-                    >
-                      Security
-                    </a>
-                    <a
-                      href="/law"
-                      className="hover:text-zinc-950 dark:hover:text-white"
-                    >
-                      Law Requests
-                    </a>
-                  </div>
-
-                  <div className="mt-5 flex items-center justify-center gap-3">
-                    <Image
-                      src={CLEMENT_LOGO_SRC}
-                      alt="6 Clement Joshua official logo"
-                      width={26}
-                      height={26}
-                      className="rounded-md bg-white object-contain p-0.5"
-                    />
-                    <div className="text-[12px] font-semibold text-zinc-600 dark:text-white/50">
-                      A 6 Clement Joshua service
-                      <span className="ml-1 align-super text-[10px] text-zinc-400 dark:text-white/25">
-                        ™
-                      </span>
+                <footer className="mx-auto mt-7 max-w-4xl text-center">
+                  <div className="mx-auto rounded-[1.6rem] border border-white/10 bg-black/35 px-5 py-6">
+                    <div className="flex flex-wrap justify-center gap-x-4 gap-y-2 text-[11px] font-black uppercase tracking-[0.12em] text-white/38">
+                      {[
+                        ["Privacy", "/privacy"],
+                        ["Terms", "/terms"],
+                        ["Safety", "/safety"],
+                        ["Acceptable Use", "/acceptable-use"],
+                        ["Billing Policy", "/billing-policy"],
+                        ["Security", "/security"],
+                        ["Law Requests", "/law"],
+                      ].map(([label, href]) => (
+                        <a
+                          key={href}
+                          href={href}
+                          className="transition hover:text-white"
+                        >
+                          {label}
+                        </a>
+                      ))}
                     </div>
-                  </div>
 
-                  <div className="mt-2 text-[11px] font-semibold text-zinc-500 dark:text-white/30">
-                    {new Date().getFullYear()} • stay-known.com
+                    <div className="mt-6 flex items-center justify-center gap-3">
+                      <Image
+                        src={CLEMENT_LOGO_SRC}
+                        alt="6 Clement Joshua official logo"
+                        width={28}
+                        height={28}
+                        className="rounded-md bg-white object-contain p-0.5"
+                      />
+                      <div className="text-[12px] font-semibold text-white/55">
+                        A 6 Clement Joshua service
+                        <span className="ml-1 align-super text-[10px] text-white/28">
+                          ™
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="mt-2 text-[11px] font-semibold text-white/32">
+                      {new Date().getFullYear()} • stay-known.com
+                    </div>
                   </div>
                 </footer>
               </div>
