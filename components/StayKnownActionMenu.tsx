@@ -31,6 +31,10 @@ const menuItems: MenuItem[] = [
   },
 ];
 
+function cn(...classes: Array<string | false | null | undefined>) {
+  return classes.filter(Boolean).join(" ");
+}
+
 function DotsIcon({ className = "" }: { className?: string }) {
   return (
     <svg
@@ -101,17 +105,13 @@ export default function StayKnownActionMenu() {
         aria-label="Open StayKnown menu"
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
-        className="
-          grid h-11 w-11 place-items-center rounded-full
-          border border-black/10 bg-white/78 text-zinc-950
-          shadow-[0_18px_45px_rgba(0,0,0,0.10)]
-          backdrop-blur-xl transition
-          hover:-translate-y-0.5 hover:bg-white
-          active:scale-[0.97]
-          dark:border-white/10 dark:bg-white/[0.055] dark:text-white
-          dark:shadow-[0_18px_45px_rgba(0,0,0,0.35)]
-          dark:hover:bg-white/[0.085]
-        "
+        className={cn(
+          "grid h-11 w-11 place-items-center rounded-full",
+          "border border-white/12 bg-white/[0.08] text-white",
+          "shadow-[0_18px_45px_rgba(0,0,0,0.30)] backdrop-blur-xl",
+          "transition hover:-translate-y-0.5 hover:bg-white/[0.12] active:scale-[0.97]",
+          "dark:border-white/10 dark:bg-white/[0.055] dark:text-white dark:hover:bg-white/[0.085]",
+        )}
       >
         <DotsIcon className="h-6 w-6" />
       </button>
@@ -126,17 +126,15 @@ export default function StayKnownActionMenu() {
           />
 
           <div
-            className="
-              fixed inset-x-3 top-[76px] z-50
-              origin-top animate-[skMenuIn_0.18s_ease-out_both]
-              overflow-hidden rounded-[1.65rem]
-              border border-black/10 bg-white/92
-              p-2 shadow-2xl shadow-black/15 backdrop-blur-2xl
-              dark:border-white/10 dark:bg-zinc-950/92 dark:shadow-black/50
-
-              md:absolute md:inset-auto md:right-0 md:top-[calc(100%+12px)]
-              md:w-[360px]
-            "
+            className={cn(
+              "fixed inset-x-3 top-[76px] z-50",
+              "origin-top animate-[skMenuIn_0.18s_ease-out_both]",
+              "overflow-hidden rounded-[1.65rem]",
+              "border border-black/10 bg-white/92",
+              "p-2 shadow-2xl shadow-black/15 backdrop-blur-2xl",
+              "dark:border-white/10 dark:bg-zinc-950/92 dark:shadow-black/50",
+              "md:absolute md:inset-auto md:right-0 md:top-[calc(100%+12px)] md:w-[360px]",
+            )}
           >
             <div className="px-3 pb-2 pt-3">
               <div className="text-[11px] font-black uppercase tracking-[0.2em] text-zinc-500 dark:text-white/35">
@@ -153,13 +151,11 @@ export default function StayKnownActionMenu() {
                   key={item.href}
                   href={item.href}
                   onClick={() => setOpen(false)}
-                  className="
-                    group flex items-start justify-between gap-3
-                    rounded-[1.25rem] px-3 py-3
-                    transition
-                    hover:bg-black/[0.045]
-                    dark:hover:bg-white/[0.06]
-                  "
+                  className={cn(
+                    "group flex items-start justify-between gap-3",
+                    "rounded-[1.25rem] px-3 py-3",
+                    "transition hover:bg-black/[0.045] dark:hover:bg-white/[0.06]",
+                  )}
                 >
                   <span>
                     <span className="block text-[13px] font-black text-zinc-950 dark:text-white/90">
@@ -171,13 +167,12 @@ export default function StayKnownActionMenu() {
                   </span>
 
                   <span
-                    className="
-                      mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full
-                      border border-black/10 bg-white/70 text-zinc-500
-                      transition group-hover:translate-x-0.5 group-hover:text-zinc-950
-                      dark:border-white/10 dark:bg-white/[0.05] dark:text-white/35
-                      dark:group-hover:text-white
-                    "
+                    className={cn(
+                      "mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full",
+                      "border border-black/10 bg-white/70 text-zinc-500",
+                      "transition group-hover:translate-x-0.5 group-hover:text-zinc-950",
+                      "dark:border-white/10 dark:bg-white/[0.05] dark:text-white/35 dark:group-hover:text-white",
+                    )}
                   >
                     <ArrowIcon className="h-4 w-4" />
                   </span>
