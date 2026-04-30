@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useMemo } from "react";
 import HeroSlider, { type HeroSlide } from "../components/HeroSlider";
+import StayKnownActionMenu from "@/components/StayKnownActionMenu";
 
 export default function Page() {
   const slides: HeroSlide[] = useMemo(
@@ -150,8 +151,10 @@ export default function Page() {
   return (
     <main className="min-h-screen bg-black flex flex-col">
       {/* Brand */}
-      <header className="pt-7">
-        <div className="mx-auto max-w-6xl px-4 flex items-center justify-center">
+      <header className="relative z-50 pt-7">
+        <div className="mx-auto grid max-w-6xl grid-cols-[44px_1fr_44px] items-center px-4">
+          <div />
+
           <div className="flex flex-col items-center gap-2">
             <Image
               src="/6logo.png"
@@ -163,6 +166,10 @@ export default function Page() {
             <div className="text-white font-extrabold tracking-[0.28em] text-[12px]">
               STAYKNOWN
             </div>
+          </div>
+
+          <div className="flex justify-end">
+            <StayKnownActionMenu />
           </div>
         </div>
       </header>
