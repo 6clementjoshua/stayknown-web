@@ -15,6 +15,11 @@ const menuItems: MenuItem[] = [
     body: "Learn what StayKnown is, who owns it, and what the safety platform is built for.",
   },
   {
+    href: "/help-center",
+    title: "Help Center",
+    body: "Search answers about safety, visits, SOS, contacts, chat, billing, privacy, account help, and troubleshooting.",
+  },
+  {
     href: "/submit-request",
     title: "Submit a request",
     body: "Get help with account, safety, contacts, SOS, live map, chat, billing, wallet, or app issues.",
@@ -133,7 +138,7 @@ export default function StayKnownActionMenu() {
               "border border-white/10 bg-black/[0.72]",
               "p-2 shadow-2xl shadow-black/60 backdrop-blur-2xl",
               "ring-1 ring-white/[0.035]",
-              "md:absolute md:inset-auto md:right-0 md:top-[calc(100%+12px)] md:w-[360px]",
+              "md:absolute md:inset-auto md:right-0 md:top-[calc(100%+12px)] md:w-[380px]",
             )}
           >
             <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.12),transparent_34%),radial-gradient(circle_at_bottom_left,rgba(255,255,255,0.055),transparent_34%)]" />
@@ -184,8 +189,9 @@ export default function StayKnownActionMenu() {
 
             <div className="relative mt-2 border-t border-white/10 px-3 py-3">
               <p className="text-[11px] font-semibold leading-relaxed text-white/34">
-                Use these pages responsibly. StayKnown does not accept abusive,
-                unlawful, threatening, fraudulent, spam, or irrelevant contact.
+                Start with the Help Center before contacting support. Use every
+                StayKnown page responsibly; abusive, unlawful, threatening,
+                fraudulent, spam, or irrelevant contact may be reviewed.
               </p>
             </div>
           </div>
