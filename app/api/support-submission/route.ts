@@ -5,8 +5,8 @@ export const runtime = "nodejs";
 type SubmissionType = "support_request" | "feature_request" | "contact_message";
 type Priority = "low" | "normal" | "high" | "urgent";
 
-const DEFAULT_LOGO_URL =
-  "https://ipognlibpkbauusvfeic.supabase.co/storage/v1/object/public/public-assets/stayknown-logo.png";
+const DEFAULT_SITE_URL = "https://stay-known.com";
+const DEFAULT_LOGO_URL = `${DEFAULT_SITE_URL}/6logo.png`;
 
 function env(name: string, fallback = "") {
   return (process.env[name] || fallback).trim();
@@ -37,6 +37,15 @@ function escapeHtml(value: unknown) {
 
 function isEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
+function isHttpsUrl(value: string) {
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:";
+  } catch {
+    return false;
+  }
 }
 
 function clampSubmissionType(value: unknown): SubmissionType {
@@ -81,11 +90,17 @@ function priorityLabel(priority: Priority) {
 }
 
 function appBaseUrl() {
-  return env("SITE_BASE_URL", "https://stay-known.com").replace(/\/+$/g, "");
+  return env("SITE_BASE_URL", DEFAULT_SITE_URL).replace(/\/+$/g, "");
 }
 
-function logoUrl() {
-  return env("BRAND_LOGO_URL", DEFAULT_LOGO_URL);
+function brandLogoUrl(value?: unknown) {
+  const fromBody = safeTrim(value);
+  if (fromBody && isHttpsUrl(fromBody)) return fromBody;
+
+  const fromEnv = env("BRAND_LOGO_URL");
+  if (fromEnv && isHttpsUrl(fromEnv)) return fromEnv;
+
+  return DEFAULT_LOGO_URL;
 }
 
 async function resendSend(params: {
@@ -127,65 +142,72 @@ function shell(params: {
   title: string;
   subtitle: string;
   contentHtml: string;
+  logoUrl: string;
 }) {
   const year = new Date().getFullYear();
   const base = appBaseUrl();
+  const logo = params.logoUrl || DEFAULT_LOGO_URL;
 
   return `
-  <div style="margin:0; padding:0; background:#f3f4f6;">
-    <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background:#f3f4f6; padding:26px 12px;">
+  <div style="margin:0; padding:0; background:#000000;">
+    <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background:#000000; padding:28px 12px;">
       <tr>
         <td align="center">
           <table role="presentation" cellpadding="0" cellspacing="0" width="560" style="width:560px; max-width:560px;">
             <tr>
               <td style="padding:10px 6px;">
-                <div style="text-align:center; margin:0 0 8px 0;">
-                  <div style="font-size:12px; font-weight:950; letter-spacing:2.6px; color:rgba(0,0,0,0.78);">
+                <div style="text-align:center; margin:0 0 10px 0;">
+                  <img
+                    src="${escapeHtml(logo)}"
+                    width="64"
+                    height="64"
+                    alt="StayKnown"
+                    style="display:inline-block;width:64px;height:64px;border-radius:16px;background:#ffffff;padding:4px;object-fit:contain;border:1px solid rgba(255,255,255,0.22);box-shadow:0 18px 45px rgba(255,255,255,0.10);"
+                  />
+                  <div style="height:12px;"></div>
+                  <div style="font-size:12px; font-weight:950; letter-spacing:2.8px; color:rgba(255,255,255,0.92);">
                     STAYKNOWN™
                   </div>
-                  <div style="height:10px;"></div>
-                  <img src="${escapeHtml(logoUrl())}" width="64" height="64" alt="StayKnown"
-                    style="display:inline-block; border-radius:18px; box-shadow:0 14px 38px rgba(0,0,0,0.14);" />
                 </div>
 
-                <div style="text-align:center; font-size:18px; font-weight:950; letter-spacing:0.4px; color:#0b0b0b;">
+                <div style="text-align:center; font-size:20px; font-weight:950; letter-spacing:-0.2px; color:#ffffff; line-height:1.25;">
                   ${escapeHtml(params.title)}
                 </div>
 
-                <div style="margin-top:8px; text-align:center; font-size:13px; color:rgba(0,0,0,0.66); line-height:1.6;">
+                <div style="margin-top:9px; text-align:center; font-size:13px; color:rgba(255,255,255,0.58); line-height:1.65;">
                   ${escapeHtml(params.subtitle)}
                 </div>
 
-                <div style="height:16px;"></div>
+                <div style="height:18px;"></div>
 
                 <div style="
-                  border-radius:22px;
-                  border:1px solid rgba(0,0,0,0.10);
-                  background:rgba(255,255,255,0.78);
-                  box-shadow: inset 0 1px 0 rgba(255,255,255,0.92), 0 28px 75px rgba(0,0,0,0.09);
+                  border-radius:24px;
+                  border:1px solid rgba(255,255,255,0.12);
+                  background:rgba(255,255,255,0.055);
+                  box-shadow: inset 0 1px 0 rgba(255,255,255,0.10), 0 30px 80px rgba(0,0,0,0.42);
                   overflow:hidden;
                 ">
-                  <div style="padding:18px 20px;">
+                  <div style="padding:20px 21px;">
                     ${params.contentHtml}
                   </div>
                 </div>
 
-                <div style="height:14px;"></div>
+                <div style="height:16px;"></div>
 
-                <div style="text-align:center; font-size:11px; color:rgba(0,0,0,0.55); line-height:1.7;">
-                  <a href="${base}/privacy" style="color:rgba(0,0,0,0.68); text-decoration:none; font-weight:800;">Privacy</a>
-                  <span style="padding:0 6px;">•</span>
-                  <a href="${base}/terms" style="color:rgba(0,0,0,0.68); text-decoration:none; font-weight:800;">Terms</a>
-                  <span style="padding:0 6px;">•</span>
-                  <a href="${base}/safety" style="color:rgba(0,0,0,0.68); text-decoration:none; font-weight:800;">Safety</a>
-                  <span style="padding:0 6px;">•</span>
-                  <a href="${base}/acceptable-use" style="color:rgba(0,0,0,0.68); text-decoration:none; font-weight:800;">Acceptable Use</a>
+                <div style="text-align:center; font-size:11px; color:rgba(255,255,255,0.38); line-height:1.8;">
+                  <a href="${base}/privacy" style="color:rgba(255,255,255,0.62); text-decoration:none; font-weight:850;">Privacy</a>
+                  <span style="padding:0 6px; color:rgba(255,255,255,0.20);">•</span>
+                  <a href="${base}/terms" style="color:rgba(255,255,255,0.62); text-decoration:none; font-weight:850;">Terms</a>
+                  <span style="padding:0 6px; color:rgba(255,255,255,0.20);">•</span>
+                  <a href="${base}/safety" style="color:rgba(255,255,255,0.62); text-decoration:none; font-weight:850;">Safety</a>
+                  <span style="padding:0 6px; color:rgba(255,255,255,0.20);">•</span>
+                  <a href="${base}/acceptable-use" style="color:rgba(255,255,255,0.62); text-decoration:none; font-weight:850;">Acceptable Use</a>
 
-                  <div style="height:8px;"></div>
+                  <div style="height:9px;"></div>
 
                   This message was sent by StayKnown for support, safety, and product-improvement communication.
                   <div style="height:6px;"></div>
-                  <span style="color:rgba(0,0,0,0.52);">© ${year} StayKnown™ · A 6 Clement Joshua service™</span>
+                  <span style="color:rgba(255,255,255,0.35);">© ${year} StayKnown™ · A 6 Clement Joshua service™</span>
                 </div>
               </td>
             </tr>
@@ -202,14 +224,14 @@ function card(title: string, body: string) {
       margin-top:12px;
       padding:14px 14px;
       border-radius:18px;
-      border:1px solid rgba(0,0,0,0.10);
-      background:rgba(255,255,255,0.72);
-      box-shadow: inset 0 1px 0 rgba(255,255,255,0.85), 0 18px 50px rgba(0,0,0,0.06);
-      color:rgba(0,0,0,0.76);
+      border:1px solid rgba(255,255,255,0.11);
+      background:rgba(255,255,255,0.055);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.08), 0 18px 50px rgba(0,0,0,0.22);
+      color:rgba(255,255,255,0.72);
       font-size:13px;
       line-height:1.65;
     ">
-      <div style="font-weight:900; margin-bottom:6px;">${escapeHtml(title)}</div>
+      <div style="font-weight:950; margin-bottom:6px; color:rgba(255,255,255,0.92);">${escapeHtml(title)}</div>
       <div>${body}</div>
     </div>
   `;
@@ -221,12 +243,12 @@ function badge(text: string) {
       display:inline-block;
       padding:7px 10px;
       border-radius:999px;
-      border:1px solid rgba(0,0,0,0.10);
-      background:rgba(0,0,0,0.04);
+      border:1px solid rgba(255,255,255,0.11);
+      background:rgba(255,255,255,0.055);
       font-size:11px;
-      font-weight:900;
+      font-weight:950;
       letter-spacing:0.4px;
-      color:rgba(0,0,0,0.72);
+      color:rgba(255,255,255,0.72);
       margin:0 5px 6px 0;
     ">${escapeHtml(text)}</span>
   `;
@@ -238,10 +260,10 @@ function detailRow(label: string, value: unknown) {
 
   return `
     <tr>
-      <td style="padding:7px 0; width:150px; color:rgba(0,0,0,0.52); font-size:12px; font-weight:850; vertical-align:top;">
+      <td style="padding:7px 0; width:150px; color:rgba(255,255,255,0.42); font-size:12px; font-weight:850; vertical-align:top;">
         ${escapeHtml(label)}
       </td>
-      <td style="padding:7px 0; color:rgba(0,0,0,0.82); font-size:13px; font-weight:700; line-height:1.55;">
+      <td style="padding:7px 0; color:rgba(255,255,255,0.82); font-size:13px; font-weight:700; line-height:1.55;">
         ${escapeHtml(clean)}
       </td>
     </tr>
@@ -265,11 +287,12 @@ function supportCopyHtml(p: {
   relatedPolicy: string;
   consentToContact: boolean;
   createdAt: string;
+  logoUrl: string;
 }) {
   const content = `
-    <div style="font-size:13px; color:rgba(0,0,0,0.78); line-height:1.7;">
+    <div style="font-size:13px; color:rgba(255,255,255,0.74); line-height:1.7;">
       <div>
-        A new <b>${escapeHtml(typeLabel(p.submissionType))}</b> was submitted from the StayKnown website.
+        A new <b style="color:#ffffff;">${escapeHtml(typeLabel(p.submissionType))}</b> was submitted from the StayKnown website.
       </div>
 
       <div style="height:12px;"></div>
@@ -315,6 +338,7 @@ function supportCopyHtml(p: {
     subtitle:
       "A website form submission was saved and copied to StayKnown support.",
     contentHtml: content,
+    logoUrl: p.logoUrl,
   });
 }
 
@@ -328,11 +352,16 @@ function userConfirmationHtml(p: {
   subject: string;
   message: string;
   createdAt: string;
+  logoUrl: string;
 }) {
   const content = `
-    <div style="font-size:13px; color:rgba(0,0,0,0.78); line-height:1.7;">
+    <div style="font-size:13px; color:rgba(255,255,255,0.74); line-height:1.7;">
       <div>
-        Thank you${p.fullName ? `, <b>${escapeHtml(p.fullName)}</b>` : ""}. StayKnown received your <b>${escapeHtml(
+        Thank you${
+          p.fullName
+            ? `, <b style="color:#ffffff;">${escapeHtml(p.fullName)}</b>`
+            : ""
+        }. StayKnown received your <b style="color:#ffffff;">${escapeHtml(
           typeLabel(p.submissionType),
         )}</b>.
       </div>
@@ -375,6 +404,7 @@ function userConfirmationHtml(p: {
     subtitle:
       "Your request has been recorded with a confirmation summary for your records.",
     contentHtml: content,
+    logoUrl: p.logoUrl,
   });
 }
 
@@ -420,6 +450,10 @@ export async function POST(req: Request) {
     const deviceInfo = clampText(body.device_info, 260);
     const relatedPolicy = clampText(body.related_policy, 120);
     const consentToContact = body.consent_to_contact !== false;
+
+    const resolvedLogoUrl = brandLogoUrl(
+      body.logo_url || body.brand_logo_url || body.logoUrl || body.brandLogoUrl,
+    );
 
     if (!isEmail(email)) {
       return Response.json(
@@ -477,6 +511,7 @@ export async function POST(req: Request) {
           : submissionType === "contact_message"
             ? "/contact"
             : "/submit-request",
+      logo_url: resolvedLogoUrl,
     };
 
     const { data, error } = await sb
@@ -535,6 +570,7 @@ export async function POST(req: Request) {
       relatedPolicy,
       consentToContact,
       createdAt,
+      logoUrl: resolvedLogoUrl,
     });
 
     const userHtml = userConfirmationHtml({
@@ -547,6 +583,7 @@ export async function POST(req: Request) {
       subject,
       message,
       createdAt,
+      logoUrl: resolvedLogoUrl,
     });
 
     await Promise.all([
@@ -557,7 +594,9 @@ export async function POST(req: Request) {
       }),
       resendSend({
         to: [email],
-        subject: `StayKnown received your ${typeLabel(submissionType).toLowerCase()}`,
+        subject: `StayKnown received your ${typeLabel(
+          submissionType,
+        ).toLowerCase()}`,
         html: userHtml,
       }),
     ]);

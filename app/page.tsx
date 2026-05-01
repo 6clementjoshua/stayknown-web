@@ -149,8 +149,15 @@ export default function Page() {
   );
 
   return (
-    <main className="min-h-screen bg-black flex flex-col">
+    <main className="min-h-screen bg-black flex flex-col overflow-x-hidden">
       <style jsx global>{`
+        html,
+        body {
+          background: #000;
+          color-scheme: dark;
+          overflow-x: hidden;
+        }
+
         .sk-menu-wrap > button,
         .sk-menu-wrap > div > button {
           background: transparent !important;
@@ -177,7 +184,7 @@ export default function Page() {
       `}</style>
 
       {/* Brand */}
-      <header className="relative z-50 pt-6">
+      <header className="relative z-50 pt-5 sm:pt-6">
         <div className="mx-auto grid max-w-6xl grid-cols-[34px_1fr_34px] items-center px-2 sm:px-3">
           <div />
 
@@ -202,22 +209,20 @@ export default function Page() {
         </div>
       </header>
 
-      {/* HERO ONLY */}
+      {/* Hero */}
       <section className="w-full flex-1">
-        <div className="mx-auto max-w-6xl px-4 pt-5">
+        <div className="mx-auto max-w-6xl px-5 pt-7 sm:px-4 sm:pt-7 md:pt-8">
           <HeroSlider slides={slides} intervalMs={6000} />
         </div>
-
-        <div className="h-8 sm:h-10" />
       </section>
 
       {/* Footer */}
-      <footer className="w-full">
-        <div className="mx-auto max-w-6xl px-4 pb-7 sm:pb-10">
+      <footer className="relative z-20 w-full">
+        <div className="mx-auto max-w-6xl px-4 pb-8 pt-4 sm:pb-10 sm:pt-6">
           <div className="h-px bg-white/[0.08]" />
 
           <div className="mt-6 sm:mt-8 flex flex-col items-center gap-3 text-center">
-            <div className="flex flex-wrap justify-center gap-x-4 gap-y-2 text-[11px] sm:text-[12px] font-semibold text-white/45 leading-relaxed">
+            <div className="flex flex-wrap justify-center gap-x-4 gap-y-2 text-[11px] sm:text-[12px] font-semibold text-white/42 leading-relaxed">
               <a
                 href="/privacy"
                 target="_blank"

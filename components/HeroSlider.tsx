@@ -20,11 +20,6 @@ export type HeroSlide = {
   kind: SlideKind;
   title: string;
   teaser: string;
-
-  /**
-   * Optional: override the Learn More route per slide.
-   * If not provided, we use `${learnBasePath}/${id}`.
-   */
   learnHref?: string;
 };
 
@@ -59,8 +54,6 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
   { slides, intervalMs = 6000, learnBasePath = "/learn", autoplay = true },
   ref,
 ) {
-  // ✅ Use every slide passed from /learn/page.tsx.
-  // The old code used slides.slice(0, 6), which hid the rest of your hero flow.
   const items = useMemo(() => slides, [slides]);
 
   const [[idx, direction], setSlideState] = useState<[number, Direction]>([
@@ -85,6 +78,7 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
 
     apply(mq);
     mq.addEventListener("change", apply);
+
     return () => mq.removeEventListener("change", apply);
   }, []);
 
@@ -132,6 +126,7 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
           const safeIndex = ((index % total) + total) % total;
           const nextDirection: Direction =
             safeIndex === current ? 0 : safeIndex > current ? 1 : -1;
+
           return [safeIndex, nextDirection];
         });
       },
@@ -148,6 +143,7 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
       if (timerRef.current) {
         window.clearInterval(timerRef.current);
       }
+
       timerRef.current = null;
     };
 
@@ -181,6 +177,7 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
     };
 
     window.addEventListener("keydown", onKey);
+
     return () => window.removeEventListener("keydown", onKey);
   }, [next, prev]);
 
@@ -190,9 +187,9 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
   const textVariants = {
     enter: (dir: Direction) => ({
       opacity: 0,
-      x: prefersReducedMotion ? 0 : dir >= 0 ? 26 : -26,
+      x: prefersReducedMotion ? 0 : dir >= 0 ? 18 : -18,
       y: prefersReducedMotion ? 0 : 4,
-      scale: prefersReducedMotion ? 1 : 0.972,
+      scale: prefersReducedMotion ? 1 : 0.985,
       filter: prefersReducedMotion ? "blur(0px)" : "blur(3px)",
     }),
     center: {
@@ -204,9 +201,9 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
     },
     exit: (dir: Direction) => ({
       opacity: 0,
-      x: prefersReducedMotion ? 0 : dir >= 0 ? -30 : 30,
+      x: prefersReducedMotion ? 0 : dir >= 0 ? -18 : 18,
       y: prefersReducedMotion ? 0 : -2,
-      scale: prefersReducedMotion ? 1 : 0.985,
+      scale: prefersReducedMotion ? 1 : 0.99,
       filter: prefersReducedMotion ? "blur(0px)" : "blur(3px)",
     }),
   };
@@ -214,9 +211,9 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
   const deviceVariants = {
     enter: (dir: Direction) => ({
       opacity: 0,
-      x: prefersReducedMotion ? 0 : dir >= 0 ? 22 : -22,
+      x: prefersReducedMotion ? 0 : dir >= 0 ? 18 : -18,
       y: prefersReducedMotion ? 0 : 8,
-      scale: prefersReducedMotion ? 1 : 0.972,
+      scale: prefersReducedMotion ? 1 : 0.982,
       filter: prefersReducedMotion ? "blur(0px)" : "blur(2px)",
     }),
     center: {
@@ -228,20 +225,20 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
     },
     exit: (dir: Direction) => ({
       opacity: 0,
-      x: prefersReducedMotion ? 0 : dir >= 0 ? -26 : 26,
+      x: prefersReducedMotion ? 0 : dir >= 0 ? -18 : 18,
       y: prefersReducedMotion ? 0 : -4,
-      scale: prefersReducedMotion ? 1 : 1.01,
+      scale: prefersReducedMotion ? 1 : 1.005,
       filter: prefersReducedMotion ? "blur(0px)" : "blur(2px)",
     }),
   };
 
   const TRANSITION_TEXT = {
-    duration: prefersReducedMotion ? 0.15 : 0.72,
+    duration: prefersReducedMotion ? 0.15 : 0.58,
     ease: [0.22, 1, 0.36, 1] as const,
   };
 
   const TRANSITION_DEVICE = {
-    duration: prefersReducedMotion ? 0.15 : 0.78,
+    duration: prefersReducedMotion ? 0.15 : 0.62,
     ease: [0.22, 1, 0.36, 1] as const,
   };
 
@@ -253,6 +250,7 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
 
   const pauseBriefly = () => {
     hoverRef.current = true;
+
     window.setTimeout(() => {
       hoverRef.current = false;
     }, 900);
@@ -272,28 +270,64 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
     next();
   };
 
-  const LearnMoreCta = ({ size }: { size: "mobile" | "desktop" }) => (
+  const LearnMoreCta = () => (
     <Link
       href={learnHref}
       className={[
-        "relative z-[70] inline-flex items-center justify-center select-none overflow-hidden",
+        "relative z-[80] inline-flex items-center justify-center select-none overflow-hidden",
         "rounded-full border backdrop-blur-xl transition-all duration-200",
         "shadow-[0_18px_40px_rgba(0,0,0,0.55)]",
-        "border-white/14 bg-white/[0.07] text-white",
+        "border-white/14 bg-white/[0.075] text-white",
         "hover:bg-white hover:border-white/25 hover:!text-black",
         "active:bg-black active:border-white/20 active:!text-white active:scale-[0.99]",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30",
-        size === "mobile" ? "h-9 px-4 text-[12px]" : "h-11 px-5 text-[13px]",
+        "h-10 px-5 text-[13px] sm:h-11 sm:px-5 sm:text-[13px]",
       ].join(" ")}
       aria-label={`Learn more about ${slide.title}`}
     >
       <span className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_30%_25%,rgba(255,255,255,0.20),transparent_58%)]" />
-      <span className="pointer-events-none absolute inset-0 bg-[linear-gradient(110deg,transparent,rgba(255,255,255,0.18),transparent)] -translate-x-[120%] group-hover:translate-x-[120%] transition duration-700" />
       <span className="relative">Learn more</span>
       <span className="relative ml-2 opacity-70">→</span>
       <span className="pointer-events-none absolute inset-0 opacity-0 active:opacity-100 transition duration-75 bg-white/[0.06]" />
     </Link>
   );
+
+  const Dots = ({ mobile = false }: { mobile?: boolean }) => {
+    if (items.length <= 1) return null;
+
+    return (
+      <div
+        className={[
+          "relative z-[75] flex items-center justify-center gap-2",
+          mobile ? "mt-4 px-7" : "",
+        ].join(" ")}
+      >
+        {items.map((item, dotIndex) => {
+          const active = dotIndex === idx;
+
+          return (
+            <button
+              key={`${item.id}-${dotIndex}`}
+              type="button"
+              aria-label={`Go to slide ${dotIndex + 1}`}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                pauseBriefly();
+                go(dotIndex, dotIndex > idx ? 1 : -1);
+              }}
+              className={[
+                "h-2 rounded-full border border-white/10 transition-all duration-300",
+                active
+                  ? "w-7 bg-white/78"
+                  : "w-2 bg-white/24 hover:bg-white/45",
+              ].join(" ")}
+            />
+          );
+        })}
+      </div>
+    );
+  };
 
   return (
     <div
@@ -314,19 +348,20 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
       aria-roledescription="carousel"
       aria-label="StayKnown hero slider"
     >
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_40%,rgba(255,255,255,0.06),transparent_55%)]" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_36%,rgba(255,255,255,0.055),transparent_58%)]" />
 
-      <div className="relative w-full min-h-[520px] md:min-h-[600px] lg:min-h-[620px]">
+      <div className="relative w-full overflow-visible">
         <div
-          className="
-            relative grid grid-cols-1 lg:grid-cols-[0.98fr_1.02fr]
-            items-center gap-7 sm:gap-8 md:gap-10
-            h-[68vh] max-h-[680px] min-h-[520px]
-            pb-10 sm:pb-12 md:pb-14
-          "
+          className={[
+            "relative mx-auto grid w-full grid-cols-1",
+            "items-start justify-items-center",
+            "gap-5 sm:gap-6 md:gap-8",
+            "pb-8 sm:pb-10",
+            "lg:min-h-[620px] lg:grid-cols-[0.98fr_1.02fr] lg:items-center lg:gap-10 lg:pb-16",
+          ].join(" ")}
         >
           {/* Caption */}
-          <div className="relative z-[30] flex items-center justify-center lg:justify-start order-1 lg:order-2">
+          <div className="relative z-[30] order-1 flex w-full items-center justify-center lg:order-2 lg:justify-start">
             <AnimatePresence mode="wait" initial={false} custom={direction}>
               <motion.div
                 key={`${slide.id}-${idx}-text`}
@@ -336,19 +371,38 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
                 animate="center"
                 exit="exit"
                 transition={TRANSITION_TEXT}
-                className="w-full max-w-[760px] pr-0 lg:pr-2 text-center lg:text-left"
+                className="w-full max-w-[800px] text-center lg:text-left"
               >
-                <div className="relative">
-                  <div className="text-white/95 font-black tracking-[-0.03em] text-[38px] sm:text-[52px] md:text-[62px] leading-[0.98]">
+                <div className="relative mx-auto max-w-[92vw] lg:mx-0 lg:max-w-[760px]">
+                  <div
+                    className={[
+                      "text-white/96 font-black tracking-[-0.045em]",
+                      "text-[34px] leading-[1.02]",
+                      "min-[390px]:text-[38px]",
+                      "sm:text-[48px] sm:leading-[0.98]",
+                      "md:text-[58px]",
+                      "lg:text-[62px]",
+                    ].join(" ")}
+                  >
                     {slide.title}
                   </div>
 
-                  <div className="mt-4 text-white/58 font-semibold text-[13px] sm:text-[14px] md:text-[14.5px] leading-relaxed mx-auto lg:mx-0 max-w-[64ch]">
+                  <div
+                    className={[
+                      "mx-auto mt-4 max-w-[34ch]",
+                      "text-white/56 font-semibold leading-relaxed",
+                      "text-[13px]",
+                      "min-[390px]:text-[13.5px]",
+                      "sm:max-w-[56ch] sm:text-[14px]",
+                      "md:text-[14.5px]",
+                      "lg:mx-0 lg:max-w-[64ch]",
+                    ].join(" ")}
+                  >
                     {slide.teaser}
                   </div>
 
-                  <div className="mt-7 hidden sm:flex items-center justify-center lg:justify-start">
-                    <LearnMoreCta size="desktop" />
+                  <div className="mt-7 hidden items-center justify-center lg:flex lg:justify-start">
+                    <LearnMoreCta />
                   </div>
                 </div>
               </motion.div>
@@ -356,7 +410,7 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
           </div>
 
           {/* Device */}
-          <div className="relative z-[20] flex items-center justify-center lg:justify-start lg:pl-2 order-2 lg:order-1">
+          <div className="relative z-[20] order-2 flex w-full items-center justify-center lg:order-1 lg:justify-start lg:pl-2">
             <AnimatePresence mode="wait" initial={false} custom={direction}>
               <motion.div
                 key={`${slide.id}-${idx}-device`}
@@ -366,7 +420,7 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
                 animate="center"
                 exit="exit"
                 transition={TRANSITION_DEVICE}
-                className="relative z-[20]"
+                className="relative z-[20] flex w-full flex-col items-center"
                 drag={isCoarsePointer ? "x" : false}
                 dragConstraints={{ left: 0, right: 0 }}
                 dragElastic={0.18}
@@ -407,54 +461,68 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
                           ease: "easeInOut",
                         }
                   }
+                  className="flex w-full justify-center lg:justify-start"
                 >
                   <img
                     src={slide.src}
                     alt={slide.title}
                     draggable={false}
-                    className="
-                      relative z-[20]
-                      block w-auto object-contain select-none
-                      drop-shadow-[0_22px_80px_rgba(0,0,0,0.75)]
-                      max-w-[82vw] max-h-[40vh]
-                      sm:max-w-[520px] sm:max-h-[56vh]
-                      md:max-w-[560px] md:max-h-[62vh]
-                      lg:max-w-[620px] lg:max-h-[68vh]
-                      xl:max-w-[660px]
-                    "
+                    className={[
+                      "relative z-[20] block w-auto object-contain select-none",
+                      "drop-shadow-[0_22px_80px_rgba(0,0,0,0.75)]",
+                      "max-w-[74vw] max-h-[38vh]",
+                      "min-[390px]:max-w-[70vw] min-[390px]:max-h-[40vh]",
+                      "sm:max-w-[430px] sm:max-h-[48vh]",
+                      "md:max-w-[500px] md:max-h-[56vh]",
+                      "lg:max-w-[620px] lg:max-h-[68vh]",
+                      "xl:max-w-[660px]",
+                    ].join(" ")}
                   />
                 </motion.div>
-
-                <div className="relative z-[70] mt-5 flex sm:hidden items-center justify-center">
-                  <LearnMoreCta size="mobile" />
-                </div>
               </motion.div>
             </AnimatePresence>
           </div>
+
+          {/* Mobile controls: device above dots, dots above Learn More */}
+          <div className="relative z-[90] order-3 flex w-full flex-col items-center justify-center lg:hidden">
+            <Dots mobile />
+            <div className="mt-5 flex items-center justify-center">
+              <LearnMoreCta />
+            </div>
+          </div>
         </div>
+
+        {/* Desktop/tablet dots */}
+        {items.length > 1 ? (
+          <div className="absolute inset-x-0 bottom-9 z-[85] hidden items-center justify-center lg:flex">
+            <Dots />
+          </div>
+        ) : null}
 
         {/* Arrows */}
         <div
-          className="
-            pointer-events-none absolute left-0 right-0 top-[56%] z-[90]
-            -translate-y-1/2 sm:top-1/2
-            flex items-center justify-between
-          "
+          className={[
+            "pointer-events-none absolute left-0 right-0 z-[90]",
+            "top-[62%] -translate-y-1/2",
+            "sm:top-[60%]",
+            "lg:top-1/2",
+            "flex items-center justify-between",
+          ].join(" ")}
         >
           <button
             onClick={handlePrev}
-            className="
-              pointer-events-auto flex items-center justify-center
-              rounded-full border border-white/14 bg-black/45
-              backdrop-blur-xl text-white/85
-              shadow-[0_14px_38px_rgba(0,0,0,0.55)]
-              transition-all duration-200
-              hover:bg-white hover:text-black hover:border-white/25
-              active:scale-95
-              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30
-              w-9 h-9 sm:w-11 sm:h-11
-              text-[24px] sm:text-[28px] font-black leading-none
-            "
+            className={[
+              "pointer-events-auto flex items-center justify-center",
+              "rounded-full border border-white/14 bg-black/48",
+              "backdrop-blur-xl text-white/88",
+              "shadow-[0_14px_38px_rgba(0,0,0,0.55)]",
+              "transition-all duration-200",
+              "hover:bg-white hover:text-black hover:border-white/25",
+              "active:scale-95",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30",
+              "w-10 h-10 text-[25px]",
+              "sm:w-11 sm:h-11 sm:text-[28px]",
+            ].join(" ")}
             aria-label="Previous slide"
             type="button"
           >
@@ -463,18 +531,18 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
 
           <button
             onClick={handleNext}
-            className="
-              pointer-events-auto flex items-center justify-center
-              rounded-full border border-white/14 bg-black/45
-              backdrop-blur-xl text-white/85
-              shadow-[0_14px_38px_rgba(0,0,0,0.55)]
-              transition-all duration-200
-              hover:bg-white hover:text-black hover:border-white/25
-              active:scale-95
-              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30
-              w-9 h-9 sm:w-11 sm:h-11
-              text-[24px] sm:text-[28px] font-black leading-none
-            "
+            className={[
+              "pointer-events-auto flex items-center justify-center",
+              "rounded-full border border-white/14 bg-black/48",
+              "backdrop-blur-xl text-white/88",
+              "shadow-[0_14px_38px_rgba(0,0,0,0.55)]",
+              "transition-all duration-200",
+              "hover:bg-white hover:text-black hover:border-white/25",
+              "active:scale-95",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30",
+              "w-10 h-10 text-[25px]",
+              "sm:w-11 sm:h-11 sm:text-[28px]",
+            ].join(" ")}
             aria-label="Next slide"
             type="button"
           >
@@ -482,36 +550,7 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
           </button>
         </div>
 
-        {/* Dots */}
-        {items.length > 1 ? (
-          <div className="absolute inset-x-0 bottom-9 z-[85] flex items-center justify-center gap-2">
-            {items.map((item, dotIndex) => {
-              const active = dotIndex === idx;
-
-              return (
-                <button
-                  key={`${item.id}-${dotIndex}`}
-                  type="button"
-                  aria-label={`Go to slide ${dotIndex + 1}`}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    pauseBriefly();
-                    go(dotIndex, dotIndex > idx ? 1 : -1);
-                  }}
-                  className={[
-                    "h-1.5 rounded-full border border-white/10 transition-all duration-300",
-                    active
-                      ? "w-6 bg-white/75"
-                      : "w-1.5 bg-white/25 hover:bg-white/45",
-                  ].join(" ")}
-                />
-              );
-            })}
-          </div>
-        ) : null}
-
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[40] h-32 sm:h-40 bg-gradient-to-t from-black/70 via-black/25 to-transparent" />
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[40] h-24 bg-gradient-to-t from-black/55 via-black/18 to-transparent lg:h-40 lg:from-black/70 lg:via-black/25" />
       </div>
     </div>
   );

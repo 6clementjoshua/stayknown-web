@@ -4,6 +4,8 @@ import Image from "next/image";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 
 const UPDATED_AT = "2026-04-30";
+const SITE_URL = "https://stay-known.com";
+const LOGO_URL = `${SITE_URL}/6logo.png`;
 
 type SubmitState = "idle" | "sending" | "success" | "error";
 
@@ -296,25 +298,57 @@ function FloatingBackdrop() {
   );
 }
 
-function SuccessPanel({ submissionId }: { submissionId: string }) {
+function FeedbackPanel({
+  state,
+  error,
+  submissionId,
+}: {
+  state: SubmitState;
+  error: string;
+  submissionId: string;
+}) {
+  if (state !== "success" && state !== "error") return null;
+
+  const isSuccess = state === "success";
+
   return (
-    <div className="animate-[riseIn_0.55s_ease_both] rounded-[1.6rem] border border-white/10 bg-white/[0.04] p-5 shadow-sm">
-      <div className="flex items-start gap-4">
-        <div className="grid h-12 w-12 shrink-0 place-items-center rounded-full border border-white/15 bg-white text-black shadow-xl">
-          <CheckIcon className="h-7 w-7" />
+    <div
+      className={cx(
+        "animate-[riseIn_0.35s_ease_both] rounded-[1.25rem] border p-4 shadow-sm",
+        isSuccess
+          ? "border-white/12 bg-white/[0.045]"
+          : "border-white/10 bg-white/[0.04]",
+      )}
+    >
+      <div className="flex items-start gap-3">
+        <div
+          className={cx(
+            "grid h-9 w-9 shrink-0 place-items-center rounded-full border",
+            isSuccess
+              ? "border-white/15 bg-white text-black"
+              : "border-white/12 bg-black text-white",
+          )}
+        >
+          {isSuccess ? (
+            <CheckIcon className="h-5 w-5" />
+          ) : (
+            <AlertIcon className="h-5 w-5" />
+          )}
         </div>
 
-        <div>
-          <div className="text-[16px] font-black text-white/92">
-            Request received
+        <div className="min-w-0">
+          <div className="text-[13px] font-black text-white/92">
+            {isSuccess ? "Request received" : "Request not sent"}
           </div>
-          <p className="mt-2 text-[13.5px] font-semibold leading-relaxed text-white/58">
-            StayKnown has received your request. A confirmation email with your
-            summary has been sent to the address you provided.
+
+          <p className="mt-1 text-[12.5px] font-semibold leading-relaxed text-white/56">
+            {isSuccess
+              ? "StayKnown has received your request. A confirmation email with your summary has been sent to the address you provided."
+              : error || "We could not send this right now. Please try again."}
           </p>
 
-          {submissionId ? (
-            <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.045] px-4 py-3 text-[12px] font-black text-white/55">
+          {isSuccess && submissionId ? (
+            <div className="mt-2 text-[11px] font-black text-white/38">
               Submission ID: {submissionId}
             </div>
           ) : null}
@@ -355,6 +389,18 @@ export default function SubmitRequestPage() {
     );
   }, [email, subject, message, state]);
 
+  useEffect(() => {
+    if (state !== "success" && state !== "error") return;
+
+    const timer = window.setTimeout(() => {
+      setState("idle");
+      setError("");
+      setSubmissionId("");
+    }, 6000);
+
+    return () => window.clearTimeout(timer);
+  }, [state]);
+
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
 
@@ -390,6 +436,10 @@ export default function SubmitRequestPage() {
           related_policy: relatedPolicy,
           consent_to_contact: consentToContact,
           website,
+
+          site_url: SITE_URL,
+          logo_url: LOGO_URL,
+          brand_logo_url: LOGO_URL,
         }),
       });
 
@@ -430,7 +480,8 @@ export default function SubmitRequestPage() {
       "@type": "Organization",
       name: "StayKnown",
       brand: "A 6 Clement Joshua service™",
-      url: "https://stay-known.com",
+      url: SITE_URL,
+      logo: LOGO_URL,
     },
     description:
       "Submit a StayKnown support request for account, safety, contacts, SOS, live location, chat, billing, wallet, app, and policy help.",
@@ -607,16 +658,6 @@ export default function SubmitRequestPage() {
                     name="website"
                     className="hidden"
                   />
-
-                  {state === "success" ? (
-                    <SuccessPanel submissionId={submissionId} />
-                  ) : null}
-
-                  {state === "error" && error ? (
-                    <div className="rounded-[1.35rem] border border-white/10 bg-white/[0.045] p-4 text-[13px] font-bold leading-relaxed text-white/72">
-                      {error}
-                    </div>
-                  ) : null}
 
                   <section className="rounded-[1.6rem] border border-white/10 bg-white/[0.032] p-5 shadow-sm">
                     <H2 icon={<RequestIcon className="h-4 w-4" />}>
@@ -826,25 +867,33 @@ export default function SubmitRequestPage() {
                     </label>
                   </section>
 
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="text-[11px] font-bold leading-relaxed text-white/35">
-                      By submitting, you agree that StayKnown may process this
-                      request under its Privacy, Terms, Safety, Retention, and
-                      Acceptable Use policies.
+                  <div className="space-y-3 rounded-[1.45rem] border border-white/10 bg-white/[0.025] p-4">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="text-[11px] font-bold leading-relaxed text-white/35">
+                        By submitting, you agree that StayKnown may process this
+                        request under its Privacy, Terms, Safety, Retention, and
+                        Acceptable Use policies.
+                      </div>
+
+                      <button
+                        type="submit"
+                        disabled={!canSubmit}
+                        className={cx(
+                          "min-w-[190px] rounded-full border px-6 py-3 text-[13px] font-black shadow-xl transition",
+                          canSubmit
+                            ? "border-white/15 bg-white text-black hover:-translate-y-0.5 hover:bg-white/90"
+                            : "cursor-not-allowed border-white/10 bg-white/10 text-white/30",
+                        )}
+                      >
+                        {state === "sending" ? "Sending..." : "Submit request"}
+                      </button>
                     </div>
 
-                    <button
-                      type="submit"
-                      disabled={!canSubmit}
-                      className={cx(
-                        "min-w-[190px] rounded-full border px-6 py-3 text-[13px] font-black shadow-xl transition",
-                        canSubmit
-                          ? "border-white/15 bg-white text-black hover:-translate-y-0.5 hover:bg-white/90"
-                          : "cursor-not-allowed border-white/10 bg-white/10 text-white/30",
-                      )}
-                    >
-                      {state === "sending" ? "Sending..." : "Submit request"}
-                    </button>
+                    <FeedbackPanel
+                      state={state}
+                      error={error}
+                      submissionId={submissionId}
+                    />
                   </div>
                 </form>
 
