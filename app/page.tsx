@@ -1,615 +1,379 @@
 "use client";
 
-import React, {
-  forwardRef,
-  useCallback,
-  useEffect,
-  useImperativeHandle,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
-import Link from "next/link";
-import { motion, useReducedMotion } from "framer-motion";
+import Image from "next/image";
+import { useMemo } from "react";
+import HeroSlider, { type HeroSlide } from "../components/HeroSlider";
+import StayKnownActionMenu from "@/components/StayKnownActionMenu";
 
-export type SlideKind = "pill" | "device";
-
-export type HeroSlide = {
-  id: string;
-  src: string;
-  kind: SlideKind;
-  title: string;
-  teaser: string;
-  learnHref?: string;
-};
-
-export type HeroSliderHandle = {
-  next: () => void;
-  prev: () => void;
-  goTo: (index: number) => void;
-};
-
-type Props = {
-  slides: HeroSlide[];
-  intervalMs?: number;
-  learnBasePath?: string;
-  autoplay?: boolean;
-};
-
-type Direction = -1 | 0 | 1;
-
-const routeAlias: Record<string, string> = {
-  "sos-activated": "sos",
-  "sos-live-idle": "sos",
-  "vpn-safety-gate": "vpn-safety",
-  "secure-chat-biometric": "secure-chat-protection",
-  "secure-chat-passcode": "secure-chat-protection",
-  "chat-translation": "language-aware-chat",
-  "chat-stickers-voice": "chat",
-  "stories-profile": "stories-profile-trust",
-  "get-safe-hints": "get-safe-guidance",
-};
-
-const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
-  { slides, intervalMs = 6000, learnBasePath = "/learn", autoplay = true },
-  ref,
-) {
-  const items = useMemo(() => slides, [slides]);
-
-  const [[idx, direction], setSlideState] = useState<[number, Direction]>([
-    0, 0,
-  ]);
-
-  const timerRef = useRef<number | null>(null);
-  const hoverRef = useRef(false);
-
-  const prefersReducedMotion = useReducedMotion();
-  const [isCoarsePointer, setIsCoarsePointer] = useState(false);
-  const [hasBooted, setHasBooted] = useState(false);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    const frame = window.requestAnimationFrame(() => {
-      setHasBooted(true);
-    });
-
-    return () => window.cancelAnimationFrame(frame);
-  }, []);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    const mq = window.matchMedia("(hover: none) and (pointer: coarse)");
-
-    const apply = (e?: MediaQueryList | MediaQueryListEvent) => {
-      const source = e ?? mq;
-      setIsCoarsePointer(source.matches);
-    };
-
-    apply(mq);
-    mq.addEventListener("change", apply);
-
-    return () => mq.removeEventListener("change", apply);
-  }, []);
-
-  useEffect(() => {
-    if (!items.length) return;
-
-    setSlideState(([current]) => [Math.min(current, items.length - 1), 0]);
-  }, [items.length]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (!items.length) return;
-
-    const preload = async () => {
-      await Promise.allSettled(
-        items.map(
-          (item) =>
-            new Promise<void>((resolve) => {
-              const image = new window.Image();
-              image.src = item.src;
-
-              image.onload = () => {
-                if ("decode" in image) {
-                  image
-                    .decode()
-                    .then(() => resolve())
-                    .catch(() => resolve());
-                } else {
-                  resolve();
-                }
-              };
-
-              image.onerror = () => resolve();
-            }),
-        ),
-      );
-    };
-
-    void preload();
-  }, [items]);
-
-  const go = useCallback(
-    (nextIndex: number, nextDirection: Direction = 0) => {
-      const total = items.length;
-      if (!total) return;
-
-      const safeIndex = ((nextIndex % total) + total) % total;
-      setSlideState(([current]) => [
-        safeIndex,
-        nextDirection || (safeIndex >= current ? 1 : -1),
-      ]);
-    },
-    [items.length],
-  );
-
-  const next = useCallback(() => {
-    const total = items.length;
-    if (!total) return;
-
-    setSlideState(([current]) => [(current + 1) % total, 1]);
-  }, [items.length]);
-
-  const prev = useCallback(() => {
-    const total = items.length;
-    if (!total) return;
-
-    setSlideState(([current]) => [(current - 1 + total) % total, -1]);
-  }, [items.length]);
-
-  useImperativeHandle(
-    ref,
-    () => ({
-      next,
-      prev,
-      goTo: (index: number) => {
-        const total = items.length;
-        if (!total) return;
-
-        setSlideState(([current]) => {
-          const safeIndex = ((index % total) + total) % total;
-          const nextDirection: Direction =
-            safeIndex === current ? 0 : safeIndex > current ? 1 : -1;
-
-          return [safeIndex, nextDirection];
-        });
+export default function Page() {
+  const slides: HeroSlide[] = useMemo(
+    () => [
+      {
+        id: "get-safe-guidance",
+        src: "/hero/get-safe-hints.png",
+        kind: "device",
+        title: "GET SAFE",
+        teaser:
+          "StayKnown was created by 6Clement Joshua to help people move, visit, chat, share safety context, and stay connected to trusted people wherever they go.",
       },
-    }),
-    [next, prev, items.length],
+      {
+        id: "visit-live-sos",
+        src: "/hero/visit-live-sos.png",
+        kind: "device",
+        title: "Live Visit + SOS Ready",
+        teaser:
+          "Start a Visit, keep LIVE context active, and keep SOS close when the situation needs urgent escalation.",
+      },
+      {
+        id: "visit-live",
+        src: "/hero/visit-live.png",
+        kind: "device",
+        title: "Visit + LIVE Protection",
+        teaser:
+          "LIVE sharing is tied to an active Visit, helping trusted contacts understand where the user is while safety tracking is active.",
+      },
+      {
+        id: "live-map",
+        src: "/hero/live-map.png",
+        kind: "device",
+        title: "Live Map for Approved Contacts",
+        teaser:
+          "Approved contacts can open a safety map only from the user’s permitted Visit or SOS flow, with privacy notice, session context, and lawful-use boundaries.",
+      },
+      {
+        id: "promax-shell",
+        src: "/hero/promax-shell.png",
+        kind: "device",
+        title: "ProMax MainShell",
+        teaser:
+          "A premium, plan-aware navigation shell built for fast access to safety, contacts, chat, profile, and high-value actions.",
+      },
+      {
+        id: "manual-capture",
+        src: "/hero/manual-capture.png",
+        kind: "device",
+        title: "Manual Emergency Capture",
+        teaser:
+          "During an active Visit, users can send an extra safety location update without disturbing the normal tracking rhythm.",
+      },
+      {
+        id: "sos-activated",
+        src: "/hero/sos-activated.png",
+        kind: "device",
+        title: "SOS Active State",
+        teaser:
+          "When SOS is active, StayKnown shifts into a high-clarity emergency state so the user knows escalation is running.",
+      },
+      {
+        id: "sos-live-idle",
+        src: "/hero/sos-live-idle.png",
+        kind: "device",
+        title: "SOS Ready, Not Confusing",
+        teaser:
+          "The SOS surface stays simple and readable, helping users understand when SOS is available and when it is not active.",
+      },
+      {
+        id: "end-sos-verify",
+        src: "/hero/end-sos-verify.png",
+        kind: "device",
+        title: "End SOS — Verified Stop",
+        teaser:
+          "When protection is active, ending SOS can require a stronger confirmation so emergency protection is not stopped by mistake.",
+      },
+      {
+        id: "end-visit-verify",
+        src: "/hero/end-visit-verify.png",
+        kind: "device",
+        title: "End Visit — Confirmed Finish",
+        teaser:
+          "Visit completion can use a confirmation-first flow so safety sessions end with intent, not accidental taps.",
+      },
+      {
+        id: "vpn-safety-gate",
+        src: "/hero/vpn-safety-gate.png",
+        kind: "device",
+        title: "VPN Safety Gate",
+        teaser:
+          "StayKnown protects location reliability by warning or blocking flows when VPN usage can reduce safety accuracy.",
+      },
+      {
+        id: "secure-chat-biometric",
+        src: "/hero/secure-chat-biometric.png",
+        kind: "device",
+        title: "Secure Chat Protection",
+        teaser:
+          "StayKnown Chat can work with biometric or device-level protection so private safety conversations stay harder to access.",
+      },
+      {
+        id: "chat-translation",
+        src: "/hero/chat-translation.png",
+        kind: "device",
+        title: "Language-Aware Chat",
+        teaser:
+          "StayKnown Chat is built for multilingual communication with translation-aware message handling and recipient language preferences.",
+      },
+      {
+        id: "chat-stickers-voice",
+        src: "/hero/chat-stickers-voice.png",
+        kind: "device",
+        title: "Voice Notes + Stickers",
+        teaser:
+          "Users can send voice notes, custom stickers, voice stickers, music stickers, video stickers, media, and expressive chat content while the safety-first chat layer stays polished.",
+      },
+      {
+        id: "contact-approval",
+        src: "/hero/contact-approval.png",
+        kind: "device",
+        title: "Consent-Based Contacts",
+        teaser:
+          "Emergency contacts and SOS responders use approval flows so safety access remains intentional, trusted, and auditable.",
+      },
+      {
+        id: "safety-gallery",
+        src: "/hero/safety-gallery.png",
+        kind: "device",
+        title: "Safety Gallery",
+        teaser:
+          "Profile and safety images help trusted contacts recognize the user during Visits, SOS alerts, and safety communication.",
+      },
+      {
+        id: "stories-profile",
+        src: "/hero/stories-profile.png",
+        kind: "device",
+        title: "Stories + Profile Trust",
+        teaser:
+          "Stories, avatars, names, and profile surfaces help users recognize who they are connecting with before conversations begin.",
+      },
+    ],
+    [],
   );
-
-  useEffect(() => {
-    if (!autoplay) return;
-    if (items.length <= 1) return;
-    if (typeof window === "undefined") return;
-
-    const clear = () => {
-      if (timerRef.current) {
-        window.clearInterval(timerRef.current);
-      }
-
-      timerRef.current = null;
-    };
-
-    const start = () => {
-      clear();
-
-      timerRef.current = window.setInterval(() => {
-        if (!hoverRef.current && !document.hidden) {
-          next();
-        }
-      }, intervalMs);
-    };
-
-    start();
-
-    const onVisibilityChange = () => start();
-    document.addEventListener("visibilitychange", onVisibilityChange);
-
-    return () => {
-      document.removeEventListener("visibilitychange", onVisibilityChange);
-      clear();
-    };
-  }, [autoplay, items.length, intervalMs, next]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "ArrowRight") next();
-      if (e.key === "ArrowLeft") prev();
-    };
-
-    window.addEventListener("keydown", onKey);
-
-    return () => window.removeEventListener("keydown", onKey);
-  }, [next, prev]);
-
-  const slide = items[idx];
-  if (!slide) return null;
-
-  const FAST_FADE = {
-    duration: prefersReducedMotion ? 0.12 : 0.28,
-    ease: [0.22, 1, 0.36, 1] as const,
-  };
-
-  const SOFT_FLOAT = prefersReducedMotion
-    ? { y: 0 }
-    : { y: [0, -1.5, 0, 1.5, 0] };
-
-  const SOFT_FLOAT_TRANSITION = prefersReducedMotion
-    ? { duration: 0 }
-    : {
-        duration: 10,
-        repeat: Infinity,
-        ease: "easeInOut" as const,
-      };
-
-  const SWIPE_OFFSET = 60;
-  const SWIPE_VELOCITY = 500;
-
-  const mappedId = routeAlias[slide.id] ?? slide.id;
-  const learnHref = slide.learnHref ?? `${learnBasePath}/${mappedId}`;
-
-  const pauseBriefly = () => {
-    hoverRef.current = true;
-
-    window.setTimeout(() => {
-      hoverRef.current = false;
-    }, 900);
-  };
-
-  const handlePrev = (e: React.MouseEvent<HTMLButtonElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    pauseBriefly();
-    prev();
-  };
-
-  const handleNext = (e: React.MouseEvent<HTMLButtonElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    pauseBriefly();
-    next();
-  };
-
-  const LearnMoreCta = () => (
-    <Link
-      href={learnHref}
-      className={[
-        "relative z-[80] inline-flex items-center justify-center select-none overflow-hidden",
-        "rounded-full border backdrop-blur-xl transition-all duration-200",
-        "shadow-[0_18px_40px_rgba(0,0,0,0.55)]",
-        "border-white/14 bg-white/[0.075] text-white",
-        "hover:bg-white hover:border-white/25 hover:!text-black",
-        "active:bg-black active:border-white/20 active:!text-white active:scale-[0.99]",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30",
-        "h-10 px-5 text-[13px] sm:h-11 sm:px-5 sm:text-[13px]",
-      ].join(" ")}
-      aria-label={`Learn more about ${slide.title}`}
-    >
-      <span className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_30%_25%,rgba(255,255,255,0.20),transparent_58%)]" />
-      <span className="relative">Learn more</span>
-      <span className="relative ml-2 opacity-70">→</span>
-      <span className="pointer-events-none absolute inset-0 opacity-0 active:opacity-100 transition duration-75 bg-white/[0.06]" />
-    </Link>
-  );
-
-  const Dots = ({ mobile = false }: { mobile?: boolean }) => {
-    if (items.length <= 1) return null;
-
-    return (
-      <div
-        className={[
-          "relative z-[75] flex items-center justify-center gap-2",
-          mobile ? "mt-4 px-7" : "",
-        ].join(" ")}
-      >
-        {items.map((item, dotIndex) => {
-          const active = dotIndex === idx;
-
-          return (
-            <button
-              key={`${item.id}-${dotIndex}`}
-              type="button"
-              aria-label={`Go to slide ${dotIndex + 1}`}
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                pauseBriefly();
-                go(dotIndex, dotIndex > idx ? 1 : -1);
-              }}
-              className={[
-                "h-2 rounded-full border border-white/10 transition-all duration-300",
-                active
-                  ? "w-7 bg-white/78"
-                  : "w-2 bg-white/24 hover:bg-white/45",
-              ].join(" ")}
-            />
-          );
-        })}
-      </div>
-    );
-  };
 
   return (
-    <div
-      className="relative w-full group"
-      onMouseEnter={() => {
-        hoverRef.current = true;
-      }}
-      onMouseLeave={() => {
-        hoverRef.current = false;
-      }}
-      onFocusCapture={() => {
-        hoverRef.current = true;
-      }}
-      onBlurCapture={() => {
-        hoverRef.current = false;
-      }}
-      style={{ WebkitTapHighlightColor: "transparent" }}
-      aria-roledescription="carousel"
-      aria-label="StayKnown hero slider"
-    >
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_36%,rgba(255,255,255,0.055),transparent_58%)]" />
+    <main className="min-h-screen bg-black flex flex-col overflow-x-hidden">
+      <style jsx global>{`
+        html,
+        body {
+          background: #000;
+          color-scheme: dark;
+          overflow-x: hidden;
+        }
 
-      <div className="relative w-full overflow-visible">
-        <div
-          className={[
-            "relative mx-auto grid w-full grid-cols-1",
-            "items-start justify-items-center",
-            "gap-5 sm:gap-6 md:gap-8",
-            "pb-8 sm:pb-10",
-            "lg:min-h-[620px] lg:grid-cols-[0.98fr_1.02fr] lg:items-center lg:gap-10 lg:pb-16",
-          ].join(" ")}
-        >
-          {/* Caption */}
-          <div className="relative z-[30] order-1 flex w-full items-center justify-center lg:order-2 lg:justify-start">
-            <div
-              className={[
-                "relative w-full max-w-[800px] text-center lg:text-left",
-                "min-h-[168px]",
-                "min-[390px]:min-h-[178px]",
-                "sm:min-h-[180px]",
-                "md:min-h-[196px]",
-                "lg:min-h-[250px]",
-              ].join(" ")}
-            >
-              {items.map((item, itemIndex) => {
-                const active = itemIndex === idx;
+        .sk-menu-wrap > button,
+        .sk-menu-wrap > div > button {
+          background: transparent !important;
+          backdrop-filter: none !important;
+          -webkit-backdrop-filter: none !important;
+          box-shadow: none !important;
+          border: 1px solid transparent !important;
+          color: rgba(255, 255, 255, 0.92) !important;
+        }
 
-                if (!hasBooted && !active) return null;
+        .sk-menu-wrap > button:hover,
+        .sk-menu-wrap > div > button:hover {
+          background: rgba(255, 255, 255, 0.06) !important;
+          border-color: rgba(255, 255, 255, 0.1) !important;
+          color: #ffffff !important;
+        }
 
-                const inactiveX = direction >= 0 ? -10 : 10;
+        .sk-menu-wrap > button:focus-visible,
+        .sk-menu-wrap > div > button:focus-visible {
+          outline: none !important;
+          border-color: rgba(255, 255, 255, 0.16) !important;
+          box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.05) !important;
+        }
+      `}</style>
 
-                return (
-                  <motion.div
-                    key={`${item.id}-text-layer`}
-                    aria-hidden={!active}
-                    initial={false}
-                    animate={{
-                      opacity: active ? 1 : 0,
-                      x: active ? 0 : inactiveX,
-                      y: active ? 0 : 4,
-                      scale: active ? 1 : 0.992,
-                      filter: active ? "blur(0px)" : "blur(3px)",
-                    }}
-                    transition={FAST_FADE}
-                    className={[
-                      "absolute inset-x-0 top-0",
-                      active
-                        ? "z-[3] pointer-events-auto"
-                        : "z-[1] pointer-events-none",
-                    ].join(" ")}
-                  >
-                    <div className="relative mx-auto max-w-[92vw] lg:mx-0 lg:max-w-[760px]">
-                      <div
-                        className={[
-                          "text-white/96 font-black tracking-[-0.045em]",
-                          "text-[34px] leading-[1.02]",
-                          "min-[390px]:text-[38px]",
-                          "sm:text-[48px] sm:leading-[0.98]",
-                          "md:text-[58px]",
-                          "lg:text-[62px]",
-                        ].join(" ")}
-                      >
-                        {item.title}
-                      </div>
-
-                      <div
-                        className={[
-                          "mx-auto mt-4 max-w-[34ch]",
-                          "text-white/56 font-semibold leading-relaxed",
-                          "text-[13px]",
-                          "min-[390px]:text-[13.5px]",
-                          "sm:max-w-[56ch] sm:text-[14px]",
-                          "md:text-[14.5px]",
-                          "lg:mx-0 lg:max-w-[64ch]",
-                        ].join(" ")}
-                      >
-                        {item.teaser}
-                      </div>
-
-                      <div className="mt-7 hidden items-center justify-center lg:flex lg:justify-start">
-                        {active ? <LearnMoreCta /> : null}
-                      </div>
-                    </div>
-                  </motion.div>
-                );
-              })}
+      {/* Brand */}
+      <header className="relative z-50 pt-5 sm:pt-6">
+        <div className="relative mx-auto flex max-w-6xl items-center justify-center px-2">
+          <div className="flex flex-col items-center gap-2">
+            <Image
+              src="/6logo.png"
+              alt="StayKnown"
+              width={34}
+              height={34}
+              priority
+            />
+            <div className="text-white font-extrabold tracking-[0.28em] text-[12px]">
+              STAYKNOWN
             </div>
           </div>
 
-          {/* Device */}
-          <div className="relative z-[20] order-2 flex w-full items-center justify-center lg:order-1 lg:justify-start lg:pl-2">
-            <div
-              className={[
-                "relative w-full",
-                "h-[38vh]",
-                "min-[390px]:h-[40vh]",
-                "sm:h-[48vh]",
-                "md:h-[56vh]",
-                "lg:h-[68vh]",
-                "max-h-[760px]",
-              ].join(" ")}
-            >
-              {items.map((item, itemIndex) => {
-                const active = itemIndex === idx;
-
-                if (!hasBooted && !active) return null;
-
-                const inactiveX = direction >= 0 ? -12 : 12;
-
-                return (
-                  <motion.div
-                    key={`${item.id}-device-layer`}
-                    aria-hidden={!active}
-                    initial={false}
-                    animate={{
-                      opacity: active ? 1 : 0,
-                      x: active ? 0 : inactiveX,
-                      y: active ? 0 : 6,
-                      scale: active ? 1 : 0.99,
-                      filter: active ? "blur(0px)" : "blur(2px)",
-                    }}
-                    transition={FAST_FADE}
-                    className={[
-                      "absolute inset-0 flex w-full items-center justify-center lg:justify-start",
-                      active
-                        ? "z-[3] pointer-events-auto"
-                        : "z-[1] pointer-events-none",
-                    ].join(" ")}
-                    drag={active && isCoarsePointer ? "x" : false}
-                    dragConstraints={{ left: 0, right: 0 }}
-                    dragElastic={0.18}
-                    onDragStart={() => {
-                      if (!active) return;
-                      hoverRef.current = true;
-                    }}
-                    onDragEnd={(_, info) => {
-                      hoverRef.current = false;
-                      if (!active || !isCoarsePointer) return;
-
-                      if (
-                        info.offset.x < -SWIPE_OFFSET ||
-                        info.velocity.x < -SWIPE_VELOCITY
-                      ) {
-                        next();
-                      }
-
-                      if (
-                        info.offset.x > SWIPE_OFFSET ||
-                        info.velocity.x > SWIPE_VELOCITY
-                      ) {
-                        prev();
-                      }
-                    }}
-                  >
-                    <motion.div
-                      animate={active ? SOFT_FLOAT : { y: 0 }}
-                      transition={
-                        active ? SOFT_FLOAT_TRANSITION : { duration: 0 }
-                      }
-                      className="flex h-full w-full items-center justify-center lg:justify-start"
-                    >
-                      <img
-                        src={item.src}
-                        alt={item.title}
-                        draggable={false}
-                        loading="eager"
-                        decoding="async"
-                        className={[
-                          "relative z-[20] block w-auto object-contain select-none",
-                          "drop-shadow-[0_22px_80px_rgba(0,0,0,0.75)]",
-                          "max-h-full",
-                          "max-w-[74vw]",
-                          "min-[390px]:max-w-[70vw]",
-                          "sm:max-w-[430px]",
-                          "md:max-w-[500px]",
-                          "lg:max-w-[620px]",
-                          "xl:max-w-[660px]",
-                        ].join(" ")}
-                      />
-                    </motion.div>
-                  </motion.div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Mobile controls: device above dots, dots above Learn More */}
-          <div className="relative z-[90] order-3 flex w-full flex-col items-center justify-center lg:hidden">
-            <Dots mobile />
-            <div className="mt-5 flex items-center justify-center">
-              <LearnMoreCta />
+          <div className="absolute right-[-4px] top-1/2 -translate-y-1/2 sm:right-0 md:right-1 lg:right-2">
+            <div className="sk-menu-wrap">
+              <StayKnownActionMenu />
             </div>
           </div>
         </div>
+      </header>
 
-        {/* Desktop/tablet dots */}
-        {items.length > 1 ? (
-          <div className="absolute inset-x-0 bottom-9 z-[85] hidden items-center justify-center lg:flex">
-            <Dots />
-          </div>
-        ) : null}
-
-        {/* Arrows */}
-        <div
-          className={[
-            "pointer-events-none absolute left-0 right-0 z-[90]",
-            "top-[62%] -translate-y-1/2",
-            "sm:top-[60%]",
-            "lg:top-1/2",
-            "flex items-center justify-between",
-          ].join(" ")}
-        >
-          <button
-            onClick={handlePrev}
-            className={[
-              "pointer-events-auto flex items-center justify-center",
-              "rounded-full border border-white/14 bg-black/48",
-              "backdrop-blur-xl text-white/88",
-              "shadow-[0_14px_38px_rgba(0,0,0,0.55)]",
-              "transition-all duration-200",
-              "hover:bg-white hover:text-black hover:border-white/25",
-              "active:scale-95",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30",
-              "w-10 h-10 text-[25px]",
-              "sm:w-11 sm:h-11 sm:text-[28px]",
-            ].join(" ")}
-            aria-label="Previous slide"
-            type="button"
-          >
-            <span className="-mt-[2px]">‹</span>
-          </button>
-
-          <button
-            onClick={handleNext}
-            className={[
-              "pointer-events-auto flex items-center justify-center",
-              "rounded-full border border-white/14 bg-black/48",
-              "backdrop-blur-xl text-white/88",
-              "shadow-[0_14px_38px_rgba(0,0,0,0.55)]",
-              "transition-all duration-200",
-              "hover:bg-white hover:text-black hover:border-white/25",
-              "active:scale-95",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30",
-              "w-10 h-10 text-[25px]",
-              "sm:w-11 sm:h-11 sm:text-[28px]",
-            ].join(" ")}
-            aria-label="Next slide"
-            type="button"
-          >
-            <span className="-mt-[2px]">›</span>
-          </button>
+      {/* Hero */}
+      <section className="w-full flex-1">
+        <div className="mx-auto max-w-6xl px-5 pt-7 sm:px-4 sm:pt-7 md:pt-8">
+          <HeroSlider slides={slides} intervalMs={6000} />
         </div>
+      </section>
 
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[40] h-24 bg-gradient-to-t from-black/55 via-black/18 to-transparent lg:h-40 lg:from-black/70 lg:via-black/25" />
-      </div>
-    </div>
+      {/* Footer */}
+      <footer className="relative z-20 w-full">
+        <div className="mx-auto max-w-6xl px-4 pb-8 pt-4 sm:pb-10 sm:pt-6">
+          <div className="h-px bg-white/[0.08]" />
+
+          <div className="mt-6 sm:mt-8 flex flex-col items-center gap-3 text-center">
+            <div className="flex flex-wrap justify-center gap-x-4 gap-y-2 text-[11px] sm:text-[12px] font-semibold text-white/42 leading-relaxed">
+              <a
+                href="/privacy"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-white/75 transition"
+              >
+                Privacy Policy
+              </a>
+              <span className="text-white/18">•</span>
+
+              <a
+                href="/terms"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-white/75 transition"
+              >
+                Terms of Service
+              </a>
+              <span className="text-white/18">•</span>
+
+              <a
+                href="/location-safety"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-white/75 transition"
+              >
+                Location &amp; Live Safety
+              </a>
+              <span className="text-white/18">•</span>
+
+              <a
+                href="/contact-consent"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-white/75 transition"
+              >
+                Contact Consent
+              </a>
+              <span className="text-white/18">•</span>
+
+              <a
+                href="/acceptable-use"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-white/75 transition"
+              >
+                Acceptable Use
+              </a>
+              <span className="text-white/18">•</span>
+
+              <a
+                href="/safety"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-white/75 transition"
+              >
+                Safety &amp; Anti-Stalking
+              </a>
+              <span className="text-white/18">•</span>
+
+              <a
+                href="/trust-safety"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-white/75 transition"
+              >
+                Trust &amp; Safety
+              </a>
+              <span className="text-white/18">•</span>
+
+              <a
+                href="/emergency"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-white/75 transition"
+              >
+                Emergency Disclaimer
+              </a>
+              <span className="text-white/18">•</span>
+
+              <a
+                href="/minors"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-white/75 transition"
+              >
+                Child Safety &amp; Minor Use
+              </a>
+              <span className="text-white/18">•</span>
+
+              <a
+                href="/abuse"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-white/75 transition"
+              >
+                Abuse Reporting
+              </a>
+              <span className="text-white/18">•</span>
+
+              <a
+                href="/retention"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-white/75 transition"
+              >
+                Data Retention
+              </a>
+              <span className="text-white/18">•</span>
+
+              <a
+                href="/law"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-white/75 transition"
+              >
+                Law Enforcement Requests
+              </a>
+              <span className="text-white/18">•</span>
+
+              <a
+                href="/security"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-white/75 transition"
+              >
+                Security Disclosure
+              </a>
+              <span className="text-white/18">•</span>
+
+              <a
+                href="/billing-policy"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-white/75 transition"
+              >
+                Billing &amp; Refunds
+              </a>
+            </div>
+
+            <div className="text-[12px] font-semibold text-white/50">
+              A 6 Clement Joshua service
+              <span className="text-white/25 ml-1 align-super text-[10px]">
+                ™
+              </span>
+            </div>
+
+            <div className="text-[11px] font-semibold text-white/30">
+              {new Date().getFullYear()} • stay-known.com
+            </div>
+          </div>
+        </div>
+      </footer>
+    </main>
   );
-});
-
-export default HeroSlider;
+}

@@ -61,28 +61,41 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
 
   const timerRef = useRef<number | null>(null);
   const hoverRef = useRef(false);
+  const touchStartXRef = useRef<number | null>(null);
 
   const [isCoarsePointer, setIsCoarsePointer] = useState(false);
+  const [reduceMotion, setReduceMotion] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    const mq = window.matchMedia("(hover: none) and (pointer: coarse)");
+    const coarseMq = window.matchMedia("(hover: none) and (pointer: coarse)");
+    const reducedMq = window.matchMedia("(prefers-reduced-motion: reduce)");
 
-    const apply = (e?: MediaQueryList | MediaQueryListEvent) => {
-      const source = e ?? mq;
+    const applyCoarse = (e?: MediaQueryList | MediaQueryListEvent) => {
+      const source = e ?? coarseMq;
       setIsCoarsePointer(source.matches);
     };
 
-    apply(mq);
-    mq.addEventListener("change", apply);
+    const applyReduced = (e?: MediaQueryList | MediaQueryListEvent) => {
+      const source = e ?? reducedMq;
+      setReduceMotion(source.matches);
+    };
 
-    return () => mq.removeEventListener("change", apply);
+    applyCoarse(coarseMq);
+    applyReduced(reducedMq);
+
+    coarseMq.addEventListener("change", applyCoarse);
+    reducedMq.addEventListener("change", applyReduced);
+
+    return () => {
+      coarseMq.removeEventListener("change", applyCoarse);
+      reducedMq.removeEventListener("change", applyReduced);
+    };
   }, []);
 
   useEffect(() => {
     if (!items.length) return;
-
     setSlideState(([current]) => [Math.min(current, items.length - 1), 0]);
   }, [items.length]);
 
@@ -164,7 +177,6 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
       if (timerRef.current) {
         window.clearInterval(timerRef.current);
       }
-
       timerRef.current = null;
     };
 
@@ -210,7 +222,6 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
 
   const pauseBriefly = () => {
     hoverRef.current = true;
-
     window.setTimeout(() => {
       hoverRef.current = false;
     }, 900);
@@ -230,7 +241,30 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
     next();
   };
 
-  const handleTouchStart = useRef<number | null>(null);
+  const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (!isCoarsePointer) return;
+    touchStartXRef.current = e.touches[0]?.clientX ?? null;
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (!isCoarsePointer) return;
+
+    const startX = touchStartXRef.current;
+    const endX = e.changedTouches[0]?.clientX ?? null;
+    touchStartXRef.current = null;
+
+    if (startX === null || endX === null) return;
+
+    const delta = endX - startX;
+
+    if (delta <= -55) {
+      pauseBriefly();
+      next();
+    } else if (delta >= 55) {
+      pauseBriefly();
+      prev();
+    }
+  };
 
   const LearnMoreCta = () => (
     <Link
@@ -306,52 +340,25 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
       onBlurCapture={() => {
         hoverRef.current = false;
       }}
-      onTouchStart={(e) => {
-        if (!isCoarsePointer) return;
-        handleTouchStart.current = e.touches[0]?.clientX ?? null;
-      }}
-      onTouchEnd={(e) => {
-        if (!isCoarsePointer) return;
-
-        const startX = handleTouchStart.current;
-        const endX = e.changedTouches[0]?.clientX ?? null;
-
-        handleTouchStart.current = null;
-
-        if (startX === null || endX === null) return;
-
-        const delta = endX - startX;
-
-        if (delta < -55) {
-          pauseBriefly();
-          next();
-        }
-
-        if (delta > 55) {
-          pauseBriefly();
-          prev();
-        }
-      }}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
       style={{ WebkitTapHighlightColor: "transparent" }}
       aria-roledescription="carousel"
       aria-label="StayKnown hero slider"
     >
       <style jsx>{`
-        @keyframes skSlideCleanIn {
+        @keyframes skHeroFadeIn {
           from {
-            opacity: 0.82;
-            transform: translate3d(${direction >= 0 ? "7px" : "-7px"}, 3px, 0)
-              scale(0.996);
-            filter: blur(1.5px);
+            opacity: 0;
+            transform: translate3d(${direction >= 0 ? "10px" : "-10px"}, 0, 0);
           }
           to {
             opacity: 1;
-            transform: translate3d(0, 0, 0) scale(1);
-            filter: blur(0);
+            transform: translate3d(0, 0, 0);
           }
         }
 
-        @keyframes skDeviceFloat {
+        @keyframes skHeroDeviceFloat {
           0%,
           100% {
             transform: translate3d(0, 0, 0);
@@ -364,19 +371,15 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
           }
         }
 
-        .sk-active-slide {
-          animation: skSlideCleanIn 190ms cubic-bezier(0.22, 1, 0.36, 1) both;
+        .sk-hero-fade {
+          animation: skHeroFadeIn ${reduceMotion ? "0ms" : "220ms"}
+            cubic-bezier(0.22, 1, 0.36, 1) both;
         }
 
-        .sk-device-float {
-          animation: skDeviceFloat 10s ease-in-out infinite;
-        }
-
-        @media (prefers-reduced-motion: reduce) {
-          .sk-active-slide,
-          .sk-device-float {
-            animation: none !important;
-          }
+        .sk-hero-device-float {
+          animation: ${reduceMotion
+            ? "none"
+            : "skHeroDeviceFloat 10s ease-in-out infinite"};
         }
       `}</style>
 
@@ -384,9 +387,9 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
 
       <div className="relative w-full overflow-visible">
         <div
-          key={`${slide.id}-${idx}-single-slide`}
+          key={`${slide.id}-${idx}`}
           className={[
-            "sk-active-slide relative mx-auto grid w-full grid-cols-1",
+            "relative mx-auto grid w-full grid-cols-1",
             "items-start justify-items-center",
             "gap-5 sm:gap-6 md:gap-8",
             "pb-8 sm:pb-10",
@@ -405,7 +408,7 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
                 "lg:min-h-[250px]",
               ].join(" ")}
             >
-              <div className="relative mx-auto max-w-[92vw] lg:mx-0 lg:max-w-[760px]">
+              <div className="sk-hero-fade relative mx-auto max-w-[92vw] lg:mx-0 lg:max-w-[760px]">
                 <div
                   className={[
                     "text-white/96 font-black tracking-[-0.045em]",
@@ -453,28 +456,30 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
                 "max-h-[760px]",
               ].join(" ")}
             >
-              <img
-                src={slide.src}
-                alt={slide.title}
-                draggable={false}
-                loading="eager"
-                decoding="async"
-                className={[
-                  "sk-device-float relative z-[20] block w-auto object-contain select-none",
-                  "drop-shadow-[0_22px_80px_rgba(0,0,0,0.75)]",
-                  "max-h-full",
-                  "max-w-[74vw]",
-                  "min-[390px]:max-w-[70vw]",
-                  "sm:max-w-[430px]",
-                  "md:max-w-[500px]",
-                  "lg:max-w-[620px]",
-                  "xl:max-w-[660px]",
-                ].join(" ")}
-              />
+              <div className="sk-hero-fade">
+                <img
+                  src={slide.src}
+                  alt={slide.title}
+                  draggable={false}
+                  loading="eager"
+                  decoding="async"
+                  className={[
+                    "sk-hero-device-float relative z-[20] block w-auto object-contain select-none",
+                    "drop-shadow-[0_22px_80px_rgba(0,0,0,0.75)]",
+                    "max-h-full",
+                    "max-w-[74vw]",
+                    "min-[390px]:max-w-[70vw]",
+                    "sm:max-w-[430px]",
+                    "md:max-w-[500px]",
+                    "lg:max-w-[620px]",
+                    "xl:max-w-[660px]",
+                  ].join(" ")}
+                />
+              </div>
             </div>
           </div>
 
-          {/* Mobile controls: device above dots, dots above Learn More */}
+          {/* Mobile controls */}
           <div className="relative z-[90] order-3 flex w-full flex-col items-center justify-center lg:hidden">
             <Dots mobile />
             <div className="mt-5 flex items-center justify-center">
@@ -483,7 +488,7 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
           </div>
         </div>
 
-        {/* Desktop/tablet dots */}
+        {/* Desktop dots */}
         {items.length > 1 ? (
           <div className="absolute inset-x-0 bottom-9 z-[85] hidden items-center justify-center lg:flex">
             <Dots />
