@@ -104,7 +104,7 @@ export default function StayKnownActionMenu() {
   }, [open]);
 
   return (
-    <div ref={wrapRef} className="relative z-50">
+    <div ref={wrapRef} className="relative z-[9999]">
       <button
         type="button"
         aria-label="Open StayKnown menu"
@@ -127,21 +127,25 @@ export default function StayKnownActionMenu() {
             type="button"
             aria-label="Close StayKnown menu"
             onClick={() => setOpen(false)}
-            className="fixed inset-0 z-40 cursor-default bg-black/35 backdrop-blur-[2px] md:bg-black/0 md:backdrop-blur-0"
+            className={cn(
+              "fixed inset-0 z-[9998] cursor-default",
+              "bg-black/72 backdrop-blur-[5px]",
+              "md:bg-black/45 md:backdrop-blur-[3px]",
+            )}
           />
 
           <div
             className={cn(
-              "fixed inset-x-3 top-[74px] z-50",
+              "fixed inset-x-3 top-[74px] z-[9999]",
               "origin-top animate-[skMenuIn_0.18s_ease-out_both]",
               "overflow-hidden rounded-[1.65rem]",
-              "border border-white/10 bg-black/[0.72]",
-              "p-2 shadow-2xl shadow-black/60 backdrop-blur-2xl",
-              "ring-1 ring-white/[0.035]",
+              "border border-white/12 bg-black/[0.88]",
+              "p-2 shadow-2xl shadow-black/80 backdrop-blur-2xl",
+              "ring-1 ring-white/[0.05]",
               "md:absolute md:inset-auto md:right-0 md:top-[calc(100%+12px)] md:w-[380px]",
             )}
           >
-            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.12),transparent_34%),radial-gradient(circle_at_bottom_left,rgba(255,255,255,0.055),transparent_34%)]" />
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.14),transparent_34%),radial-gradient(circle_at_bottom_left,rgba(255,255,255,0.06),transparent_34%)]" />
 
             <div className="relative px-3 pb-2 pt-3">
               <div className="text-[11px] font-black uppercase tracking-[0.2em] text-white/35">
