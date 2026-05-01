@@ -50,6 +50,8 @@ const routeAlias: Record<string, string> = {
   "get-safe-hints": "get-safe-guidance",
 };
 
+const TRANSITION_MS = 320;
+
 const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
   { slides, intervalMs = 6000, learnBasePath = "/learn", autoplay = true },
   ref,
@@ -60,22 +62,14 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
     0, 0,
   ]);
 
+  const [previousIdx, setPreviousIdx] = useState<number | null>(null);
+
   const timerRef = useRef<number | null>(null);
+  const clearPreviousTimerRef = useRef<number | null>(null);
   const hoverRef = useRef(false);
 
   const prefersReducedMotion = useReducedMotion();
   const [isCoarsePointer, setIsCoarsePointer] = useState(false);
-  const [hasBooted, setHasBooted] = useState(false);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    const timer = window.setTimeout(() => {
-      setHasBooted(true);
-    }, 180);
-
-    return () => window.clearTimeout(timer);
-  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -97,67 +91,86 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
     if (!items.length) return;
 
     setSlideState(([current]) => [Math.min(current, items.length - 1), 0]);
+    setPreviousIdx(null);
   }, [items.length]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (!items.length) return;
 
-    const preload = async () => {
-      await Promise.allSettled(
-        items.map(
-          (item) =>
-            new Promise<void>((resolve) => {
-              const image = new window.Image();
-              image.src = item.src;
-
-              image.onload = () => {
-                if ("decode" in image) {
-                  image
-                    .decode()
-                    .then(() => resolve())
-                    .catch(() => resolve());
-                } else {
-                  resolve();
-                }
-              };
-
-              image.onerror = () => resolve();
-            }),
-        ),
-      );
-    };
-
-    void preload();
+    for (const item of items) {
+      const image = new window.Image();
+      image.src = item.src;
+      image.onload = () => {
+        if ("decode" in image) {
+          image.decode().catch(() => undefined);
+        }
+      };
+    }
   }, [items]);
 
-  const go = useCallback(
+  useEffect(() => {
+    return () => {
+      if (clearPreviousTimerRef.current) {
+        window.clearTimeout(clearPreviousTimerRef.current);
+      }
+    };
+  }, []);
+
+  const moveTo = useCallback(
     (nextIndex: number, nextDirection: Direction = 0) => {
       const total = items.length;
       if (!total) return;
 
       const safeIndex = ((nextIndex % total) + total) % total;
-      setSlideState(([current]) => [
-        safeIndex,
-        nextDirection || (safeIndex >= current ? 1 : -1),
-      ]);
+
+      setSlideState(([current]) => {
+        if (safeIndex === current) return [current, 0];
+
+        setPreviousIdx(current);
+
+        if (typeof window !== "undefined") {
+          if (clearPreviousTimerRef.current) {
+            window.clearTimeout(clearPreviousTimerRef.current);
+          }
+
+          clearPreviousTimerRef.current = window.setTimeout(
+            () => {
+              setPreviousIdx(null);
+            },
+            prefersReducedMotion ? 60 : TRANSITION_MS + 40,
+          );
+        }
+
+        const resolvedDirection: Direction =
+          nextDirection || (safeIndex > current ? 1 : -1);
+
+        return [safeIndex, resolvedDirection];
+      });
     },
-    [items.length],
+    [items.length, prefersReducedMotion],
+  );
+
+  const go = useCallback(
+    (nextIndex: number, nextDirection: Direction = 0) => {
+      moveTo(nextIndex, nextDirection);
+    },
+    [moveTo],
   );
 
   const next = useCallback(() => {
     const total = items.length;
     if (!total) return;
 
-    setSlideState(([current]) => [(current + 1) % total, 1]);
-  }, [items.length]);
+    moveTo(idx + 1, 1);
+  }, [idx, items.length, moveTo]);
 
   const prev = useCallback(() => {
     const total = items.length;
     if (!total) return;
 
-    setSlideState(([current]) => [(current - 1 + total) % total, -1]);
-  }, [items.length]);
+    moveTo(idx - 1, -1);
+  }, [idx, items.length, moveTo]);
 
   useImperativeHandle(
     ref,
@@ -168,16 +181,14 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
         const total = items.length;
         if (!total) return;
 
-        setSlideState(([current]) => {
-          const safeIndex = ((index % total) + total) % total;
-          const nextDirection: Direction =
-            safeIndex === current ? 0 : safeIndex > current ? 1 : -1;
+        const safeIndex = ((index % total) + total) % total;
+        const nextDirection: Direction =
+          safeIndex === idx ? 0 : safeIndex > idx ? 1 : -1;
 
-          return [safeIndex, nextDirection];
-        });
+        moveTo(safeIndex, nextDirection);
       },
     }),
-    [next, prev, items.length],
+    [next, prev, items.length, idx, moveTo],
   );
 
   useEffect(() => {
@@ -198,7 +209,27 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
 
       timerRef.current = window.setInterval(() => {
         if (!hoverRef.current && !document.hidden) {
-          next();
+          setSlideState(([current]) => {
+            const total = items.length;
+            if (!total) return [current, 0];
+
+            const safeIndex = (current + 1) % total;
+
+            setPreviousIdx(current);
+
+            if (clearPreviousTimerRef.current) {
+              window.clearTimeout(clearPreviousTimerRef.current);
+            }
+
+            clearPreviousTimerRef.current = window.setTimeout(
+              () => {
+                setPreviousIdx(null);
+              },
+              prefersReducedMotion ? 60 : TRANSITION_MS + 40,
+            );
+
+            return [safeIndex, 1];
+          });
         }
       }, intervalMs);
     };
@@ -212,7 +243,7 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
       document.removeEventListener("visibilitychange", onVisibilityChange);
       clear();
     };
-  }, [autoplay, items.length, intervalMs, next]);
+  }, [autoplay, items.length, intervalMs, prefersReducedMotion]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -229,11 +260,6 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
 
   const slide = items[idx];
   if (!slide) return null;
-
-  const FAST_FADE = {
-    duration: prefersReducedMotion ? 0.12 : 0.28,
-    ease: [0.22, 1, 0.36, 1] as const,
-  };
 
   const SOFT_FLOAT = prefersReducedMotion
     ? { y: 0 }
@@ -274,6 +300,11 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
     pauseBriefly();
     next();
   };
+
+  const renderedIndexes = useMemo(() => {
+    if (previousIdx === null || previousIdx === idx) return [idx];
+    return [previousIdx, idx];
+  }, [previousIdx, idx]);
 
   const LearnMoreCta = () => (
     <Link
@@ -377,40 +408,35 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
                 "lg:min-h-[250px]",
               ].join(" ")}
             >
-              {items.map((item, itemIndex) => {
+              {renderedIndexes.map((itemIndex) => {
+                const item = items[itemIndex];
+                if (!item) return null;
+
                 const active = itemIndex === idx;
-
-                if (!hasBooted && !active) return null;
-
                 const inactiveX = direction >= 0 ? -10 : 10;
 
                 return (
-                  <motion.div
-                    key={`${item.id}-text-layer`}
+                  <div
+                    key={`${item.id}-${itemIndex}-text-layer`}
                     aria-hidden={!active}
-                    initial={{
-                      opacity: active ? 1 : 0,
-                      x: active ? 0 : inactiveX,
-                      y: active ? 0 : 4,
-                      scale: active ? 1 : 0.992,
-                      filter: active ? "blur(0px)" : "blur(3px)",
-                    }}
-                    animate={{
-                      opacity: active ? 1 : 0,
-                      x: active ? 0 : inactiveX,
-                      y: active ? 0 : 4,
-                      scale: active ? 1 : 0.992,
-                      filter: active ? "blur(0px)" : "blur(3px)",
-                    }}
-                    transition={FAST_FADE}
                     style={{
                       opacity: active ? 1 : 0,
-                      visibility: active ? "visible" : "hidden",
+                      visibility:
+                        active || itemIndex === previousIdx
+                          ? "visible"
+                          : "hidden",
+                      transform: active
+                        ? "translate3d(0,0,0) scale(1)"
+                        : `translate3d(${inactiveX}px,4px,0) scale(0.992)`,
+                      filter: active ? "blur(0px)" : "blur(3px)",
+                      transition: prefersReducedMotion
+                        ? "opacity 80ms ease"
+                        : `opacity ${TRANSITION_MS}ms ease, transform ${TRANSITION_MS}ms cubic-bezier(0.22,1,0.36,1), filter ${TRANSITION_MS}ms ease`,
                       pointerEvents: active ? "auto" : "none",
                     }}
                     className={[
-                      "absolute inset-x-0 top-0",
-                      active ? "z-[3]" : "z-[1]",
+                      "absolute inset-x-0 top-0 will-change-[opacity,transform,filter]",
+                      active ? "z-[3]" : "z-[2]",
                     ].join(" ")}
                   >
                     <div className="relative mx-auto max-w-[92vw] lg:mx-0 lg:max-w-[760px]">
@@ -445,7 +471,7 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
                         {active ? <LearnMoreCta /> : null}
                       </div>
                     </div>
-                  </motion.div>
+                  </div>
                 );
               })}
             </div>
@@ -464,79 +490,74 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
                 "max-h-[760px]",
               ].join(" ")}
             >
-              {items.map((item, itemIndex) => {
+              {renderedIndexes.map((itemIndex) => {
+                const item = items[itemIndex];
+                if (!item) return null;
+
                 const active = itemIndex === idx;
-
-                if (!hasBooted && !active) return null;
-
                 const inactiveX = direction >= 0 ? -12 : 12;
 
                 return (
-                  <motion.div
-                    key={`${item.id}-device-layer`}
+                  <div
+                    key={`${item.id}-${itemIndex}-device-layer`}
                     aria-hidden={!active}
-                    initial={{
-                      opacity: active ? 1 : 0,
-                      x: active ? 0 : inactiveX,
-                      y: active ? 0 : 6,
-                      scale: active ? 1 : 0.99,
-                      filter: active ? "blur(0px)" : "blur(2px)",
-                    }}
-                    animate={{
-                      opacity: active ? 1 : 0,
-                      x: active ? 0 : inactiveX,
-                      y: active ? 0 : 6,
-                      scale: active ? 1 : 0.99,
-                      filter: active ? "blur(0px)" : "blur(2px)",
-                    }}
-                    transition={FAST_FADE}
                     style={{
                       opacity: active ? 1 : 0,
-                      visibility: active ? "visible" : "hidden",
+                      visibility:
+                        active || itemIndex === previousIdx
+                          ? "visible"
+                          : "hidden",
+                      transform: active
+                        ? "translate3d(0,0,0) scale(1)"
+                        : `translate3d(${inactiveX}px,6px,0) scale(0.99)`,
+                      filter: active ? "blur(0px)" : "blur(2px)",
+                      transition: prefersReducedMotion
+                        ? "opacity 80ms ease"
+                        : `opacity ${TRANSITION_MS}ms ease, transform ${TRANSITION_MS}ms cubic-bezier(0.22,1,0.36,1), filter ${TRANSITION_MS}ms ease`,
                       pointerEvents: active ? "auto" : "none",
                     }}
                     className={[
-                      "absolute inset-0 flex w-full items-center justify-center lg:justify-start",
-                      active ? "z-[3]" : "z-[1]",
+                      "absolute inset-0 flex w-full items-center justify-center will-change-[opacity,transform,filter] lg:justify-start",
+                      active ? "z-[3]" : "z-[2]",
                     ].join(" ")}
-                    drag={active && isCoarsePointer ? "x" : false}
-                    dragConstraints={{ left: 0, right: 0 }}
-                    dragElastic={0.18}
-                    onDragStart={() => {
-                      if (!active) return;
-                      hoverRef.current = true;
-                    }}
-                    onDragEnd={(_, info) => {
-                      hoverRef.current = false;
-                      if (!active || !isCoarsePointer) return;
-
-                      if (
-                        info.offset.x < -SWIPE_OFFSET ||
-                        info.velocity.x < -SWIPE_VELOCITY
-                      ) {
-                        next();
-                      }
-
-                      if (
-                        info.offset.x > SWIPE_OFFSET ||
-                        info.velocity.x > SWIPE_VELOCITY
-                      ) {
-                        prev();
-                      }
-                    }}
                   >
                     <motion.div
                       animate={active ? SOFT_FLOAT : { y: 0 }}
                       transition={
                         active ? SOFT_FLOAT_TRANSITION : { duration: 0 }
                       }
+                      drag={active && isCoarsePointer ? "x" : false}
+                      dragConstraints={{ left: 0, right: 0 }}
+                      dragElastic={0.18}
+                      onDragStart={() => {
+                        if (!active) return;
+                        hoverRef.current = true;
+                      }}
+                      onDragEnd={(_, info) => {
+                        hoverRef.current = false;
+                        if (!active || !isCoarsePointer) return;
+
+                        if (
+                          info.offset.x < -SWIPE_OFFSET ||
+                          info.velocity.x < -SWIPE_VELOCITY
+                        ) {
+                          next();
+                        }
+
+                        if (
+                          info.offset.x > SWIPE_OFFSET ||
+                          info.velocity.x > SWIPE_VELOCITY
+                        ) {
+                          prev();
+                        }
+                      }}
                       className="flex h-full w-full items-center justify-center lg:justify-start"
                     >
                       <img
                         src={item.src}
                         alt={item.title}
                         draggable={false}
-                        loading="eager"
+                        loading={itemIndex === idx ? "eager" : "lazy"}
                         decoding="async"
                         className={[
                           "relative z-[20] block w-auto object-contain select-none",
@@ -551,7 +572,7 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
                         ].join(" ")}
                       />
                     </motion.div>
-                  </motion.div>
+                  </div>
                 );
               })}
             </div>
