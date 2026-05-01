@@ -597,7 +597,12 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
         {/* Arrows */}
         <div
           className={[
-            "pointer-events-none absolute left-0 right-0 z-[90]",
+            "pointer-events-none absolute z-[90]",
+            "-left-5 -right-5",
+            "sm:-left-8 sm:-right-8",
+            "md:-left-12 md:-right-12",
+            "lg:-left-20 lg:-right-20",
+            "xl:-left-28 xl:-right-28",
             "top-[62%] -translate-y-1/2",
             "sm:top-[60%]",
             "lg:top-1/2",

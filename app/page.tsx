@@ -198,8 +198,7 @@ export default function Page() {
               STAYKNOWN
             </div>
           </div>
-
-          <div className="absolute right-[-4px] top-1/2 -translate-y-1/2 sm:right-0 md:right-1 lg:right-2">
+          <div className="absolute right-[-18px] top-1/2 -translate-y-1/2 sm:right-[-22px] md:right-[-28px] lg:right-[-36px] xl:right-[-44px]">
             <div className="sk-menu-wrap">
               <StayKnownActionMenu />
             </div>
