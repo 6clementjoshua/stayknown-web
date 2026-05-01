@@ -10,7 +10,6 @@ import React, {
   useState,
 } from "react";
 import Link from "next/link";
-import { motion, useReducedMotion } from "framer-motion";
 
 export type SlideKind = "pill" | "device";
 
@@ -63,7 +62,6 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
   const timerRef = useRef<number | null>(null);
   const hoverRef = useRef(false);
 
-  const prefersReducedMotion = useReducedMotion();
   const [isCoarsePointer, setIsCoarsePointer] = useState(false);
 
   useEffect(() => {
@@ -207,21 +205,6 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
   const slide = items[idx];
   if (!slide) return null;
 
-  const SOFT_FLOAT = prefersReducedMotion
-    ? { y: 0 }
-    : { y: [0, -1.5, 0, 1.5, 0] };
-
-  const SOFT_FLOAT_TRANSITION = prefersReducedMotion
-    ? { duration: 0 }
-    : {
-        duration: 10,
-        repeat: Infinity,
-        ease: "easeInOut" as const,
-      };
-
-  const SWIPE_OFFSET = 60;
-  const SWIPE_VELOCITY = 500;
-
   const mappedId = routeAlias[slide.id] ?? slide.id;
   const learnHref = slide.learnHref ?? `${learnBasePath}/${mappedId}`;
 
@@ -246,6 +229,8 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
     pauseBriefly();
     next();
   };
+
+  const handleTouchStart = useRef<number | null>(null);
 
   const LearnMoreCta = () => (
     <Link
@@ -321,17 +306,43 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
       onBlurCapture={() => {
         hoverRef.current = false;
       }}
+      onTouchStart={(e) => {
+        if (!isCoarsePointer) return;
+        handleTouchStart.current = e.touches[0]?.clientX ?? null;
+      }}
+      onTouchEnd={(e) => {
+        if (!isCoarsePointer) return;
+
+        const startX = handleTouchStart.current;
+        const endX = e.changedTouches[0]?.clientX ?? null;
+
+        handleTouchStart.current = null;
+
+        if (startX === null || endX === null) return;
+
+        const delta = endX - startX;
+
+        if (delta < -55) {
+          pauseBriefly();
+          next();
+        }
+
+        if (delta > 55) {
+          pauseBriefly();
+          prev();
+        }
+      }}
       style={{ WebkitTapHighlightColor: "transparent" }}
       aria-roledescription="carousel"
       aria-label="StayKnown hero slider"
     >
       <style jsx>{`
-        @keyframes skSingleSlideIn {
+        @keyframes skSlideCleanIn {
           from {
-            opacity: 0.72;
-            transform: translate3d(${direction >= 0 ? "8px" : "-8px"}, 4px, 0)
-              scale(0.994);
-            filter: blur(2px);
+            opacity: 0.82;
+            transform: translate3d(${direction >= 0 ? "7px" : "-7px"}, 3px, 0)
+              scale(0.996);
+            filter: blur(1.5px);
           }
           to {
             opacity: 1;
@@ -340,8 +351,30 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
           }
         }
 
+        @keyframes skDeviceFloat {
+          0%,
+          100% {
+            transform: translate3d(0, 0, 0);
+          }
+          25% {
+            transform: translate3d(0, -1.5px, 0);
+          }
+          75% {
+            transform: translate3d(0, 1.5px, 0);
+          }
+        }
+
+        .sk-active-slide {
+          animation: skSlideCleanIn 190ms cubic-bezier(0.22, 1, 0.36, 1) both;
+        }
+
+        .sk-device-float {
+          animation: skDeviceFloat 10s ease-in-out infinite;
+        }
+
         @media (prefers-reduced-motion: reduce) {
-          .sk-single-slide-in {
+          .sk-active-slide,
+          .sk-device-float {
             animation: none !important;
           }
         }
@@ -351,8 +384,9 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
 
       <div className="relative w-full overflow-visible">
         <div
+          key={`${slide.id}-${idx}-single-slide`}
           className={[
-            "relative mx-auto grid w-full grid-cols-1",
+            "sk-active-slide relative mx-auto grid w-full grid-cols-1",
             "items-start justify-items-center",
             "gap-5 sm:gap-6 md:gap-8",
             "pb-8 sm:pb-10",
@@ -363,7 +397,7 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
           <div className="relative z-[30] order-1 flex w-full items-center justify-center lg:order-2 lg:justify-start">
             <div
               className={[
-                "relative w-full max-w-[800px] text-center lg:text-left",
+                "w-full max-w-[800px] text-center lg:text-left",
                 "min-h-[168px]",
                 "min-[390px]:min-h-[178px]",
                 "sm:min-h-[180px]",
@@ -371,46 +405,36 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
                 "lg:min-h-[250px]",
               ].join(" ")}
             >
-              <div
-                key={`${slide.id}-${idx}-text-single`}
-                className="sk-single-slide-in absolute inset-x-0 top-0 z-[3] will-change-[opacity,transform,filter]"
-                style={{
-                  animation: prefersReducedMotion
-                    ? "none"
-                    : "skSingleSlideIn 220ms cubic-bezier(0.22,1,0.36,1) both",
-                }}
-              >
-                <div className="relative mx-auto max-w-[92vw] lg:mx-0 lg:max-w-[760px]">
-                  <div
-                    className={[
-                      "text-white/96 font-black tracking-[-0.045em]",
-                      "text-[34px] leading-[1.02]",
-                      "min-[390px]:text-[38px]",
-                      "sm:text-[48px] sm:leading-[0.98]",
-                      "md:text-[58px]",
-                      "lg:text-[62px]",
-                    ].join(" ")}
-                  >
-                    {slide.title}
-                  </div>
+              <div className="relative mx-auto max-w-[92vw] lg:mx-0 lg:max-w-[760px]">
+                <div
+                  className={[
+                    "text-white/96 font-black tracking-[-0.045em]",
+                    "text-[34px] leading-[1.02]",
+                    "min-[390px]:text-[38px]",
+                    "sm:text-[48px] sm:leading-[0.98]",
+                    "md:text-[58px]",
+                    "lg:text-[62px]",
+                  ].join(" ")}
+                >
+                  {slide.title}
+                </div>
 
-                  <div
-                    className={[
-                      "mx-auto mt-4 max-w-[34ch]",
-                      "text-white/56 font-semibold leading-relaxed",
-                      "text-[13px]",
-                      "min-[390px]:text-[13.5px]",
-                      "sm:max-w-[56ch] sm:text-[14px]",
-                      "md:text-[14.5px]",
-                      "lg:mx-0 lg:max-w-[64ch]",
-                    ].join(" ")}
-                  >
-                    {slide.teaser}
-                  </div>
+                <div
+                  className={[
+                    "mx-auto mt-4 max-w-[34ch]",
+                    "text-white/56 font-semibold leading-relaxed",
+                    "text-[13px]",
+                    "min-[390px]:text-[13.5px]",
+                    "sm:max-w-[56ch] sm:text-[14px]",
+                    "md:text-[14.5px]",
+                    "lg:mx-0 lg:max-w-[64ch]",
+                  ].join(" ")}
+                >
+                  {slide.teaser}
+                </div>
 
-                  <div className="mt-7 hidden items-center justify-center lg:flex lg:justify-start">
-                    <LearnMoreCta />
-                  </div>
+                <div className="mt-7 hidden items-center justify-center lg:flex lg:justify-start">
+                  <LearnMoreCta />
                 </div>
               </div>
             </div>
@@ -420,7 +444,7 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
           <div className="relative z-[20] order-2 flex w-full items-center justify-center lg:order-1 lg:justify-start lg:pl-2">
             <div
               className={[
-                "relative w-full",
+                "flex w-full items-center justify-center lg:justify-start",
                 "h-[38vh]",
                 "min-[390px]:h-[40vh]",
                 "sm:h-[48vh]",
@@ -429,60 +453,24 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
                 "max-h-[760px]",
               ].join(" ")}
             >
-              <motion.div
-                key={`${slide.id}-${idx}-device-single`}
-                animate={SOFT_FLOAT}
-                transition={SOFT_FLOAT_TRANSITION}
-                drag={isCoarsePointer ? "x" : false}
-                dragConstraints={{ left: 0, right: 0 }}
-                dragElastic={0.18}
-                onDragStart={() => {
-                  hoverRef.current = true;
-                }}
-                onDragEnd={(_, info) => {
-                  hoverRef.current = false;
-                  if (!isCoarsePointer) return;
-
-                  if (
-                    info.offset.x < -SWIPE_OFFSET ||
-                    info.velocity.x < -SWIPE_VELOCITY
-                  ) {
-                    next();
-                  }
-
-                  if (
-                    info.offset.x > SWIPE_OFFSET ||
-                    info.velocity.x > SWIPE_VELOCITY
-                  ) {
-                    prev();
-                  }
-                }}
-                className="sk-single-slide-in absolute inset-0 z-[3] flex h-full w-full items-center justify-center will-change-[opacity,transform,filter] lg:justify-start"
-                style={{
-                  animation: prefersReducedMotion
-                    ? "none"
-                    : "skSingleSlideIn 220ms cubic-bezier(0.22,1,0.36,1) both",
-                }}
-              >
-                <img
-                  src={slide.src}
-                  alt={slide.title}
-                  draggable={false}
-                  loading="eager"
-                  decoding="async"
-                  className={[
-                    "relative z-[20] block w-auto object-contain select-none",
-                    "drop-shadow-[0_22px_80px_rgba(0,0,0,0.75)]",
-                    "max-h-full",
-                    "max-w-[74vw]",
-                    "min-[390px]:max-w-[70vw]",
-                    "sm:max-w-[430px]",
-                    "md:max-w-[500px]",
-                    "lg:max-w-[620px]",
-                    "xl:max-w-[660px]",
-                  ].join(" ")}
-                />
-              </motion.div>
+              <img
+                src={slide.src}
+                alt={slide.title}
+                draggable={false}
+                loading="eager"
+                decoding="async"
+                className={[
+                  "sk-device-float relative z-[20] block w-auto object-contain select-none",
+                  "drop-shadow-[0_22px_80px_rgba(0,0,0,0.75)]",
+                  "max-h-full",
+                  "max-w-[74vw]",
+                  "min-[390px]:max-w-[70vw]",
+                  "sm:max-w-[430px]",
+                  "md:max-w-[500px]",
+                  "lg:max-w-[620px]",
+                  "xl:max-w-[660px]",
+                ].join(" ")}
+              />
             </div>
           </div>
 
