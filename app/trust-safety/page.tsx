@@ -502,7 +502,7 @@ function ActionPanel() {
         <div className="mt-5 flex flex-wrap gap-2">
           <a
             href="/abuse"
-            className="rounded-full border border-white/15 bg-black px-4 py-2 text-[12px] font-black text-black transition hover:-translate-y-0.5 hover:bg-white/90"
+            className="rounded-full border border-white/15 bg-black px-4 py-2 text-[12px] font-black text-black transition hover:-translate-y-0.5 hover:bg-white/90 text-black"
           >
             Report abuse
           </a>
