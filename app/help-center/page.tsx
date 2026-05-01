@@ -630,7 +630,7 @@ function StillNeedHelp({ compact = false }: { compact?: boolean }) {
         <div className="mt-4 flex flex-wrap gap-2">
           <a
             href="/submit-request"
-            className="rounded-full border border-white/15 bg-white px-4 py-2 text-[12px] font-black text-black transition hover:-translate-y-0.5 hover:bg-white/90"
+            className="rounded-full border border-white/10 bg-white/[0.045] px-4 py-2 text-[12px] font-black text-white/72 transition hover:-translate-y-0.5 hover:border-white/18 hover:bg-white/[0.075] hover:text-white"
           >
             Submit request
           </a>
@@ -821,12 +821,10 @@ export default function HelpCenterPage() {
                     setOpenId(article.id);
                     setQuery("");
                     window.setTimeout(() => {
-                      document
-                        .getElementById("answers")
-                        ?.scrollIntoView({
-                          behavior: "smooth",
-                          block: "start",
-                        });
+                      document.getElementById("answers")?.scrollIntoView({
+                        behavior: "smooth",
+                        block: "start",
+                      });
                     }, 80);
                   }}
                   className="group animate-[helpRise_0.55s_ease_both] rounded-[1.55rem] border border-white/10 bg-white/[0.032] p-5 text-left shadow-sm transition hover:-translate-y-1 hover:border-white/18 hover:bg-white/[0.06]"
