@@ -70,11 +70,11 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    const frame = window.requestAnimationFrame(() => {
+    const timer = window.setTimeout(() => {
       setHasBooted(true);
-    });
+    }, 180);
 
-    return () => window.cancelAnimationFrame(frame);
+    return () => window.clearTimeout(timer);
   }, []);
 
   useEffect(() => {
@@ -388,7 +388,13 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
                   <motion.div
                     key={`${item.id}-text-layer`}
                     aria-hidden={!active}
-                    initial={false}
+                    initial={{
+                      opacity: active ? 1 : 0,
+                      x: active ? 0 : inactiveX,
+                      y: active ? 0 : 4,
+                      scale: active ? 1 : 0.992,
+                      filter: active ? "blur(0px)" : "blur(3px)",
+                    }}
                     animate={{
                       opacity: active ? 1 : 0,
                       x: active ? 0 : inactiveX,
@@ -397,11 +403,14 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
                       filter: active ? "blur(0px)" : "blur(3px)",
                     }}
                     transition={FAST_FADE}
+                    style={{
+                      opacity: active ? 1 : 0,
+                      visibility: active ? "visible" : "hidden",
+                      pointerEvents: active ? "auto" : "none",
+                    }}
                     className={[
                       "absolute inset-x-0 top-0",
-                      active
-                        ? "z-[3] pointer-events-auto"
-                        : "z-[1] pointer-events-none",
+                      active ? "z-[3]" : "z-[1]",
                     ].join(" ")}
                   >
                     <div className="relative mx-auto max-w-[92vw] lg:mx-0 lg:max-w-[760px]">
@@ -466,7 +475,13 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
                   <motion.div
                     key={`${item.id}-device-layer`}
                     aria-hidden={!active}
-                    initial={false}
+                    initial={{
+                      opacity: active ? 1 : 0,
+                      x: active ? 0 : inactiveX,
+                      y: active ? 0 : 6,
+                      scale: active ? 1 : 0.99,
+                      filter: active ? "blur(0px)" : "blur(2px)",
+                    }}
                     animate={{
                       opacity: active ? 1 : 0,
                       x: active ? 0 : inactiveX,
@@ -475,11 +490,14 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
                       filter: active ? "blur(0px)" : "blur(2px)",
                     }}
                     transition={FAST_FADE}
+                    style={{
+                      opacity: active ? 1 : 0,
+                      visibility: active ? "visible" : "hidden",
+                      pointerEvents: active ? "auto" : "none",
+                    }}
                     className={[
                       "absolute inset-0 flex w-full items-center justify-center lg:justify-start",
-                      active
-                        ? "z-[3] pointer-events-auto"
-                        : "z-[1] pointer-events-none",
+                      active ? "z-[3]" : "z-[1]",
                     ].join(" ")}
                     drag={active && isCoarsePointer ? "x" : false}
                     dragConstraints={{ left: 0, right: 0 }}
