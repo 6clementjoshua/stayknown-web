@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 const UPDATED_AT = "2026-05-01";
 
@@ -13,6 +13,23 @@ type HelpArticle = {
   answer: string[];
   links?: { label: string; href: string }[];
   tags: string[];
+  audience?: string[];
+};
+
+type CategoryCard = {
+  name: string;
+  title: string;
+  body: string;
+  icon:
+    | "shield"
+    | "pin"
+    | "alert"
+    | "users"
+    | "chat"
+    | "card"
+    | "lock"
+    | "tool"
+    | "user";
 };
 
 const articles: HelpArticle[] = [
@@ -21,36 +38,127 @@ const articles: HelpArticle[] = [
     category: "Getting started",
     title: "How do I start using StayKnown safely?",
     summary:
-      "Set up your account, profile, permissions, approved contacts, and safety basics before relying on visits or SOS.",
+      "Set up your account, profile, permissions, approved contacts, and safety basics before relying on Visits, LIVE, chat, Manual Capture, or SOS.",
     answer: [
       "Create your account with accurate personal details so trusted contacts can recognize you during safety moments.",
-      "Allow the required device permissions, especially location and notifications, because Visit, LIVE, SOS, manual capture, and chat map flows depend on reliable device access.",
+      "Allow required permissions, especially location and notifications. Visit, LIVE, SOS, Manual Capture, and chat map flows depend on reliable device access.",
       "Add trusted contacts and wait for approval where approval is required. StayKnown is built around known, trusted, consent-aware safety relationships.",
+      "Add a Safety Gallery image where required so approved contacts can recognize you during safety communication.",
       "Review the safety rules before using LIVE sharing, SOS, chat, stories, stickers, or location features.",
     ],
     links: [
       { label: "Contact Approval & Consent", href: "/contact-consent" },
       { label: "Safety & Anti-Stalking", href: "/safety" },
-      { label: "Submit a request", href: "/submit-request" },
+      { label: "Trust & Safety", href: "/trust-safety" },
     ],
-    tags: ["setup", "account", "permissions", "contacts", "start"],
+    tags: [
+      "setup",
+      "account",
+      "permissions",
+      "contacts",
+      "start",
+      "profile",
+      "gallery",
+    ],
+    audience: ["users", "parents", "contacts"],
+  },
+  {
+    id: "permissions",
+    category: "Getting started",
+    title: "Which permissions does StayKnown need?",
+    summary:
+      "Location, notification, camera, photo, microphone, and device permissions may be needed depending on the feature.",
+    answer: [
+      "Location permission supports Visits, LIVE sharing, SOS, Manual Capture, chat map context, and safety history.",
+      "Notification permission helps you receive contact approvals, chat alerts, safety updates, support messages, and account notices.",
+      "Camera and photo access may be used for profile images, Safety Gallery, chat media, stories, or stickers.",
+      "Microphone permission may be used for voice notes or voice stickers where available.",
+      "If a permission is denied, the related feature may not work until you enable it again in device settings.",
+    ],
+    links: [
+      { label: "Privacy Policy", href: "/privacy" },
+      { label: "Location & Live Safety", href: "/location-safety" },
+    ],
+    tags: [
+      "permission",
+      "location",
+      "notification",
+      "camera",
+      "photo",
+      "microphone",
+      "device",
+    ],
+    audience: ["users"],
+  },
+  {
+    id: "safety-gallery",
+    category: "Getting started",
+    title: "Why does StayKnown ask for a Safety Gallery image?",
+    summary:
+      "Safety Gallery helps approved contacts recognize the user in safety moments and contact-related flows.",
+    answer: [
+      "A Safety Gallery image can help approved contacts confirm who they are supporting during Visits, SOS alerts, live map sessions, and safety communication.",
+      "For some Pro or Pro Max safety setup flows, StayKnown may require at least one safety image before setup is complete.",
+      "Use a clear and appropriate image. Do not upload fake, misleading, stolen, abusive, or impersonation-based images.",
+    ],
+    links: [
+      { label: "Privacy Policy", href: "/privacy" },
+      { label: "Safety & Anti-Stalking", href: "/safety" },
+    ],
+    tags: [
+      "safety gallery",
+      "photo",
+      "image",
+      "profile",
+      "identity",
+      "recognition",
+    ],
+    audience: ["users", "contacts"],
   },
   {
     id: "start-visit",
     category: "Visits & LIVE",
     title: "What is a Visit and when should I start one?",
     summary:
-      "A Visit is the main safety session that lets StayKnown understand that you are actively moving, visiting, or meeting.",
+      "A Visit is the main safety session that tells StayKnown you are actively moving, visiting, meeting, or entering a safety-relevant situation.",
     answer: [
       "Start a Visit before a safety-relevant movement, meeting, trip, visit, ride, work stop, school stop, or situation where trusted people may need context.",
-      "A Visit can support destination context, LIVE sharing, safety history, SOS readiness, and manual capture when those features are available.",
-      "Do not start fake Visits. StayKnown safety sessions should reflect real safety use, not pranks, pressure, or manipulation.",
+      "A Visit can support destination context, LIVE sharing, safety history, SOS readiness, and Manual Capture where available.",
+      "A Visit should reflect a real safety use. Do not start fake Visits for pranks, pressure, manipulation, harassment, or misleading records.",
+      "If you are already in immediate danger, contact local emergency services or trusted local help first.",
     ],
     links: [
       { label: "Location & Live Safety", href: "/location-safety" },
       { label: "Emergency Disclaimer", href: "/emergency" },
     ],
-    tags: ["visit", "start visit", "live", "destination", "tracking"],
+    tags: [
+      "visit",
+      "start visit",
+      "live",
+      "destination",
+      "tracking",
+      "trip",
+      "meeting",
+    ],
+    audience: ["users", "contacts"],
+  },
+  {
+    id: "end-visit",
+    category: "Visits & LIVE",
+    title: "Why does ending a Visit need confirmation?",
+    summary:
+      "Ending a Visit may require confirmation so active safety sharing is not stopped by mistake.",
+    answer: [
+      "A confirmation step helps prevent accidental taps from ending safety tracking too early.",
+      "It also helps users understand that LIVE context, Manual Capture availability, and Visit-related safety awareness may stop after the Visit ends.",
+      "Only end a Visit when the safety moment is truly complete and you are comfortable stopping the active session.",
+    ],
+    links: [
+      { label: "Location & Live Safety", href: "/location-safety" },
+      { label: "Data Retention", href: "/retention" },
+    ],
+    tags: ["end visit", "stop visit", "confirmation", "live", "tracking"],
+    audience: ["users"],
   },
   {
     id: "live-map-approved",
@@ -59,52 +167,52 @@ const articles: HelpArticle[] = [
     summary:
       "Live map access should only flow through permitted safety paths and approved trusted-contact relationships.",
     answer: [
-      "Approved contacts may receive access to map context only through supported StayKnown safety flows such as active Visit, SOS, manual capture, or approved-contact chat map.",
+      "Approved contacts may receive access to map context through supported StayKnown safety flows such as active Visit, SOS, Manual Capture, or approved-contact chat map.",
       "StayKnown is not built for public tracking. Map access is intended for trusted, consent-aware safety relationships.",
       "Anyone receiving a link or alert must use it responsibly and must not share it unnecessarily.",
+      "If a map link is misused, report it through Abuse Reporting or submit a support request.",
     ],
     links: [
       { label: "Location & Live Safety", href: "/location-safety" },
       { label: "Data Retention", href: "/retention" },
       { label: "Abuse Reporting", href: "/abuse" },
     ],
-    tags: ["live map", "approved contacts", "location", "privacy", "map"],
+    tags: [
+      "live map",
+      "approved contacts",
+      "location",
+      "privacy",
+      "map",
+      "who can see",
+    ],
+    audience: ["users", "contacts", "visitors"],
   },
   {
-    id: "location-not-updating",
-    category: "Troubleshooting",
-    title: "Why is my location not updating correctly?",
+    id: "map-accuracy",
+    category: "Visits & LIVE",
+    title: "Why can the map or address be slightly wrong?",
     summary:
-      "Location depends on device permissions, GPS, network, battery settings, app state, VPN, and provider reliability.",
+      "Location accuracy depends on GPS, network, device permissions, battery mode, buildings, movement, provider data, and VPN state.",
     answer: [
-      "Check that location permission is enabled for StayKnown and that the app is allowed to use precise location where your device supports it.",
-      "Turn off VPN when using safety flows because VPN can reduce location confidence and may trigger StayKnown safety gates.",
-      "Check your network connection, battery saver mode, and device GPS. Poor coverage, weak GPS, or aggressive battery settings can delay updates.",
-      "If the location still looks wrong, stop relying on the app alone and directly contact your trusted contacts or local emergency services if danger exists.",
+      "GPS and network signals can be weaker indoors, near tall buildings, underground, in rural areas, or during poor connectivity.",
+      "The readable place label can be delayed or approximate because it depends on reverse geocoding providers and map data.",
+      "VPN or device-integrity issues can reduce location confidence and may trigger safety gates.",
+      "Use StayKnown as a safety-awareness tool, not as a guarantee of exact coordinates or official emergency dispatch.",
     ],
     links: [
       { label: "Location & Live Safety", href: "/location-safety" },
-      { label: "Security Disclosure", href: "/security" },
-      { label: "Submit a request", href: "/submit-request" },
+      { label: "Emergency Disclaimer", href: "/emergency" },
     ],
-    tags: ["location", "gps", "not updating", "vpn", "map", "troubleshooting"],
-  },
-  {
-    id: "vpn-block",
-    category: "Troubleshooting",
-    title: "Why does StayKnown warn me about VPN?",
-    summary:
-      "VPN can interfere with safety reliability, location confidence, fraud prevention, and platform integrity.",
-    answer: [
-      "StayKnown may warn, restrict, or block certain flows when VPN is active because safety location should be as reliable as possible.",
-      "If VPN is enabled before opening the app, you may see a safety gate. If VPN turns on during an active Visit, StayKnown may treat that as a safety reliability issue.",
-      "Turn VPN off before using Visit, LIVE, SOS, chat location, or manual capture.",
+    tags: [
+      "map",
+      "accuracy",
+      "gps",
+      "address",
+      "place label",
+      "wrong location",
+      "reverse geocoding",
     ],
-    links: [
-      { label: "Location & Live Safety", href: "/location-safety" },
-      { label: "Security Disclosure", href: "/security" },
-    ],
-    tags: ["vpn", "blocked", "location", "safety gate", "security"],
+    audience: ["users", "contacts", "visitors"],
   },
   {
     id: "sos-use",
@@ -116,30 +224,34 @@ const articles: HelpArticle[] = [
       "Use SOS when you believe you may need urgent trusted-contact awareness or safety escalation.",
       "Do not use SOS as a prank, test, threat, manipulation, or false emergency.",
       "If someone is in immediate danger, contact official emergency services first. StayKnown does not replace police, ambulance, fire service, hospitals, rescue teams, or official dispatch.",
+      "SOS alerts and related records may be reviewed if misuse, abuse, fraud, or legal concern is reported.",
     ],
     links: [
       { label: "Emergency Disclaimer", href: "/emergency" },
       { label: "Safety & Anti-Stalking", href: "/safety" },
       { label: "Abuse Reporting", href: "/abuse" },
     ],
-    tags: ["sos", "emergency", "urgent", "help", "danger"],
+    tags: ["sos", "emergency", "urgent", "help", "danger", "panic", "alert"],
+    audience: ["users", "contacts", "law"],
   },
   {
     id: "end-sos",
     category: "SOS & emergency",
-    title: "Why does ending SOS require confirmation?",
+    title: "Why does ending SOS require verification?",
     summary:
       "Verified stopping protects users from accidental or unsafe emergency cancellation.",
     answer: [
       "When SOS is active, StayKnown may require stronger confirmation before ending it so protection is not stopped by mistake.",
       "This helps prevent accidental taps, pressure from another person, or confusing emergency states.",
       "If SOS was triggered accidentally, end it only when you are sure it is safe and appropriate.",
+      "If immediate danger still exists, do not rely only on the app. Contact proper local emergency services or trusted local help.",
     ],
     links: [
       { label: "Emergency Disclaimer", href: "/emergency" },
       { label: "Data Retention", href: "/retention" },
     ],
-    tags: ["end sos", "verify", "stop sos", "confirmation"],
+    tags: ["end sos", "verify", "stop sos", "confirmation", "cancel sos"],
+    audience: ["users", "contacts"],
   },
   {
     id: "manual-capture",
@@ -150,13 +262,48 @@ const articles: HelpArticle[] = [
     answer: [
       "Manual Capture is designed for active Visit moments where you want to send an extra location safety update without changing the normal Visit flow.",
       "The feature may depend on plan limits, active Visit state, approved contacts, device permissions, and location reliability.",
-      "Do not use Manual Capture to spam contacts or create false safety events.",
+      "Manual Capture should not be used to spam contacts or create false safety events.",
+      "If the button is locked or capped, your plan, Visit state, contact setup, or daily limit may be the reason.",
     ],
     links: [
       { label: "Location & Live Safety", href: "/location-safety" },
       { label: "Terms of Service", href: "/terms" },
+      { label: "Billing & Refunds", href: "/billing-policy" },
     ],
-    tags: ["manual capture", "capture", "visit", "location", "limit"],
+    tags: [
+      "manual capture",
+      "capture",
+      "visit",
+      "location",
+      "limit",
+      "daily limit",
+    ],
+    audience: ["users"],
+  },
+  {
+    id: "emergency-limits",
+    category: "SOS & emergency",
+    title: "Does StayKnown call police, ambulance, or fire service?",
+    summary:
+      "StayKnown supports safety awareness but does not replace official emergency services.",
+    answer: [
+      "StayKnown is not police, ambulance, fire service, rescue service, hospital, road safety, civil defence, disaster management, government authority, or official emergency dispatch.",
+      "The app may notify approved contacts or support safety awareness depending on the feature, plan, device, network, and configuration.",
+      "If immediate danger exists, contact local emergency services or proper local authority first.",
+    ],
+    links: [
+      { label: "Emergency Disclaimer", href: "/emergency" },
+      { label: "Trust & Safety", href: "/trust-safety" },
+    ],
+    tags: [
+      "police",
+      "ambulance",
+      "fire",
+      "emergency services",
+      "dispatch",
+      "government",
+    ],
+    audience: ["users", "contacts", "visitors", "law"],
   },
   {
     id: "contact-approval",
@@ -167,13 +314,22 @@ const articles: HelpArticle[] = [
     answer: [
       "StayKnown is designed around approved, trusted people. Approval helps prove that a person accepted or declined a safety role.",
       "Contacts may need to confirm by email or through a consent flow before they receive certain safety responsibility.",
+      "SOS responders may carry stronger responsibility, so consent and audit records matter.",
       "If someone declines or removes themselves, respect that decision.",
     ],
     links: [
       { label: "Contact Approval & Consent", href: "/contact-consent" },
       { label: "Safety & Anti-Stalking", href: "/safety" },
     ],
-    tags: ["contact", "approval", "consent", "pending", "declined"],
+    tags: [
+      "contact",
+      "approval",
+      "consent",
+      "pending",
+      "declined",
+      "responder",
+    ],
+    audience: ["users", "contacts"],
   },
   {
     id: "pending-contact",
@@ -184,13 +340,15 @@ const articles: HelpArticle[] = [
     answer: [
       "Ask the person to check their email and complete the approval step if they agree to be a trusted contact.",
       "If the request expired, use the available resend flow where supported.",
+      "Make sure the email address is correct and the message did not go to spam or promotions.",
       "Do not repeatedly pressure someone to accept a contact request.",
     ],
     links: [
       { label: "Contact Approval & Consent", href: "/contact-consent" },
       { label: "Submit a request", href: "/submit-request" },
     ],
-    tags: ["pending", "contact", "email", "approval", "resend"],
+    tags: ["pending", "contact", "email", "approval", "resend", "expired"],
+    audience: ["users", "contacts"],
   },
   {
     id: "blocked-add",
@@ -202,12 +360,20 @@ const articles: HelpArticle[] = [
       "A user may block other people from adding them based on their security settings.",
       "A contact request can also fail if the email is wrong, the person declined, the approval expired, or the account is restricted.",
       "StayKnown should not be used to bypass someone’s privacy or safety boundary.",
+      "If you believe this is an error, submit a request with the account email, contact email, and what happened.",
     ],
     links: [
       { label: "Contact Approval & Consent", href: "/contact-consent" },
       { label: "Abuse Reporting", href: "/abuse" },
     ],
-    tags: ["blocked", "add contact", "cannot add", "security setting"],
+    tags: [
+      "blocked",
+      "add contact",
+      "cannot add",
+      "security setting",
+      "declined",
+    ],
+    audience: ["users"],
   },
   {
     id: "chat-approved",
@@ -219,13 +385,15 @@ const articles: HelpArticle[] = [
       "Chat is designed for trusted, approved-contact communication, not random messaging or harassment.",
       "Some chat features may depend on plan, safety rules, account state, language settings, and contact relationship.",
       "Messages may include safety context such as location metadata where supported by the app flow.",
+      "Do not use chat to threaten, pressure, impersonate, exploit, stalk, or harass anyone.",
     ],
     links: [
       { label: "Acceptable Use", href: "/acceptable-use" },
       { label: "Privacy Policy", href: "/privacy" },
       { label: "Safety & Anti-Stalking", href: "/safety" },
     ],
-    tags: ["chat", "approved contacts", "messages", "thread"],
+    tags: ["chat", "approved contacts", "messages", "thread", "communication"],
+    audience: ["users", "contacts"],
   },
   {
     id: "translation",
@@ -237,29 +405,88 @@ const articles: HelpArticle[] = [
       "StayKnown can support language-aware chat flows where messages are translated based on sender and receiver language settings.",
       "Translation may be delayed, unavailable, or imperfect depending on provider, network, content, and language support.",
       "Do not rely on translation as legal, medical, official, or emergency interpretation.",
+      "If a translation fails, use the retry icon where available or ask the sender to clarify.",
     ],
     links: [
       { label: "Acceptable Use", href: "/acceptable-use" },
       { label: "Privacy Policy", href: "/privacy" },
     ],
-    tags: ["translation", "language", "chat", "deepl", "messages"],
+    tags: [
+      "translation",
+      "language",
+      "chat",
+      "deepl",
+      "messages",
+      "igbo",
+      "hausa",
+      "yoruba",
+    ],
+    audience: ["users"],
+  },
+  {
+    id: "voice-notes",
+    category: "Chat",
+    title: "Why can’t I send a voice note?",
+    summary:
+      "Voice notes may depend on microphone permission, plan rules, duration limits, network, and chat eligibility.",
+    answer: [
+      "Check that microphone permission is enabled for StayKnown.",
+      "Voice note duration may depend on your plan and current app rules.",
+      "You must be in an eligible approved-contact chat flow.",
+      "If upload fails, check your network and try again when the connection is stable.",
+    ],
+    links: [
+      { label: "Privacy Policy", href: "/privacy" },
+      { label: "Submit a request", href: "/submit-request" },
+    ],
+    tags: ["voice note", "microphone", "audio", "duration", "chat upload"],
+    audience: ["users"],
   },
   {
     id: "stickers-media",
     category: "Chat",
     title: "What can I send in chat?",
     summary:
-      "Chat may support text, voice notes, media, stickers, stories, and expressive content where allowed.",
+      "Chat may support text, voice notes, media, stickers, stories, files, and expressive content where allowed.",
     answer: [
       "You may only send content you have the right to use and that follows StayKnown safety rules.",
       "Do not send threats, harassment, private content without permission, illegal media, stolen files, exploitative content, or abusive stickers.",
       "Some media and sticker features may be plan-gated or limited for safety and performance.",
+      "Music stickers or media must only use content you own, are licensed to use, or are allowed to share.",
     ],
     links: [
       { label: "Acceptable Use", href: "/acceptable-use" },
       { label: "Safety & Anti-Stalking", href: "/safety" },
     ],
-    tags: ["stickers", "media", "voice notes", "stories", "files", "chat"],
+    tags: [
+      "stickers",
+      "media",
+      "voice notes",
+      "stories",
+      "files",
+      "chat",
+      "music",
+      "video sticker",
+    ],
+    audience: ["users"],
+  },
+  {
+    id: "stories-profile",
+    category: "Chat",
+    title: "How do stories and profiles support trust?",
+    summary:
+      "Profiles, names, avatars, and stories help people recognize who they are connecting with.",
+    answer: [
+      "StayKnown uses profile surfaces to help approved contacts recognize the people they communicate with.",
+      "Stories and profile details must not be used for impersonation, harassment, threats, exploitation, or misleading identity.",
+      "If a profile or story looks abusive or fake, report it or submit a support request.",
+    ],
+    links: [
+      { label: "Safety & Anti-Stalking", href: "/safety" },
+      { label: "Abuse Reporting", href: "/abuse" },
+    ],
+    tags: ["stories", "profile", "avatar", "identity", "trust", "recognize"],
+    audience: ["users", "contacts"],
   },
   {
     id: "plans",
@@ -278,7 +505,43 @@ const articles: HelpArticle[] = [
       { label: "Terms of Service", href: "/terms" },
       { label: "Submit a request", href: "/submit-request" },
     ],
-    tags: ["starter", "pro", "pro max", "plans", "billing", "subscription"],
+    tags: [
+      "starter",
+      "pro",
+      "pro max",
+      "plans",
+      "billing",
+      "subscription",
+      "upgrade",
+    ],
+    audience: ["users"],
+  },
+  {
+    id: "subscription-not-active",
+    category: "Plans & billing",
+    title: "Why did my subscription not activate?",
+    summary:
+      "A subscription may not activate if payment failed, verification is delayed, app store state is pending, or account matching failed.",
+    answer: [
+      "Check that the payment completed successfully and that you are signed into the correct StayKnown account.",
+      "Activation may require payment verification from the provider or app store.",
+      "If your plan does not update after a reasonable wait, submit a request with your account email, receipt reference, payment date, and device.",
+      "Do not send full card numbers, OTPs, passwords, or private bank credentials.",
+    ],
+    links: [
+      { label: "Billing & Refunds", href: "/billing-policy" },
+      { label: "Submit a request", href: "/submit-request" },
+    ],
+    tags: [
+      "subscription",
+      "not active",
+      "activation",
+      "receipt",
+      "upgrade",
+      "paystack",
+      "app store",
+    ],
+    audience: ["users"],
   },
   {
     id: "payment-failed",
@@ -290,12 +553,60 @@ const articles: HelpArticle[] = [
       "If payment fails, StayKnown may keep your account active but remove paid access until payment is resolved.",
       "Some features may become unavailable after expiry or downgrade.",
       "Check your payment provider, app store, bank, card, Paystack flow, or receipt details before submitting a support request.",
+      "Payment abuse, chargeback fraud, receipt tampering, or wallet misuse may lead to restriction or review.",
     ],
     links: [
       { label: "Billing & Refunds", href: "/billing-policy" },
       { label: "Submit a request", href: "/submit-request" },
     ],
-    tags: ["payment", "failed", "billing", "subscription", "paystack"],
+    tags: [
+      "payment",
+      "failed",
+      "billing",
+      "subscription",
+      "paystack",
+      "declined",
+      "card",
+    ],
+    audience: ["users"],
+  },
+  {
+    id: "cancel-subscription",
+    category: "Plans & billing",
+    title: "How do I cancel Pro or Pro Max?",
+    summary:
+      "Cancellation depends on where you purchased the subscription and the billing provider used.",
+    answer: [
+      "If you subscribed through an app store, cancellation may need to be handled inside that store’s subscription settings.",
+      "If you paid through a web or payment-provider flow, follow the cancellation or support instructions shown in the app or billing policy.",
+      "Canceling may stop renewal but does not always create an automatic refund.",
+      "Your paid access may remain until the end of the active billing period depending on the rules that apply.",
+    ],
+    links: [
+      { label: "Billing & Refunds", href: "/billing-policy" },
+      { label: "Submit a request", href: "/submit-request" },
+    ],
+    tags: ["cancel", "subscription", "pro", "pro max", "renewal", "refund"],
+    audience: ["users"],
+  },
+  {
+    id: "refund",
+    category: "Plans & billing",
+    title: "Can I get a refund?",
+    summary:
+      "Refunds depend on payment provider rules, app store rules, region, timing, usage, and policy eligibility.",
+    answer: [
+      "Refund eligibility is not automatic and may depend on the billing route, timing, account status, usage, fraud checks, and applicable law.",
+      "If you purchased through an app store, that store may control refund review.",
+      "If you contact StayKnown, include your account email, receipt reference, payment date, plan, and issue summary.",
+      "Do not include full card numbers, bank passwords, OTPs, or private credentials.",
+    ],
+    links: [
+      { label: "Billing & Refunds", href: "/billing-policy" },
+      { label: "Submit a request", href: "/submit-request" },
+    ],
+    tags: ["refund", "money back", "billing", "receipt", "subscription"],
+    audience: ["users"],
   },
   {
     id: "wallet-coins",
@@ -305,24 +616,34 @@ const articles: HelpArticle[] = [
       "Wallet features may separate coins from withdrawable balance and may require safety and payment checks.",
     answer: [
       "Coins may be used for supported in-app actions, while withdrawable balance may follow separate rules.",
-      "Withdrawals may require account checks, minimum balance, provider availability, and fraud prevention.",
+      "Withdrawals may require account checks, minimum balance, provider availability, fraud review, and payment compliance.",
+      "Coin balance and withdrawable balance are not always the same thing.",
       "Do not use wallet, coins, receipts, or withdrawals for fraud, scams, laundering, chargeback abuse, or illegal activity.",
     ],
     links: [
       { label: "Billing & Refunds", href: "/billing-policy" },
       { label: "Security Disclosure", href: "/security" },
     ],
-    tags: ["wallet", "coins", "withdraw", "balance", "payments"],
+    tags: [
+      "wallet",
+      "coins",
+      "withdraw",
+      "balance",
+      "payments",
+      "coin balance",
+    ],
+    audience: ["users"],
   },
   {
     id: "privacy-location",
     category: "Privacy & safety",
     title: "Does StayKnown sell my location data?",
     summary:
-      "StayKnown is a safety-first service and should not sell personal data.",
+      "StayKnown is a safety-first service and should not sell personal location data.",
     answer: [
       "StayKnown’s privacy posture is built around safety, approved contacts, service operation, abuse prevention, legal compliance, and user protection.",
       "Location is sensitive and should be processed only for supported safety features, account history, legal needs, abuse review, or service operation as described in policy.",
+      "StayKnown is not a covert surveillance service and should not be used for hidden tracking.",
       "Always review the Privacy Policy and Location & Live Safety page for the current legal language.",
     ],
     links: [
@@ -330,7 +651,15 @@ const articles: HelpArticle[] = [
       { label: "Location & Live Safety", href: "/location-safety" },
       { label: "Data Retention", href: "/retention" },
     ],
-    tags: ["privacy", "location", "sell data", "data", "tracking"],
+    tags: [
+      "privacy",
+      "location",
+      "sell data",
+      "data",
+      "tracking",
+      "surveillance",
+    ],
+    audience: ["users", "contacts", "visitors"],
   },
   {
     id: "anti-stalking",
@@ -342,13 +671,48 @@ const articles: HelpArticle[] = [
       "StayKnown must not be used for stalking, harassment, intimidation, coercion, false emergencies, hidden tracking, impersonation, or retaliation.",
       "Use the Abuse Reporting page if someone is misusing contact requests, map links, SOS, chat, media, stories, or alerts.",
       "If you are in immediate danger, contact official emergency services or trusted local help first.",
+      "StayKnown may preserve relevant records, restrict features, suspend accounts, or cooperate with lawful requests where appropriate.",
     ],
     links: [
       { label: "Abuse Reporting", href: "/abuse" },
       { label: "Safety & Anti-Stalking", href: "/safety" },
       { label: "Emergency Disclaimer", href: "/emergency" },
     ],
-    tags: ["stalking", "harassment", "abuse", "report", "safety"],
+    tags: [
+      "stalking",
+      "harassment",
+      "abuse",
+      "report",
+      "safety",
+      "coercion",
+      "hidden tracking",
+    ],
+    audience: ["users", "contacts", "law"],
+  },
+  {
+    id: "data-retention",
+    category: "Privacy & safety",
+    title: "Why can some records remain after deletion?",
+    summary:
+      "Some data may need to remain for safety, legal, billing, fraud, abuse-prevention, or dispute reasons.",
+    answer: [
+      "Deletion does not always remove every record immediately if safety, legal, fraud, billing, abuse review, dispute, backup, or compliance reasons apply.",
+      "SOS events, abuse reports, payment records, security logs, and support records may have different retention rules.",
+      "Review the Privacy Policy and Data Retention page for the current policy language.",
+    ],
+    links: [
+      { label: "Privacy Policy", href: "/privacy" },
+      { label: "Data Retention", href: "/retention" },
+    ],
+    tags: [
+      "data retention",
+      "delete",
+      "records",
+      "privacy",
+      "legal hold",
+      "backup",
+    ],
+    audience: ["users", "law"],
   },
   {
     id: "minor-use",
@@ -360,12 +724,22 @@ const articles: HelpArticle[] = [
       "Under 13 users are not permitted to create an account or use StayKnown.",
       "Teen use may require parent or legal guardian permission and supervision depending on age, region, and law.",
       "StayKnown must never be used to exploit, groom, threaten, secretly monitor, or control a minor.",
+      "Schools, families, and organizations must use StayKnown lawfully, transparently, and with appropriate consent.",
     ],
     links: [
       { label: "Child Safety & Minor Use", href: "/minors" },
       { label: "Safety & Anti-Stalking", href: "/safety" },
     ],
-    tags: ["minor", "child", "teen", "guardian", "school"],
+    tags: [
+      "minor",
+      "child",
+      "teen",
+      "guardian",
+      "school",
+      "parent",
+      "under 13",
+    ],
+    audience: ["parents", "users", "visitors"],
   },
   {
     id: "notifications",
@@ -377,13 +751,89 @@ const articles: HelpArticle[] = [
       "Check spam, promotions, updates, or blocked sender folders for emails.",
       "Make sure push notification permission is enabled on your device.",
       "Check that the contact email is correct and that the contact has completed any required approval step.",
-      "Network issues, provider delays, or device restrictions may delay alerts.",
+      "Network issues, provider delays, app store restrictions, or device battery settings may delay alerts.",
     ],
     links: [
       { label: "Contact Approval & Consent", href: "/contact-consent" },
       { label: "Submit a request", href: "/submit-request" },
     ],
-    tags: ["notifications", "email", "not arriving", "push", "spam"],
+    tags: ["notifications", "email", "not arriving", "push", "spam", "alerts"],
+    audience: ["users", "contacts"],
+  },
+  {
+    id: "location-not-updating",
+    category: "Troubleshooting",
+    title: "Why is my location not updating correctly?",
+    summary:
+      "Location depends on device permissions, GPS, network, battery settings, app state, VPN, and provider reliability.",
+    answer: [
+      "Check that location permission is enabled for StayKnown and that the app is allowed to use precise location where your device supports it.",
+      "Turn off VPN when using safety flows because VPN can reduce location confidence and may trigger StayKnown safety gates.",
+      "Check your network connection, battery saver mode, and device GPS. Poor coverage, weak GPS, or aggressive battery settings can delay updates.",
+      "If the location still looks wrong, stop relying on the app alone and directly contact your trusted contacts or local emergency services if danger exists.",
+    ],
+    links: [
+      { label: "Location & Live Safety", href: "/location-safety" },
+      { label: "Security Disclosure", href: "/security" },
+      { label: "Submit a request", href: "/submit-request" },
+    ],
+    tags: [
+      "location",
+      "gps",
+      "not updating",
+      "vpn",
+      "map",
+      "troubleshooting",
+      "battery",
+    ],
+    audience: ["users", "contacts"],
+  },
+  {
+    id: "vpn-block",
+    category: "Troubleshooting",
+    title: "Why does StayKnown warn me about VPN?",
+    summary:
+      "VPN can interfere with safety reliability, location confidence, fraud prevention, and platform integrity.",
+    answer: [
+      "StayKnown may warn, restrict, or block certain flows when VPN is active because safety location should be as reliable as possible.",
+      "If VPN is enabled before opening the app, you may see a safety gate.",
+      "If VPN turns on during an active Visit, StayKnown may treat that as a safety reliability issue.",
+      "Turn VPN off before using Visit, LIVE, SOS, chat location, or Manual Capture.",
+    ],
+    links: [
+      { label: "Location & Live Safety", href: "/location-safety" },
+      { label: "Security Disclosure", href: "/security" },
+    ],
+    tags: ["vpn", "blocked", "location", "safety gate", "security", "proxy"],
+    audience: ["users"],
+  },
+  {
+    id: "app-not-loading",
+    category: "Troubleshooting",
+    title: "What should I do if the app or website is not loading?",
+    summary:
+      "Loading issues can come from network, browser cache, app version, device state, service outage, or permissions.",
+    answer: [
+      "Check your internet connection and reload the app or website.",
+      "Update the app to the latest version where available.",
+      "Restart your device if the app is stuck.",
+      "For website issues, clear browser cache or try another browser.",
+      "If a safety feature is failing during danger, contact trusted people or local emergency services directly.",
+    ],
+    links: [
+      { label: "Submit a request", href: "/submit-request" },
+      { label: "Security Disclosure", href: "/security" },
+    ],
+    tags: [
+      "not loading",
+      "website",
+      "app",
+      "crash",
+      "cache",
+      "browser",
+      "stuck",
+    ],
+    audience: ["users", "visitors"],
   },
   {
     id: "logo-broken",
@@ -397,7 +847,8 @@ const articles: HelpArticle[] = [
       "If that URL does not open directly in a browser after deployment, the logo file is not deployed correctly in the public folder.",
     ],
     links: [{ label: "Submit a request", href: "/submit-request" }],
-    tags: ["email", "logo", "broken image", "vercel", "resend"],
+    tags: ["email", "logo", "broken image", "vercel", "resend", "image"],
+    audience: ["admin", "users"],
   },
   {
     id: "account-security",
@@ -415,7 +866,16 @@ const articles: HelpArticle[] = [
       { label: "Privacy Policy", href: "/privacy" },
       { label: "Submit a request", href: "/submit-request" },
     ],
-    tags: ["account", "security", "login", "password", "device"],
+    tags: [
+      "account",
+      "security",
+      "login",
+      "password",
+      "device",
+      "otp",
+      "suspicious",
+    ],
+    audience: ["users"],
   },
   {
     id: "delete-account",
@@ -433,7 +893,97 @@ const articles: HelpArticle[] = [
       { label: "Data Retention", href: "/retention" },
       { label: "Submit a request", href: "/submit-request" },
     ],
-    tags: ["delete", "account", "data", "privacy", "retention"],
+    tags: [
+      "delete",
+      "account",
+      "data",
+      "privacy",
+      "retention",
+      "remove account",
+    ],
+    audience: ["users"],
+  },
+  {
+    id: "visitor-map-link",
+    category: "Visitors & contacts",
+    title: "I received a StayKnown map or safety link. What should I do?",
+    summary:
+      "Use the link only for the safety purpose it was sent for and do not share it unnecessarily.",
+    answer: [
+      "Open the link only if you are an intended trusted contact, visitor, or support person for that safety moment.",
+      "Use the information responsibly and only to help the user stay safe.",
+      "Do not post, forward, screenshot, sell, misuse, or share the link without a lawful and safety-based reason.",
+      "If the link looks suspicious or abusive, report it or contact the person directly through a trusted channel.",
+    ],
+    links: [
+      { label: "Location & Live Safety", href: "/location-safety" },
+      { label: "Abuse Reporting", href: "/abuse" },
+    ],
+    tags: [
+      "visitor",
+      "map link",
+      "live link",
+      "contact",
+      "received link",
+      "share",
+    ],
+    audience: ["visitors", "contacts"],
+  },
+  {
+    id: "law-enforcement",
+    category: "Visitors & contacts",
+    title:
+      "How should law enforcement or emergency authorities contact StayKnown?",
+    summary:
+      "Official requests should use the law enforcement route and include valid authority, legal basis, and clear emergency context where applicable.",
+    answer: [
+      "StayKnown has a dedicated Law Enforcement Requests page for official requests, emergency disclosures, legal preservation, and valid process.",
+      "Requests should identify the requesting authority, legal basis, user identifiers, time range, and emergency or investigation context.",
+      "StayKnown may preserve or disclose information where required or permitted by law, policy, and valid process.",
+      "Normal users should not use the law enforcement route for regular support issues.",
+    ],
+    links: [
+      { label: "Law Enforcement Requests", href: "/law" },
+      { label: "Data Retention", href: "/retention" },
+      { label: "Privacy Policy", href: "/privacy" },
+    ],
+    tags: [
+      "law enforcement",
+      "police",
+      "legal request",
+      "emergency disclosure",
+      "authority",
+      "records",
+    ],
+    audience: ["law", "visitors"],
+  },
+  {
+    id: "business-use",
+    category: "Visitors & contacts",
+    title: "Can businesses, schools, churches, or organizations use StayKnown?",
+    summary:
+      "Organization use must be lawful, transparent, consent-aware, and should not become covert monitoring.",
+    answer: [
+      "Organizations should use StayKnown only with proper notice, role clarity, lawful basis, and consent where required.",
+      "StayKnown should not be used for secret employee tracking, student monitoring, harassment, discipline abuse, or coercive control.",
+      "Business or organization features may have separate rules, setup requirements, and safety responsibilities.",
+      "If you need organization support, submit a request or contact StayKnown through the proper route.",
+    ],
+    links: [
+      { label: "Trust & Safety", href: "/trust-safety" },
+      { label: "Contact us", href: "/contact" },
+      { label: "Submit a request", href: "/submit-request" },
+    ],
+    tags: [
+      "business",
+      "school",
+      "church",
+      "organization",
+      "workplace",
+      "consent",
+      "enterprise",
+    ],
+    audience: ["visitors", "organizations"],
   },
 ];
 
@@ -448,7 +998,128 @@ const categories = [
   "Privacy & safety",
   "Troubleshooting",
   "Account & security",
+  "Visitors & contacts",
 ];
+
+const categoryCards: CategoryCard[] = [
+  {
+    name: "Getting started",
+    title: "Getting started",
+    body: "Account setup, permissions, safety gallery, and first safety basics.",
+    icon: "shield",
+  },
+  {
+    name: "Visits & LIVE",
+    title: "Visits & LIVE",
+    body: "Start Visit, LIVE map, location accuracy, map labels, and ending a Visit.",
+    icon: "pin",
+  },
+  {
+    name: "SOS & emergency",
+    title: "SOS & emergency",
+    body: "SOS use, emergency limits, Manual Capture, and verified stopping.",
+    icon: "alert",
+  },
+  {
+    name: "Contacts",
+    title: "Approved contacts",
+    body: "Contact approvals, pending requests, declined contacts, and consent.",
+    icon: "users",
+  },
+  {
+    name: "Chat",
+    title: "Chat & media",
+    body: "Approved-contact chat, translation, voice notes, stickers, and stories.",
+    icon: "chat",
+  },
+  {
+    name: "Plans & billing",
+    title: "Plans & billing",
+    body: "Starter, Pro, Pro Max, subscription activation, refunds, wallet, and coins.",
+    icon: "card",
+  },
+  {
+    name: "Privacy & safety",
+    title: "Privacy & safety",
+    body: "Location privacy, anti-stalking, minors, retention, and abuse prevention.",
+    icon: "lock",
+  },
+  {
+    name: "Troubleshooting",
+    title: "Troubleshooting",
+    body: "Notifications, emails, VPN, map issues, app loading, and common fixes.",
+    icon: "tool",
+  },
+  {
+    name: "Account & security",
+    title: "Account & security",
+    body: "Login safety, device security, deletion, suspicious activity, and records.",
+    icon: "user",
+  },
+];
+
+const popularSearches = [
+  "SOS",
+  "live map",
+  "contact approval",
+  "payment failed",
+  "subscription not active",
+  "refund",
+  "VPN",
+  "location not updating",
+  "voice note",
+  "delete account",
+  "law enforcement",
+  "minor use",
+];
+
+function normalizeText(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/[’']/g, "")
+    .replace(/[^a-z0-9\s@.-]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function articleSearchText(article: HelpArticle) {
+  return normalizeText(
+    [
+      article.title,
+      article.summary,
+      article.category,
+      article.answer.join(" "),
+      article.tags.join(" "),
+      article.audience?.join(" ") || "",
+      article.links?.map((l) => l.label).join(" ") || "",
+    ].join(" "),
+  );
+}
+
+function getScore(article: HelpArticle, rawQuery: string) {
+  const q = normalizeText(rawQuery);
+  if (!q) return 1;
+
+  const haystack = articleSearchText(article);
+  const words = q.split(" ").filter(Boolean);
+  let score = 0;
+
+  if (normalizeText(article.title).includes(q)) score += 20;
+  if (normalizeText(article.category).includes(q)) score += 14;
+  if (normalizeText(article.summary).includes(q)) score += 10;
+  if (article.tags.some((tag) => normalizeText(tag).includes(q))) score += 8;
+  if (haystack.includes(q)) score += 6;
+
+  for (const word of words) {
+    if (normalizeText(article.title).includes(word)) score += 6;
+    if (normalizeText(article.summary).includes(word)) score += 4;
+    if (article.tags.some((tag) => normalizeText(tag).includes(word)))
+      score += 4;
+    if (haystack.includes(word)) score += 1;
+  }
+
+  return score;
+}
 
 function useSeoMeta() {
   useEffect(() => {
@@ -481,7 +1152,7 @@ function useSeoMeta() {
 
     upsertMeta(
       "description",
-      "Search the StayKnown Help Center for answers about safety setup, Visit sessions, LIVE location, SOS, manual capture, approved contacts, chat, translation, stickers, billing, wallet, privacy, security, and troubleshooting.",
+      "Search the StayKnown Help Center for answers about safety setup, Visit sessions, LIVE location, SOS, manual capture, approved contacts, chat, translation, stickers, billing, wallet, privacy, security, visitors, law enforcement, and troubleshooting.",
     );
     upsertMeta(
       "keywords",
@@ -493,7 +1164,7 @@ function useSeoMeta() {
     upsertProperty("og:title", "StayKnown Help Center");
     upsertProperty(
       "og:description",
-      "Self-service answers for StayKnown safety, SOS, visits, contacts, chat, billing, wallet, privacy, account, and troubleshooting.",
+      "Self-service answers for StayKnown safety, SOS, visits, contacts, chat, billing, wallet, privacy, account, visitor, law enforcement, and troubleshooting.",
     );
     upsertProperty("og:type", "website");
     upsertProperty("og:site_name", "StayKnown");
@@ -584,6 +1255,226 @@ function SparkIcon({ className = "" }: { className?: string }) {
   );
 }
 
+function PinIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+      className={className}
+    >
+      <path
+        d="M12 21s6.2-5.55 6.2-11.1A6.2 6.2 0 1 0 5.8 9.9C5.8 15.45 12 21 12 21Z"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M12 12.25a2.35 2.35 0 1 0 0-4.7 2.35 2.35 0 0 0 0 4.7Z"
+        stroke="currentColor"
+        strokeWidth="1.7"
+      />
+    </svg>
+  );
+}
+
+function AlertIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+      className={className}
+    >
+      <path
+        d="M12 3.8 21 19.2H3L12 3.8Z"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M12 9v4.6M12 16.8h.01"
+        stroke="currentColor"
+        strokeWidth="1.9"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function UsersIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+      className={className}
+    >
+      <path
+        d="M8.6 11.2a3.1 3.1 0 1 0 0-6.2 3.1 3.1 0 0 0 0 6.2Z"
+        stroke="currentColor"
+        strokeWidth="1.7"
+      />
+      <path
+        d="M3.8 19.2c.55-3.1 2.3-4.9 4.8-4.9s4.25 1.8 4.8 4.9"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+      />
+      <path
+        d="M16.4 6.2c1.7.35 2.8 1.65 2.8 3.35s-1.1 3-2.8 3.35"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+      />
+      <path
+        d="M15.1 15.1c2.6.35 4.25 1.85 5.1 4.1"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function ChatIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+      className={className}
+    >
+      <path
+        d="M5 5.4h14v9.2H9.4L5 18.7V5.4Z"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M8.2 8.8h7.6M8.2 11.5h5.6"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function CardIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+      className={className}
+    >
+      <path
+        d="M4.5 7.2h15v10.6h-15V7.2Z"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M4.5 10h15M7.2 15h4.4"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function LockIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+      className={className}
+    >
+      <path
+        d="M7.5 10.4V8.25A4.5 4.5 0 0 1 12 3.75a4.5 4.5 0 0 1 4.5 4.5v2.15"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+      />
+      <path
+        d="M6.6 10.4h10.8c1.1 0 2 .9 2 2v5.85c0 1.1-.9 2-2 2H6.6c-1.1 0-2-.9-2-2V12.4c0-1.1.9-2 2-2Z"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M12 14.25v2.6"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function ToolIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+      className={className}
+    >
+      <path
+        d="M14.7 5.1a4.3 4.3 0 0 0 4.2 5.6l-7.8 7.8a3 3 0 0 1-4.2-4.2l7.8-7.8Z"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M7.6 16.4h.01"
+        stroke="currentColor"
+        strokeWidth="2.4"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function UserIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+      className={className}
+    >
+      <path
+        d="M12 11.4a3.8 3.8 0 1 0 0-7.6 3.8 3.8 0 0 0 0 7.6Z"
+        stroke="currentColor"
+        strokeWidth="1.7"
+      />
+      <path
+        d="M5.5 20.2c.8-3.8 3.1-5.8 6.5-5.8s5.7 2 6.5 5.8"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function CategoryIcon({ icon }: { icon: CategoryCard["icon"] }) {
+  const cls = "h-5 w-5";
+  if (icon === "pin") return <PinIcon className={cls} />;
+  if (icon === "alert") return <AlertIcon className={cls} />;
+  if (icon === "users") return <UsersIcon className={cls} />;
+  if (icon === "chat") return <ChatIcon className={cls} />;
+  if (icon === "card") return <CardIcon className={cls} />;
+  if (icon === "lock") return <LockIcon className={cls} />;
+  if (icon === "tool") return <ToolIcon className={cls} />;
+  if (icon === "user") return <UserIcon className={cls} />;
+  return <ShieldIcon className={cls} />;
+}
+
 function FloatingBackdrop() {
   return (
     <div aria-hidden="true" className="pointer-events-none fixed inset-0 -z-10">
@@ -624,7 +1515,8 @@ function StillNeedHelp({ compact = false }: { compact?: boolean }) {
         <p className="mt-4 text-[13px] font-semibold leading-relaxed text-white/58">
           If the Help Center did not solve it, submit a support request with
           your account email, device, app version, exact feature, and what
-          happened.
+          happened. Do not include passwords, OTPs, full card numbers, or
+          private bank credentials.
         </p>
 
         <div className="mt-4 flex flex-wrap gap-2">
@@ -649,35 +1541,74 @@ function StillNeedHelp({ compact = false }: { compact?: boolean }) {
 export default function HelpCenterPage() {
   useSeoMeta();
 
+  const answersRef = useRef<HTMLDivElement | null>(null);
   const [query, setQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState("All");
   const [openId, setOpenId] = useState<string>("getting-started");
 
+  const searching = query.trim().length > 0;
+
   const filteredArticles = useMemo(() => {
-    const q = query.trim().toLowerCase();
+    const q = query.trim();
+
+    if (q) {
+      return articles
+        .map((article) => ({ article, score: getScore(article, q) }))
+        .filter((item) => item.score > 0)
+        .sort(
+          (a, b) =>
+            b.score - a.score || a.article.title.localeCompare(b.article.title),
+        )
+        .map((item) => item.article);
+    }
 
     return articles.filter((article) => {
-      const categoryMatches =
-        activeCategory === "All" || article.category === activeCategory;
-
-      if (!categoryMatches) return false;
-      if (!q) return true;
-
-      const haystack = [
-        article.title,
-        article.summary,
-        article.category,
-        article.answer.join(" "),
-        article.tags.join(" "),
-      ]
-        .join(" ")
-        .toLowerCase();
-
-      return haystack.includes(q);
+      return activeCategory === "All" || article.category === activeCategory;
     });
   }, [activeCategory, query]);
 
-  const featured = articles.slice(0, 6);
+  useEffect(() => {
+    if (!searching) return;
+    if (!filteredArticles.length) {
+      setOpenId("");
+      return;
+    }
+
+    setOpenId(filteredArticles[0].id);
+  }, [searching, filteredArticles]);
+
+  function jumpToAnswers() {
+    window.setTimeout(() => {
+      answersRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    }, 60);
+  }
+
+  function selectCategory(category: string) {
+    setQuery("");
+    setActiveCategory(category);
+    const first =
+      category === "All"
+        ? articles[0]
+        : articles.find((article) => article.category === category);
+
+    setOpenId(first?.id || "");
+    jumpToAnswers();
+  }
+
+  function searchFor(value: string) {
+    setActiveCategory("All");
+    setQuery(value);
+    jumpToAnswers();
+  }
+
+  const resultTitle = searching
+    ? `Search results for “${query.trim()}”`
+    : activeCategory === "All"
+      ? "All help topics"
+      : activeCategory;
 
   return (
     <main className="min-h-screen overflow-hidden bg-black text-white">
@@ -702,18 +1633,6 @@ export default function HelpCenterPage() {
           to {
             opacity: 1;
             transform: translateY(0) scale(1);
-          }
-        }
-
-        @keyframes softGlow {
-          0%,
-          100% {
-            opacity: 0.45;
-            transform: scale(1);
-          }
-          50% {
-            opacity: 0.85;
-            transform: scale(1.05);
           }
         }
 
@@ -773,8 +1692,8 @@ export default function HelpCenterPage() {
               <p className="mx-auto mt-5 max-w-3xl text-[14px] font-semibold leading-relaxed text-white/60 md:text-[15px]">
                 Search answers about Visits, LIVE sharing, SOS, Manual Capture,
                 approved contacts, chat, translation, stickers, stories,
-                billing, wallet, privacy, security, and troubleshooting before
-                contacting support.
+                billing, wallet, privacy, security, visitors, law requests, and
+                troubleshooting before contacting support.
               </p>
 
               <div className="mx-auto mt-7 max-w-2xl">
@@ -782,10 +1701,42 @@ export default function HelpCenterPage() {
                   <SearchIcon className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-white/36" />
                   <input
                     value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                    placeholder="Search: SOS, live map, contact approval, payment, VPN, chat..."
-                    className="w-full rounded-[1.45rem] border border-white/10 bg-black/45 py-4 pl-12 pr-4 text-[14px] font-bold text-white outline-none shadow-sm transition placeholder:text-white/28 hover:border-white/16 hover:bg-black/55 focus:border-white/24 focus:bg-black/65 focus:ring-4 focus:ring-white/[0.045]"
+                    onChange={(e) => {
+                      setActiveCategory("All");
+                      setQuery(e.target.value);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") jumpToAnswers();
+                    }}
+                    placeholder="Search: SOS, live map, contact approval, payment, VPN, chat, refund..."
+                    className="w-full rounded-[1.45rem] border border-white/10 bg-black/45 py-4 pl-12 pr-24 text-[14px] font-bold text-white outline-none shadow-sm transition placeholder:text-white/28 hover:border-white/16 hover:bg-black/55 focus:border-white/24 focus:bg-black/65 focus:ring-4 focus:ring-white/[0.045]"
                   />
+
+                  {query ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setQuery("");
+                        setOpenId(articles[0].id);
+                      }}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full border border-white/10 bg-white/[0.045] px-3 py-1.5 text-[11px] font-black text-white/55 transition hover:bg-white/[0.075] hover:text-white"
+                    >
+                      Clear
+                    </button>
+                  ) : null}
+                </div>
+
+                <div className="mt-3 flex flex-wrap justify-center gap-2">
+                  {popularSearches.map((term) => (
+                    <button
+                      key={term}
+                      type="button"
+                      onClick={() => searchFor(term)}
+                      className="rounded-full border border-white/10 bg-white/[0.035] px-3 py-1.5 text-[11px] font-black text-white/45 transition hover:border-white/18 hover:bg-white/[0.065] hover:text-white"
+                    >
+                      {term}
+                    </button>
+                  ))}
                 </div>
               </div>
 
@@ -794,13 +1745,10 @@ export default function HelpCenterPage() {
                   <button
                     key={category}
                     type="button"
-                    onClick={() => {
-                      setActiveCategory(category);
-                      setOpenId("");
-                    }}
+                    onClick={() => selectCategory(category)}
                     className={cx(
                       "rounded-full border px-3.5 py-2 text-[11.5px] font-black transition",
-                      activeCategory === category
+                      !searching && activeCategory === category
                         ? "border-white/20 bg-white text-black"
                         : "border-white/10 bg-white/[0.04] text-white/50 hover:border-white/18 hover:bg-white/[0.07] hover:text-white",
                     )}
@@ -812,39 +1760,29 @@ export default function HelpCenterPage() {
             </div>
 
             <div className="mt-10 grid gap-4 md:grid-cols-3">
-              {featured.map((article, index) => (
+              {categoryCards.map((card, index) => (
                 <button
-                  key={article.id}
+                  key={card.name}
                   type="button"
-                  onClick={() => {
-                    setActiveCategory(article.category);
-                    setOpenId(article.id);
-                    setQuery("");
-                    window.setTimeout(() => {
-                      document.getElementById("answers")?.scrollIntoView({
-                        behavior: "smooth",
-                        block: "start",
-                      });
-                    }, 80);
-                  }}
+                  onClick={() => selectCategory(card.name)}
                   className="group animate-[helpRise_0.55s_ease_both] rounded-[1.55rem] border border-white/10 bg-white/[0.032] p-5 text-left shadow-sm transition hover:-translate-y-1 hover:border-white/18 hover:bg-white/[0.06]"
-                  style={{ animationDelay: `${index * 65}ms` }}
+                  style={{ animationDelay: `${index * 55}ms` }}
                 >
                   <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <div className="text-[11px] font-black uppercase tracking-[0.14em] text-white/34">
-                        {article.category}
-                      </div>
-                      <div className="mt-2 text-[15px] font-black text-white/92">
-                        {article.title}
-                      </div>
-                    </div>
+                    <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl border border-white/10 bg-white/[0.045] text-white/80 transition group-hover:bg-white group-hover:text-black">
+                      <CategoryIcon icon={card.icon} />
+                    </span>
+
                     <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-white/10 bg-white/[0.045] text-white/36 transition group-hover:translate-x-0.5 group-hover:text-white">
                       <ArrowIcon className="h-4 w-4" />
                     </span>
                   </div>
-                  <p className="mt-3 text-[13px] font-semibold leading-relaxed text-white/50">
-                    {article.summary}
+
+                  <div className="mt-4 text-[15px] font-black text-white/92">
+                    {card.title}
+                  </div>
+                  <p className="mt-2 text-[13px] font-semibold leading-relaxed text-white/50">
+                    {card.body}
                   </p>
                 </button>
               ))}
@@ -852,7 +1790,11 @@ export default function HelpCenterPage() {
           </div>
         </div>
 
-        <div id="answers" className="grid gap-6 pt-8 lg:grid-cols-[1fr_320px]">
+        <div
+          ref={answersRef}
+          id="answers"
+          className="grid gap-6 pt-8 lg:grid-cols-[1fr_320px]"
+        >
           <section className="space-y-3">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
               <div>
@@ -860,9 +1802,7 @@ export default function HelpCenterPage() {
                   Answers
                 </div>
                 <h2 className="mt-1 text-[24px] font-black tracking-[-0.035em] text-white">
-                  {activeCategory === "All"
-                    ? "All help topics"
-                    : activeCategory}
+                  {resultTitle}
                 </h2>
               </div>
 
@@ -878,8 +1818,9 @@ export default function HelpCenterPage() {
                   No matching result
                 </div>
                 <p className="mt-2 text-[13px] font-semibold leading-relaxed text-white/54">
-                  Try searching for words like SOS, Visit, contact, map,
-                  payment, VPN, chat, sticker, privacy, or account.
+                  Try words like SOS, Visit, live map, contact, approval,
+                  payment, refund, VPN, chat, sticker, privacy, law, visitor, or
+                  account.
                 </p>
                 <div className="mt-5">
                   <StillNeedHelp compact />
@@ -910,6 +1851,16 @@ export default function HelpCenterPage() {
                           </span>
                           <span className="mt-2 block text-[13px] font-semibold leading-relaxed text-white/50">
                             {article.summary}
+                          </span>
+                          <span className="mt-3 flex flex-wrap gap-1.5">
+                            {article.tags.slice(0, 5).map((tag) => (
+                              <span
+                                key={`${article.id}-${tag}`}
+                                className="rounded-full border border-white/10 bg-white/[0.035] px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.1em] text-white/32"
+                              >
+                                {tag}
+                              </span>
+                            ))}
                           </span>
                         </span>
 
@@ -971,9 +1922,10 @@ export default function HelpCenterPage() {
               </div>
               <p className="mt-3 text-[13px] font-semibold leading-relaxed text-white/55">
                 StayKnown is not police, ambulance, fire service, emergency
-                dispatch, rescue service, hospital, road safety, or official
-                government response. If immediate danger exists, contact local
-                emergency services or proper local authority first.
+                dispatch, rescue service, hospital, road safety, civil defence,
+                or official government response. If immediate danger exists,
+                contact local emergency services or proper local authority
+                first.
               </p>
               <a
                 href="/emergency"
@@ -989,12 +1941,20 @@ export default function HelpCenterPage() {
               </div>
               <div className="mt-4 grid gap-2">
                 {[
+                  ["Help Center", "/help-center"],
+                  ["Trust & Safety", "/trust-safety"],
                   ["Terms", "/terms"],
                   ["Privacy", "/privacy"],
                   ["Location & Live Safety", "/location-safety"],
                   ["Contact Consent", "/contact-consent"],
                   ["Acceptable Use", "/acceptable-use"],
                   ["Safety & Anti-Stalking", "/safety"],
+                  ["Emergency Disclaimer", "/emergency"],
+                  ["Child Safety & Minor Use", "/minors"],
+                  ["Abuse Reporting", "/abuse"],
+                  ["Data Retention", "/retention"],
+                  ["Law Enforcement Requests", "/law"],
+                  ["Security Disclosure", "/security"],
                   ["Billing & Refunds", "/billing-policy"],
                 ].map(([label, href]) => (
                   <a
@@ -1016,6 +1976,12 @@ export default function HelpCenterPage() {
         <footer className="mx-auto mt-7 max-w-4xl text-center">
           <div className="mx-auto rounded-[1.6rem] border border-white/10 bg-black/35 px-5 py-6">
             <div className="flex flex-wrap justify-center gap-x-4 gap-y-2 text-[11px] font-black uppercase tracking-[0.12em] text-white/35">
+              <a href="/help-center" className="transition hover:text-white">
+                Help Center
+              </a>
+              <a href="/trust-safety" className="transition hover:text-white">
+                Trust & Safety
+              </a>
               <a href="/privacy" className="transition hover:text-white">
                 Privacy
               </a>
