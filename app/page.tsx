@@ -344,6 +344,16 @@ export default function Page() {
               <span className="text-white/18">•</span>
 
               <a
+                href="/trust-safety"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-white/75 transition"
+              >
+                Trust &amp; Safety
+              </a>
+              <span className="text-white/18">•</span>
+
+              <a
                 href="/billing-policy"
                 target="_blank"
                 rel="noopener noreferrer"

@@ -20,6 +20,11 @@ const menuItems: MenuItem[] = [
     body: "Search answers about safety, visits, SOS, contacts, chat, billing, privacy, account help, and troubleshooting.",
   },
   {
+    href: "/trust-safety",
+    title: "Trust & Safety",
+    body: "See how StayKnown protects users with consent-first sharing, approved contacts, SOS rules, abuse prevention, privacy, and security.",
+  },
+  {
     href: "/submit-request",
     title: "Submit a request",
     body: "Get help with account, safety, contacts, SOS, live map, chat, billing, wallet, or app issues.",
