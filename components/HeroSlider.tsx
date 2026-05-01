@@ -50,8 +50,6 @@ const routeAlias: Record<string, string> = {
   "get-safe-hints": "get-safe-guidance",
 };
 
-const TRANSITION_MS = 320;
-
 const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
   { slides, intervalMs = 6000, learnBasePath = "/learn", autoplay = true },
   ref,
@@ -62,10 +60,7 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
     0, 0,
   ]);
 
-  const [previousIdx, setPreviousIdx] = useState<number | null>(null);
-
   const timerRef = useRef<number | null>(null);
-  const clearPreviousTimerRef = useRef<number | null>(null);
   const hoverRef = useRef(false);
 
   const prefersReducedMotion = useReducedMotion();
@@ -91,7 +86,6 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
     if (!items.length) return;
 
     setSlideState(([current]) => [Math.min(current, items.length - 1), 0]);
-    setPreviousIdx(null);
   }, [items.length]);
 
   useEffect(() => {
@@ -109,15 +103,7 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
     }
   }, [items]);
 
-  useEffect(() => {
-    return () => {
-      if (clearPreviousTimerRef.current) {
-        window.clearTimeout(clearPreviousTimerRef.current);
-      }
-    };
-  }, []);
-
-  const moveTo = useCallback(
+  const go = useCallback(
     (nextIndex: number, nextDirection: Direction = 0) => {
       const total = items.length;
       if (!total) return;
@@ -127,50 +113,28 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
       setSlideState(([current]) => {
         if (safeIndex === current) return [current, 0];
 
-        setPreviousIdx(current);
-
-        if (typeof window !== "undefined") {
-          if (clearPreviousTimerRef.current) {
-            window.clearTimeout(clearPreviousTimerRef.current);
-          }
-
-          clearPreviousTimerRef.current = window.setTimeout(
-            () => {
-              setPreviousIdx(null);
-            },
-            prefersReducedMotion ? 60 : TRANSITION_MS + 40,
-          );
-        }
-
         const resolvedDirection: Direction =
           nextDirection || (safeIndex > current ? 1 : -1);
 
         return [safeIndex, resolvedDirection];
       });
     },
-    [items.length, prefersReducedMotion],
-  );
-
-  const go = useCallback(
-    (nextIndex: number, nextDirection: Direction = 0) => {
-      moveTo(nextIndex, nextDirection);
-    },
-    [moveTo],
+    [items.length],
   );
 
   const next = useCallback(() => {
     const total = items.length;
     if (!total) return;
 
-    moveTo(idx + 1, 1);
-  }, [idx, items.length, moveTo]);
+    setSlideState(([current]) => [(current + 1) % total, 1]);
+  }, [items.length]);
 
   const prev = useCallback(() => {
     const total = items.length;
     if (!total) return;
 
-    moveTo(idx - 1, -1);
-  }, [idx, items.length, moveTo]);
+    setSlideState(([current]) => [(current - 1 + total) % total, -1]);
+  }, [items.length]);
 
   useImperativeHandle(
     ref,
@@ -181,14 +145,16 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
         const total = items.length;
         if (!total) return;
 
-        const safeIndex = ((index % total) + total) % total;
-        const nextDirection: Direction =
-          safeIndex === idx ? 0 : safeIndex > idx ? 1 : -1;
+        setSlideState(([current]) => {
+          const safeIndex = ((index % total) + total) % total;
+          const nextDirection: Direction =
+            safeIndex === current ? 0 : safeIndex > current ? 1 : -1;
 
-        moveTo(safeIndex, nextDirection);
+          return [safeIndex, nextDirection];
+        });
       },
     }),
-    [next, prev, items.length, idx, moveTo],
+    [next, prev, items.length],
   );
 
   useEffect(() => {
@@ -209,27 +175,7 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
 
       timerRef.current = window.setInterval(() => {
         if (!hoverRef.current && !document.hidden) {
-          setSlideState(([current]) => {
-            const total = items.length;
-            if (!total) return [current, 0];
-
-            const safeIndex = (current + 1) % total;
-
-            setPreviousIdx(current);
-
-            if (clearPreviousTimerRef.current) {
-              window.clearTimeout(clearPreviousTimerRef.current);
-            }
-
-            clearPreviousTimerRef.current = window.setTimeout(
-              () => {
-                setPreviousIdx(null);
-              },
-              prefersReducedMotion ? 60 : TRANSITION_MS + 40,
-            );
-
-            return [safeIndex, 1];
-          });
+          next();
         }
       }, intervalMs);
     };
@@ -243,7 +189,7 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
       document.removeEventListener("visibilitychange", onVisibilityChange);
       clear();
     };
-  }, [autoplay, items.length, intervalMs, prefersReducedMotion]);
+  }, [autoplay, items.length, intervalMs, next]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -300,11 +246,6 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
     pauseBriefly();
     next();
   };
-
-  const renderedIndexes = useMemo(() => {
-    if (previousIdx === null || previousIdx === idx) return [idx];
-    return [previousIdx, idx];
-  }, [previousIdx, idx]);
 
   const LearnMoreCta = () => (
     <Link
@@ -384,6 +325,28 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
       aria-roledescription="carousel"
       aria-label="StayKnown hero slider"
     >
+      <style jsx>{`
+        @keyframes skSingleSlideIn {
+          from {
+            opacity: 0.72;
+            transform: translate3d(${direction >= 0 ? "8px" : "-8px"}, 4px, 0)
+              scale(0.994);
+            filter: blur(2px);
+          }
+          to {
+            opacity: 1;
+            transform: translate3d(0, 0, 0) scale(1);
+            filter: blur(0);
+          }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .sk-single-slide-in {
+            animation: none !important;
+          }
+        }
+      `}</style>
+
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_36%,rgba(255,255,255,0.055),transparent_58%)]" />
 
       <div className="relative w-full overflow-visible">
@@ -408,72 +371,48 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
                 "lg:min-h-[250px]",
               ].join(" ")}
             >
-              {renderedIndexes.map((itemIndex) => {
-                const item = items[itemIndex];
-                if (!item) return null;
-
-                const active = itemIndex === idx;
-                const inactiveX = direction >= 0 ? -10 : 10;
-
-                return (
+              <div
+                key={`${slide.id}-${idx}-text-single`}
+                className="sk-single-slide-in absolute inset-x-0 top-0 z-[3] will-change-[opacity,transform,filter]"
+                style={{
+                  animation: prefersReducedMotion
+                    ? "none"
+                    : "skSingleSlideIn 220ms cubic-bezier(0.22,1,0.36,1) both",
+                }}
+              >
+                <div className="relative mx-auto max-w-[92vw] lg:mx-0 lg:max-w-[760px]">
                   <div
-                    key={`${item.id}-${itemIndex}-text-layer`}
-                    aria-hidden={!active}
-                    style={{
-                      opacity: active ? 1 : 0,
-                      visibility:
-                        active || itemIndex === previousIdx
-                          ? "visible"
-                          : "hidden",
-                      transform: active
-                        ? "translate3d(0,0,0) scale(1)"
-                        : `translate3d(${inactiveX}px,4px,0) scale(0.992)`,
-                      filter: active ? "blur(0px)" : "blur(3px)",
-                      transition: prefersReducedMotion
-                        ? "opacity 80ms ease"
-                        : `opacity ${TRANSITION_MS}ms ease, transform ${TRANSITION_MS}ms cubic-bezier(0.22,1,0.36,1), filter ${TRANSITION_MS}ms ease`,
-                      pointerEvents: active ? "auto" : "none",
-                    }}
                     className={[
-                      "absolute inset-x-0 top-0 will-change-[opacity,transform,filter]",
-                      active ? "z-[3]" : "z-[2]",
+                      "text-white/96 font-black tracking-[-0.045em]",
+                      "text-[34px] leading-[1.02]",
+                      "min-[390px]:text-[38px]",
+                      "sm:text-[48px] sm:leading-[0.98]",
+                      "md:text-[58px]",
+                      "lg:text-[62px]",
                     ].join(" ")}
                   >
-                    <div className="relative mx-auto max-w-[92vw] lg:mx-0 lg:max-w-[760px]">
-                      <div
-                        className={[
-                          "text-white/96 font-black tracking-[-0.045em]",
-                          "text-[34px] leading-[1.02]",
-                          "min-[390px]:text-[38px]",
-                          "sm:text-[48px] sm:leading-[0.98]",
-                          "md:text-[58px]",
-                          "lg:text-[62px]",
-                        ].join(" ")}
-                      >
-                        {item.title}
-                      </div>
-
-                      <div
-                        className={[
-                          "mx-auto mt-4 max-w-[34ch]",
-                          "text-white/56 font-semibold leading-relaxed",
-                          "text-[13px]",
-                          "min-[390px]:text-[13.5px]",
-                          "sm:max-w-[56ch] sm:text-[14px]",
-                          "md:text-[14.5px]",
-                          "lg:mx-0 lg:max-w-[64ch]",
-                        ].join(" ")}
-                      >
-                        {item.teaser}
-                      </div>
-
-                      <div className="mt-7 hidden items-center justify-center lg:flex lg:justify-start">
-                        {active ? <LearnMoreCta /> : null}
-                      </div>
-                    </div>
+                    {slide.title}
                   </div>
-                );
-              })}
+
+                  <div
+                    className={[
+                      "mx-auto mt-4 max-w-[34ch]",
+                      "text-white/56 font-semibold leading-relaxed",
+                      "text-[13px]",
+                      "min-[390px]:text-[13.5px]",
+                      "sm:max-w-[56ch] sm:text-[14px]",
+                      "md:text-[14.5px]",
+                      "lg:mx-0 lg:max-w-[64ch]",
+                    ].join(" ")}
+                  >
+                    {slide.teaser}
+                  </div>
+
+                  <div className="mt-7 hidden items-center justify-center lg:flex lg:justify-start">
+                    <LearnMoreCta />
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -490,91 +429,60 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
                 "max-h-[760px]",
               ].join(" ")}
             >
-              {renderedIndexes.map((itemIndex) => {
-                const item = items[itemIndex];
-                if (!item) return null;
+              <motion.div
+                key={`${slide.id}-${idx}-device-single`}
+                animate={SOFT_FLOAT}
+                transition={SOFT_FLOAT_TRANSITION}
+                drag={isCoarsePointer ? "x" : false}
+                dragConstraints={{ left: 0, right: 0 }}
+                dragElastic={0.18}
+                onDragStart={() => {
+                  hoverRef.current = true;
+                }}
+                onDragEnd={(_, info) => {
+                  hoverRef.current = false;
+                  if (!isCoarsePointer) return;
 
-                const active = itemIndex === idx;
-                const inactiveX = direction >= 0 ? -12 : 12;
+                  if (
+                    info.offset.x < -SWIPE_OFFSET ||
+                    info.velocity.x < -SWIPE_VELOCITY
+                  ) {
+                    next();
+                  }
 
-                return (
-                  <div
-                    key={`${item.id}-${itemIndex}-device-layer`}
-                    aria-hidden={!active}
-                    style={{
-                      opacity: active ? 1 : 0,
-                      visibility:
-                        active || itemIndex === previousIdx
-                          ? "visible"
-                          : "hidden",
-                      transform: active
-                        ? "translate3d(0,0,0) scale(1)"
-                        : `translate3d(${inactiveX}px,6px,0) scale(0.99)`,
-                      filter: active ? "blur(0px)" : "blur(2px)",
-                      transition: prefersReducedMotion
-                        ? "opacity 80ms ease"
-                        : `opacity ${TRANSITION_MS}ms ease, transform ${TRANSITION_MS}ms cubic-bezier(0.22,1,0.36,1), filter ${TRANSITION_MS}ms ease`,
-                      pointerEvents: active ? "auto" : "none",
-                    }}
-                    className={[
-                      "absolute inset-0 flex w-full items-center justify-center will-change-[opacity,transform,filter] lg:justify-start",
-                      active ? "z-[3]" : "z-[2]",
-                    ].join(" ")}
-                  >
-                    <motion.div
-                      animate={active ? SOFT_FLOAT : { y: 0 }}
-                      transition={
-                        active ? SOFT_FLOAT_TRANSITION : { duration: 0 }
-                      }
-                      drag={active && isCoarsePointer ? "x" : false}
-                      dragConstraints={{ left: 0, right: 0 }}
-                      dragElastic={0.18}
-                      onDragStart={() => {
-                        if (!active) return;
-                        hoverRef.current = true;
-                      }}
-                      onDragEnd={(_, info) => {
-                        hoverRef.current = false;
-                        if (!active || !isCoarsePointer) return;
-
-                        if (
-                          info.offset.x < -SWIPE_OFFSET ||
-                          info.velocity.x < -SWIPE_VELOCITY
-                        ) {
-                          next();
-                        }
-
-                        if (
-                          info.offset.x > SWIPE_OFFSET ||
-                          info.velocity.x > SWIPE_VELOCITY
-                        ) {
-                          prev();
-                        }
-                      }}
-                      className="flex h-full w-full items-center justify-center lg:justify-start"
-                    >
-                      <img
-                        src={item.src}
-                        alt={item.title}
-                        draggable={false}
-                        loading={itemIndex === idx ? "eager" : "lazy"}
-                        decoding="async"
-                        className={[
-                          "relative z-[20] block w-auto object-contain select-none",
-                          "drop-shadow-[0_22px_80px_rgba(0,0,0,0.75)]",
-                          "max-h-full",
-                          "max-w-[74vw]",
-                          "min-[390px]:max-w-[70vw]",
-                          "sm:max-w-[430px]",
-                          "md:max-w-[500px]",
-                          "lg:max-w-[620px]",
-                          "xl:max-w-[660px]",
-                        ].join(" ")}
-                      />
-                    </motion.div>
-                  </div>
-                );
-              })}
+                  if (
+                    info.offset.x > SWIPE_OFFSET ||
+                    info.velocity.x > SWIPE_VELOCITY
+                  ) {
+                    prev();
+                  }
+                }}
+                className="sk-single-slide-in absolute inset-0 z-[3] flex h-full w-full items-center justify-center will-change-[opacity,transform,filter] lg:justify-start"
+                style={{
+                  animation: prefersReducedMotion
+                    ? "none"
+                    : "skSingleSlideIn 220ms cubic-bezier(0.22,1,0.36,1) both",
+                }}
+              >
+                <img
+                  src={slide.src}
+                  alt={slide.title}
+                  draggable={false}
+                  loading="eager"
+                  decoding="async"
+                  className={[
+                    "relative z-[20] block w-auto object-contain select-none",
+                    "drop-shadow-[0_22px_80px_rgba(0,0,0,0.75)]",
+                    "max-h-full",
+                    "max-w-[74vw]",
+                    "min-[390px]:max-w-[70vw]",
+                    "sm:max-w-[430px]",
+                    "md:max-w-[500px]",
+                    "lg:max-w-[620px]",
+                    "xl:max-w-[660px]",
+                  ].join(" ")}
+                />
+              </motion.div>
             </div>
           </div>
 
