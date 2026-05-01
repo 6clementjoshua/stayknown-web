@@ -65,6 +65,17 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
 
   const prefersReducedMotion = useReducedMotion();
   const [isCoarsePointer, setIsCoarsePointer] = useState(false);
+  const [hasBooted, setHasBooted] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const frame = window.requestAnimationFrame(() => {
+      setHasBooted(true);
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -368,12 +379,16 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
             >
               {items.map((item, itemIndex) => {
                 const active = itemIndex === idx;
+
+                if (!hasBooted && !active) return null;
+
                 const inactiveX = direction >= 0 ? -10 : 10;
 
                 return (
                   <motion.div
                     key={`${item.id}-text-layer`}
                     aria-hidden={!active}
+                    initial={false}
                     animate={{
                       opacity: active ? 1 : 0,
                       x: active ? 0 : inactiveX,
@@ -442,12 +457,16 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
             >
               {items.map((item, itemIndex) => {
                 const active = itemIndex === idx;
+
+                if (!hasBooted && !active) return null;
+
                 const inactiveX = direction >= 0 ? -12 : 12;
 
                 return (
                   <motion.div
                     key={`${item.id}-device-layer`}
                     aria-hidden={!active}
+                    initial={false}
                     animate={{
                       opacity: active ? 1 : 0,
                       x: active ? 0 : inactiveX,
