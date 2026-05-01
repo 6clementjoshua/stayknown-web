@@ -10,6 +10,7 @@ import React, {
   useState,
 } from "react";
 import Link from "next/link";
+import { motion, useReducedMotion } from "framer-motion";
 
 export type SlideKind = "pill" | "device";
 
@@ -49,6 +50,8 @@ const routeAlias: Record<string, string> = {
   "get-safe-hints": "get-safe-guidance",
 };
 
+const TRANSITION_MS = 320;
+
 const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
   { slides, intervalMs = 6000, learnBasePath = "/learn", autoplay = true },
   ref,
@@ -59,44 +62,36 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
     0, 0,
   ]);
 
-  const timerRef = useRef<number | null>(null);
-  const hoverRef = useRef(false);
-  const touchStartXRef = useRef<number | null>(null);
+  const [previousIdx, setPreviousIdx] = useState<number | null>(null);
 
+  const timerRef = useRef<number | null>(null);
+  const clearPreviousTimerRef = useRef<number | null>(null);
+  const hoverRef = useRef(false);
+
+  const prefersReducedMotion = useReducedMotion();
   const [isCoarsePointer, setIsCoarsePointer] = useState(false);
-  const [reduceMotion, setReduceMotion] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    const coarseMq = window.matchMedia("(hover: none) and (pointer: coarse)");
-    const reducedMq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const mq = window.matchMedia("(hover: none) and (pointer: coarse)");
 
-    const applyCoarse = (e?: MediaQueryList | MediaQueryListEvent) => {
-      const source = e ?? coarseMq;
+    const apply = (e?: MediaQueryList | MediaQueryListEvent) => {
+      const source = e ?? mq;
       setIsCoarsePointer(source.matches);
     };
 
-    const applyReduced = (e?: MediaQueryList | MediaQueryListEvent) => {
-      const source = e ?? reducedMq;
-      setReduceMotion(source.matches);
-    };
+    apply(mq);
+    mq.addEventListener("change", apply);
 
-    applyCoarse(coarseMq);
-    applyReduced(reducedMq);
-
-    coarseMq.addEventListener("change", applyCoarse);
-    reducedMq.addEventListener("change", applyReduced);
-
-    return () => {
-      coarseMq.removeEventListener("change", applyCoarse);
-      reducedMq.removeEventListener("change", applyReduced);
-    };
+    return () => mq.removeEventListener("change", apply);
   }, []);
 
   useEffect(() => {
     if (!items.length) return;
+
     setSlideState(([current]) => [Math.min(current, items.length - 1), 0]);
+    setPreviousIdx(null);
   }, [items.length]);
 
   useEffect(() => {
@@ -114,7 +109,15 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
     }
   }, [items]);
 
-  const go = useCallback(
+  useEffect(() => {
+    return () => {
+      if (clearPreviousTimerRef.current) {
+        window.clearTimeout(clearPreviousTimerRef.current);
+      }
+    };
+  }, []);
+
+  const moveTo = useCallback(
     (nextIndex: number, nextDirection: Direction = 0) => {
       const total = items.length;
       if (!total) return;
@@ -124,28 +127,50 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
       setSlideState(([current]) => {
         if (safeIndex === current) return [current, 0];
 
+        setPreviousIdx(current);
+
+        if (typeof window !== "undefined") {
+          if (clearPreviousTimerRef.current) {
+            window.clearTimeout(clearPreviousTimerRef.current);
+          }
+
+          clearPreviousTimerRef.current = window.setTimeout(
+            () => {
+              setPreviousIdx(null);
+            },
+            prefersReducedMotion ? 60 : TRANSITION_MS + 40,
+          );
+        }
+
         const resolvedDirection: Direction =
           nextDirection || (safeIndex > current ? 1 : -1);
 
         return [safeIndex, resolvedDirection];
       });
     },
-    [items.length],
+    [items.length, prefersReducedMotion],
+  );
+
+  const go = useCallback(
+    (nextIndex: number, nextDirection: Direction = 0) => {
+      moveTo(nextIndex, nextDirection);
+    },
+    [moveTo],
   );
 
   const next = useCallback(() => {
     const total = items.length;
     if (!total) return;
 
-    setSlideState(([current]) => [(current + 1) % total, 1]);
-  }, [items.length]);
+    moveTo(idx + 1, 1);
+  }, [idx, items.length, moveTo]);
 
   const prev = useCallback(() => {
     const total = items.length;
     if (!total) return;
 
-    setSlideState(([current]) => [(current - 1 + total) % total, -1]);
-  }, [items.length]);
+    moveTo(idx - 1, -1);
+  }, [idx, items.length, moveTo]);
 
   useImperativeHandle(
     ref,
@@ -156,16 +181,14 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
         const total = items.length;
         if (!total) return;
 
-        setSlideState(([current]) => {
-          const safeIndex = ((index % total) + total) % total;
-          const nextDirection: Direction =
-            safeIndex === current ? 0 : safeIndex > current ? 1 : -1;
+        const safeIndex = ((index % total) + total) % total;
+        const nextDirection: Direction =
+          safeIndex === idx ? 0 : safeIndex > idx ? 1 : -1;
 
-          return [safeIndex, nextDirection];
-        });
+        moveTo(safeIndex, nextDirection);
       },
     }),
-    [next, prev, items.length],
+    [next, prev, items.length, idx, moveTo],
   );
 
   useEffect(() => {
@@ -177,6 +200,7 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
       if (timerRef.current) {
         window.clearInterval(timerRef.current);
       }
+
       timerRef.current = null;
     };
 
@@ -185,7 +209,27 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
 
       timerRef.current = window.setInterval(() => {
         if (!hoverRef.current && !document.hidden) {
-          next();
+          setSlideState(([current]) => {
+            const total = items.length;
+            if (!total) return [current, 0];
+
+            const safeIndex = (current + 1) % total;
+
+            setPreviousIdx(current);
+
+            if (clearPreviousTimerRef.current) {
+              window.clearTimeout(clearPreviousTimerRef.current);
+            }
+
+            clearPreviousTimerRef.current = window.setTimeout(
+              () => {
+                setPreviousIdx(null);
+              },
+              prefersReducedMotion ? 60 : TRANSITION_MS + 40,
+            );
+
+            return [safeIndex, 1];
+          });
         }
       }, intervalMs);
     };
@@ -199,7 +243,7 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
       document.removeEventListener("visibilitychange", onVisibilityChange);
       clear();
     };
-  }, [autoplay, items.length, intervalMs, next]);
+  }, [autoplay, items.length, intervalMs, prefersReducedMotion]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -217,11 +261,27 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
   const slide = items[idx];
   if (!slide) return null;
 
+  const SOFT_FLOAT = prefersReducedMotion
+    ? { y: 0 }
+    : { y: [0, -1.5, 0, 1.5, 0] };
+
+  const SOFT_FLOAT_TRANSITION = prefersReducedMotion
+    ? { duration: 0 }
+    : {
+        duration: 10,
+        repeat: Infinity,
+        ease: "easeInOut" as const,
+      };
+
+  const SWIPE_OFFSET = 60;
+  const SWIPE_VELOCITY = 500;
+
   const mappedId = routeAlias[slide.id] ?? slide.id;
   const learnHref = slide.learnHref ?? `${learnBasePath}/${mappedId}`;
 
   const pauseBriefly = () => {
     hoverRef.current = true;
+
     window.setTimeout(() => {
       hoverRef.current = false;
     }, 900);
@@ -241,30 +301,10 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
     next();
   };
 
-  const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
-    if (!isCoarsePointer) return;
-    touchStartXRef.current = e.touches[0]?.clientX ?? null;
-  };
-
-  const handleTouchEnd = (e: React.TouchEvent<HTMLDivElement>) => {
-    if (!isCoarsePointer) return;
-
-    const startX = touchStartXRef.current;
-    const endX = e.changedTouches[0]?.clientX ?? null;
-    touchStartXRef.current = null;
-
-    if (startX === null || endX === null) return;
-
-    const delta = endX - startX;
-
-    if (delta <= -55) {
-      pauseBriefly();
-      next();
-    } else if (delta >= 55) {
-      pauseBriefly();
-      prev();
-    }
-  };
+  const renderedIndexes = useMemo(() => {
+    if (previousIdx === null || previousIdx === idx) return [idx];
+    return [previousIdx, idx];
+  }, [previousIdx, idx]);
 
   const LearnMoreCta = () => (
     <Link
@@ -340,54 +380,14 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
       onBlurCapture={() => {
         hoverRef.current = false;
       }}
-      onTouchStart={handleTouchStart}
-      onTouchEnd={handleTouchEnd}
       style={{ WebkitTapHighlightColor: "transparent" }}
       aria-roledescription="carousel"
       aria-label="StayKnown hero slider"
     >
-      <style jsx>{`
-        @keyframes skHeroFadeIn {
-          from {
-            opacity: 0;
-            transform: translate3d(${direction >= 0 ? "10px" : "-10px"}, 0, 0);
-          }
-          to {
-            opacity: 1;
-            transform: translate3d(0, 0, 0);
-          }
-        }
-
-        @keyframes skHeroDeviceFloat {
-          0%,
-          100% {
-            transform: translate3d(0, 0, 0);
-          }
-          25% {
-            transform: translate3d(0, -1.5px, 0);
-          }
-          75% {
-            transform: translate3d(0, 1.5px, 0);
-          }
-        }
-
-        .sk-hero-fade {
-          animation: skHeroFadeIn ${reduceMotion ? "0ms" : "220ms"}
-            cubic-bezier(0.22, 1, 0.36, 1) both;
-        }
-
-        .sk-hero-device-float {
-          animation: ${reduceMotion
-            ? "none"
-            : "skHeroDeviceFloat 10s ease-in-out infinite"};
-        }
-      `}</style>
-
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_36%,rgba(255,255,255,0.055),transparent_58%)]" />
 
       <div className="relative w-full overflow-visible">
         <div
-          key={`${slide.id}-${idx}`}
           className={[
             "relative mx-auto grid w-full grid-cols-1",
             "items-start justify-items-center",
@@ -400,7 +400,7 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
           <div className="relative z-[30] order-1 flex w-full items-center justify-center lg:order-2 lg:justify-start">
             <div
               className={[
-                "w-full max-w-[800px] text-center lg:text-left",
+                "relative w-full max-w-[800px] text-center lg:text-left",
                 "min-h-[168px]",
                 "min-[390px]:min-h-[178px]",
                 "sm:min-h-[180px]",
@@ -408,38 +408,72 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
                 "lg:min-h-[250px]",
               ].join(" ")}
             >
-              <div className="sk-hero-fade relative mx-auto max-w-[92vw] lg:mx-0 lg:max-w-[760px]">
-                <div
-                  className={[
-                    "text-white/96 font-black tracking-[-0.045em]",
-                    "text-[34px] leading-[1.02]",
-                    "min-[390px]:text-[38px]",
-                    "sm:text-[48px] sm:leading-[0.98]",
-                    "md:text-[58px]",
-                    "lg:text-[62px]",
-                  ].join(" ")}
-                >
-                  {slide.title}
-                </div>
+              {renderedIndexes.map((itemIndex) => {
+                const item = items[itemIndex];
+                if (!item) return null;
 
-                <div
-                  className={[
-                    "mx-auto mt-4 max-w-[34ch]",
-                    "text-white/56 font-semibold leading-relaxed",
-                    "text-[13px]",
-                    "min-[390px]:text-[13.5px]",
-                    "sm:max-w-[56ch] sm:text-[14px]",
-                    "md:text-[14.5px]",
-                    "lg:mx-0 lg:max-w-[64ch]",
-                  ].join(" ")}
-                >
-                  {slide.teaser}
-                </div>
+                const active = itemIndex === idx;
+                const inactiveX = direction >= 0 ? -10 : 10;
 
-                <div className="mt-7 hidden items-center justify-center lg:flex lg:justify-start">
-                  <LearnMoreCta />
-                </div>
-              </div>
+                return (
+                  <div
+                    key={`${item.id}-${itemIndex}-text-layer`}
+                    aria-hidden={!active}
+                    style={{
+                      opacity: active ? 1 : 0,
+                      visibility:
+                        active || itemIndex === previousIdx
+                          ? "visible"
+                          : "hidden",
+                      transform: active
+                        ? "translate3d(0,0,0) scale(1)"
+                        : `translate3d(${inactiveX}px,4px,0) scale(0.992)`,
+                      filter: active ? "blur(0px)" : "blur(3px)",
+                      transition: prefersReducedMotion
+                        ? "opacity 80ms ease"
+                        : `opacity ${TRANSITION_MS}ms ease, transform ${TRANSITION_MS}ms cubic-bezier(0.22,1,0.36,1), filter ${TRANSITION_MS}ms ease`,
+                      pointerEvents: active ? "auto" : "none",
+                    }}
+                    className={[
+                      "absolute inset-x-0 top-0 will-change-[opacity,transform,filter]",
+                      active ? "z-[3]" : "z-[2]",
+                    ].join(" ")}
+                  >
+                    <div className="relative mx-auto max-w-[92vw] lg:mx-0 lg:max-w-[760px]">
+                      <div
+                        className={[
+                          "text-white/96 font-black tracking-[-0.045em]",
+                          "text-[34px] leading-[1.02]",
+                          "min-[390px]:text-[38px]",
+                          "sm:text-[48px] sm:leading-[0.98]",
+                          "md:text-[58px]",
+                          "lg:text-[62px]",
+                        ].join(" ")}
+                      >
+                        {item.title}
+                      </div>
+
+                      <div
+                        className={[
+                          "mx-auto mt-4 max-w-[34ch]",
+                          "text-white/56 font-semibold leading-relaxed",
+                          "text-[13px]",
+                          "min-[390px]:text-[13.5px]",
+                          "sm:max-w-[56ch] sm:text-[14px]",
+                          "md:text-[14.5px]",
+                          "lg:mx-0 lg:max-w-[64ch]",
+                        ].join(" ")}
+                      >
+                        {item.teaser}
+                      </div>
+
+                      <div className="mt-7 hidden items-center justify-center lg:flex lg:justify-start">
+                        {active ? <LearnMoreCta /> : null}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
 
@@ -447,7 +481,7 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
           <div className="relative z-[20] order-2 flex w-full items-center justify-center lg:order-1 lg:justify-start lg:pl-2">
             <div
               className={[
-                "flex w-full items-center justify-center lg:justify-start",
+                "relative w-full",
                 "h-[38vh]",
                 "min-[390px]:h-[40vh]",
                 "sm:h-[48vh]",
@@ -456,30 +490,95 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
                 "max-h-[760px]",
               ].join(" ")}
             >
-              <div className="sk-hero-fade">
-                <img
-                  src={slide.src}
-                  alt={slide.title}
-                  draggable={false}
-                  loading="eager"
-                  decoding="async"
-                  className={[
-                    "sk-hero-device-float relative z-[20] block w-auto object-contain select-none",
-                    "drop-shadow-[0_22px_80px_rgba(0,0,0,0.75)]",
-                    "max-h-full",
-                    "max-w-[74vw]",
-                    "min-[390px]:max-w-[70vw]",
-                    "sm:max-w-[430px]",
-                    "md:max-w-[500px]",
-                    "lg:max-w-[620px]",
-                    "xl:max-w-[660px]",
-                  ].join(" ")}
-                />
-              </div>
+              {renderedIndexes.map((itemIndex) => {
+                const item = items[itemIndex];
+                if (!item) return null;
+
+                const active = itemIndex === idx;
+                const inactiveX = direction >= 0 ? -12 : 12;
+
+                return (
+                  <div
+                    key={`${item.id}-${itemIndex}-device-layer`}
+                    aria-hidden={!active}
+                    style={{
+                      opacity: active ? 1 : 0,
+                      visibility:
+                        active || itemIndex === previousIdx
+                          ? "visible"
+                          : "hidden",
+                      transform: active
+                        ? "translate3d(0,0,0) scale(1)"
+                        : `translate3d(${inactiveX}px,6px,0) scale(0.99)`,
+                      filter: active ? "blur(0px)" : "blur(2px)",
+                      transition: prefersReducedMotion
+                        ? "opacity 80ms ease"
+                        : `opacity ${TRANSITION_MS}ms ease, transform ${TRANSITION_MS}ms cubic-bezier(0.22,1,0.36,1), filter ${TRANSITION_MS}ms ease`,
+                      pointerEvents: active ? "auto" : "none",
+                    }}
+                    className={[
+                      "absolute inset-0 flex w-full items-center justify-center will-change-[opacity,transform,filter] lg:justify-start",
+                      active ? "z-[3]" : "z-[2]",
+                    ].join(" ")}
+                  >
+                    <motion.div
+                      animate={active ? SOFT_FLOAT : { y: 0 }}
+                      transition={
+                        active ? SOFT_FLOAT_TRANSITION : { duration: 0 }
+                      }
+                      drag={active && isCoarsePointer ? "x" : false}
+                      dragConstraints={{ left: 0, right: 0 }}
+                      dragElastic={0.18}
+                      onDragStart={() => {
+                        if (!active) return;
+                        hoverRef.current = true;
+                      }}
+                      onDragEnd={(_, info) => {
+                        hoverRef.current = false;
+                        if (!active || !isCoarsePointer) return;
+
+                        if (
+                          info.offset.x < -SWIPE_OFFSET ||
+                          info.velocity.x < -SWIPE_VELOCITY
+                        ) {
+                          next();
+                        }
+
+                        if (
+                          info.offset.x > SWIPE_OFFSET ||
+                          info.velocity.x > SWIPE_VELOCITY
+                        ) {
+                          prev();
+                        }
+                      }}
+                      className="flex h-full w-full items-center justify-center lg:justify-start"
+                    >
+                      <img
+                        src={item.src}
+                        alt={item.title}
+                        draggable={false}
+                        loading={itemIndex === idx ? "eager" : "lazy"}
+                        decoding="async"
+                        className={[
+                          "relative z-[20] block w-auto object-contain select-none",
+                          "drop-shadow-[0_22px_80px_rgba(0,0,0,0.75)]",
+                          "max-h-full",
+                          "max-w-[74vw]",
+                          "min-[390px]:max-w-[70vw]",
+                          "sm:max-w-[430px]",
+                          "md:max-w-[500px]",
+                          "lg:max-w-[620px]",
+                          "xl:max-w-[660px]",
+                        ].join(" ")}
+                      />
+                    </motion.div>
+                  </div>
+                );
+              })}
             </div>
           </div>
 
-          {/* Mobile controls */}
+          {/* Mobile controls: device above dots, dots above Learn More */}
           <div className="relative z-[90] order-3 flex w-full flex-col items-center justify-center lg:hidden">
             <Dots mobile />
             <div className="mt-5 flex items-center justify-center">
@@ -488,7 +587,7 @@ const HeroSlider = forwardRef<HeroSliderHandle, Props>(function HeroSlider(
           </div>
         </div>
 
-        {/* Desktop dots */}
+        {/* Desktop/tablet dots */}
         {items.length > 1 ? (
           <div className="absolute inset-x-0 bottom-9 z-[85] hidden items-center justify-center lg:flex">
             <Dots />
