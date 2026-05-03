@@ -57,6 +57,7 @@ export default async function ChatMapPage({
     capturedAt: cleanOne(sp.captured_at),
     senderName: cleanOne(sp.sender_name),
     senderUsername: cleanOne(sp.sender_username),
+    senderId: cleanOne(sp.sender_id),
     context: cleanOne(sp.context),
     messageId: cleanOne(sp.message_id),
     threadId: cleanOne(sp.thread_id),
