@@ -501,6 +501,38 @@ export default function ContactApprovalClient({
       }
 
       applyRequestDetails(data);
+      const req = data.request;
+      const ownerApproved = req?.owner_approved === true;
+      const targetApproved = req?.target_approved === true;
+      const ownerDeclined = req?.owner_declined === true;
+      const targetDeclined = req?.target_declined === true;
+
+      if (
+        !ownerDeclined &&
+        !targetDeclined &&
+        (ownerApproved || targetApproved)
+      ) {
+        if (ownerApproved && targetApproved) {
+          setUiState("approved");
+          setMessage(
+            "Both confirmations are complete. The contact has now been added successfully.",
+          );
+          return;
+        }
+
+        setUiState("waiting");
+        setMessage(
+          actor === "owner"
+            ? "Your confirmation has been recorded. The request will complete when the contact email owner also confirms."
+            : "Your confirmation has been recorded. The request will complete when the account owner also confirms.",
+        );
+
+        window.setTimeout(() => {
+          startPolling({ allowWaiting: true });
+        }, 300);
+
+        return;
+      }
 
       if (data.state === "declined") {
         const requester = safePersonLabel(
@@ -695,9 +727,8 @@ export default function ContactApprovalClient({
             )}
 
             <div className="mt-8 flex min-h-[118px] items-center justify-center">
-              {uiState === "working" ? (
-                <GlassSpinner />
-              ) : uiState === "approved" ? (
+              {uiState === "working" ? null : uiState === "approved" ||
+                uiState === "waiting" ? (
                 <AnimatedCheck />
               ) : uiState === "declined" ||
                 uiState === "expired" ||
@@ -746,9 +777,9 @@ export default function ContactApprovalClient({
 
             {uiState === "waiting" && (
               <div className="flex flex-col items-center justify-center gap-3">
-                <GlassSpinner />
                 <div className="text-center text-[13px] font-bold text-black/62">
-                  Waiting for the other confirmation…
+                  Your confirmation is recorded. Waiting for the other
+                  confirmation…
                 </div>
               </div>
             )}
