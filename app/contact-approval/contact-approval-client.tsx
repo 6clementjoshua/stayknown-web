@@ -231,6 +231,29 @@ export default function ContactApprovalClient({
   const [targetName, setTargetName] = React.useState("contact");
   const [targetEmailMasked, setTargetEmailMasked] = React.useState("");
 
+  const hasSubmittedThisPageRef = React.useRef(false);
+  const pollStopRef = React.useRef(false);
+  const pollTimerRef = React.useRef<number | null>(null);
+
+  const isThisActorDone = React.useCallback(
+    (req?: ActionResp["request"]) => {
+      if (!req) return false;
+      if (actor === "owner") {
+        return req.owner_approved === true || req.owner_declined === true;
+      }
+      return req.target_approved === true || req.target_declined === true;
+    },
+    [actor],
+  );
+
+  const clearPolling = React.useCallback(() => {
+    pollStopRef.current = true;
+    if (pollTimerRef.current !== null) {
+      window.clearTimeout(pollTimerRef.current);
+      pollTimerRef.current = null;
+    }
+  }, []);
+
   React.useEffect(() => {
     const timer = window.setInterval(() => {
       const now = Math.floor(Date.now() / 1000);
@@ -248,33 +271,10 @@ export default function ContactApprovalClient({
     return () => window.clearInterval(timer);
   }, [exp]);
 
-  const pollStopRef = React.useRef(false);
-  const pollTimerRef = React.useRef<number | null>(null);
-
-  const clearPolling = React.useCallback(() => {
-    pollStopRef.current = true;
-    if (pollTimerRef.current !== null) {
-      window.clearTimeout(pollTimerRef.current);
-      pollTimerRef.current = null;
-    }
-  }, []);
-
-  const syncApprovalStatus = React.useCallback(async () => {
-    const res = await fetch(
-      `/api/contact-approval/status?rid=${encodeURIComponent(requestId)}`,
-      { cache: "no-store" },
-    );
-
-    const data = (await res.json().catch(() => ({}))) as ActionResp;
-    if (!data?.ok) {
-      return false;
-    }
-
+  const applyRequestDetails = React.useCallback((data: ActionResp) => {
     const req = data.request;
     const ownerApproved = req?.owner_approved === true;
     const targetApproved = req?.target_approved === true;
-    const ownerDeclined = req?.owner_declined === true;
-    const targetDeclined = req?.target_declined === true;
 
     setOwnerDone(ownerApproved);
     setTargetDone(targetApproved);
@@ -283,73 +283,110 @@ export default function ContactApprovalClient({
     setRequesterEmailMasked((req?.requester_email_masked || "").trim());
     setTargetName((req?.target_name || "contact").trim());
     setTargetEmailMasked((req?.target_email_masked || "").trim());
+  }, []);
 
-    if (ownerDeclined || targetDeclined || data.state === "declined") {
-      setUiState("declined");
-      setMessage("This request was declined. The email will not be added.");
-      return true;
-    }
-
-    if (data.state === "expired" || req?.status === "expired") {
-      setUiState("expired");
-      setMessage(
-        "This request expired for security reasons. A fresh approval process is required.",
+  const syncApprovalStatus = React.useCallback(
+    async ({ allowWaiting = false }: { allowWaiting?: boolean } = {}) => {
+      const res = await fetch(
+        `/api/contact-approval/status?rid=${encodeURIComponent(requestId)}`,
+        { cache: "no-store" },
       );
-      return true;
-    }
 
-    if (data.state === "fully_approved" || (ownerApproved && targetApproved)) {
-      setUiState("approved");
-      setMessage(
-        "Both confirmations are complete. The contact has now been added successfully.",
-      );
-      return true;
-    }
+      const data = (await res.json().catch(() => ({}))) as ActionResp;
+      if (!data?.ok) return false;
 
-    setUiState("waiting");
-    setMessage(
-      actor === "owner"
-        ? "Your confirmation has been recorded. The request will complete when the contact email owner also confirms."
-        : "Your confirmation has been recorded. The request will complete when the account owner also confirms.",
-    );
+      const req = data.request;
+      const ownerApproved = req?.owner_approved === true;
+      const targetApproved = req?.target_approved === true;
+      const ownerDeclined = req?.owner_declined === true;
+      const targetDeclined = req?.target_declined === true;
 
-    return false;
-  }, [actor, requestId]);
+      applyRequestDetails(data);
 
-  const startPolling = React.useCallback(() => {
-    clearPolling();
-    pollStopRef.current = false;
-
-    async function tick() {
-      if (pollStopRef.current) return;
-
-      try {
-        const done = await syncApprovalStatus();
-        if (done || pollStopRef.current) {
-          clearPolling();
-          return;
-        }
-      } catch {}
-
-      if (!pollStopRef.current) {
-        pollTimerRef.current = window.setTimeout(tick, 1800);
+      if (ownerDeclined || targetDeclined || data.state === "declined") {
+        setUiState("declined");
+        setMessage("This request was declined. The email will not be added.");
+        return true;
       }
-    }
 
-    void tick();
-  }, [clearPolling, syncApprovalStatus]);
+      if (data.state === "expired" || req?.status === "expired") {
+        setUiState("expired");
+        setMessage(
+          "This request expired for security reasons. A fresh approval process is required.",
+        );
+        return true;
+      }
+
+      if (
+        data.state === "fully_approved" ||
+        (ownerApproved && targetApproved)
+      ) {
+        setUiState("approved");
+        setMessage(
+          "Both confirmations are complete. The contact has now been added successfully.",
+        );
+        return true;
+      }
+
+      const currentActorDone = isThisActorDone(req);
+
+      if (allowWaiting || currentActorDone || hasSubmittedThisPageRef.current) {
+        setUiState("waiting");
+        setMessage(
+          actor === "owner"
+            ? "Your confirmation has been recorded. The request will complete when the contact email owner also confirms."
+            : "Your confirmation has been recorded. The request will complete when the account owner also confirms.",
+        );
+
+        return false;
+      }
+
+      setUiState("gate");
+      setMessage("");
+      return false;
+    },
+    [actor, applyRequestDetails, isThisActorDone, requestId],
+  );
+
+  const startPolling = React.useCallback(
+    ({ allowWaiting = true }: { allowWaiting?: boolean } = {}) => {
+      clearPolling();
+      pollStopRef.current = false;
+
+      async function tick() {
+        if (pollStopRef.current) return;
+
+        try {
+          const done = await syncApprovalStatus({ allowWaiting });
+          if (done || pollStopRef.current) {
+            clearPolling();
+            return;
+          }
+        } catch {}
+
+        if (!pollStopRef.current) {
+          pollTimerRef.current = window.setTimeout(tick, 1800);
+        }
+      }
+
+      void tick();
+    },
+    [clearPolling, syncApprovalStatus],
+  );
 
   React.useEffect(() => {
     let cancelled = false;
 
     async function boot() {
       try {
-        const done = await syncApprovalStatus();
+        const done = await syncApprovalStatus({ allowWaiting: false });
         if (cancelled) return;
 
-        if (!done) {
-          startPolling();
-        }
+        if (done) return;
+
+        // Poll quietly, but do not push the user into "waiting" until this
+        // actor has actually completed their side.
+        startPolling({ allowWaiting: false });
       } catch {
         if (!cancelled) {
           setUiState("error");
@@ -370,9 +407,15 @@ export default function ContactApprovalClient({
 
   async function submitFinalDecision() {
     if (busy) return;
+
+    hasSubmittedThisPageRef.current = true;
+    clearPolling();
     setBusy(true);
     setUiState("working");
     setMessage("");
+
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 15000);
 
     try {
       const res = await fetch("/api/contact-approval/act", {
@@ -380,6 +423,7 @@ export default function ContactApprovalClient({
         headers: {
           "Content-Type": "application/json",
         },
+        signal: controller.signal,
         body: JSON.stringify({
           request_id: requestId,
           actor,
@@ -389,10 +433,13 @@ export default function ContactApprovalClient({
         }),
       });
 
+      window.clearTimeout(timeout);
+
       const data = (await res.json().catch(() => ({}))) as ActionResp;
 
       if (!res.ok || !data?.ok) {
         const state = data?.state;
+
         if (state === "expired") {
           setUiState("expired");
           setMessage(
@@ -420,13 +467,7 @@ export default function ContactApprovalClient({
             req?.requester_email_masked,
           );
 
-          setOwnerDone(ownerApproved);
-          setTargetDone(targetApproved);
-          setRequestType(typeLabel(req?.added_type));
-          setRequesterName((req?.requester_name || "StayKnown user").trim());
-          setRequesterEmailMasked((req?.requester_email_masked || "").trim());
-          setTargetName((req?.target_name || "contact").trim());
-          setTargetEmailMasked((req?.target_email_masked || "").trim());
+          applyRequestDetails(data);
 
           if (ownerApproved && targetApproved) {
             if (decision === "decline") {
@@ -459,29 +500,17 @@ export default function ContactApprovalClient({
         return;
       }
 
-      const req = data.request;
-      const ownerApproved = req?.owner_approved === true;
-      const targetApproved = req?.target_approved === true;
-
-      setOwnerDone(ownerApproved);
-      setTargetDone(targetApproved);
-      setRequestType(typeLabel(req?.added_type));
-      setRequesterName((req?.requester_name || "StayKnown user").trim());
-      setRequesterEmailMasked((req?.requester_email_masked || "").trim());
-      setTargetName((req?.target_name || "contact").trim());
-      setTargetEmailMasked((req?.target_email_masked || "").trim());
+      applyRequestDetails(data);
 
       if (data.state === "declined") {
         const requester = safePersonLabel(
-          req?.requester_name,
-          req?.requester_email_masked,
+          data.request?.requester_name,
+          data.request?.requester_email_masked,
         );
 
         setUiState("declined");
         setMessage(
-          actor === "owner" || actor === "target"
-            ? `This request has been declined, so the email was not added. If this decision was made by mistake or under pressure, do not continue through old links. Contact ${requester} directly if needed, or reach StayKnown support at ${SUPPORT_EMAIL}.`
-            : `This request has been declined, so the email was not added. For help, contact ${SUPPORT_EMAIL}.`,
+          `This request has been declined, so the email was not added. If this decision was made by mistake or under pressure, do not continue through old links. Contact ${requester} directly if needed, or reach StayKnown support at ${SUPPORT_EMAIL}.`,
         );
         return;
       }
@@ -494,6 +523,7 @@ export default function ContactApprovalClient({
         return;
       }
 
+      setUiState("waiting");
       setMessage(
         actor === "owner"
           ? "Your confirmation has been recorded. The request will complete when the contact email owner also confirms."
@@ -501,12 +531,16 @@ export default function ContactApprovalClient({
       );
 
       window.setTimeout(() => {
-        startPolling();
+        startPolling({ allowWaiting: true });
       }, 300);
-    } catch {
+    } catch (e) {
+      window.clearTimeout(timeout);
+
       setUiState("error");
       setMessage(
-        "This request could not be completed right now. Please try again shortly.",
+        e instanceof DOMException && e.name === "AbortError"
+          ? "The confirmation server took too long to respond. Please try again."
+          : "This request could not be completed right now. Please try again shortly.",
       );
     } finally {
       setBusy(false);
@@ -601,7 +635,10 @@ export default function ContactApprovalClient({
                           "One confirmation is complete. The request will finish only when the other party also confirms."
                         : uiState === "working"
                           ? "Securely processing your decision…"
-                          : `You were brought to this page because StayKnown requires explicit confirmation before a contact can be added. ${reconfirmText}`}
+                          : uiState === "error"
+                            ? message ||
+                              "This request could not be completed right now."
+                            : `You were brought to this page because StayKnown requires explicit confirmation before a contact can be added. ${reconfirmText}`}
               </p>
             </div>
 
@@ -698,6 +735,15 @@ export default function ContactApprovalClient({
               </div>
             )}
 
+            {uiState === "working" && (
+              <div className="flex flex-col items-center justify-center gap-3">
+                <GlassSpinner />
+                <div className="text-center text-[13px] font-bold text-black/62">
+                  Securely processing your decision…
+                </div>
+              </div>
+            )}
+
             {uiState === "waiting" && (
               <div className="flex flex-col items-center justify-center gap-3">
                 <GlassSpinner />
@@ -713,6 +759,20 @@ export default function ContactApprovalClient({
               uiState === "invalid" ||
               uiState === "error") && (
               <div className="flex flex-col items-stretch justify-center gap-3 sm:flex-row">
+                {uiState === "error" && (
+                  <SweepButton
+                    tone="dark"
+                    onClick={() => {
+                      hasSubmittedThisPageRef.current = false;
+                      setUiState("gate");
+                      setMessage("");
+                      startPolling({ allowWaiting: false });
+                    }}
+                  >
+                    Try again
+                  </SweepButton>
+                )}
+
                 <SweepButton
                   tone="light"
                   onClick={() => {
