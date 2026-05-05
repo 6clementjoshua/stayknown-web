@@ -98,11 +98,6 @@ function formatCoords(lat: number, lng: number) {
   return `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
 }
 
-function googleMapsHref(lat?: number, lng?: number) {
-  if (typeof lat !== "number" || typeof lng !== "number") return "";
-  return `https://www.google.com/maps?q=${lat},${lng}`;
-}
-
 function formatCapturedTime(v?: string | null) {
   if (!v) return "Capture time unavailable";
   const d = new Date(v);
@@ -292,7 +287,6 @@ export default function ChatMapClient({
 
   const sender = safeText(payload.senderName, "StayKnown user");
   const username = safeText(payload.senderUsername);
-  const mapHref = googleMapsHref(lat, lng);
   const coords = formatCoords(lat, lng);
 
   const coordinateAge = coordinateAgeFrom(capturedAt);
@@ -321,6 +315,22 @@ export default function ChatMapClient({
   const mobileZoomBottom = mobileSheetShrunk
     ? "bottom-[112px]"
     : "bottom-[248px]";
+
+  const centerMapOn = React.useCallback((nextLat: number, nextLng: number) => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    if (!Number.isFinite(nextLat) || !Number.isFinite(nextLng)) return;
+
+    map.jumpTo({
+      center: [nextLng, nextLat],
+      zoom: Math.max(map.getZoom(), INITIAL_VIEW_ZOOM),
+    });
+
+    window.requestAnimationFrame(() => {
+      map.resize();
+    });
+  }, []);
 
   const syncMarker = React.useCallback(
     (nextLat: number, nextLng: number, fresh: boolean) => {
@@ -404,7 +414,8 @@ export default function ChatMapClient({
     setCapturedAt(nextCaptured);
 
     syncMarker(nextLat, nextLng, coordinateAgeFrom(nextCaptured) !== "old");
-  }, [payload, syncMarker]);
+    centerMapOn(nextLat, nextLng);
+  }, [payload, syncMarker, centerMapOn]);
 
   React.useEffect(() => {
     setDarkTheme(prefersDarkTheme());
@@ -739,15 +750,6 @@ export default function ChatMapClient({
                           {username ? ` • @${username}` : ""}
                         </div>
                       </div>
-
-                      <a
-                        href={mapHref}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="shrink-0 rounded-full border border-white/70 bg-white/88 px-2.5 py-[6px] text-[7px] font-extrabold uppercase tracking-[0.16em] text-black/62"
-                      >
-                        Open
-                      </a>
                     </div>
                   </div>
 
@@ -787,26 +789,17 @@ export default function ChatMapClient({
                                 >
                                   {item.label}
                                 </div>
-                                {item.label === "Coordinates" ? (
-                                  <a
-                                    href={mapHref}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className={`mt-1 block text-[10px] font-bold leading-4 underline underline-offset-4 break-all ${coordText}`}
-                                  >
-                                    {item.value}
-                                  </a>
-                                ) : (
-                                  <div
-                                    className={`mt-1 text-[10px] font-bold leading-4 break-words ${
-                                      darkTheme
+                                <div
+                                  className={`mt-1 text-[10px] font-bold leading-4 break-words ${
+                                    item.label === "Coordinates"
+                                      ? `break-all ${coordText}`
+                                      : darkTheme
                                         ? "text-white/82"
                                         : "text-black/78"
-                                    }`}
-                                  >
-                                    {item.value}
-                                  </div>
-                                )}
+                                  }`}
+                                >
+                                  {item.value}
+                                </div>
                               </div>
                             ))}
 
