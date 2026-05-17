@@ -44,6 +44,10 @@ function responseLabel(response: ResponseChoice) {
   }
 }
 
+function alreadyRecordedMessage() {
+  return "StayKnown has already recorded your response for this safety notice. You do not need to do anything else at this time.";
+}
+
 function timelineTitle(contactName: string, response: ResponseChoice) {
   const who = contactName.trim() || "A contact";
   return `${who} has tapped “${responseLabel(response)}”`;
@@ -235,24 +239,29 @@ export async function POST(req: Request) {
     const expectedIso = toIsoOrNull(expected);
     const sentIso = toIsoOrNull(sent);
 
-    const { data: existing, error: existingErr } = await sb
+    let existingQuery = sb
       .from("missed_im_safe_contact_responses")
       .select("id,response,created_at")
       .eq("user_id", uid)
-      .eq("contact_email", contact)
-      .eq("due_at", dueIso)
-      .maybeSingle();
+      .eq("contact_email", contact);
 
-    if (existingErr) {
-      throw existingErr;
+    if (dueIso) {
+      existingQuery = existingQuery.eq("due_at", dueIso);
+    } else {
+      existingQuery = existingQuery.is("due_at", null);
     }
+
+    const { data: existing, error: existingErr } =
+      await existingQuery.maybeSingle();
+
+    if (existingErr) throw existingErr;
 
     if (existing?.id) {
       return NextResponse.json({
         ok: true,
         state: "already_recorded",
-        message:
-          "A response from this contact has already been recorded for this missed I’M SAFE notice.",
+        title: "Response already recorded",
+        message: alreadyRecordedMessage(),
       });
     }
 
@@ -275,17 +284,19 @@ export async function POST(req: Request) {
           response_label: responseLabel(response),
           subject_name: subjectName,
           actor_location: actorGeo.summary,
+          one_time_response: true,
         },
       });
 
     if (insertErr) {
       const code = (insertErr as { code?: string }).code;
+
       if (code === "23505") {
         return NextResponse.json({
           ok: true,
           state: "already_recorded",
-          message:
-            "A response from this contact has already been recorded for this missed I’M SAFE notice.",
+          title: "Response already recorded",
+          message: alreadyRecordedMessage(),
         });
       }
 
@@ -318,6 +329,7 @@ export async function POST(req: Request) {
         actor_country: actorGeo.country || null,
         actor_region: actorGeo.region || null,
         actor_city: actorGeo.city || null,
+        one_time_response: true,
       },
     });
 
