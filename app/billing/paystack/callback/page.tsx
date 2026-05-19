@@ -9,18 +9,55 @@ function safeParam(v: string | null) {
 
 function buildAppDeepLink(reference: string, trxref: string, status: string) {
   const qs = new URLSearchParams();
+
   if (reference) qs.set("reference", reference);
   if (trxref) qs.set("trxref", trxref);
   if (status) qs.set("status", status);
 
-  return `stayknown://billing/paystack/callback${
-    qs.toString() ? `?${qs.toString()}` : ""
-  }`;
+  const query = qs.toString();
+
+  return `stayknown://billing/paystack/callback${query ? `?${query}` : ""}`;
+}
+
+function tryOpenStayKnown(deepLink: string) {
+  try {
+    window.location.replace(deepLink);
+    return;
+  } catch (_) {
+    // fallback below
+  }
+
+  try {
+    window.location.href = deepLink;
+    return;
+  } catch (_) {
+    // fallback below
+  }
+
+  try {
+    const iframe = document.createElement("iframe");
+    iframe.style.display = "none";
+    iframe.src = deepLink;
+    document.body.appendChild(iframe);
+
+    window.setTimeout(() => {
+      try {
+        iframe.remove();
+      } catch (_) {
+        // ignore
+      }
+    }, 1200);
+  } catch (_) {
+    // ignore
+  }
 }
 
 export default function PaystackBillingCallbackPage() {
-  const [triedOpen, setTriedOpen] = useState(false);
   const [showOpenButton, setShowOpenButton] = useState(false);
+  const [attemptCount, setAttemptCount] = useState(0);
+
+  const firstRetryTimer = useRef<number | null>(null);
+  const secondRetryTimer = useRef<number | null>(null);
   const fallbackTimer = useRef<number | null>(null);
 
   const params = useMemo(() => {
@@ -29,6 +66,7 @@ export default function PaystackBillingCallbackPage() {
     }
 
     const sp = new URLSearchParams(window.location.search);
+
     return {
       reference: safeParam(sp.get("reference")),
       trxref: safeParam(sp.get("trxref")),
@@ -43,22 +81,41 @@ export default function PaystackBillingCallbackPage() {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    if (triedOpen) return;
 
-    setTriedOpen(true);
+    const openApp = () => {
+      setAttemptCount((v) => v + 1);
+      tryOpenStayKnown(deepLink);
+    };
 
+    // Try immediately.
+    openApp();
+
+    // Retry fast because some Android browsers ignore the first deep-link
+    // while Paystack/browser redirect is still settling.
+    firstRetryTimer.current = window.setTimeout(openApp, 350);
+
+    // One more retry for slower Android WebView/browser behavior.
+    secondRetryTimer.current = window.setTimeout(openApp, 950);
+
+    // Show manual fallback quickly.
     fallbackTimer.current = window.setTimeout(() => {
       setShowOpenButton(true);
-    }, 1800);
-
-    window.location.href = deepLink;
+    }, 1200);
 
     return () => {
+      if (firstRetryTimer.current !== null) {
+        window.clearTimeout(firstRetryTimer.current);
+      }
+
+      if (secondRetryTimer.current !== null) {
+        window.clearTimeout(secondRetryTimer.current);
+      }
+
       if (fallbackTimer.current !== null) {
         window.clearTimeout(fallbackTimer.current);
       }
     };
-  }, [deepLink, triedOpen]);
+  }, [deepLink]);
 
   const statusText =
     params.status.toLowerCase() === "success"
@@ -153,7 +210,7 @@ export default function PaystackBillingCallbackPage() {
                 color: "#0b0b0b",
               }}
             >
-              Returning you to the app
+              Opening StayKnown
             </h1>
 
             <p
@@ -166,8 +223,8 @@ export default function PaystackBillingCallbackPage() {
                 color: "rgba(0,0,0,0.62)",
               }}
             >
-              We are handing your subscription result back to StayKnown now.
-              This page will try to reopen the app automatically.
+              We received your payment return and are reopening the app now.
+              StayKnown will confirm your subscription inside the app.
             </p>
           </div>
 
@@ -227,10 +284,24 @@ export default function PaystackBillingCallbackPage() {
               {params.reference || params.trxref || "Awaiting reference"}
             </div>
 
+            <div
+              style={{
+                marginTop: 12,
+                textAlign: "center",
+                fontSize: 11.5,
+                lineHeight: 1.45,
+                fontWeight: 700,
+                color: "rgba(0,0,0,0.48)",
+              }}
+            >
+              Opening attempt {attemptCount || 1}
+            </div>
+
             {showOpenButton ? (
               <div style={{ textAlign: "center", marginTop: 18 }}>
                 <a
                   href={deepLink}
+                  onClick={() => setAttemptCount((v) => v + 1)}
                   style={{
                     display: "inline-block",
                     padding: "12px 18px",
@@ -286,6 +357,7 @@ export default function PaystackBillingCallbackPage() {
             transform: rotate(360deg);
           }
         }
+
         html,
         body {
           margin: 0;
