@@ -8,6 +8,14 @@ export const runtime = "nodejs";
 
 type ResponseChoice = "will_check" | "reached_them" | "could_not_reach";
 
+type NetworkCheckResult = {
+  checked: boolean;
+  blocked: boolean;
+  provider: "ip-api" | "local_or_private" | "lookup_failed";
+  reasons: string[];
+  raw?: Record<string, unknown>;
+};
+
 function admin() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceRole = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -161,13 +169,118 @@ function firstHeader(req: Request, names: string[]) {
 
 function extractClientIp(req: Request) {
   const forwarded = firstHeader(req, [
-    "x-forwarded-for",
     "cf-connecting-ip",
     "x-real-ip",
+    "x-forwarded-for",
   ]);
 
   if (!forwarded) return "";
+
   return forwarded.split(",")[0]?.trim() || "";
+}
+
+function isLocalOrPrivateIp(ip: string) {
+  const cleanIp = ip.trim();
+
+  if (!cleanIp) return true;
+  if (cleanIp === "::1" || cleanIp === "127.0.0.1" || cleanIp === "localhost") {
+    return true;
+  }
+
+  if (cleanIp.startsWith("10.")) return true;
+  if (cleanIp.startsWith("192.168.")) return true;
+  if (/^172\.(1[6-9]|2\d|3[0-1])\./.test(cleanIp)) return true;
+
+  const lower = cleanIp.toLowerCase();
+  if (
+    lower.startsWith("fc") ||
+    lower.startsWith("fd") ||
+    lower.startsWith("fe80:")
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+function boolOf(v: unknown) {
+  return v === true || v === "true" || v === 1 || v === "1";
+}
+
+async function checkMaskedNetwork(ip: string): Promise<NetworkCheckResult> {
+  if (isLocalOrPrivateIp(ip)) {
+    return {
+      checked: false,
+      blocked: false,
+      provider: "local_or_private",
+      reasons: [],
+    };
+  }
+
+  try {
+    const url =
+      `http://ip-api.com/json/${encodeURIComponent(ip)}` +
+      "?fields=status,message,countryCode,region,city,isp,org,as,proxy,hosting,mobile,query";
+
+    const res = await fetch(url, {
+      method: "GET",
+      cache: "no-store",
+    });
+
+    const data = (await res.json().catch(() => ({}))) as Record<
+      string,
+      unknown
+    >;
+
+    if (!res.ok || data.status !== "success") {
+      return {
+        checked: true,
+        blocked: false,
+        provider: "lookup_failed",
+        reasons: [],
+        raw: {
+          status: res.status,
+          message: data.message,
+        },
+      };
+    }
+
+    const reasons: string[] = [];
+
+    if (boolOf(data.proxy)) reasons.push("proxy");
+    if (boolOf(data.hosting)) reasons.push("hosting");
+
+    const blocked = reasons.length > 0;
+
+    return {
+      checked: true,
+      blocked,
+      provider: "ip-api",
+      reasons,
+      raw: {
+        countryCode: data.countryCode,
+        region: data.region,
+        city: data.city,
+        isp: data.isp,
+        org: data.org,
+        as: data.as,
+        proxy: data.proxy,
+        hosting: data.hosting,
+        mobile: data.mobile,
+        query: data.query,
+      },
+    };
+  } catch (e) {
+    return {
+      checked: true,
+      blocked: false,
+      provider: "lookup_failed",
+      reasons: [],
+      raw: {
+        error: e instanceof Error ? e.message : String(e),
+      },
+    };
+  }
 }
 
 function coarseLocationFromHeaders(req: Request) {
@@ -304,6 +417,29 @@ export async function POST(req: Request) {
       });
     }
 
+    const networkCheck = await checkMaskedNetwork(actorIp);
+
+    if (networkCheck.blocked) {
+      return NextResponse.json(
+        {
+          ok: false,
+          state: "vpn_blocked",
+          title: "Turn off VPN",
+          message:
+            "StayKnown could not record this safety response because your connection appears to be using a VPN, proxy, relay, or hosted/masked network. Turn it off and try again so the safety record is not misleading.",
+        },
+        { status: 403 },
+      );
+    }
+
+    const networkCheckMeta = {
+      checked: networkCheck.checked,
+      provider: networkCheck.provider,
+      blocked: networkCheck.blocked,
+      reasons: networkCheck.reasons,
+      raw: networkCheck.raw ?? null,
+    };
+
     const { error: insertErr } = await sb
       .from("missed_im_safe_contact_responses")
       .insert({
@@ -325,6 +461,7 @@ export async function POST(req: Request) {
           actor_location: actorGeo.summary,
           one_time_response: true,
           one_response_per_notice: true,
+          network_check: networkCheckMeta,
         },
       });
 
@@ -381,6 +518,7 @@ export async function POST(req: Request) {
         actor_city: actorGeo.city || null,
         one_time_response: true,
         one_response_per_notice: true,
+        network_check: networkCheckMeta,
       },
     });
 
