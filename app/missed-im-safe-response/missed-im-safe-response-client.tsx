@@ -608,8 +608,33 @@ export default function MissedImSafeResponseClient({
             <footer className="mt-6 border-t border-black/[0.07] pt-4 text-center text-[10px] font-semibold leading-5 text-black/42">
               This page is part of StayKnown safety awareness and internal proof
               history.
-              <div className="mt-1">Support: {SUPPORT_EMAIL}</div>
-              <div className="mt-1">
+              <div className="mt-2">
+                StayKnown does not replace emergency services. For urgent
+                danger, contact local emergency services immediately.
+              </div>
+              <div className="mt-2">
+                Safety proof history may be kept only as long as needed for
+                safety, audit, support, investigation, legal, or
+                abuse-prevention reasons.
+              </div>
+              <div className="mt-2">
+                For safety proof history, StayKnown may record your response
+                choice, response time, browser/device details, and approximate
+                IP-based location. VPN, proxy, or masked-network connections may
+                be blocked to prevent misleading safety records.
+              </div>
+              <div className="mt-2">Support: {SUPPORT_EMAIL}</div>
+              <div className="mt-2">
+                Privacy:{" "}
+                <a href="/privacy" className="font-black underline">
+                  Privacy Policy
+                </a>{" "}
+                · Terms:{" "}
+                <a href="/terms" className="font-black underline">
+                  Terms
+                </a>
+              </div>
+              <div className="mt-2">
                 A 6 Clement Joshua service™ · © {new Date().getFullYear()}
               </div>
             </footer>
