@@ -1,5 +1,21 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  async redirects() {
+    return [
+      {
+        source: "/:path*",
+        has: [
+          {
+            type: "host",
+            value: "stay-known.com",
+          },
+        ],
+        destination: "https://www.stay-known.com/:path*",
+        permanent: true,
+      },
+    ];
+  },
+
   async headers() {
     const csp = [
       "default-src 'self'",
