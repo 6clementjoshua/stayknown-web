@@ -528,6 +528,13 @@ export default function MissedImSafeResponseClient({
                   danger, contact them directly and follow local emergency
                   procedures.
                 </p>
+
+                <p className="mx-auto mt-4 max-w-[560px] rounded-[22px] border border-black/[0.06] bg-white/58 px-4 py-3 text-center text-[10.5px] font-bold leading-5 text-black/46 shadow-[inset_0_1px_0_rgba(255,255,255,0.88)]">
+                  For safety proof history, StayKnown may record your response
+                  choice, response time, browser/device details, and approximate
+                  IP-based location. VPN, proxy, or masked-network connections
+                  may be blocked to prevent misleading safety records.
+                </p>
               </div>
             )}
 
