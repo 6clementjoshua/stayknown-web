@@ -270,7 +270,7 @@ export default function MissedImSafeResponseClient({
           setUiState("already_recorded");
           setMessage(
             data?.message ||
-              "A response from this contact has already been recorded for this missed I’M SAFE notice.",
+              "This missed I’M SAFE response has already been received. If the situation has changed, continue checking on them directly. If there may be immediate danger, follow local emergency procedures.",
           );
           return;
         }
@@ -278,7 +278,7 @@ export default function MissedImSafeResponseClient({
         setUiState("error");
         setMessage(
           data?.message ||
-            "This response could not be recorded right now. Please try again shortly.",
+            "This missed I’M SAFE response has already been received. If the situation has changed, continue checking on them directly. If there may be immediate danger, follow local emergency procedures.",
         );
         return;
       }

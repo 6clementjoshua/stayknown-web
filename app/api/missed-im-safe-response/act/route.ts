@@ -44,8 +44,18 @@ function responseLabel(response: ResponseChoice) {
   }
 }
 
-function alreadyRecordedMessage() {
-  return "StayKnown has already recorded your response for this safety notice. You do not need to do anything else at this time.";
+function alreadyRecordedMessage(
+  recordedResponse: ResponseChoice,
+  subjectName: string,
+) {
+  const subject = subjectName.trim() || "the StayKnown member";
+
+  return (
+    `You already recorded: “${responseLabel(recordedResponse)}.”\n\n` +
+    "This missed I’M SAFE response has already been received. " +
+    `If the situation has changed, continue checking on ${subject} directly. ` +
+    "If there may be immediate danger, follow local emergency procedures."
+  );
 }
 
 function timelineTitle(contactName: string, response: ResponseChoice) {
@@ -81,6 +91,15 @@ function signatureMessage(p: {
     `sent=${p.sent}`,
     `exp=${p.exp}`,
   ].join("&");
+}
+
+function safeEqual(a: string, b: string) {
+  const aBuf = Buffer.from(a);
+  const bBuf = Buffer.from(b);
+
+  if (aBuf.length !== bBuf.length) return false;
+
+  return crypto.timingSafeEqual(aBuf, bBuf);
 }
 
 function verifySignature(p: {
@@ -119,7 +138,7 @@ function verifySignature(p: {
     .replace(/\//g, "_")
     .replace(/=+$/g, "");
 
-  if (expected !== p.sig) {
+  if (!safeEqual(expected, p.sig)) {
     return { ok: false, reason: "bad_signature" as const };
   }
 
@@ -165,6 +184,33 @@ function coarseLocationFromHeaders(req: Request) {
     country,
     summary: [city, region, country].filter(Boolean).join(", "),
   };
+}
+
+async function findExistingResponse(p: {
+  sb: ReturnType<typeof admin>;
+  uid: string;
+  contact: string;
+  dueIso: string | null;
+}) {
+  let query = p.sb
+    .from("missed_im_safe_contact_responses")
+    .select("id,response,created_at")
+    .eq("user_id", p.uid)
+    .eq("contact_email", p.contact)
+    .order("created_at", { ascending: true })
+    .limit(1);
+
+  if (p.dueIso) {
+    query = query.eq("due_at", p.dueIso);
+  } else {
+    query = query.is("due_at", null);
+  }
+
+  const { data, error } = await query.maybeSingle();
+
+  if (error) throw error;
+
+  return data;
 }
 
 export async function POST(req: Request) {
@@ -239,29 +285,22 @@ export async function POST(req: Request) {
     const expectedIso = toIsoOrNull(expected);
     const sentIso = toIsoOrNull(sent);
 
-    let existingQuery = sb
-      .from("missed_im_safe_contact_responses")
-      .select("id,response,created_at")
-      .eq("user_id", uid)
-      .eq("contact_email", contact);
-
-    if (dueIso) {
-      existingQuery = existingQuery.eq("due_at", dueIso);
-    } else {
-      existingQuery = existingQuery.is("due_at", null);
-    }
-
-    const { data: existing, error: existingErr } =
-      await existingQuery.maybeSingle();
-
-    if (existingErr) throw existingErr;
+    const existing = await findExistingResponse({
+      sb,
+      uid,
+      contact,
+      dueIso,
+    });
 
     if (existing?.id) {
+      const recordedResponse =
+        asResponse(String(existing.response || "")) || response;
+
       return NextResponse.json({
         ok: true,
         state: "already_recorded",
         title: "Response already recorded",
-        message: alreadyRecordedMessage(),
+        message: alreadyRecordedMessage(recordedResponse, subjectName),
       });
     }
 
@@ -285,6 +324,7 @@ export async function POST(req: Request) {
           subject_name: subjectName,
           actor_location: actorGeo.summary,
           one_time_response: true,
+          one_response_per_notice: true,
         },
       });
 
@@ -292,11 +332,21 @@ export async function POST(req: Request) {
       const code = (insertErr as { code?: string }).code;
 
       if (code === "23505") {
+        const duplicate = await findExistingResponse({
+          sb,
+          uid,
+          contact,
+          dueIso,
+        });
+
+        const duplicateResponse =
+          asResponse(String(duplicate?.response || "")) || response;
+
         return NextResponse.json({
           ok: true,
           state: "already_recorded",
           title: "Response already recorded",
-          message: alreadyRecordedMessage(),
+          message: alreadyRecordedMessage(duplicateResponse, subjectName),
         });
       }
 
@@ -330,6 +380,7 @@ export async function POST(req: Request) {
         actor_region: actorGeo.region || null,
         actor_city: actorGeo.city || null,
         one_time_response: true,
+        one_response_per_notice: true,
       },
     });
 
