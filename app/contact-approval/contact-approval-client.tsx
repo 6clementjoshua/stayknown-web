@@ -73,6 +73,18 @@ function safePersonLabel(name?: string | null, emailMasked?: string | null) {
   return (emailMasked || "the user").trim();
 }
 
+function requestHasAnyApproval(req?: ActionResp["request"]) {
+  return req?.owner_approved === true || req?.target_approved === true;
+}
+
+function requestIsFullyApproved(req?: ActionResp["request"]) {
+  return req?.owner_approved === true && req?.target_approved === true;
+}
+
+function requestWasDeclined(req?: ActionResp["request"]) {
+  return req?.owner_declined === true || req?.target_declined === true;
+}
+
 function formatRemaining(exp: number) {
   const now = Math.floor(Date.now() / 1000);
   const secs = Math.max(0, exp - now);
@@ -293,17 +305,34 @@ export default function ContactApprovalClient({
       );
 
       const data = (await res.json().catch(() => ({}))) as ActionResp;
-      if (!data?.ok) return false;
+
+      // Important:
+      // After this page has submitted successfully, never throw the user into the
+      // red error screen just because the status poll had a temporary issue.
+      // Keep the recorded/waiting state stable instead.
+      if (!res.ok || !data?.ok) {
+        if (hasSubmittedThisPageRef.current) {
+          setUiState((prev) =>
+            prev === "approved" || prev === "declined" ? prev : "waiting",
+          );
+          setMessage(
+            actor === "owner"
+              ? "Your confirmation has been recorded. The request will complete when the contact email owner also confirms."
+              : "Your confirmation has been recorded. The request will complete when the account owner also confirms.",
+          );
+          return false;
+        }
+
+        return false;
+      }
 
       const req = data.request;
       const ownerApproved = req?.owner_approved === true;
       const targetApproved = req?.target_approved === true;
-      const ownerDeclined = req?.owner_declined === true;
-      const targetDeclined = req?.target_declined === true;
 
       applyRequestDetails(data);
 
-      if (ownerDeclined || targetDeclined || data.state === "declined") {
+      if (requestWasDeclined(req) || data.state === "declined") {
         setUiState("declined");
         setMessage("This request was declined. The email will not be added.");
         return true;
@@ -317,10 +346,7 @@ export default function ContactApprovalClient({
         return true;
       }
 
-      if (
-        data.state === "fully_approved" ||
-        (ownerApproved && targetApproved)
-      ) {
+      if (data.state === "fully_approved" || requestIsFullyApproved(req)) {
         setUiState("approved");
         setMessage(
           "Both confirmations are complete. The contact has now been added successfully.",
@@ -330,7 +356,13 @@ export default function ContactApprovalClient({
 
       const currentActorDone = isThisActorDone(req);
 
-      if (allowWaiting || currentActorDone || hasSubmittedThisPageRef.current) {
+      if (
+        data.state === "pending_other_party" ||
+        allowWaiting ||
+        currentActorDone ||
+        hasSubmittedThisPageRef.current ||
+        requestHasAnyApproval(req)
+      ) {
         setUiState("waiting");
         setMessage(
           actor === "owner"
@@ -439,6 +471,22 @@ export default function ContactApprovalClient({
 
       if (!res.ok || !data?.ok) {
         const state = data?.state;
+        if (state === "pending_other_party") {
+          applyRequestDetails(data);
+
+          setUiState("waiting");
+          setMessage(
+            actor === "owner"
+              ? "Your confirmation has been recorded. The request will complete when the contact email owner also confirms."
+              : "Your confirmation has been recorded. The request will complete when the account owner also confirms.",
+          );
+
+          window.setTimeout(() => {
+            startPolling({ allowWaiting: true });
+          }, 300);
+
+          return;
+        }
 
         if (state === "expired") {
           setUiState("expired");
@@ -460,8 +508,6 @@ export default function ContactApprovalClient({
 
         if (state === "already_resolved") {
           const req = data.request;
-          const ownerApproved = req?.owner_approved === true;
-          const targetApproved = req?.target_approved === true;
           const requester = safePersonLabel(
             req?.requester_name,
             req?.requester_email_masked,
@@ -469,7 +515,16 @@ export default function ContactApprovalClient({
 
           applyRequestDetails(data);
 
-          if (ownerApproved && targetApproved) {
+          if (requestWasDeclined(req)) {
+            setUiState("declined");
+            setMessage(
+              data?.message ||
+                "This request has already been declined and will not proceed.",
+            );
+            return;
+          }
+
+          if (requestIsFullyApproved(req)) {
             if (decision === "decline") {
               setUiState("declined");
               setMessage(
@@ -481,6 +536,25 @@ export default function ContactApprovalClient({
                 `This request was already completed successfully earlier. No further action is needed. If you have any safety concerns, contact StayKnown support at ${SUPPORT_EMAIL}.`,
               );
             }
+            return;
+          }
+
+          // Critical fix:
+          // If one side is already approved, this is not an error. It means the current
+          // side has likely already been recorded and the request is waiting for the
+          // other party.
+          if (requestHasAnyApproval(req) || isThisActorDone(req)) {
+            setUiState("waiting");
+            setMessage(
+              actor === "owner"
+                ? "Your confirmation has been recorded. The request will complete when the contact email owner also confirms."
+                : "Your confirmation has been recorded. The request will complete when the account owner also confirms.",
+            );
+
+            window.setTimeout(() => {
+              startPolling({ allowWaiting: true });
+            }, 300);
+
             return;
           }
 
@@ -567,6 +641,33 @@ export default function ContactApprovalClient({
       }, 300);
     } catch (e) {
       window.clearTimeout(timeout);
+
+      // Critical fix:
+      // If the user already tapped confirm/decline, the backend may have recorded
+      // the action even if the browser timed out or the response failed. Check
+      // status once before showing the red error UI.
+      try {
+        const done = await syncApprovalStatus({ allowWaiting: true });
+
+        if (done) {
+          return;
+        }
+
+        if (hasSubmittedThisPageRef.current) {
+          setUiState("waiting");
+          setMessage(
+            actor === "owner"
+              ? "Your confirmation has been recorded. The request will complete when the contact email owner also confirms."
+              : "Your confirmation has been recorded. The request will complete when the account owner also confirms.",
+          );
+
+          window.setTimeout(() => {
+            startPolling({ allowWaiting: true });
+          }, 300);
+
+          return;
+        }
+      } catch {}
 
       setUiState("error");
       setMessage(
@@ -674,12 +775,12 @@ export default function ContactApprovalClient({
               </p>
             </div>
 
-            <div className="mt-6 rounded-[24px] border border-black/8 bg-black/[0.03] p-4 md:p-5">
+            <div className="mt-6 rounded-[24px] border border-black/10 bg-white/72 p-4 text-center shadow-[0_18px_55px_rgba(0,0,0,0.07)] backdrop-blur-2xl md:p-5">
               <div className="text-[10px] font-black uppercase tracking-[0.22em] text-black/42">
                 Request overview
               </div>
 
-              <div className="mt-3 space-y-3 text-[13px] leading-6 text-black/72">
+              <div className="mt-3 space-y-2 text-[12px] leading-5 text-black/68">
                 <div>
                   <span className="font-black text-black/84">Role:</span>{" "}
                   {actorLabel(actor)}
@@ -701,11 +802,11 @@ export default function ContactApprovalClient({
               </div>
             </div>
 
-            <div className="mt-4 rounded-[24px] border border-black/8 bg-black/[0.03] p-4 md:p-5">
+            <div className="mt-4 rounded-[24px] border border-black/10 bg-white/72 p-4 text-center shadow-[0_18px_55px_rgba(0,0,0,0.07)] backdrop-blur-2xl md:p-5">
               <div className="text-[10px] font-black uppercase tracking-[0.22em] text-black/42">
                 StayKnown safety standard
               </div>
-              <div className="mt-3 text-[13px] leading-6 text-black/68">
+              <div className="mx-auto mt-3 max-w-[560px] text-[12px] leading-5 text-black/62">
                 StayKnown is only for known, trusted, and legitimate safety
                 relationships. It must not be used to stalk, pressure, monitor,
                 or track strangers. Abuse, false claims, or suspicious behavior
