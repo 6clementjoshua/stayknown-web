@@ -433,7 +433,7 @@ export async function POST(req: Request) {
     });
 
     const amountLabel = money(updated.amount, updated.currency_code);
-    const donationTo = env("DONATION_TO_EMAIL", "support@stay-known.com");
+    const donationTo = env("DONATION_TO_EMAIL", "donate@stay-known.com");
 
     if (!alreadyVerified) {
       await Promise.all([
