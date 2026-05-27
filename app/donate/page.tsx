@@ -444,7 +444,7 @@ export default function DonatePage() {
           <div className="mt-5 flex flex-wrap justify-center gap-2">
             <a
               href="#donate"
-              className="rounded-full bg-white px-5 py-3 text-[12px] font-black text-black shadow-2xl shadow-white/10 transition hover:-translate-y-0.5 hover:bg-white/90 active:scale-[0.98]"
+              className="rounded-full border border-white/[0.12] bg-white/[0.045] px-5 py-3 text-[12px] font-black text-white/80 shadow-2xl shadow-black/30 backdrop-blur-xl transition hover:-translate-y-0.5 hover:bg-white/[0.07] hover:text-white active:scale-[0.98]"
             >
               Donate Now
             </a>
