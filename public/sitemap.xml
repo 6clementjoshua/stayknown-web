@@ -7,12 +7,19 @@
 
   <url>
     <loc>https://www.stay-known.com/</loc>
-    <lastmod>2026-05-26</lastmod>
+    <lastmod>2026-05-27</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.00</priority>
   </url>
 
   <!-- Core product / support pages -->
+  <url>
+    <loc>https://www.stay-known.com/donate</loc>
+    <lastmod>2026-05-27</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.92</priority>
+  </url>
+
   <url>
     <loc>https://www.stay-known.com/help-center</loc>
     <lastmod>2026-05-26</lastmod>

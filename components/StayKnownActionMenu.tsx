@@ -16,6 +16,11 @@ const menuItems: MenuItem[] = [
     body: "Learn what StayKnown is, who owns it, and what the safety platform is built for.",
   },
   {
+    href: "/donate",
+    title: "Support StayKnown",
+    body: "Donate to help expand backend systems, live safety infrastructure, language translation, and product growth.",
+  },
+  {
     href: "/help-center",
     title: "Help Center",
     body: "Search answers about safety, visits, SOS, contacts, chat, billing, privacy, account help, and troubleshooting.",
