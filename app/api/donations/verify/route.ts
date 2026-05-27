@@ -50,7 +50,7 @@ async function resendSend(params: {
   html: string;
 }) {
   const apiKey = mustEnv("RESEND_API_KEY");
-  const from = mustEnv("RESEND_FROM");
+  const from = env("RESEND_DONATION_FROM", mustEnv("RESEND_FROM"));
 
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
