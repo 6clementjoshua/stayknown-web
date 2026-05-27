@@ -348,6 +348,26 @@ export default function Page() {
               >
                 Security Disclosure
               </a>
+
+              <span className="text-white/18">•</span>
+              <a
+                href="/creator-policy"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="transition hover:text-white/75"
+              >
+                Creator Policy
+              </a>
+
+              <span className="text-white/18">•</span>
+              <a
+                href="/donor-policy"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="transition hover:text-white/75"
+              >
+                Donor Policy
+              </a>
               <span className="text-white/18">•</span>
 
               <a

@@ -485,9 +485,11 @@ export default function CreatorApplyPage() {
       return;
     }
 
-    if (file.size > 25 * 1024 * 1024) {
+    if (file.size > 1 * 1024 * 1024) {
       setSampleVideo(null);
-      setErrorText("Sample video must be 25MB or smaller.");
+      setErrorText(
+        "Sample video must be 1MB or smaller. Please compress your clip and upload a short, clear sample for review.",
+      );
       return;
     }
 
@@ -1050,7 +1052,8 @@ export default function CreatorApplyPage() {
                   <p className="mt-3 text-[11px] font-semibold leading-relaxed text-white/36">
                     {videoLabel}. Upload one sample video that best represents
                     your content quality. HD, 4K, or 8K clips are preferred.
-                    Maximum size: 25MB.
+                    Maximum size: 1MB. Compress your clip before uploading;
+                    short, clear HD samples are enough for review.
                   </p>
                 </div>
               </label>

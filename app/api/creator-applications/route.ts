@@ -7,7 +7,7 @@ const DEFAULT_LOGO_URL = `${DEFAULT_SITE_URL}/6logo.png`;
 const MEDIA_BUCKET = "creator-application-media";
 const CONSENT_VERSION = "creator-application-v1";
 
-const MAX_VIDEO_BYTES = 25 * 1024 * 1024; // 25MB
+const MAX_VIDEO_BYTES = 1 * 1024 * 1024; // 1MB
 
 type FieldMap = Record<string, string>;
 
@@ -608,7 +608,9 @@ function validateVideo(file: File | null) {
   }
 
   if (file.size > MAX_VIDEO_BYTES) {
-    throw new Error("Sample video must be 25MB or smaller.");
+    throw new Error(
+      "Sample video must be 1MB or smaller. Please compress your clip and upload a short, clear sample for review.",
+    );
   }
 
   return file;
