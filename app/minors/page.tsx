@@ -779,12 +779,22 @@ export default function MinorsPage() {
                     </H2>
                     <UL
                       items={[
-                        "Under 13: not permitted to create an account or use StayKnown.",
-                        "Ages 13–15: permitted only with active permission and supervision of a parent or legal guardian and only for lawful safety use.",
-                        "Ages 16–17: permitted with permission or consent of a parent or legal guardian and only for lawful safety use, where required.",
-                        "Age 18+: permitted subject to StayKnown policies, Terms of Service, local law, and account standing.",
+                        "Under 13: not supported at launch and not permitted to create a normal StayKnown account or use StayKnown safety features.",
+                        "Ages 13–17: guardian consent is required before full app access. Until consent is approved, StayKnown may keep the account in a limited pending state.",
+                        "Age 18+: permitted to continue the normal adult app flow, subject to StayKnown policies, Terms of Service, local law, and account standing.",
                         "If local law sets a higher age threshold, stronger parental consent, school approval, workplace approval, or special data-protection rule, the stricter rule applies.",
                       ]}
+                    />
+                    <Callout
+                      title="Guardian consent approval"
+                      body="For eligible users ages 13–17, StayKnown may require a parent, legal guardian, or authorized trusted adult to review and approve the Guardian Consent flow before the minor receives full app access."
+                      icon={<GuardianIcon className="h-5 w-5" />}
+                    />
+
+                    <LinkCard
+                      href="/guardian-consent"
+                      title="Guardian Consent"
+                      body="Review the consent approval flow for eligible minor users ages 13–17."
                     />
                     <Callout
                       title="Local law controls"

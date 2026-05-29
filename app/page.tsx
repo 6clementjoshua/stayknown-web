@@ -311,6 +311,16 @@ export default function Page() {
               <span className="text-white/18">•</span>
 
               <a
+                href="/guardian-consent"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-white/75 transition"
+              >
+                Guardian Consent
+              </a>
+              <span className="text-white/18">•</span>
+
+              <a
                 href="/abuse"
                 target="_blank"
                 rel="noopener noreferrer"
