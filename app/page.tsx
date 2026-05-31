@@ -129,6 +129,14 @@ export default function Page() {
           "Emergency contacts and SOS responders use approval flows so safety access remains intentional, trusted, and auditable.",
       },
       {
+        id: "verification",
+        src: "/hero/verification.png",
+        kind: "device",
+        title: "Verified Identity",
+        teaser:
+          "StayKnown verification helps people recognize verified individuals and organizations across safety, contacts, chat, stories, SOS, Visit, and trusted-contact flows.",
+      },
+      {
         id: "safety-gallery",
         src: "/hero/safety-gallery.png",
         kind: "device",
@@ -287,6 +295,16 @@ export default function Page() {
                 className="hover:text-white/75 transition"
               >
                 Trust &amp; Safety
+              </a>
+              <span className="text-white/18">•</span>
+
+              <a
+                href="/verification-policy"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-white/75 transition"
+              >
+                Verification Policy
               </a>
               <span className="text-white/18">•</span>
 
