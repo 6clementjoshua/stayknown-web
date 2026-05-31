@@ -17,6 +17,12 @@ type MinorSignupRow = {
   minor_declined?: boolean | null;
   guardian_declined?: boolean | null;
   expires_at?: string | null;
+
+  // Recovery/final-sync protection columns
+  auth_user_id?: string | null;
+  profile_synced_at?: string | null;
+  guardian_contact_synced_at?: string | null;
+  completed_at?: string | null;
 };
 
 function admin() {
@@ -181,18 +187,22 @@ export async function POST(req: Request) {
       .from("minor_signup_requests")
       .select(
         `
-          id,
-          minor_email,
-          minor_first_name,
-          minor_last_name,
-          guardian_email,
-          status,
-          minor_approved,
-          guardian_approved,
-          minor_declined,
-          guardian_declined,
-          expires_at
-        `,
+    id,
+    minor_email,
+    minor_first_name,
+    minor_last_name,
+    guardian_email,
+    status,
+    minor_approved,
+    guardian_approved,
+    minor_declined,
+    guardian_declined,
+    expires_at,
+    auth_user_id,
+    profile_synced_at,
+    guardian_contact_synced_at,
+    completed_at
+  `,
       )
       .eq("id", requestId)
       .maybeSingle();
@@ -225,13 +235,32 @@ export async function POST(req: Request) {
 
     const state = requestState(row);
 
-    if (state === "fully_approved") {
+    const alreadyApprovedOrSynced =
+      state === "fully_approved" ||
+      lower(row.status) === "approved" ||
+      (row.minor_approved === true && row.guardian_approved === true) ||
+      !!row.auth_user_id ||
+      !!row.profile_synced_at ||
+      !!row.guardian_contact_synced_at ||
+      !!row.completed_at;
+
+    if (alreadyApprovedOrSynced) {
       return NextResponse.json(
         {
           ok: false,
-          state: "already_resolved",
+          state: "approved_not_completed",
           message:
-            "This request was already approved and can no longer be cancelled from this screen.",
+            "This guardian consent has already been approved and cannot be cancelled. Continue to email verification.",
+          request: {
+            id: row.id,
+            status: row.status,
+            minor_approved: row.minor_approved === true,
+            guardian_approved: row.guardian_approved === true,
+            auth_user_id: row.auth_user_id ?? null,
+            profile_synced_at: row.profile_synced_at ?? null,
+            guardian_contact_synced_at: row.guardian_contact_synced_at ?? null,
+            completed_at: row.completed_at ?? null,
+          },
         },
         { status: 409 },
       );
