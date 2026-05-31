@@ -201,20 +201,27 @@ async function upsertApprovedMinorProfile(params: {
   const now = toIsoNow();
   const firstName = clean(row.minor_first_name);
   const lastName = clean(row.minor_last_name);
+  const displayName = fullName(firstName, lastName) || "StayKnown user";
+
   const gender = normalizeGender(row.minor_gender);
   const dob = clean(row.minor_date_of_birth);
+
   const guardianEmail = normalizeEmail(row.guardian_email);
   const gName = guardianName(row);
-  const guardianRelationship = clean(row.guardian_relationship) || "parent";
+  const guardianRelationship = relationshipLabel(row.guardian_relationship);
   const consentVersion =
     clean(row.consent_version) || "guardian-consent-v1.0-2026-05-29";
 
-  await sb.from("user_profile").upsert(
+  const { error: userProfileErr } = await sb.from("user_profile").upsert(
     {
       user_id: uid,
+
+      // ✅ Important for profile header + edit screen fallbacks
+      display_name: displayName,
       first_name: firstName,
       last_name: lastName,
       email: userEmail,
+
       gender,
       date_of_birth: dob || null,
       date_of_birth_public: false,
@@ -235,26 +242,35 @@ async function upsertApprovedMinorProfile(params: {
         The minor still needs to complete phone/avatar/other profile fields normally.
       */
       profile_completed: false,
+      updated_at: now,
     },
     { onConflict: "user_id" },
   );
 
-  await sb.from("profiles").upsert(
+  if (userProfileErr) throw userProfileErr;
+
+  const { error: profileErr } = await sb.from("profiles").upsert(
     {
       id: uid,
-      email: userEmail,
+
+      // ✅ Important for profile header + public/basic identity
+      display_name: displayName,
       first_name: firstName,
       last_name: lastName,
+      email: userEmail,
+
       gender,
       date_of_birth: dob || null,
       age_status: "minor",
       guardian_consent_status: "approved",
       status: "active",
+      updated_at: now,
     },
     { onConflict: "id" },
   );
-}
 
+  if (profileErr) throw profileErr;
+}
 async function syncGuardianEmergencyContact(params: {
   sb: ReturnType<typeof admin>;
   uid: string;
