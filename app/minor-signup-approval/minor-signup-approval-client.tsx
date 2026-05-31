@@ -381,23 +381,35 @@ export default function MinorSignupApprovalClient({
 
       const thisActorDone = isActorDone(actor, req);
 
-      if (
-        data.state === "waiting_guardian" ||
-        data.state === "waiting_minor" ||
-        allowWaiting ||
-        thisActorDone ||
-        hasSubmittedThisPageRef.current ||
-        requestHasAnyApproval(req)
-      ) {
+      /*
+      Critical rule:
+      Do NOT send this page to "waiting" just because the other person already approved.
+
+      Example:
+      - Guardian approved first.
+      - Backend state is waiting_minor.
+      - Minor opens actor=minor link.
+      The minor must still see the gate and be able to approve.
+
+      Waiting screen is only correct when:
+      - this actor already submitted, or
+      - this actor's side is already done, or
+      - caller explicitly allows waiting after submission/polling.
+    */
+      if (thisActorDone || hasSubmittedThisPageRef.current || allowWaiting) {
         setUiState("waiting");
 
         if (data.state === "waiting_guardian") {
           setMessage(
-            "The minor confirmation has been recorded. StayKnown is waiting for the guardian to approve.",
+            actor === "minor"
+              ? "Your confirmation has been recorded. StayKnown is waiting for guardian approval."
+              : "The minor confirmation is complete. Please complete the guardian decision if you have not already done so.",
           );
         } else if (data.state === "waiting_minor") {
           setMessage(
-            "The guardian confirmation has been recorded. StayKnown is waiting for the minor to confirm they started this account creation flow.",
+            actor === "guardian"
+              ? "Your guardian confirmation has been recorded. StayKnown is waiting for the minor to confirm they started this account creation flow."
+              : "Guardian approval is complete. Please confirm that you started this account creation flow.",
           );
         } else {
           setMessage(
@@ -410,13 +422,28 @@ export default function MinorSignupApprovalClient({
         return false;
       }
 
+      /*
+      If the other party has already approved but THIS link actor has not,
+      keep the page on the decision gate so this actor can approve/decline.
+    */
       setUiState("gate");
-      setMessage("");
+
+      if (actor === "minor" && data.state === "waiting_minor") {
+        setMessage(
+          "Guardian approval is complete. Please confirm that you personally started this StayKnown account request.",
+        );
+      } else if (actor === "guardian" && data.state === "waiting_guardian") {
+        setMessage(
+          "The minor has confirmed this account request. Please complete the guardian decision.",
+        );
+      } else {
+        setMessage("");
+      }
+
       return false;
     },
     [actor, applyRequestDetails, requestId],
   );
-
   const startPolling = React.useCallback(
     ({ allowWaiting = true }: { allowWaiting?: boolean } = {}) => {
       clearPolling();
@@ -794,7 +821,7 @@ export default function MinorSignupApprovalClient({
                             : uiState === "error"
                               ? message ||
                                 "This request could not be completed right now."
-                              : mainDescription}
+                              : message || mainDescription}
               </p>
             </div>
 
