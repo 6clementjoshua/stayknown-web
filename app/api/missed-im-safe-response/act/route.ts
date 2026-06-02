@@ -16,6 +16,23 @@ type NetworkCheckResult = {
   raw?: Record<string, unknown>;
 };
 
+const NO_STORE_HEADERS = {
+  "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+  Pragma: "no-cache",
+  Expires: "0",
+  "Surrogate-Control": "no-store",
+};
+
+function json(body: Record<string, unknown>, init?: ResponseInit) {
+  return NextResponse.json(body, {
+    ...init,
+    headers: {
+      ...NO_STORE_HEADERS,
+      ...(init?.headers || {}),
+    },
+  });
+}
+
 function admin() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceRole = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -172,11 +189,18 @@ function extractClientIp(req: Request) {
     "cf-connecting-ip",
     "x-real-ip",
     "x-forwarded-for",
+    "x-client-ip",
+    "true-client-ip",
   ]);
 
   if (!forwarded) return "";
 
-  return forwarded.split(",")[0]?.trim() || "";
+  const parts = forwarded
+    .split(",")
+    .map((p) => p.trim())
+    .filter(Boolean);
+
+  return parts[0] || "";
 }
 
 function isLocalOrPrivateIp(ip: string) {
@@ -207,6 +231,31 @@ function boolOf(v: unknown) {
   return v === true || v === "true" || v === 1 || v === "1";
 }
 
+function looksLikeKnownMobileCarrier(data: Record<string, unknown>) {
+  const mobile = boolOf(data.mobile);
+  const isp = String(data.isp || "").toLowerCase();
+  const org = String(data.org || "").toLowerCase();
+  const asName = String(data.as || "").toLowerCase();
+  const combined = `${isp} ${org} ${asName}`;
+
+  if (mobile) return true;
+
+  return (
+    combined.includes("mtn") ||
+    combined.includes("airtel") ||
+    combined.includes("glo") ||
+    combined.includes("globacom") ||
+    combined.includes("9mobile") ||
+    combined.includes("etisalat") ||
+    combined.includes("vodafone") ||
+    combined.includes("orange") ||
+    combined.includes("telecom") ||
+    combined.includes("mobile") ||
+    combined.includes("wireless") ||
+    combined.includes("cellular")
+  );
+}
+
 async function checkMaskedNetwork(ip: string): Promise<NetworkCheckResult> {
   if (isLocalOrPrivateIp(ip)) {
     return {
@@ -218,13 +267,20 @@ async function checkMaskedNetwork(ip: string): Promise<NetworkCheckResult> {
   }
 
   try {
+    const cacheBust = Date.now().toString();
+
     const url =
       `http://ip-api.com/json/${encodeURIComponent(ip)}` +
-      "?fields=status,message,countryCode,region,city,isp,org,as,proxy,hosting,mobile,query";
+      "?fields=status,message,countryCode,region,city,isp,org,as,proxy,hosting,mobile,query" +
+      `&_=${cacheBust}`;
 
     const res = await fetch(url, {
       method: "GET",
       cache: "no-store",
+      headers: {
+        "Cache-Control": "no-store",
+        Pragma: "no-cache",
+      },
     });
 
     const data = (await res.json().catch(() => ({}))) as Record<
@@ -245,12 +301,19 @@ async function checkMaskedNetwork(ip: string): Promise<NetworkCheckResult> {
       };
     }
 
+    const proxy = boolOf(data.proxy);
+    const hosting = boolOf(data.hosting);
+    const mobileCarrier = looksLikeKnownMobileCarrier(data);
+
     const reasons: string[] = [];
 
-    if (boolOf(data.proxy)) reasons.push("proxy");
-    if (boolOf(data.hosting)) reasons.push("hosting");
+    if (proxy) reasons.push("proxy");
 
-    const blocked = reasons.length > 0;
+    // Hosting alone can create false positives on some carrier/cloud-routed networks.
+    // Only treat hosting as a hard block when it is not a mobile/carrier-looking route.
+    if (hosting && !mobileCarrier) reasons.push("hosting");
+
+    const blocked = reasons.includes("proxy") || reasons.includes("hosting");
 
     return {
       checked: true,
@@ -268,6 +331,7 @@ async function checkMaskedNetwork(ip: string): Promise<NetworkCheckResult> {
         hosting: data.hosting,
         mobile: data.mobile,
         query: data.query,
+        mobileCarrierHeuristic: mobileCarrier,
       },
     };
   } catch (e) {
@@ -292,11 +356,28 @@ function coarseLocationFromHeaders(req: Request) {
   const country = firstHeader(req, ["x-vercel-ip-country", "cf-ipcountry"]);
 
   return {
-    city,
-    region,
-    country,
-    summary: [city, region, country].filter(Boolean).join(", "),
+    city: decodeHeaderPart(city),
+    region: decodeHeaderPart(region),
+    country: decodeHeaderPart(country),
+    summary: [
+      decodeHeaderPart(city),
+      decodeHeaderPart(region),
+      decodeHeaderPart(country),
+    ]
+      .filter(Boolean)
+      .join(", "),
   };
+}
+
+function decodeHeaderPart(v: string) {
+  const cleanValue = v.trim();
+  if (!cleanValue) return "";
+
+  try {
+    return decodeURIComponent(cleanValue);
+  } catch {
+    return cleanValue;
+  }
 }
 
 async function findExistingResponse(p: {
@@ -326,6 +407,52 @@ async function findExistingResponse(p: {
   return data;
 }
 
+async function loadSubjectProfile(p: {
+  sb: ReturnType<typeof admin>;
+  uid: string;
+}) {
+  const { data, error } = await p.sb
+    .from("profiles")
+    .select("id,display_name,first_name,last_name,username,verified")
+    .eq("id", p.uid)
+    .maybeSingle();
+
+  if (error) return null;
+
+  return data
+    ? {
+        id: String(data.id || ""),
+        displayName: clean(data.display_name),
+        firstName: clean(data.first_name),
+        lastName: clean(data.last_name),
+        username: clean(data.username),
+        verified: data.verified === true,
+      }
+    : null;
+}
+
+function nameFromProfile(
+  profile: Awaited<ReturnType<typeof loadSubjectProfile>>,
+  fallback: string,
+) {
+  if (!profile) return fallback.trim() || "StayKnown member";
+
+  const full = `${profile.firstName} ${profile.lastName}`.trim();
+
+  return (
+    profile.displayName ||
+    full ||
+    profile.username ||
+    fallback.trim() ||
+    "StayKnown member"
+  );
+}
+
+function decoratedName(name: string, verified: boolean) {
+  const cleanName = name.trim() || "StayKnown member";
+  return verified ? `${cleanName} ✓` : cleanName;
+}
+
 export async function POST(req: Request) {
   try {
     const body = await req.json().catch(() => ({}));
@@ -333,7 +460,7 @@ export async function POST(req: Request) {
     const uid = clean(body.uid);
     const contact = clean(body.contact).toLowerCase();
     const contactName = clean(body.contact_name);
-    const subjectName = clean(body.subject_name) || "StayKnown member";
+    const rawSubjectName = clean(body.subject_name) || "StayKnown member";
     const response = asResponse(clean(body.response));
     const expected = clean(body.expected);
     const due = clean(body.due);
@@ -351,7 +478,7 @@ export async function POST(req: Request) {
       !sig ||
       !Number.isFinite(expRaw)
     ) {
-      return NextResponse.json(
+      return json(
         {
           ok: false,
           state: "invalid",
@@ -365,7 +492,7 @@ export async function POST(req: Request) {
       uid,
       contact,
       contactName,
-      subjectName,
+      subjectName: rawSubjectName,
       response,
       expected,
       due,
@@ -375,7 +502,7 @@ export async function POST(req: Request) {
     });
 
     if (!verified.ok) {
-      return NextResponse.json(
+      return json(
         {
           ok: false,
           state: verified.reason === "expired" ? "expired" : "invalid",
@@ -390,6 +517,12 @@ export async function POST(req: Request) {
 
     const sb = admin();
 
+    const subjectProfile = await loadSubjectProfile({ sb, uid });
+    const subjectName = decoratedName(
+      nameFromProfile(subjectProfile, rawSubjectName),
+      subjectProfile?.verified === true,
+    );
+
     const actorIp = extractClientIp(req);
     const actorGeo = coarseLocationFromHeaders(req);
     const actorUserAgent = (req.headers.get("user-agent") || "").trim();
@@ -398,6 +531,9 @@ export async function POST(req: Request) {
     const expectedIso = toIsoOrNull(expected);
     const sentIso = toIsoOrNull(sent);
 
+    // One response per missed notice.
+    // This is intentionally checked before network/VPN checks so completed links
+    // do not show stale VPN errors or allow a second action.
     const existing = await findExistingResponse({
       sb,
       uid,
@@ -409,24 +545,33 @@ export async function POST(req: Request) {
       const recordedResponse =
         asResponse(String(existing.response || "")) || response;
 
-      return NextResponse.json({
+      return json({
         ok: true,
         state: "already_recorded",
         title: "Response already recorded",
         message: alreadyRecordedMessage(recordedResponse, subjectName),
+        subject: {
+          name: subjectName,
+          verified: subjectProfile?.verified === true,
+        },
       });
     }
 
     const networkCheck = await checkMaskedNetwork(actorIp);
 
     if (networkCheck.blocked) {
-      return NextResponse.json(
+      return json(
         {
           ok: false,
           state: "vpn_blocked",
           title: "Turn off VPN",
           message:
-            "StayKnown could not record this safety response because your connection appears to be using a VPN, proxy, relay, or hosted/masked network. Turn it off and try again so the safety record is not misleading.",
+            "StayKnown could not record this safety response because your connection appears to be using a VPN, proxy, relay, or masked network. Turn it off and try again so the safety record is not misleading.",
+          network_check: {
+            checked: networkCheck.checked,
+            provider: networkCheck.provider,
+            reasons: networkCheck.reasons,
+          },
         },
         { status: 403 },
       );
@@ -458,6 +603,8 @@ export async function POST(req: Request) {
         meta: {
           response_label: responseLabel(response),
           subject_name: subjectName,
+          subject_verified: subjectProfile?.verified === true,
+          subject_username: subjectProfile?.username || null,
           actor_location: actorGeo.summary,
           one_time_response: true,
           one_response_per_notice: true,
@@ -479,11 +626,15 @@ export async function POST(req: Request) {
         const duplicateResponse =
           asResponse(String(duplicate?.response || "")) || response;
 
-        return NextResponse.json({
+        return json({
           ok: true,
           state: "already_recorded",
           title: "Response already recorded",
           message: alreadyRecordedMessage(duplicateResponse, subjectName),
+          subject: {
+            name: subjectName,
+            verified: subjectProfile?.verified === true,
+          },
         });
       }
 
@@ -508,6 +659,8 @@ export async function POST(req: Request) {
         contact_email: contact,
         contact_name: contactName,
         subject_name: subjectName,
+        subject_verified: subjectProfile?.verified === true,
+        subject_username: subjectProfile?.username || null,
         expected_at: expectedIso,
         due_at: dueIso,
         missed_alert_sent_at: sentIso,
@@ -522,7 +675,7 @@ export async function POST(req: Request) {
       },
     });
 
-    return NextResponse.json({
+    return json({
       ok: true,
       state: "recorded",
       title,
@@ -532,9 +685,13 @@ export async function POST(req: Request) {
           : response === "reached_them"
             ? `Thank you. StayKnown recorded that you reached ${subjectName}.`
             : `StayKnown recorded that you could not reach ${subjectName}.`,
+      subject: {
+        name: subjectName,
+        verified: subjectProfile?.verified === true,
+      },
     });
   } catch (e) {
-    return NextResponse.json(
+    return json(
       {
         ok: false,
         state: "error",
