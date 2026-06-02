@@ -16,6 +16,22 @@ type NetworkCheckResult = {
   raw?: Record<string, unknown>;
 };
 
+type SafeProfile = {
+  id: string;
+  email: string;
+  displayName: string;
+  firstName: string;
+  lastName: string;
+  username: string;
+  verified: boolean;
+};
+
+type PublicProfilePayload = {
+  name: string;
+  verified: boolean;
+  username: string | null;
+};
+
 const NO_STORE_HEADERS = {
   "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
   Pragma: "no-cache",
@@ -309,8 +325,6 @@ async function checkMaskedNetwork(ip: string): Promise<NetworkCheckResult> {
 
     if (proxy) reasons.push("proxy");
 
-    // Hosting alone can create false positives on some carrier/cloud-routed networks.
-    // Only treat hosting as a hard block when it is not a mobile/carrier-looking route.
     if (hosting && !mobileCarrier) reasons.push("hosting");
 
     const blocked = reasons.includes("proxy") || reasons.includes("hosting");
@@ -347,6 +361,17 @@ async function checkMaskedNetwork(ip: string): Promise<NetworkCheckResult> {
   }
 }
 
+function decodeHeaderPart(v: string) {
+  const cleanValue = v.trim();
+  if (!cleanValue) return "";
+
+  try {
+    return decodeURIComponent(cleanValue);
+  } catch {
+    return cleanValue;
+  }
+}
+
 function coarseLocationFromHeaders(req: Request) {
   const city = firstHeader(req, ["x-vercel-ip-city", "cf-ipcity"]);
   const region = firstHeader(req, [
@@ -367,17 +392,6 @@ function coarseLocationFromHeaders(req: Request) {
       .filter(Boolean)
       .join(", "),
   };
-}
-
-function decodeHeaderPart(v: string) {
-  const cleanValue = v.trim();
-  if (!cleanValue) return "";
-
-  try {
-    return decodeURIComponent(cleanValue);
-  } catch {
-    return cleanValue;
-  }
 }
 
 async function findExistingResponse(p: {
@@ -407,34 +421,65 @@ async function findExistingResponse(p: {
   return data;
 }
 
-async function loadSubjectProfile(p: {
+function profileFromRow(
+  data: Record<string, unknown> | null,
+): SafeProfile | null {
+  if (!data) return null;
+
+  return {
+    id: String(data.id || ""),
+    email: clean(data.email),
+    displayName: clean(data.display_name),
+    firstName: clean(data.first_name),
+    lastName: clean(data.last_name),
+    username: clean(data.username),
+    verified: data.verified === true,
+  };
+}
+
+async function loadProfileById(p: {
   sb: ReturnType<typeof admin>;
   uid: string;
 }) {
+  const uid = p.uid.trim();
+  if (!uid) return null;
+
   const { data, error } = await p.sb
     .from("profiles")
-    .select("id,display_name,first_name,last_name,username,verified")
-    .eq("id", p.uid)
+    .select("id,email,display_name,first_name,last_name,username,verified")
+    .eq("id", uid)
     .maybeSingle();
 
-  if (error) return null;
+  if (error) {
+    console.error("loadProfileById failed:", error.message);
+    return null;
+  }
 
-  return data
-    ? {
-        id: String(data.id || ""),
-        displayName: clean(data.display_name),
-        firstName: clean(data.first_name),
-        lastName: clean(data.last_name),
-        username: clean(data.username),
-        verified: data.verified === true,
-      }
-    : null;
+  return profileFromRow(data as Record<string, unknown> | null);
 }
 
-function nameFromProfile(
-  profile: Awaited<ReturnType<typeof loadSubjectProfile>>,
-  fallback: string,
-) {
+async function loadProfileByEmail(p: {
+  sb: ReturnType<typeof admin>;
+  email: string;
+}) {
+  const email = p.email.trim().toLowerCase();
+  if (!email) return null;
+
+  const { data, error } = await p.sb
+    .from("profiles")
+    .select("id,email,display_name,first_name,last_name,username,verified")
+    .ilike("email", email)
+    .maybeSingle();
+
+  if (error) {
+    console.error("loadProfileByEmail failed:", error.message);
+    return null;
+  }
+
+  return profileFromRow(data as Record<string, unknown> | null);
+}
+
+function nameFromProfile(profile: SafeProfile | null, fallback: string) {
   if (!profile) return fallback.trim() || "StayKnown member";
 
   const full = `${profile.firstName} ${profile.lastName}`.trim();
@@ -448,9 +493,15 @@ function nameFromProfile(
   );
 }
 
-function decoratedName(name: string, verified: boolean) {
-  const cleanName = name.trim() || "StayKnown member";
-  return verified ? `${cleanName} ✓` : cleanName;
+function publicProfilePayload(
+  profile: SafeProfile | null,
+  fallbackName: string,
+): PublicProfilePayload {
+  return {
+    name: nameFromProfile(profile, fallbackName),
+    verified: profile?.verified === true,
+    username: profile?.username || null,
+  };
 }
 
 export async function POST(req: Request) {
@@ -488,7 +539,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const verified = verifySignature({
+    const verifiedSignature = verifySignature({
       uid,
       contact,
       contactName,
@@ -501,13 +552,13 @@ export async function POST(req: Request) {
       sig,
     });
 
-    if (!verified.ok) {
+    if (!verifiedSignature.ok) {
       return json(
         {
           ok: false,
-          state: verified.reason === "expired" ? "expired" : "invalid",
+          state: verifiedSignature.reason === "expired" ? "expired" : "invalid",
           message:
-            verified.reason === "expired"
+            verifiedSignature.reason === "expired"
               ? "This response link expired for security reasons."
               : "This response link is invalid or can no longer be trusted.",
         },
@@ -517,11 +568,19 @@ export async function POST(req: Request) {
 
     const sb = admin();
 
-    const subjectProfile = await loadSubjectProfile({ sb, uid });
-    const subjectName = decoratedName(
-      nameFromProfile(subjectProfile, rawSubjectName),
-      subjectProfile?.verified === true,
+    const [subjectProfile, contactProfile] = await Promise.all([
+      loadProfileById({ sb, uid }),
+      loadProfileByEmail({ sb, email: contact }),
+    ]);
+
+    const subjectPublic = publicProfilePayload(subjectProfile, rawSubjectName);
+    const contactPublic = publicProfilePayload(
+      contactProfile,
+      contactName || contact,
     );
+
+    const subjectName = subjectPublic.name;
+    const contactDisplayName = contactPublic.name;
 
     const actorIp = extractClientIp(req);
     const actorGeo = coarseLocationFromHeaders(req);
@@ -531,9 +590,6 @@ export async function POST(req: Request) {
     const expectedIso = toIsoOrNull(expected);
     const sentIso = toIsoOrNull(sent);
 
-    // One response per missed notice.
-    // This is intentionally checked before network/VPN checks so completed links
-    // do not show stale VPN errors or allow a second action.
     const existing = await findExistingResponse({
       sb,
       uid,
@@ -550,10 +606,8 @@ export async function POST(req: Request) {
         state: "already_recorded",
         title: "Response already recorded",
         message: alreadyRecordedMessage(recordedResponse, subjectName),
-        subject: {
-          name: subjectName,
-          verified: subjectProfile?.verified === true,
-        },
+        subject: subjectPublic,
+        contact: contactPublic,
       });
     }
 
@@ -590,7 +644,7 @@ export async function POST(req: Request) {
       .insert({
         user_id: uid,
         contact_email: contact,
-        contact_name: contactName || null,
+        contact_name: contactPublic.name || contactName || null,
         response,
         missed_alert_sent_at: sentIso,
         expected_at: expectedIso,
@@ -602,9 +656,12 @@ export async function POST(req: Request) {
         actor_city: actorGeo.city || null,
         meta: {
           response_label: responseLabel(response),
-          subject_name: subjectName,
-          subject_verified: subjectProfile?.verified === true,
-          subject_username: subjectProfile?.username || null,
+          subject_name: subjectPublic.name,
+          subject_verified: subjectPublic.verified,
+          subject_username: subjectPublic.username,
+          contact_name: contactPublic.name,
+          contact_verified: contactPublic.verified,
+          contact_username: contactPublic.username,
           actor_location: actorGeo.summary,
           one_time_response: true,
           one_response_per_notice: true,
@@ -631,18 +688,16 @@ export async function POST(req: Request) {
           state: "already_recorded",
           title: "Response already recorded",
           message: alreadyRecordedMessage(duplicateResponse, subjectName),
-          subject: {
-            name: subjectName,
-            verified: subjectProfile?.verified === true,
-          },
+          subject: subjectPublic,
+          contact: contactPublic,
         });
       }
 
       throw insertErr;
     }
 
-    const title = timelineTitle(contactName, response);
-    const bodyText = timelineBody(contactName, subjectName);
+    const title = timelineTitle(contactDisplayName, response);
+    const bodyText = timelineBody(contactDisplayName, subjectName);
 
     await sb.from("safety_timeline_events").insert({
       user_id: uid,
@@ -651,16 +706,18 @@ export async function POST(req: Request) {
       body: bodyText,
       severity: response === "could_not_reach" ? "warning" : "info",
       source: "missed_im_safe_response",
-      actor_name: contactName || null,
+      actor_name: contactPublic.name || contactName || null,
       actor_email: contact,
       meta: {
         response,
         response_label: responseLabel(response),
         contact_email: contact,
-        contact_name: contactName,
-        subject_name: subjectName,
-        subject_verified: subjectProfile?.verified === true,
-        subject_username: subjectProfile?.username || null,
+        contact_name: contactPublic.name,
+        contact_verified: contactPublic.verified,
+        contact_username: contactPublic.username,
+        subject_name: subjectPublic.name,
+        subject_verified: subjectPublic.verified,
+        subject_username: subjectPublic.username,
         expected_at: expectedIso,
         due_at: dueIso,
         missed_alert_sent_at: sentIso,
@@ -685,10 +742,8 @@ export async function POST(req: Request) {
           : response === "reached_them"
             ? `Thank you. StayKnown recorded that you reached ${subjectName}.`
             : `StayKnown recorded that you could not reach ${subjectName}.`,
-      subject: {
-        name: subjectName,
-        verified: subjectProfile?.verified === true,
-      },
+      subject: subjectPublic,
+      contact: contactPublic,
     });
   } catch (e) {
     return json(

@@ -28,6 +28,12 @@ type UiState =
   | "invalid"
   | "error";
 
+type PublicPerson = {
+  name: string;
+  verified: boolean;
+  username?: string | null;
+};
+
 type ActionResp = {
   ok: boolean;
   state?:
@@ -39,6 +45,8 @@ type ActionResp = {
     | "error";
   message?: string;
   title?: string;
+  subject?: PublicPerson;
+  contact?: PublicPerson;
 };
 
 const SUPPORT_EMAIL = "support@stay-known.com";
@@ -128,6 +136,45 @@ function fallbackMessage(uiState: UiState, contextSuccess: string) {
     default:
       return contextSuccess;
   }
+}
+
+function cleanName(value: string) {
+  return value.trim() || "StayKnown member";
+}
+
+function VerifiedBadge() {
+  return (
+    <span
+      aria-label="Verified StayKnown user"
+      title="Verified StayKnown user"
+      className="inline-flex h-[17px] w-[17px] shrink-0 items-center justify-center rounded-full border border-black/10 bg-black text-white shadow-[0_5px_14px_rgba(0,0,0,0.16)]"
+    >
+      <svg viewBox="0 0 16 16" className="h-[10px] w-[10px]" fill="none">
+        <path
+          d="M3.4 8.2 6.45 11.1 12.6 4.9"
+          stroke="currentColor"
+          strokeWidth="2.15"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    </span>
+  );
+}
+
+function NameWithBadge({
+  name,
+  verified,
+}: {
+  name: string;
+  verified?: boolean;
+}) {
+  return (
+    <span className="inline-flex max-w-full items-center justify-center gap-1.5 align-middle">
+      <span className="min-w-0 truncate">{cleanName(name)}</span>
+      {verified === true && <VerifiedBadge />}
+    </span>
+  );
 }
 
 function GlassSpinner() {
@@ -265,9 +312,25 @@ export default function MissedImSafeResponseClient({
   const [message, setMessage] = React.useState("");
   const [remaining, setRemaining] = React.useState(formatRemaining(exp));
 
-  const context = responseContext(response, subjectName);
+  const [subjectPerson, setSubjectPerson] = React.useState<PublicPerson>({
+    name: subjectName,
+    verified: false,
+    username: null,
+  });
+
+  const [contactPerson, setContactPerson] = React.useState<PublicPerson>({
+    name: contactName.trim() || contact,
+    verified: false,
+    username: null,
+  });
+
+  const displaySubjectName = cleanName(subjectPerson.name || subjectName);
+  const displayContactName = cleanName(
+    contactPerson.name || contactName || contact,
+  );
+
+  const context = responseContext(response, displaySubjectName);
   const label = responseLabel(response);
-  const shownContact = contactName.trim() || contact;
   const messageText = message || fallbackMessage(uiState, context.success);
   const messageParts = splitMessage(messageText);
 
@@ -289,6 +352,24 @@ export default function MissedImSafeResponseClient({
 
     return () => window.clearInterval(timer);
   }, [exp]);
+
+  function applyPeopleFromResponse(data: ActionResp) {
+    if (data.subject?.name) {
+      setSubjectPerson({
+        name: data.subject.name,
+        verified: data.subject.verified === true,
+        username: data.subject.username || null,
+      });
+    }
+
+    if (data.contact?.name) {
+      setContactPerson({
+        name: data.contact.name,
+        verified: data.contact.verified === true,
+        username: data.contact.username || null,
+      });
+    }
+  }
 
   async function submitResponse() {
     if (busy) return;
@@ -325,6 +406,8 @@ export default function MissedImSafeResponseClient({
 
       const data = (await res.json().catch(() => ({}))) as ActionResp;
       const state = data?.state;
+
+      applyPeopleFromResponse(data);
 
       if (!res.ok || !data?.ok) {
         if (state === "expired") {
@@ -500,14 +583,34 @@ export default function MissedImSafeResponseClient({
               </div>
 
               <div className="mt-4 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-                <InfoRow label="Contact" value={shownContact} />
-                <InfoRow label="Person to check" value={subjectName} />
+                <InfoRow
+                  label="Contact"
+                  value={
+                    <NameWithBadge
+                      name={displayContactName}
+                      verified={contactPerson.verified}
+                    />
+                  }
+                />
+
+                <InfoRow
+                  label="Person to check"
+                  value={
+                    <NameWithBadge
+                      name={displaySubjectName}
+                      verified={subjectPerson.verified}
+                    />
+                  }
+                />
+
                 <InfoRow label="Response" value={label} />
                 <InfoRow label="Security timer" value={remaining} />
+
                 <InfoRow
                   label="Expected check-in"
                   value={fmtDateTime(expected)}
                 />
+
                 <InfoRow label="Due after" value={fmtDateTime(due)} />
               </div>
             </div>
@@ -524,9 +627,9 @@ export default function MissedImSafeResponseClient({
 
                 <p className="mx-auto mt-3 max-w-[560px] text-center text-[12px] font-semibold leading-6 text-black/62">
                   Do not submit false, misleading, abusive, or pressure-based
-                  responses. If you believe {subjectName} may be in immediate
-                  danger, contact them directly and follow local emergency
-                  procedures.
+                  responses. If you believe {displaySubjectName} may be in
+                  immediate danger, contact them directly and follow local
+                  emergency procedures.
                 </p>
 
                 <p className="mx-auto mt-4 max-w-[560px] rounded-[22px] border border-black/[0.06] bg-white/58 px-4 py-3 text-center text-[10.5px] font-bold leading-5 text-black/46 shadow-[inset_0_1px_0_rgba(255,255,255,0.88)]">
