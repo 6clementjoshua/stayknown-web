@@ -149,13 +149,13 @@ function VerifiedBadge() {
     <span
       aria-label="Verified StayKnown user"
       title="Verified StayKnown user"
-      className="inline-flex h-[17px] w-[17px] shrink-0 items-center justify-center rounded-full border border-black/10 bg-black text-white shadow-[0_5px_14px_rgba(0,0,0,0.16)]"
+      className="inline-flex h-[12px] w-[12px] shrink-0 items-center justify-center rounded-full border border-black/10 bg-black text-white shadow-[0_3px_8px_rgba(0,0,0,0.12)]"
     >
-      <svg viewBox="0 0 16 16" className="h-[10px] w-[10px]" fill="none">
+      <svg viewBox="0 0 16 16" className="h-[7px] w-[7px]" fill="none">
         <path
           d="M3.4 8.2 6.45 11.1 12.6 4.9"
           stroke="currentColor"
-          strokeWidth="2.15"
+          strokeWidth="2.35"
           strokeLinecap="round"
           strokeLinejoin="round"
         />
