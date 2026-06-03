@@ -16,6 +16,8 @@ type Props = {
   sent: string;
   exp: number;
   sig: string;
+  initialSubject?: PublicPerson;
+  initialContact?: PublicPerson;
 };
 
 type UiState =
@@ -306,6 +308,8 @@ export default function MissedImSafeResponseClient({
   sent,
   exp,
   sig,
+  initialSubject,
+  initialContact,
 }: Props) {
   const [uiState, setUiState] = React.useState<UiState>("gate");
   const [busy, setBusy] = React.useState(false);
@@ -313,15 +317,15 @@ export default function MissedImSafeResponseClient({
   const [remaining, setRemaining] = React.useState(formatRemaining(exp));
 
   const [subjectPerson, setSubjectPerson] = React.useState<PublicPerson>({
-    name: subjectName,
-    verified: false,
-    username: null,
+    name: initialSubject?.name || subjectName,
+    verified: initialSubject?.verified === true,
+    username: initialSubject?.username || null,
   });
 
   const [contactPerson, setContactPerson] = React.useState<PublicPerson>({
-    name: contactName.trim() || contact,
-    verified: false,
-    username: null,
+    name: initialContact?.name || contactName.trim() || contact,
+    verified: initialContact?.verified === true,
+    username: initialContact?.username || null,
   });
 
   const displaySubjectName = cleanName(subjectPerson.name || subjectName);

@@ -1,11 +1,28 @@
 // app/missed-im-safe-response/page.tsx
 import crypto from "crypto";
+import { createClient } from "@supabase/supabase-js";
 import MissedImSafeResponseClient from "./missed-im-safe-response-client";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 type ResponseChoice = "will_check" | "reached_them" | "could_not_reach";
+
+type PublicPerson = {
+  name: string;
+  verified: boolean;
+  username: string | null;
+};
+
+type SafeProfile = {
+  id: string;
+  email: string;
+  displayName: string;
+  firstName: string;
+  lastName: string;
+  username: string;
+  verified: boolean;
+};
 
 type VerifyOk = {
   ok: true;
@@ -37,6 +54,23 @@ type VerifyFail = {
     | "bad_response"
     | "bad_signature";
 };
+
+function admin() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceRole = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!url || !serviceRole) {
+    return null;
+  }
+
+  return createClient(url, serviceRole, {
+    auth: { persistSession: false },
+  });
+}
+
+function clean(v: unknown) {
+  return typeof v === "string" ? v.trim() : "";
+}
 
 function cleanOne(v: string | string[] | undefined) {
   if (typeof v === "string") return v.trim();
@@ -151,6 +185,89 @@ function verifySignature(params: URLSearchParams): VerifyOk | VerifyFail {
   };
 }
 
+function profileFromRow(
+  data: Record<string, unknown> | null,
+): SafeProfile | null {
+  if (!data) return null;
+
+  return {
+    id: String(data.id || ""),
+    email: clean(data.email),
+    displayName: clean(data.display_name),
+    firstName: clean(data.first_name),
+    lastName: clean(data.last_name),
+    username: clean(data.username),
+    verified: data.verified === true,
+  };
+}
+
+function nameFromProfile(profile: SafeProfile | null, fallback: string) {
+  if (!profile) return fallback.trim() || "StayKnown member";
+
+  const full = `${profile.firstName} ${profile.lastName}`.trim();
+
+  return (
+    profile.displayName ||
+    full ||
+    profile.username ||
+    fallback.trim() ||
+    "StayKnown member"
+  );
+}
+
+function publicPerson(
+  profile: SafeProfile | null,
+  fallback: string,
+): PublicPerson {
+  return {
+    name: nameFromProfile(profile, fallback),
+    verified: profile?.verified === true,
+    username: profile?.username || null,
+  };
+}
+
+async function loadProfileById(uid: string) {
+  const sb = admin();
+  if (!sb) return null;
+
+  const cleanUid = uid.trim();
+  if (!cleanUid) return null;
+
+  const { data, error } = await sb
+    .from("profiles")
+    .select("id,email,display_name,first_name,last_name,username,verified")
+    .eq("id", cleanUid)
+    .maybeSingle();
+
+  if (error) {
+    console.error("loadProfileById failed:", error.message);
+    return null;
+  }
+
+  return profileFromRow(data as Record<string, unknown> | null);
+}
+
+async function loadProfileByEmail(email: string) {
+  const sb = admin();
+  if (!sb) return null;
+
+  const cleanEmail = email.trim().toLowerCase();
+  if (!cleanEmail) return null;
+
+  const { data, error } = await sb
+    .from("profiles")
+    .select("id,email,display_name,first_name,last_name,username,verified")
+    .ilike("email", cleanEmail)
+    .maybeSingle();
+
+  if (error) {
+    console.error("loadProfileByEmail failed:", error.message);
+    return null;
+  }
+
+  return profileFromRow(data as Record<string, unknown> | null);
+}
+
 function InvalidState({ reason }: { reason: string }) {
   return (
     <div className="min-h-screen bg-[#f4f5f7] text-black flex items-center justify-center px-4">
@@ -209,8 +326,8 @@ export default async function MissedImSafeResponsePage({
   const params = new URLSearchParams();
 
   for (const [k, v] of Object.entries(resolved ?? {})) {
-    const clean = cleanOne(v);
-    if (clean) params.set(k, clean);
+    const value = cleanOne(v);
+    if (value) params.set(k, value);
   }
 
   const verified = verifySignature(params);
@@ -218,6 +335,17 @@ export default async function MissedImSafeResponsePage({
   if (!verified.ok) {
     return <InvalidState reason={verified.reason} />;
   }
+
+  const [subjectProfile, contactProfile] = await Promise.all([
+    loadProfileById(verified.uid),
+    loadProfileByEmail(verified.contact),
+  ]);
+
+  const initialSubject = publicPerson(subjectProfile, verified.subjectName);
+  const initialContact = publicPerson(
+    contactProfile,
+    verified.contactName || verified.contact,
+  );
 
   return (
     <MissedImSafeResponseClient
@@ -231,6 +359,8 @@ export default async function MissedImSafeResponsePage({
       sent={verified.sent}
       exp={verified.exp}
       sig={(params.get("sig") || "").trim()}
+      initialSubject={initialSubject}
+      initialContact={initialContact}
     />
   );
 }
