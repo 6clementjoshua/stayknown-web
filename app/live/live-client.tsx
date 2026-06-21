@@ -19,6 +19,11 @@ type SeedResp = {
   started_at?: string | null;
   destination_name?: string | null;
   destination_address?: string | null;
+  location_quality?: string;
+  location_is_exact?: boolean;
+  location_is_approximate?: boolean;
+  location_age_seconds?: number | null;
+  location_label?: string;
   purpose?: string | null;
   person_to_meet?: string | null;
   expected_duration_minutes?: number | null;
@@ -62,6 +67,42 @@ function distanceMeters(
 
 function formatCoords(lat: number, lng: number) {
   return `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+}
+
+function locationQuality(accuracy?: number) {
+  if (typeof accuracy !== "number" || !Number.isFinite(accuracy)) {
+    return {
+      level: "unknown" as const,
+      label: "Accuracy unknown",
+      exact: false,
+      zoom: 14.1,
+    };
+  }
+
+  if (accuracy <= 80) {
+    return {
+      level: "exact" as const,
+      label: `Exact GPS • ± ${accuracy.toFixed(1)} m`,
+      exact: true,
+      zoom: 16.3,
+    };
+  }
+
+  if (accuracy <= 250) {
+    return {
+      level: "approximate" as const,
+      label: `Approximate area • ± ${accuracy.toFixed(1)} m`,
+      exact: false,
+      zoom: 15.0,
+    };
+  }
+
+  return {
+    level: "coarse" as const,
+    label: `Last known approximate area • ± ${accuracy.toFixed(0)} m`,
+    exact: false,
+    zoom: 13.2,
+  };
 }
 
 function googleMapsHref(lat?: number, lng?: number) {
@@ -571,6 +612,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
       createdAt?: string,
       accuracy?: number,
     ) => {
+      const quality = locationQuality(accuracy);
       const nextLngLat: [number, number] = [lng, lat];
       const previousPoint = lastPointRef.current;
 
@@ -612,7 +654,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
         if (!hasCenteredRef.current) {
           mapRef.current.jumpTo({
             center: nextLngLat,
-            zoom: INITIAL_VIEW_ZOOM,
+            zoom: quality.zoom,
           });
           hasCenteredRef.current = true;
         } else if (
@@ -642,20 +684,21 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
 
       const cleanPlace =
         typeof place === "string" && place.trim()
-          ? place.trim()
+          ? quality.exact
+            ? place.trim()
+            : `${place.trim()} • approximate area`
           : nextStatus === "ended"
-            ? "Last known location"
-            : "Live location available";
-
+            ? quality.exact
+              ? "Last known location"
+              : "Last known approximate area"
+            : quality.exact
+              ? "Live location available"
+              : "Approximate live area";
       setPlaceLabel(cleanPlace);
       setCoordsLabel(formatCoords(lat, lng));
       setMapHref(googleMapsHref(lat, lng));
       setLastUpdatedLabel(formatLiveTime(createdAt));
-      setAccuracyLabel(
-        typeof accuracy === "number" && Number.isFinite(accuracy)
-          ? `± ${accuracy.toFixed(1)} m`
-          : "—",
-      );
+      setAccuracyLabel(quality.label);
       setStatus(nextStatus);
 
       if (nextStatus !== "ended") {
@@ -871,6 +914,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
                 data.place,
                 data.ended ? "ended" : "live",
                 data.created_at,
+                data.accuracy,
               );
             }
             if (data.ended) {

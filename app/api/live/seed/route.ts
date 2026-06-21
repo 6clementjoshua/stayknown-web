@@ -63,6 +63,59 @@ type UserProfileRow = {
   last_name?: string | null;
 };
 
+function locationQuality(accuracy?: number | null, createdAt?: string | null) {
+  const acc =
+    typeof accuracy === "number" && Number.isFinite(accuracy) ? accuracy : null;
+
+  const created =
+    typeof createdAt === "string" && createdAt.trim()
+      ? new Date(createdAt)
+      : null;
+
+  const ageSeconds =
+    created && !Number.isNaN(created.getTime())
+      ? Math.max(0, Math.floor((Date.now() - created.getTime()) / 1000))
+      : null;
+
+  if (acc == null) {
+    return {
+      location_quality: "unknown",
+      location_is_exact: false,
+      location_is_approximate: true,
+      location_age_seconds: ageSeconds,
+      location_label: "Accuracy unknown",
+    };
+  }
+
+  if (acc <= 80 && (ageSeconds == null || ageSeconds <= 180)) {
+    return {
+      location_quality: "exact",
+      location_is_exact: true,
+      location_is_approximate: false,
+      location_age_seconds: ageSeconds,
+      location_label: `Exact GPS • ± ${acc.toFixed(1)} m`,
+    };
+  }
+
+  if (acc <= 250 && (ageSeconds == null || ageSeconds <= 600)) {
+    return {
+      location_quality: "approximate",
+      location_is_exact: false,
+      location_is_approximate: true,
+      location_age_seconds: ageSeconds,
+      location_label: `Approximate area • ± ${acc.toFixed(1)} m`,
+    };
+  }
+
+  return {
+    location_quality: "coarse",
+    location_is_exact: false,
+    location_is_approximate: true,
+    location_age_seconds: ageSeconds,
+    location_label: `Last known approximate area • ± ${acc.toFixed(0)} m`,
+  };
+}
+
 function payloadSessionId(payload: unknown): string {
   if (!payload || typeof payload !== "object") return "";
   const raw = (payload as { session_id?: unknown }).session_id;
@@ -210,7 +263,13 @@ export async function GET(req: Request) {
 
     const latestPoint =
       latest && typeof latest.lat === "number" && typeof latest.lng === "number"
-        ? latest
+        ? {
+            ...latest,
+            ...locationQuality(
+              latest.accuracy ?? null,
+              latest.created_at ?? null,
+            ),
+          }
         : ended &&
             typeof visit.end_lat === "number" &&
             typeof visit.end_lng === "number"
@@ -224,6 +283,10 @@ export async function GET(req: Request) {
                 visit.destination_address ??
                 null,
               created_at: visit.ended_at ?? latest?.created_at ?? null,
+              ...locationQuality(
+                null,
+                visit.ended_at ?? latest?.created_at ?? null,
+              ),
             }
           : !ended &&
               typeof visit.start_lat === "number" &&
@@ -238,6 +301,10 @@ export async function GET(req: Request) {
                   visit.destination_address ??
                   null,
                 created_at: visit.started_at ?? latest?.created_at ?? null,
+                ...locationQuality(
+                  null,
+                  visit.started_at ?? latest?.created_at ?? null,
+                ),
               }
             : null;
 

@@ -16,6 +16,59 @@ function admin() {
   });
 }
 
+function locationQuality(accuracy?: number | null, createdAt?: string | null) {
+  const acc =
+    typeof accuracy === "number" && Number.isFinite(accuracy) ? accuracy : null;
+
+  const created =
+    typeof createdAt === "string" && createdAt.trim()
+      ? new Date(createdAt)
+      : null;
+
+  const ageSeconds =
+    created && !Number.isNaN(created.getTime())
+      ? Math.max(0, Math.floor((Date.now() - created.getTime()) / 1000))
+      : null;
+
+  if (acc == null) {
+    return {
+      location_quality: "unknown",
+      location_is_exact: false,
+      location_is_approximate: true,
+      location_age_seconds: ageSeconds,
+      location_label: "Accuracy unknown",
+    };
+  }
+
+  if (acc <= 80 && (ageSeconds == null || ageSeconds <= 180)) {
+    return {
+      location_quality: "exact",
+      location_is_exact: true,
+      location_is_approximate: false,
+      location_age_seconds: ageSeconds,
+      location_label: `Exact GPS • ± ${acc.toFixed(1)} m`,
+    };
+  }
+
+  if (acc <= 250 && (ageSeconds == null || ageSeconds <= 600)) {
+    return {
+      location_quality: "approximate",
+      location_is_exact: false,
+      location_is_approximate: true,
+      location_age_seconds: ageSeconds,
+      location_label: `Approximate area • ± ${acc.toFixed(1)} m`,
+    };
+  }
+
+  return {
+    location_quality: "coarse",
+    location_is_exact: false,
+    location_is_approximate: true,
+    location_age_seconds: ageSeconds,
+    location_label: `Last known approximate area • ± ${acc.toFixed(0)} m`,
+  };
+}
+
 export async function GET(req: Request) {
   const url = new URL(req.url);
   const sid = (url.searchParams.get("sid") || "").trim();
@@ -156,6 +209,10 @@ export async function GET(req: Request) {
           created_at: latest.created_at ?? null,
           initial: true,
           ended,
+          ...locationQuality(
+            latest.accuracy ?? null,
+            latest.created_at ?? null,
+          ),
         });
       } else if (
         typeof visit?.end_lat === "number" &&
@@ -170,6 +227,7 @@ export async function GET(req: Request) {
           created_at: visit.ended_at ?? null,
           initial: true,
           ended: true,
+          ...locationQuality(null, visit.ended_at ?? null),
         });
       }
 
@@ -210,6 +268,10 @@ export async function GET(req: Request) {
                 place: row.place ?? null,
                 created_at: row.created_at ?? null,
                 ended: false,
+                ...locationQuality(
+                  row.accuracy ?? null,
+                  row.created_at ?? null,
+                ),
               });
             }
           },
@@ -247,6 +309,7 @@ export async function GET(req: Request) {
                 place: row.destination_name ?? row.destination_address ?? null,
                 created_at: row.ended_at ?? null,
                 ended: Boolean(row.ended_at),
+                ...locationQuality(null, row.ended_at ?? null),
               });
             }
 
