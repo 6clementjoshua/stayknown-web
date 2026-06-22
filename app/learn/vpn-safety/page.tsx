@@ -466,11 +466,11 @@ export default function LearnVpnSafetyPage() {
         </div>
       </header>
 
-      <section className="relative w-full lg:-mb-[360px]">
+      <section className="relative w-full">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_18%,rgba(255,255,255,0.065),transparent_58%)]" />
 
         <div className="mx-auto max-w-6xl px-4 pt-8 pb-0">
-          <div className="grid grid-cols-1 lg:grid-cols-[0.9fr_1.1fr] items-start gap-8 lg:gap-8">
+          <div className="mx-auto max-w-4xl">
             <div className="order-1 lg:order-none lg:col-start-2">
               <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.045] px-3 py-1.5 text-[10.5px] font-black tracking-[0.20em] text-white/46 uppercase">
                 Protecting safety location reliability
@@ -556,24 +556,6 @@ export default function LearnVpnSafetyPage() {
                   <CTA href="/learn/chat" label="Learn: StayKnown Chat" />
                 </div>
               </div>
-            </div>
-
-            <div className="order-2 lg:order-none lg:col-start-1 flex items-start justify-center lg:justify-start">
-              <img
-                src="/hero/vpn-safety-gate.png"
-                alt="StayKnown VPN Safety Gate"
-                draggable={false}
-                className="
-                  block object-contain select-none
-                  drop-shadow-[0_26px_95px_rgba(0,0,0,0.78)]
-                  max-w-[86vw] max-h-[44vh]
-                  sm:max-w-[560px] sm:max-h-[62vh]
-                  lg:max-w-[720px] lg:max-h-[74vh]
-                  xl:max-w-[780px]
-                  transform-gpu transition duration-700 ease-out hover:scale-[1.01]
-                 lg:-translate-y-[1080px] xl:-translate-y-[1180px] 2xl:-translate-y-[1360px]
-                "
-              />
             </div>
           </div>
         </div>

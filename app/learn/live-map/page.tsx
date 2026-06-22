@@ -144,23 +144,6 @@ export default function LiveMapLearnPage() {
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_48%_18%,rgba(255,255,255,0.10),transparent_36%),radial-gradient(circle_at_14%_55%,rgba(255,255,255,0.055),transparent_30%)]" />
 
         <div className="relative mx-auto grid max-w-6xl grid-cols-1 gap-8 px-4 pb-12 pt-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-start lg:pb-20">
-          <div className="order-2 flex items-start justify-center lg:order-1 lg:justify-start lg:-translate-y-[1080px] xl:-translate-y-[1180px] 2xl:-translate-y-[1360px]">
-            <img
-              src="/hero/live-map.png"
-              alt="StayKnown live map for approved contacts"
-              draggable={false}
-              className="
-                block object-contain select-none
-                drop-shadow-[0_28px_100px_rgba(0,0,0,0.82)]
-                max-w-[88vw] max-h-[44vh]
-                sm:max-w-[560px] sm:max-h-[62vh]
-                lg:max-w-[720px] lg:max-h-[74vh]
-                xl:max-w-[790px]
-                transform-gpu transition duration-700 ease-out hover:scale-[1.01]
-              "
-            />
-          </div>
-
           <div className="order-1 lg:order-2">
             <div className="flex flex-wrap gap-2">
               <Pill>Live map</Pill>
