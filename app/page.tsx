@@ -53,6 +53,10 @@ function DownloadStoreButtons() {
     setActiveStore(store);
   };
 
+  const closeFeedback = () => {
+    setActiveStore(null);
+  };
+
   const storeLabel =
     activeStore === "google"
       ? "Google Play"
@@ -113,76 +117,105 @@ function DownloadStoreButtons() {
       </div>
 
       {activeStore ? (
-        <div
-          className="
-            sk-download-feedback
-            mt-3 w-[min(92vw,430px)] overflow-hidden rounded-[24px]
-            border border-white/70 bg-white text-black
-            shadow-[0_24px_80px_rgba(0,0,0,0.55)]
-          "
-        >
-          <div className="relative p-4 sm:p-5">
-            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_0%,rgba(0,0,0,0.06),transparent_52%)]" />
-            <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-white" />
+        <>
+          <button
+            type="button"
+            aria-label="Dismiss launch notice"
+            className="fixed inset-0 z-[60] cursor-default bg-transparent"
+            onPointerDown={closeFeedback}
+          />
 
-            <button
-              type="button"
-              onClick={() => setActiveStore(null)}
-              className="
-                absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded-full
-                bg-black/[0.055] text-[15px] font-black text-black/55
-                transition hover:bg-black/10 hover:text-black
-                focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/15
-              "
-              aria-label="Close launch notice"
-            >
-              ×
-            </button>
+          <div
+            className="
+              sk-download-feedback sk-launch-feedback
+              relative z-[70] mt-3 w-[min(92vw,430px)] overflow-hidden rounded-[24px]
+              border border-white/70 bg-white text-black
+              shadow-[0_24px_80px_rgba(0,0,0,0.55)]
+            "
+          >
+            <div className="relative p-4 sm:p-5">
+              <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_0%,rgba(0,0,0,0.06),transparent_52%)]" />
+              <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-white" />
 
-            <div className="relative pr-8">
-              <div className="text-[10px] font-black uppercase tracking-[0.22em] text-black/42">
-                {storeLabel}
-              </div>
+              <button
+                type="button"
+                onPointerDown={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  closeFeedback();
+                }}
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  closeFeedback();
+                }}
+                className="
+                  absolute right-3 top-3 z-[5] flex h-9 w-9 items-center justify-center rounded-full
+                  bg-black/[0.055] text-[18px] font-black !text-black/55
+                  transition hover:bg-black/10 hover:!text-black
+                  active:scale-[0.96] active:bg-black/15
+                  focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/15
+                "
+                aria-label="Close launch notice"
+              >
+                ×
+              </button>
 
-              <div className="mt-1 text-[15px] sm:text-[16px] font-black tracking-[-0.035em] text-black">
-                StayKnown will launch soon.
-              </div>
+              <div className="relative pr-8">
+                <div className="text-[10px] font-black uppercase tracking-[0.22em] text-black/42">
+                  {storeLabel}
+                </div>
 
-              <p className="mt-2 text-[12.3px] sm:text-[12.8px] font-semibold leading-relaxed text-black/62">
-                The app is not live on the stores yet. Please check back from
-                time to time, or follow the official brand on TikTok{" "}
-                <a
-                  href="https://www.tiktok.com/@6clementjoshua"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="font-black text-black underline decoration-black/25 underline-offset-4 transition hover:decoration-black"
-                >
-                  @6clementjoshua
-                </a>{" "}
-                for the launch date.
-              </p>
+                <div className="mt-1 text-[15px] sm:text-[16px] font-black tracking-[-0.035em] text-black">
+                  StayKnown will launch soon.
+                </div>
 
-              <div className="mt-3 rounded-2xl border border-black/10 bg-black/[0.035] p-3">
-                <p className="text-[11.8px] sm:text-[12.2px] font-semibold leading-relaxed text-black/58">
-                  Anyone who would like to support the project can do so
-                  respectfully through the support page.
+                <p className="mt-2 text-[12.3px] sm:text-[12.8px] font-semibold leading-relaxed text-black/62">
+                  The app is not live on the stores yet. Please check back from
+                  time to time, or follow the official brand on TikTok{" "}
+                  <a
+                    href="https://www.tiktok.com/@6clementjoshua"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="
+                      sk-tiktok-launch-link
+                      font-black !text-black underline decoration-black/25 underline-offset-4
+                      transition hover:decoration-black
+                      visited:!text-black active:!text-black focus:!text-black
+                    "
+                  >
+                    @6clementjoshua
+                  </a>{" "}
+                  for the launch date.
                 </p>
 
-                <a
-                  href="/donate"
-                  className="
-                    mt-2 inline-flex h-8 items-center justify-center rounded-full
-                    bg-black px-4 text-[11px] font-black tracking-[-0.01em] text-white
-                    transition hover:bg-black/85 active:scale-[0.99]
-                    focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/20
-                  "
-                >
-                  Support StayKnown
-                </a>
+                <div className="mt-3 rounded-2xl border border-black/10 bg-black/[0.035] p-3">
+                  <p className="text-[11.8px] sm:text-[12.2px] font-semibold leading-relaxed text-black/58">
+                    Anyone who would like to support the project can do so
+                    respectfully through the support page.
+                  </p>
+
+                  <a
+                    href="/donate"
+                    className="
+                      sk-launch-support
+                      mt-3 inline-flex h-9 min-w-[176px] items-center justify-center rounded-full
+                      bg-black px-5 text-[11px] font-black tracking-[-0.01em] !text-white
+                      shadow-[0_12px_28px_rgba(0,0,0,0.18)]
+                      transition duration-200
+                      hover:bg-black/85 hover:!text-white
+                      active:bg-white active:!text-black active:scale-[0.99]
+                      visited:!text-white focus:!text-white
+                      focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/20
+                    "
+                  >
+                    Support StayKnown
+                  </a>
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        </>
       ) : null}
     </div>
   );
@@ -376,6 +409,29 @@ export default function Page() {
         .sk-download-feedback {
           animation: skDownloadFeedbackIn 240ms cubic-bezier(0.2, 0.8, 0.2, 1)
             both;
+        }
+
+        .sk-launch-feedback a,
+        .sk-launch-feedback a:link,
+        .sk-launch-feedback a:visited,
+        .sk-launch-feedback a:hover,
+        .sk-launch-feedback a:focus {
+          color: #000000 !important;
+          -webkit-text-fill-color: #000000 !important;
+        }
+
+        .sk-launch-feedback .sk-launch-support,
+        .sk-launch-feedback .sk-launch-support:link,
+        .sk-launch-feedback .sk-launch-support:visited,
+        .sk-launch-feedback .sk-launch-support:hover,
+        .sk-launch-feedback .sk-launch-support:focus {
+          color: #ffffff !important;
+          -webkit-text-fill-color: #ffffff !important;
+        }
+
+        .sk-launch-feedback .sk-launch-support:active {
+          color: #000000 !important;
+          -webkit-text-fill-color: #000000 !important;
         }
 
         @keyframes skDownloadFeedbackIn {
