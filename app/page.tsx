@@ -1,9 +1,192 @@
 "use client";
 
 import Image from "next/image";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import HeroSlider, { type HeroSlide } from "../components/HeroSlider";
 import StayKnownActionMenu from "@/components/StayKnownActionMenu";
+
+type StoreKind = "google" | "apple";
+
+function GooglePlayMark() {
+  return (
+    <svg
+      viewBox="0 0 512 512"
+      aria-hidden="true"
+      className="h-[18px] w-[18px] shrink-0"
+    >
+      <path
+        d="M96 38.4v435.2c0 17.2 18.8 27.8 33.5 18.8l251.3-153.7L96 38.4z"
+        fill="#34A853"
+      />
+      <path
+        d="M96 38.4l284.8 300.3 68.2-41.7c22.7-13.9 22.7-46.8 0-60.7L380.8 194.6 96 38.4z"
+        fill="#4285F4"
+      />
+      <path d="M96 38.4l284.8 156.2L294.2 256 96 38.4z" fill="#FBBC04" />
+      <path
+        d="M96 473.6 294.2 256l86.6 82.7L129.5 492.4C114.8 501.4 96 490.8 96 473.6z"
+        fill="#EA4335"
+      />
+    </svg>
+  );
+}
+
+function AppStoreMark() {
+  return (
+    <svg
+      viewBox="0 0 384 512"
+      aria-hidden="true"
+      className="h-[18px] w-[18px] shrink-0"
+    >
+      <path
+        fill="currentColor"
+        d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.3-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.5-19.2-39.4.6-75.7 22.9-96 58.2-41 71.1-10.5 176.5 29.5 234.3 19.5 28.2 42.8 59.9 73.4 58.8 29.4-1.2 40.5-19 76-19s45.5 19 76.5 18.4c31.6-.6 51.6-28.8 71-57.2 22.4-32.7 31.6-64.4 32.1-66-.7-.3-61.8-23.7-62.2-94.6zM261.1 103.2c16.2-19.7 27.2-47.1 24.2-74.4-23.4.9-51.8 15.6-68.6 35.3-15.1 17.4-28.3 45.3-24.7 72 26.1 2 52.8-13.3 69.1-32.9z"
+      />
+    </svg>
+  );
+}
+
+function DownloadStoreButtons() {
+  const [activeStore, setActiveStore] = useState<StoreKind | null>(null);
+
+  const openFeedback = (store: StoreKind) => {
+    setActiveStore(store);
+  };
+
+  const storeLabel =
+    activeStore === "google"
+      ? "Google Play"
+      : activeStore === "apple"
+        ? "App Store"
+        : "Store";
+
+  return (
+    <div className="relative z-30 mx-auto flex w-full flex-col items-center">
+      <div className="flex items-center justify-center gap-2.5">
+        <button
+          type="button"
+          onClick={() => openFeedback("google")}
+          className="
+            group relative flex h-[54px] w-[86px] flex-col items-center justify-center gap-1
+            overflow-hidden rounded-2xl border border-white/12 bg-white/[0.045]
+            text-white shadow-[0_18px_50px_rgba(0,0,0,0.45)]
+            transition duration-200
+            hover:bg-white hover:text-black hover:border-white/30
+            active:scale-[0.98]
+            focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/25
+            sm:h-[56px] sm:w-[92px]
+          "
+          aria-label="Google Play launch notice"
+        >
+          <span className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_35%_18%,rgba(255,255,255,0.2),transparent_58%)] opacity-80" />
+          <span className="relative">
+            <GooglePlayMark />
+          </span>
+          <span className="relative text-[9.5px] font-black tracking-[-0.01em] leading-none">
+            Google Play
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => openFeedback("apple")}
+          className="
+            group relative flex h-[54px] w-[86px] flex-col items-center justify-center gap-1
+            overflow-hidden rounded-2xl border border-white/12 bg-white/[0.045]
+            text-white shadow-[0_18px_50px_rgba(0,0,0,0.45)]
+            transition duration-200
+            hover:bg-white hover:text-black hover:border-white/30
+            active:scale-[0.98]
+            focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/25
+            sm:h-[56px] sm:w-[92px]
+          "
+          aria-label="App Store launch notice"
+        >
+          <span className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_35%_18%,rgba(255,255,255,0.2),transparent_58%)] opacity-80" />
+          <span className="relative">
+            <AppStoreMark />
+          </span>
+          <span className="relative text-[9.5px] font-black tracking-[-0.01em] leading-none">
+            App Store
+          </span>
+        </button>
+      </div>
+
+      {activeStore ? (
+        <div
+          className="
+            sk-download-feedback
+            mt-3 w-[min(92vw,430px)] overflow-hidden rounded-[24px]
+            border border-white/70 bg-white text-black
+            shadow-[0_24px_80px_rgba(0,0,0,0.55)]
+          "
+        >
+          <div className="relative p-4 sm:p-5">
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_0%,rgba(0,0,0,0.06),transparent_52%)]" />
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-white" />
+
+            <button
+              type="button"
+              onClick={() => setActiveStore(null)}
+              className="
+                absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded-full
+                bg-black/[0.055] text-[15px] font-black text-black/55
+                transition hover:bg-black/10 hover:text-black
+                focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/15
+              "
+              aria-label="Close launch notice"
+            >
+              ×
+            </button>
+
+            <div className="relative pr-8">
+              <div className="text-[10px] font-black uppercase tracking-[0.22em] text-black/42">
+                {storeLabel}
+              </div>
+
+              <div className="mt-1 text-[15px] sm:text-[16px] font-black tracking-[-0.035em] text-black">
+                StayKnown will launch soon.
+              </div>
+
+              <p className="mt-2 text-[12.3px] sm:text-[12.8px] font-semibold leading-relaxed text-black/62">
+                The app is not live on the stores yet. Please check back from
+                time to time, or follow the official brand on TikTok{" "}
+                <a
+                  href="https://www.tiktok.com/@6clementjoshua"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-black text-black underline decoration-black/25 underline-offset-4 transition hover:decoration-black"
+                >
+                  @6clementjoshua
+                </a>{" "}
+                for the launch date.
+              </p>
+
+              <div className="mt-3 rounded-2xl border border-black/10 bg-black/[0.035] p-3">
+                <p className="text-[11.8px] sm:text-[12.2px] font-semibold leading-relaxed text-black/58">
+                  Anyone who would like to support the project can do so
+                  respectfully through the support page.
+                </p>
+
+                <a
+                  href="/donate"
+                  className="
+                    mt-2 inline-flex h-8 items-center justify-center rounded-full
+                    bg-black px-4 text-[11px] font-black tracking-[-0.01em] text-white
+                    transition hover:bg-black/85 active:scale-[0.99]
+                    focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/20
+                  "
+                >
+                  Support StayKnown
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
 export default function Page() {
   const slides: HeroSlide[] = useMemo(
@@ -189,6 +372,22 @@ export default function Page() {
           border-color: rgba(255, 255, 255, 0.16) !important;
           box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.05) !important;
         }
+
+        .sk-download-feedback {
+          animation: skDownloadFeedbackIn 240ms cubic-bezier(0.2, 0.8, 0.2, 1)
+            both;
+        }
+
+        @keyframes skDownloadFeedbackIn {
+          from {
+            opacity: 0;
+            transform: translateY(14px) scale(0.985);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
+        }
       `}</style>
 
       {/* Brand */}
@@ -206,6 +405,7 @@ export default function Page() {
               STAYKNOWN
             </div>
           </div>
+
           <div className="absolute right-[-3px] top-1/2 -translate-y-1/2 sm:right-[-18px] md:right-[-28px] lg:right-[-36px] xl:right-[-44px]">
             <div className="sk-menu-wrap">
               <StayKnownActionMenu />
@@ -218,6 +418,10 @@ export default function Page() {
       <section className="w-full flex-1">
         <div className="mx-auto max-w-6xl px-5 pt-7 sm:px-4 sm:pt-7 md:pt-8">
           <HeroSlider slides={slides} intervalMs={6000} />
+
+          <div className="mt-4 sm:mt-5">
+            <DownloadStoreButtons />
+          </div>
         </div>
       </section>
 
