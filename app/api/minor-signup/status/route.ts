@@ -16,8 +16,14 @@ type MinorSignupRow = {
   minor_age_years?: number | null;
 
   guardian_email?: string | null;
+  guardian_user_id?: string | null;
   guardian_first_name?: string | null;
   guardian_last_name?: string | null;
+  guardian_entered_first_name?: string | null;
+  guardian_entered_last_name?: string | null;
+  guardian_identity_source?: string | null;
+  guardian_identity_resolved_at?: string | null;
+  guardian_identity_mismatch?: boolean | null;
   guardian_phone?: string | null;
   guardian_relationship?: string | null;
 
@@ -76,7 +82,7 @@ function maskEmail(email?: string | null) {
 }
 
 function fullName(first?: string | null, last?: string | null) {
-  return `${clean(first)} ${clean(last)}`.trim();
+  return `${clean(first)} ${clean(last)}`.replace(/\s+/g, " ").trim();
 }
 
 function requestState(row: MinorSignupRow) {
@@ -118,6 +124,11 @@ function requestState(row: MinorSignupRow) {
 }
 
 function publicRequest(row: MinorSignupRow) {
+  const guardianName = fullName(
+    row.guardian_first_name,
+    row.guardian_last_name,
+  );
+
   return {
     id: row.id,
     status: clean(row.status) || "pending",
@@ -126,9 +137,26 @@ function publicRequest(row: MinorSignupRow) {
     minor_email_masked: maskEmail(row.minor_email),
     minor_age_years: row.minor_age_years ?? null,
 
-    guardian_name: fullName(row.guardian_first_name, row.guardian_last_name),
+    // This must use the canonical/resolved guardian name.
+    // If /start resolved the guardian email to a StayKnown profile,
+    // these fields now contain the real account owner name.
+    guardian_name: guardianName || "the guardian",
     guardian_email_masked: maskEmail(row.guardian_email),
     guardian_relationship: clean(row.guardian_relationship) || "parent",
+
+    // Identity metadata. The current client can ignore these, but they help
+    // website/debug/admin flows know whether the guardian name was resolved
+    // from a real StayKnown profile or typed by the minor.
+    guardian_identity_source:
+      clean(row.guardian_identity_source) || "typed_by_minor",
+    guardian_identity_mismatch: row.guardian_identity_mismatch === true,
+    guardian_user_id: clean(row.guardian_user_id) || null,
+
+    // Audit-only typed name. Do not display this as the true guardian name.
+    guardian_entered_name: fullName(
+      row.guardian_entered_first_name,
+      row.guardian_entered_last_name,
+    ),
 
     minor_approved: row.minor_approved === true,
     guardian_approved: row.guardian_approved === true,
@@ -178,8 +206,14 @@ export async function GET(req: Request) {
           minor_age_years,
 
           guardian_email,
+          guardian_user_id,
           guardian_first_name,
           guardian_last_name,
+          guardian_entered_first_name,
+          guardian_entered_last_name,
+          guardian_identity_source,
+          guardian_identity_resolved_at,
+          guardian_identity_mismatch,
           guardian_phone,
           guardian_relationship,
 

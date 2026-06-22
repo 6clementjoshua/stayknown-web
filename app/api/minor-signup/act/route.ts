@@ -20,8 +20,14 @@ type MinorSignupRow = {
   minor_age_years?: number | null;
 
   guardian_email?: string | null;
+  guardian_user_id?: string | null;
   guardian_first_name?: string | null;
   guardian_last_name?: string | null;
+  guardian_entered_first_name?: string | null;
+  guardian_entered_last_name?: string | null;
+  guardian_identity_source?: string | null;
+  guardian_identity_resolved_at?: string | null;
+  guardian_identity_mismatch?: boolean | null;
   guardian_phone?: string | null;
   guardian_relationship?: string | null;
 
@@ -97,7 +103,15 @@ function maskEmail(email?: string | null) {
 }
 
 function fullName(first?: string | null, last?: string | null) {
-  return `${clean(first)} ${clean(last)}`.trim();
+  return `${clean(first)} ${clean(last)}`.replace(/\s+/g, " ").trim();
+}
+
+function guardianCanonicalName(row: MinorSignupRow) {
+  return fullName(row.guardian_first_name, row.guardian_last_name);
+}
+
+function minorCanonicalName(row: MinorSignupRow) {
+  return fullName(row.minor_first_name, row.minor_last_name);
 }
 
 function firstHeader(req: Request, names: string[]) {
@@ -213,17 +227,30 @@ function requestState(row: MinorSignupRow) {
 }
 
 function publicRequest(row: MinorSignupRow) {
+  const guardianName = guardianCanonicalName(row);
+
   return {
     id: row.id,
     status: clean(row.status) || "pending",
 
-    minor_name: fullName(row.minor_first_name, row.minor_last_name),
+    minor_name: minorCanonicalName(row),
     minor_email_masked: maskEmail(row.minor_email),
     minor_age_years: row.minor_age_years ?? null,
 
-    guardian_name: fullName(row.guardian_first_name, row.guardian_last_name),
+    // This must always be the canonical/resolved guardian name.
+    guardian_name: guardianName || "the guardian",
     guardian_email_masked: maskEmail(row.guardian_email),
     guardian_relationship: clean(row.guardian_relationship) || "parent",
+
+    // Metadata for audit/debug/admin. Do not display entered name as truth.
+    guardian_identity_source:
+      clean(row.guardian_identity_source) || "typed_by_minor",
+    guardian_identity_mismatch: row.guardian_identity_mismatch === true,
+    guardian_user_id: clean(row.guardian_user_id) || null,
+    guardian_entered_name: fullName(
+      row.guardian_entered_first_name,
+      row.guardian_entered_last_name,
+    ),
 
     minor_approved: row.minor_approved === true,
     guardian_approved: row.guardian_approved === true,
@@ -259,8 +286,14 @@ async function loadRequest(
         minor_age_years,
 
         guardian_email,
+        guardian_user_id,
         guardian_first_name,
         guardian_last_name,
+        guardian_entered_first_name,
+        guardian_entered_last_name,
+        guardian_identity_source,
+        guardian_identity_resolved_at,
+        guardian_identity_mismatch,
         guardian_phone,
         guardian_relationship,
 
@@ -375,10 +408,14 @@ async function finalizeMinorSignupIfReady(
   await invokeInternalEdge("minor_signup_approved_notify", {
     request_id: row.id,
     minor_email: clean(row.minor_email),
-    minor_name: fullName(row.minor_first_name, row.minor_last_name),
+    minor_name: minorCanonicalName(row),
     guardian_email: clean(row.guardian_email),
-    guardian_name: fullName(row.guardian_first_name, row.guardian_last_name),
+    guardian_name: guardianCanonicalName(row),
     guardian_relationship: clean(row.guardian_relationship) || "parent",
+    guardian_identity_source:
+      clean(row.guardian_identity_source) || "typed_by_minor",
+    guardian_identity_mismatch: row.guardian_identity_mismatch === true,
+    guardian_user_id: clean(row.guardian_user_id) || null,
     consent_version: clean(row.consent_version),
   });
 
@@ -407,9 +444,13 @@ async function markDeclined(
     request_id: row.id,
     declined_by: actor,
     minor_email: clean(row.minor_email),
-    minor_name: fullName(row.minor_first_name, row.minor_last_name),
+    minor_name: minorCanonicalName(row),
     guardian_email: clean(row.guardian_email),
-    guardian_name: fullName(row.guardian_first_name, row.guardian_last_name),
+    guardian_name: guardianCanonicalName(row),
+    guardian_identity_source:
+      clean(row.guardian_identity_source) || "typed_by_minor",
+    guardian_identity_mismatch: row.guardian_identity_mismatch === true,
+    guardian_user_id: clean(row.guardian_user_id) || null,
   });
 }
 

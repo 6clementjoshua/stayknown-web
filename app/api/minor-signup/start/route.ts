@@ -26,6 +26,17 @@ type StartBody = {
   guardian_relationship?: string;
 };
 
+type GuardianIdentitySource = "stayknown_profile" | "typed_by_minor";
+
+type GuardianIdentity = {
+  user_id: string | null;
+  first_name: string | null;
+  last_name: string | null;
+  display_name: string | null;
+  source: GuardianIdentitySource;
+  mismatch: boolean;
+};
+
 type MinorSignupInsert = {
   minor_email: string;
   minor_first_name: string;
@@ -35,8 +46,14 @@ type MinorSignupInsert = {
   minor_age_years: number;
 
   guardian_email: string;
+  guardian_user_id: string | null;
   guardian_first_name: string | null;
   guardian_last_name: string | null;
+  guardian_entered_first_name: string | null;
+  guardian_entered_last_name: string | null;
+  guardian_identity_source: string;
+  guardian_identity_resolved_at: string | null;
+  guardian_identity_mismatch: boolean;
   guardian_phone: string | null;
   guardian_relationship: string;
 
@@ -51,6 +68,17 @@ type MinorSignupRow = MinorSignupInsert & {
   created_at?: string | null;
 };
 
+type ProfileRow = {
+  id: string;
+  email: string | null;
+  display_name: string | null;
+  first_name: string | null;
+  last_name: string | null;
+  status: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+};
+
 function admin() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceRole = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -63,6 +91,8 @@ function admin() {
     auth: { persistSession: false },
   });
 }
+
+type SupabaseAdminClient = ReturnType<typeof admin>;
 
 function clean(v: unknown) {
   return typeof v === "string" ? v.trim() : "";
@@ -211,6 +241,117 @@ function consentSnapshot() {
   ].join("\n");
 }
 
+function compactName(firstName: string | null, lastName: string | null) {
+  return [firstName, lastName]
+    .map((x) => clean(x))
+    .filter(Boolean)
+    .join(" ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function normalizeNameCompare(v: string) {
+  return v.toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+function splitDisplayName(displayName: string | null) {
+  const full = clean(displayName).replace(/\s+/g, " ");
+  if (!full) {
+    return {
+      first_name: null as string | null,
+      last_name: null as string | null,
+    };
+  }
+
+  const parts = full.split(" ").filter(Boolean);
+  if (parts.length <= 1) {
+    return {
+      first_name: parts[0] || null,
+      last_name: null as string | null,
+    };
+  }
+
+  return {
+    first_name: parts[0] || null,
+    last_name: parts.slice(1).join(" ") || null,
+  };
+}
+
+async function resolveGuardianIdentity(p: {
+  sb: SupabaseAdminClient;
+  guardianEmail: string;
+  enteredFirstName: string;
+  enteredLastName: string;
+}): Promise<GuardianIdentity> {
+  const enteredFirstName = clean(p.enteredFirstName);
+  const enteredLastName = clean(p.enteredLastName);
+  const enteredFullName = compactName(enteredFirstName, enteredLastName);
+
+  const { data, error } = await p.sb
+    .from("profiles")
+    .select(
+      `
+        id,
+        email,
+        display_name,
+        first_name,
+        last_name,
+        status,
+        created_at,
+        updated_at
+      `,
+    )
+    .ilike("email", p.guardianEmail)
+    .eq("status", "active")
+    .order("updated_at", { ascending: false, nullsFirst: false })
+    .order("created_at", { ascending: false, nullsFirst: false })
+    .limit(1);
+
+  if (error) {
+    throw error;
+  }
+
+  const profile =
+    Array.isArray(data) && data.length > 0 ? (data[0] as ProfileRow) : null;
+
+  if (!profile) {
+    return {
+      user_id: null,
+      first_name: enteredFirstName || null,
+      last_name: enteredLastName || null,
+      display_name: enteredFullName || null,
+      source: "typed_by_minor",
+      mismatch: false,
+    };
+  }
+
+  const profileFirst = clean(profile.first_name);
+  const profileLast = clean(profile.last_name);
+  const profileDisplay = clean(profile.display_name);
+
+  const split = splitDisplayName(profileDisplay);
+
+  const resolvedFirstName =
+    profileFirst || split.first_name || enteredFirstName;
+  const resolvedLastName = profileLast || split.last_name || enteredLastName;
+  const resolvedFullName = compactName(resolvedFirstName, resolvedLastName);
+
+  const mismatch =
+    Boolean(enteredFullName) &&
+    Boolean(resolvedFullName) &&
+    normalizeNameCompare(enteredFullName) !==
+      normalizeNameCompare(resolvedFullName);
+
+  return {
+    user_id: profile.id,
+    first_name: resolvedFirstName || null,
+    last_name: resolvedLastName || null,
+    display_name: resolvedFullName || profileDisplay || null,
+    source: "stayknown_profile",
+    mismatch,
+  };
+}
+
 async function invokeInternalEdge(
   name: string,
   payload: Record<string, unknown>,
@@ -260,9 +401,14 @@ function publicRequest(row: MinorSignupRow) {
     minor_last_name: row.minor_last_name,
     minor_age_years: row.minor_age_years,
     guardian_email: row.guardian_email,
+
+    // These are now canonical display names.
     guardian_first_name: row.guardian_first_name,
     guardian_last_name: row.guardian_last_name,
+
     guardian_relationship: row.guardian_relationship,
+    guardian_identity_source: row.guardian_identity_source,
+    guardian_identity_mismatch: row.guardian_identity_mismatch,
     expires_at: row.expires_at,
     consent_version: row.consent_version,
   };
@@ -279,8 +425,8 @@ export async function POST(req: Request) {
     const minorDob = parseDateOnly(body.minor_date_of_birth);
 
     const guardianEmail = normalizeEmail(body.guardian_email);
-    const guardianFirstName = clean(body.guardian_first_name);
-    const guardianLastName = clean(body.guardian_last_name);
+    const guardianEnteredFirstName = clean(body.guardian_first_name);
+    const guardianEnteredLastName = clean(body.guardian_last_name);
     const guardianPhone = clean(body.guardian_phone);
     const guardianRelationship = normalizeRelationship(
       body.guardian_relationship,
@@ -390,7 +536,36 @@ export async function POST(req: Request) {
       );
     }
 
+    if (!guardianEnteredFirstName || guardianEnteredFirstName.length < 2) {
+      return NextResponse.json(
+        {
+          ok: false,
+          state: "invalid",
+          message: "Guardian first name is required.",
+        },
+        { status: 400 },
+      );
+    }
+
+    if (!guardianEnteredLastName || guardianEnteredLastName.length < 2) {
+      return NextResponse.json(
+        {
+          ok: false,
+          state: "invalid",
+          message: "Guardian last name is required.",
+        },
+        { status: 400 },
+      );
+    }
+
     const sb = admin();
+
+    const guardianIdentity = await resolveGuardianIdentity({
+      sb,
+      guardianEmail,
+      enteredFirstName: guardianEnteredFirstName,
+      enteredLastName: guardianEnteredLastName,
+    });
 
     const expiresAt = new Date(
       Date.now() + REQUEST_TTL_HOURS * 60 * 60 * 1000,
@@ -420,8 +595,21 @@ export async function POST(req: Request) {
       minor_age_years: age,
 
       guardian_email: guardianEmail,
-      guardian_first_name: guardianFirstName || null,
-      guardian_last_name: guardianLastName || null,
+      guardian_user_id: guardianIdentity.user_id,
+      guardian_first_name: guardianIdentity.first_name,
+      guardian_last_name: guardianIdentity.last_name,
+
+      // Keep what the minor typed for audit/review only.
+      guardian_entered_first_name: guardianEnteredFirstName || null,
+      guardian_entered_last_name: guardianEnteredLastName || null,
+
+      guardian_identity_source: guardianIdentity.source,
+      guardian_identity_resolved_at:
+        guardianIdentity.source === "stayknown_profile"
+          ? new Date().toISOString()
+          : null,
+      guardian_identity_mismatch: guardianIdentity.mismatch,
+
       guardian_phone: guardianPhone || null,
       guardian_relationship: guardianRelationship,
 
@@ -444,8 +632,14 @@ export async function POST(req: Request) {
           minor_date_of_birth,
           minor_age_years,
           guardian_email,
+          guardian_user_id,
           guardian_first_name,
           guardian_last_name,
+          guardian_entered_first_name,
+          guardian_entered_last_name,
+          guardian_identity_source,
+          guardian_identity_resolved_at,
+          guardian_identity_mismatch,
           guardian_phone,
           guardian_relationship,
           status,
@@ -515,9 +709,14 @@ export async function POST(req: Request) {
 
       guardian: {
         email: row.guardian_email,
+
+        // These now use the resolved StayKnown profile name when available.
         first_name: row.guardian_first_name,
         last_name: row.guardian_last_name,
+
         relationship: row.guardian_relationship,
+        identity_source: row.guardian_identity_source,
+        identity_mismatch: row.guardian_identity_mismatch,
         approve_url: links.guardian.approve,
         decline_url: links.guardian.decline,
       },
