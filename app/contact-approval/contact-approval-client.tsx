@@ -77,6 +77,19 @@ function requestHasAnyApproval(req?: ActionResp["request"]) {
   return req?.owner_approved === true || req?.target_approved === true;
 }
 
+function otherPartyHasApproved(
+  req: ActionResp["request"] | undefined,
+  actor: Actor,
+) {
+  if (!req) return false;
+
+  if (actor === "owner") {
+    return req.target_approved === true;
+  }
+
+  return req.owner_approved === true;
+}
+
 function requestIsFullyApproved(req?: ActionResp["request"]) {
   return req?.owner_approved === true && req?.target_approved === true;
 }
@@ -356,13 +369,17 @@ export default function ContactApprovalClient({
 
       const currentActorDone = isThisActorDone(req);
 
-      if (
-        data.state === "pending_other_party" ||
-        allowWaiting ||
-        currentActorDone ||
-        hasSubmittedThisPageRef.current ||
-        requestHasAnyApproval(req)
-      ) {
+      const anyApproval = requestHasAnyApproval(req);
+      const otherApproved = otherPartyHasApproved(req, actor);
+
+      /*
+  Never show the green waiting/check state just because the backend says
+  "pending_other_party".
+
+  Waiting is only correct when THIS page actor has already submitted their own
+  approval/decline, or this page just submitted successfully.
+*/
+      if (currentActorDone || hasSubmittedThisPageRef.current) {
         setUiState("waiting");
         setMessage(
           actor === "owner"
@@ -372,6 +389,40 @@ export default function ContactApprovalClient({
 
         return false;
       }
+
+      /*
+  If the other party already approved, this actor still needs to press the
+  confirm/decline button. Keep the page at the gate.
+*/
+      if (otherApproved) {
+        setUiState("gate");
+        setMessage(
+          actor === "owner"
+            ? "The contact email owner has already confirmed. Please confirm from your side to complete this request."
+            : "The account owner has already confirmed. Please confirm from your side to complete this request.",
+        );
+
+        return false;
+      }
+
+      /*
+  If nobody has approved yet, this is a fresh request. Show the button.
+  This protects against a backend/status API accidentally returning
+  "pending_other_party" too early.
+*/
+      if (!anyApproval) {
+        setUiState("gate");
+        setMessage("");
+        return false;
+      }
+
+      /*
+  Fallback: if there is some approval state but it is not this actor and not
+  cleanly detected above, keep the button visible instead of hiding it.
+*/
+      setUiState("gate");
+      setMessage("");
+      return false;
 
       setUiState("gate");
       setMessage("");
@@ -771,7 +822,8 @@ export default function ContactApprovalClient({
                           : uiState === "error"
                             ? message ||
                               "This request could not be completed right now."
-                            : `You were brought to this page because StayKnown requires explicit confirmation before a contact can be added. ${reconfirmText}`}
+                            : message ||
+                              `You were brought to this page because StayKnown requires explicit confirmation before a contact can be added. ${reconfirmText}`}
               </p>
             </div>
 
