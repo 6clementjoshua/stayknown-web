@@ -1,7 +1,11 @@
 import { getMailConsoleSiteUrl } from "@/lib/mailConsoleAdmin";
 import { createUnsubscribeToken } from "@/lib/mailConsoleUnsubscribe";
+import { readFile } from "fs/promises";
+import path from "path";
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+
+export const runtime = "nodejs";
 import {
   MAIL_CONSOLE_COOKIE,
   verifyMailConsoleSessionToken,
@@ -37,6 +41,24 @@ type ResendAttachment = {
   contentId?: string;
   content_type?: string;
 };
+
+const STAYKNOWN_LOGO_CONTENT_ID = "stayknown-brand-logo";
+
+async function getStayKnownLogoAttachment(): Promise<ResendAttachment | null> {
+  try {
+    const logoPath = path.join(process.cwd(), "public", "6logo.png");
+    const logoBuffer = await readFile(logoPath);
+
+    return {
+      filename: "6logo.png",
+      content: logoBuffer.toString("base64"),
+      contentId: STAYKNOWN_LOGO_CONTENT_ID,
+      content_type: "image/png",
+    };
+  } catch (_) {
+    return null;
+  }
+}
 
 type PolicyLinkKey =
   | "privacy"
@@ -303,13 +325,11 @@ function trademarkHtml(appName: string) {
 }
 
 function brandLogoHtml(appName: string) {
-  const logo = getLogoUrl();
-
   return `
     ${trademarkHtml(appName)}
     <div style="text-align:center;margin:0 0 10px 0;">
-      <img src="${escapeHtml(logo)}" width="64" height="64" alt="${escapeHtml(appName)}"
-        style="display:inline-block;border-radius:18px;box-shadow:0 14px 38px rgba(0,0,0,0.14);" />
+      <img src="cid:${STAYKNOWN_LOGO_CONTENT_ID}" width="64" height="64" alt="${escapeHtml(appName)}"
+        style="display:inline-block;width:64px;height:64px;border-radius:18px;background:#ffffff;box-shadow:0 14px 38px rgba(0,0,0,0.14);" />
       <div style="height:6px;"></div>
     </div>
   `;
@@ -525,8 +545,9 @@ function buildHtml(p: {
   subtitle: string;
   badge: string;
   message: string;
-  imageUrl: string;
-  imagePosition: ImagePosition;
+  bannerImageUrlTop: string;
+  bannerImageUrlBottom: string;
+  bannerPosition: ImagePosition;
   ctaLabel: string;
   ctaUrl: string;
   footerHtml: string;
@@ -535,16 +556,18 @@ function buildHtml(p: {
 }) {
   const messageHtml = textToHtml(p.message);
 
+  const topBannerUrl = p.bannerImageUrlTop;
+  const bottomBannerUrl = p.bannerImageUrlBottom || p.bannerImageUrlTop;
+
   const remoteTop =
-    p.imagePosition === "top" || p.imagePosition === "both"
-      ? remoteImageBlock(p.imageUrl, p.title)
+    p.bannerPosition === "top" || p.bannerPosition === "both"
+      ? remoteImageBlock(topBannerUrl, p.title)
       : "";
 
   const remoteBottom =
-    p.imagePosition === "bottom" || p.imagePosition === "both"
-      ? remoteImageBlock(p.imageUrl, p.title)
+    p.bannerPosition === "bottom" || p.bannerPosition === "both"
+      ? remoteImageBlock(bottomBannerUrl, p.title)
       : "";
-
   const cta = ctaButton(p.ctaLabel, p.ctaUrl);
 
   const modeLabel =
@@ -709,9 +732,15 @@ export async function POST(req: NextRequest) {
     const subtitle = clean(form.get("subtitle"));
     const badge = clean(form.get("badge"));
     const message = clean(form.get("message"));
-    const imageUrl = clean(form.get("image_url"));
-    const imagePosition = imageUrl
-      ? safeImagePosition(form.get("image_position"))
+    const bannerImageUrlTop =
+      clean(form.get("banner_image_url_top")) || clean(form.get("image_url"));
+
+    const bannerImageUrlBottom = clean(form.get("banner_image_url_bottom"));
+
+    const bannerPosition = bannerImageUrlTop
+      ? safeImagePosition(
+          form.get("banner_position") || form.get("image_position"),
+        )
       : "none";
     const ctaLabel = clean(form.get("cta_label"));
     const ctaUrl = clean(form.get("cta_url"));
@@ -756,9 +785,22 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (imageUrl && !isPublicHttpUrl(imageUrl)) {
+    if (bannerImageUrlTop && !isPublicHttpUrl(bannerImageUrlTop)) {
       return NextResponse.json(
-        { ok: false, error: "Image URL must start with http:// or https://." },
+        {
+          ok: false,
+          error: "Top banner image URL must start with http:// or https://.",
+        },
+        { status: 400 },
+      );
+    }
+
+    if (bannerImageUrlBottom && !isPublicHttpUrl(bannerImageUrlBottom)) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "Bottom banner image URL must start with http:// or https://.",
+        },
         { status: 400 },
       );
     }
@@ -852,8 +894,8 @@ export async function POST(req: NextRequest) {
         subject,
         body_html: textToHtml(message),
         body_text: message,
-        image_url: imageUrl || null,
-        image_position: imagePosition,
+        image_url: bannerImageUrlTop || null,
+        image_position: bannerPosition,
         cta_label: ctaLabel || null,
         cta_url: ctaUrl || null,
         footer_html: finalFooter,
@@ -866,6 +908,8 @@ export async function POST(req: NextRequest) {
           sender_email: senderRow.from_email,
           recipient_count: recipients.length,
           policy_links: selectedPolicyLinks,
+          banner_image_url_top: bannerImageUrlTop || null,
+          banner_image_url_bottom: bannerImageUrlBottom || null,
         },
       })
       .select("id")
@@ -897,6 +941,12 @@ export async function POST(req: NextRequest) {
     const attachments: ResendAttachment[] = [];
     const linkOnlyFiles: Array<{ filename: string; url: string }> = [];
     const inlineBlocks: string[] = [];
+
+    const logoAttachment = await getStayKnownLogoAttachment();
+
+    if (logoAttachment) {
+      attachments.push(logoAttachment);
+    }
 
     for (let i = 0; i < files.length; i += 1) {
       const file = files[i];
@@ -1015,15 +1065,15 @@ export async function POST(req: NextRequest) {
       subtitle,
       badge,
       message,
-      imageUrl,
-      imagePosition,
+      bannerImageUrlTop,
+      bannerImageUrlBottom,
+      bannerPosition,
       ctaLabel,
       ctaUrl,
       footerHtml: finalFooter,
       inlineImageBlocks: inlineBlocks.join(""),
       linkOnlyFiles,
     });
-
     const text = htmlToText(html);
     const from = `${senderRow.from_name} <${senderRow.from_email}>`;
 

@@ -208,9 +208,7 @@ export default function MailConsoleSendForm({
 }: Props) {
   const [templateId, setTemplateId] = useState("");
   const [savingDraft, setSavingDraft] = useState(false);
-  const brandLogoUrl =
-    "https://ipognlibpkbauusvfeic.supabase.co/storage/v1/object/public/public-assets/stayknown-logo.png";
-
+  const brandLogoUrl = "/6logo.png";
   const [mode, setMode] = useState<MailMode>("support");
   const [senderId, setSenderId] = useState("");
   const [to, setTo] = useState("");
@@ -220,7 +218,8 @@ export default function MailConsoleSendForm({
   const [badge, setBadge] = useState(defaultBadgeForMode("support"));
   const [message, setMessage] = useState("");
   const [imageUrl, setImageUrl] = useState("");
-  const [imagePosition, setImagePosition] = useState<ImagePosition>("top");
+  const [imageUrlBottom, setImageUrlBottom] = useState("");
+  const [imagePosition, setImagePosition] = useState<ImagePosition>("none");
   const [ctaLabel, setCtaLabel] = useState("");
   const [ctaUrl, setCtaUrl] = useState("");
   const [footerPolicyId, setFooterPolicyId] = useState("");
@@ -310,7 +309,11 @@ export default function MailConsoleSendForm({
           title,
           message,
           image_url: imageUrl,
+          image_url_bottom: imageUrlBottom,
           image_position: imagePosition,
+          banner_image_url_top: imageUrl,
+          banner_image_url_bottom: imageUrlBottom,
+          banner_position: imagePosition,
           cta_label: ctaLabel,
           cta_url: ctaUrl,
           footer_policy_id: footerPolicyId,
@@ -391,6 +394,9 @@ export default function MailConsoleSendForm({
       form.append("message", message);
       form.append("image_url", imageUrl);
       form.append("image_position", imagePosition);
+      form.append("banner_image_url_top", imageUrl);
+      form.append("banner_image_url_bottom", imageUrlBottom);
+      form.append("banner_position", imagePosition);
       form.append("cta_label", ctaLabel);
       form.append("cta_url", ctaUrl);
       form.append("footer_policy_id", footerPolicyId);
@@ -441,6 +447,7 @@ export default function MailConsoleSendForm({
 
   return (
     <main
+      className="sk-mail-composer"
       style={{
         minHeight: "100vh",
         background: "#f3f4f6",
@@ -448,6 +455,75 @@ export default function MailConsoleSendForm({
         color: "#050505",
       }}
     >
+      <style jsx global>{`
+        .sk-mail-composer {
+          font-family:
+            Inter,
+            ui-sans-serif,
+            system-ui,
+            -apple-system,
+            BlinkMacSystemFont,
+            "Segoe UI",
+            sans-serif;
+        }
+
+        .sk-mail-composer button,
+        .sk-mail-composer a,
+        .sk-mail-composer input,
+        .sk-mail-composer select,
+        .sk-mail-composer textarea {
+          transition:
+            transform 180ms ease,
+            box-shadow 180ms ease,
+            border-color 180ms ease,
+            background 180ms ease,
+            opacity 180ms ease;
+        }
+
+        .sk-mail-composer button:hover,
+        .sk-mail-composer a:hover {
+          transform: translateY(-1px);
+          box-shadow:
+            inset 0 0 0 1px rgba(0, 0, 0, 0.12),
+            0 18px 42px rgba(0, 0, 0, 0.14) !important;
+        }
+
+        .sk-mail-composer button:active,
+        .sk-mail-composer a:active {
+          transform: translateY(0) scale(0.99);
+        }
+
+        .sk-mail-composer input:hover,
+        .sk-mail-composer select:hover,
+        .sk-mail-composer textarea:hover {
+          border-color: rgba(0, 0, 0, 0.22) !important;
+          box-shadow: 0 12px 34px rgba(0, 0, 0, 0.05);
+        }
+
+        .sk-mail-composer input:focus,
+        .sk-mail-composer select:focus,
+        .sk-mail-composer textarea:focus {
+          border-color: rgba(0, 0, 0, 0.36) !important;
+          box-shadow:
+            0 0 0 4px rgba(0, 0, 0, 0.055),
+            0 16px 42px rgba(0, 0, 0, 0.06);
+        }
+
+        .sk-mail-file-row {
+          transition:
+            transform 180ms ease,
+            box-shadow 180ms ease,
+            border-color 180ms ease,
+            background 180ms ease;
+        }
+
+        .sk-mail-file-row:hover {
+          transform: translateY(-1px);
+          border-color: rgba(0, 0, 0, 0.18) !important;
+          box-shadow: 0 18px 44px rgba(0, 0, 0, 0.08);
+          background: rgba(255, 255, 255, 0.96) !important;
+        }
+      `}</style>
       <section style={{ maxWidth: 1180, margin: "0 auto" }}>
         <header
           style={{
@@ -548,7 +624,57 @@ export default function MailConsoleSendForm({
                 ))}
               </select>
             </div>
-            <div style={sectionHeaderStyle}>Message setup</div>
+            <div style={sectionHeaderStyle}>Banner image</div>
+
+            <div style={grid2Style}>
+              <div>
+                <label style={labelStyle}>Top banner image URL</label>
+                <input
+                  value={imageUrl}
+                  onChange={(e) => setImageUrl(e.target.value)}
+                  placeholder="https://..."
+                  style={inputStyle}
+                />
+              </div>
+
+              <div>
+                <label style={labelStyle}>Banner position</label>
+                <select
+                  value={imagePosition}
+                  onChange={(e) =>
+                    setImagePosition(e.target.value as ImagePosition)
+                  }
+                  style={inputStyle}
+                >
+                  <option value="none">No banner image</option>
+                  <option value="top">Before message</option>
+                  <option value="bottom">After message</option>
+                  <option value="both">Before and after</option>
+                </select>
+              </div>
+            </div>
+
+            {imagePosition === "both" || imagePosition === "bottom" ? (
+              <div style={fieldStyle}>
+                <label style={labelStyle}>
+                  {imagePosition === "both"
+                    ? "Second / bottom banner image URL"
+                    : "Bottom banner image URL"}
+                </label>
+                <input
+                  value={imageUrlBottom}
+                  onChange={(e) => setImageUrlBottom(e.target.value)}
+                  placeholder={
+                    imagePosition === "both"
+                      ? "Optional. If empty, the top banner repeats at the bottom."
+                      : "https://..."
+                  }
+                  style={inputStyle}
+                />
+              </div>
+            ) : null}
+
+            <div style={sectionHeaderStyle}>CTA button</div>
 
             <div style={grid2Style}>
               <div>
@@ -803,7 +929,11 @@ export default function MailConsoleSendForm({
             {files.length > 0 ? (
               <div style={{ marginTop: 12, display: "grid", gap: 10 }}>
                 {files.map((picked) => (
-                  <div key={picked.id} style={fileRowStyle}>
+                  <div
+                    key={picked.id}
+                    className="sk-mail-file-row"
+                    style={fileRowStyle}
+                  >
                     <div style={{ minWidth: 0 }}>
                       <div style={{ fontWeight: 900, wordBreak: "break-word" }}>
                         {picked.file.name}
@@ -924,7 +1054,12 @@ export default function MailConsoleSendForm({
 
             <div style={summaryRowStyle}>
               <span>Brand logo</span>
-              <b>Automatic</b>
+              <b>Inline automatic</b>
+            </div>
+
+            <div style={summaryRowStyle}>
+              <span>Banner</span>
+              <b>{imageUrl ? imagePosition : "None"}</b>
             </div>
 
             <div style={summaryRowStyle}>
@@ -1042,7 +1177,30 @@ export default function MailConsoleSendForm({
                   </div>
                 ) : null}
               </div>
-
+              {imageUrl &&
+              (imagePosition === "top" || imagePosition === "both") ? (
+                <div
+                  style={{
+                    margin: "14px 0",
+                    borderRadius: 20,
+                    border: "1px solid rgba(0,0,0,0.10)",
+                    overflow: "hidden",
+                    background: "#ffffff",
+                    boxShadow: "0 20px 60px rgba(0,0,0,0.07)",
+                  }}
+                >
+                  <img
+                    src={imageUrl}
+                    alt="Top banner"
+                    style={{
+                      display: "block",
+                      width: "100%",
+                      maxHeight: 420,
+                      objectFit: "cover",
+                    }}
+                  />
+                </div>
+              ) : null}
               <div
                 style={{
                   borderRadius: 22,
@@ -1066,7 +1224,31 @@ export default function MailConsoleSendForm({
                   {message || "Your email body preview will appear here."}
                 </div>
               </div>
-
+              {(imageUrl || imageUrlBottom) &&
+              imagePosition !== "none" &&
+              (imagePosition === "bottom" || imagePosition === "both") ? (
+                <div
+                  style={{
+                    margin: "14px 0",
+                    borderRadius: 20,
+                    border: "1px solid rgba(0,0,0,0.10)",
+                    overflow: "hidden",
+                    background: "#ffffff",
+                    boxShadow: "0 20px 60px rgba(0,0,0,0.07)",
+                  }}
+                >
+                  <img
+                    src={imageUrlBottom || imageUrl}
+                    alt="Bottom banner"
+                    style={{
+                      display: "block",
+                      width: "100%",
+                      maxHeight: 420,
+                      objectFit: "cover",
+                    }}
+                  />
+                </div>
+              ) : null}
               {ctaLabel && ctaUrl ? (
                 <div style={{ textAlign: "center", marginTop: 18 }}>
                   <span
