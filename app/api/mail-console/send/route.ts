@@ -283,7 +283,7 @@ function getLogoUrl() {
   return (
     clean(process.env.MAIL_CONSOLE_BRAND_LOGO_URL) ||
     clean(process.env.BRAND_LOGO_URL) ||
-    `${getSiteUrl()}/6logo.png`
+    "https://ipognlibpkbauusvfeic.supabase.co/storage/v1/object/public/public-assets/stayknown-logo.png"
   );
 }
 

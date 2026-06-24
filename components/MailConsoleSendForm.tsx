@@ -208,7 +208,8 @@ export default function MailConsoleSendForm({
 }: Props) {
   const [templateId, setTemplateId] = useState("");
   const [savingDraft, setSavingDraft] = useState(false);
-  const brandLogoUrl = "https://stay-known.com/6logo.png";
+  const brandLogoUrl =
+    "https://ipognlibpkbauusvfeic.supabase.co/storage/v1/object/public/public-assets/stayknown-logo.png";
 
   const [mode, setMode] = useState<MailMode>("support");
   const [senderId, setSenderId] = useState("");
@@ -983,10 +984,14 @@ export default function MailConsoleSendForm({
                   alt="StayKnown"
                   width={64}
                   height={64}
+                  onError={(event) => {
+                    event.currentTarget.style.display = "none";
+                  }}
                   style={{
                     display: "inline-block",
                     borderRadius: 18,
                     boxShadow: "0 14px 38px rgba(0,0,0,0.14)",
+                    background: "white",
                   }}
                 />
 
