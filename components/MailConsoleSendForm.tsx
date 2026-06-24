@@ -7,6 +7,15 @@ type MailMode = "support" | "newsletter" | "advert" | "investor";
 type ImagePosition = "none" | "top" | "bottom" | "both";
 type AttachmentMode = "attach" | "link_only" | "inline_image";
 
+type MailTemplate = {
+  id: string;
+  name: string;
+  mode: string;
+  subject: string | null;
+  body_text: string | null;
+  default_image_position: string;
+};
+
 type SenderIdentity = {
   id: string;
   label: string;
@@ -36,6 +45,7 @@ type Props = {
   adminEmail: string;
   senders: SenderIdentity[];
   footerPolicies: FooterPolicy[];
+  templates: MailTemplate[];
 };
 
 function senderAllowedForMode(sender: SenderIdentity, mode: MailMode) {
@@ -77,7 +87,12 @@ export default function MailConsoleSendForm({
   adminEmail,
   senders,
   footerPolicies,
+  templates,
 }: Props) {
+  const [templateId, setTemplateId] = useState("");
+  const [savingDraft, setSavingDraft] = useState(false);
+  const brandLogoUrl = "https://stay-known.com/6logo.png";
+
   const [mode, setMode] = useState<MailMode>("support");
   const [senderId, setSenderId] = useState("");
   const [to, setTo] = useState("");
@@ -95,6 +110,11 @@ export default function MailConsoleSendForm({
   const [files, setFiles] = useState<PickedFile[]>([]);
   const [status, setStatus] = useState("");
   const [sending, setSending] = useState(false);
+
+  const allowedTemplates = useMemo(
+    () => templates.filter((t) => t.mode === mode),
+    [templates, mode],
+  );
 
   const allowedSenders = useMemo(
     () => senders.filter((s) => senderAllowedForMode(s, mode)),
@@ -125,6 +145,71 @@ export default function MailConsoleSendForm({
     setTitle(defaultTitleForMode(nextMode));
     setBadge(defaultBadgeForMode(nextMode));
     setStatus(`${modeLabel(nextMode)} mode selected.`);
+  }
+
+  function applyTemplate(nextTemplateId: string) {
+    setTemplateId(nextTemplateId);
+
+    const template = templates.find((t) => t.id === nextTemplateId);
+
+    if (!template) return;
+
+    setMode(template.mode as MailMode);
+    setSubject(template.subject || "");
+    setTitle(
+      template.subject || defaultTitleForMode(template.mode as MailMode),
+    );
+    setBadge(defaultBadgeForMode(template.mode as MailMode));
+    setMessage(template.body_text || "");
+
+    const pos = template.default_image_position as ImagePosition;
+    if (pos === "none" || pos === "top" || pos === "bottom" || pos === "both") {
+      setImagePosition(pos);
+    }
+
+    setStatus(`Template loaded: ${template.name}`);
+  }
+
+  async function saveDraft() {
+    if (savingDraft) return;
+
+    setSavingDraft(true);
+    setStatus("");
+
+    try {
+      const res = await fetch("/api/mail-console/save-draft", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          mode,
+          sender_identity_id: senderId,
+          subject,
+          title,
+          message,
+          image_url: imageUrl,
+          image_position: imagePosition,
+          cta_label: ctaLabel,
+          cta_url: ctaUrl,
+          footer_policy_id: footerPolicyId,
+          footer_html: customFooter || selectedFooter?.footer_html || "",
+        }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok || !data.ok) {
+        setStatus(data.error || "Could not save draft.");
+        return;
+      }
+
+      setStatus(`Draft saved. Draft ID: ${data.draft_id}`);
+    } catch (err) {
+      setStatus(err instanceof Error ? err.message : "Could not save draft.");
+    } finally {
+      setSavingDraft(false);
+    }
   }
 
   function handleFiles(e: ChangeEvent<HTMLInputElement>) {
@@ -315,6 +400,21 @@ export default function MailConsoleSendForm({
           }}
         >
           <section style={panelStyle}>
+            <div style={fieldStyle}>
+              <label style={labelStyle}>Reusable template</label>
+              <select
+                value={templateId}
+                onChange={(e) => applyTemplate(e.target.value)}
+                style={inputStyle}
+              >
+                <option value="">Start without template</option>
+                {allowedTemplates.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                  </option>
+                ))}
+              </select>
+            </div>
             <div style={sectionHeaderStyle}>Message setup</div>
 
             <div style={grid2Style}>
@@ -411,33 +511,7 @@ export default function MailConsoleSendForm({
 
             <div style={sectionHeaderStyle}>Brand image and CTA</div>
 
-            <div style={grid2Style}>
-              <div>
-                <label style={labelStyle}>Image URL</label>
-                <input
-                  value={imageUrl}
-                  onChange={(e) => setImageUrl(e.target.value)}
-                  placeholder="https://..."
-                  style={inputStyle}
-                />
-              </div>
-
-              <div>
-                <label style={labelStyle}>Image position</label>
-                <select
-                  value={imagePosition}
-                  onChange={(e) =>
-                    setImagePosition(e.target.value as ImagePosition)
-                  }
-                  style={inputStyle}
-                >
-                  <option value="top">Before message — default</option>
-                  <option value="bottom">After message</option>
-                  <option value="both">Before and after</option>
-                  <option value="none">No extra image</option>
-                </select>
-              </div>
-            </div>
+            <div style={sectionHeaderStyle}>CTA button</div>
 
             <div style={grid2Style}>
               <div>
@@ -600,6 +674,19 @@ export default function MailConsoleSendForm({
 
               <button
                 type="button"
+                onClick={saveDraft}
+                disabled={savingDraft}
+                style={{
+                  ...secondaryButtonStyle,
+                  opacity: savingDraft ? 0.58 : 1,
+                  cursor: savingDraft ? "not-allowed" : "pointer",
+                }}
+              >
+                {savingDraft ? "Saving..." : "Save Draft"}
+              </button>
+
+              <button
+                type="button"
                 onClick={sendEmail}
                 disabled={sending}
                 style={{
@@ -648,8 +735,8 @@ export default function MailConsoleSendForm({
             </div>
 
             <div style={summaryRowStyle}>
-              <span>Image</span>
-              <b>{imageUrl ? imagePosition : "None"}</b>
+              <span>Brand logo</span>
+              <b>Automatic</b>
             </div>
 
             <div style={summaryRowStyle}>
@@ -674,71 +761,146 @@ export default function MailConsoleSendForm({
             >
               <div
                 style={{
-                  fontSize: 12,
-                  fontWeight: 950,
-                  letterSpacing: 1.8,
-                  textTransform: "uppercase",
-                  color: "rgba(0,0,0,0.58)",
-                  marginBottom: 12,
+                  textAlign: "center",
+                  marginBottom: 10,
                 }}
               >
-                Email preview notes
-              </div>
-
-              <h3 style={{ margin: "0 0 8px", fontSize: 18 }}>
-                {title || "Header title"}
-              </h3>
-
-              {badge ? (
                 <div
                   style={{
-                    display: "inline-block",
-                    borderRadius: 999,
-                    background: "white",
-                    border: "1px solid rgba(0,0,0,0.10)",
-                    padding: "5px 10px",
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: 950,
-                    marginBottom: 10,
+                    letterSpacing: 2.6,
+                    color: "rgba(0,0,0,0.78)",
                   }}
                 >
-                  {badge}
+                  STAYKNOWN™
                 </div>
-              ) : null}
 
-              {subtitle ? (
-                <p
+                <div style={{ height: 6 }} />
+
+                <div
                   style={{
-                    margin: "0 0 12px",
-                    fontSize: 13,
-                    lineHeight: 1.55,
-                    color: "rgba(0,0,0,0.62)",
+                    fontSize: 11,
+                    fontWeight: 900,
+                    letterSpacing: 1.6,
+                    color: "rgba(0,0,0,0.58)",
                   }}
                 >
-                  {subtitle}
-                </p>
-              ) : null}
+                  A 6 Clement Joshua service™
+                </div>
+
+                <div style={{ height: 10 }} />
+
+                <img
+                  src={brandLogoUrl}
+                  alt="StayKnown"
+                  width={64}
+                  height={64}
+                  style={{
+                    display: "inline-block",
+                    borderRadius: 18,
+                    boxShadow: "0 14px 38px rgba(0,0,0,0.14)",
+                  }}
+                />
+
+                <div style={{ height: 14 }} />
+
+                <div
+                  style={{
+                    fontSize: 18,
+                    fontWeight: 950,
+                    letterSpacing: 0.2,
+                    color: "#0b0b0b",
+                    lineHeight: 1.35,
+                  }}
+                >
+                  {title || "Header title"}
+                </div>
+
+                {badge ? (
+                  <div style={{ marginTop: 10 }}>
+                    <span
+                      style={{
+                        display: "inline-block",
+                        padding: "6px 12px",
+                        borderRadius: 999,
+                        border: "1px solid rgba(0,0,0,0.10)",
+                        background: "rgba(255,255,255,0.72)",
+                        fontSize: 12,
+                        fontWeight: 800,
+                        letterSpacing: 0.6,
+                        color: "#111",
+                      }}
+                    >
+                      {badge}
+                    </span>
+                  </div>
+                ) : null}
+
+                {subtitle ? (
+                  <div
+                    style={{
+                      marginTop: 10,
+                      fontSize: 13,
+                      color: "rgba(0,0,0,0.65)",
+                      lineHeight: 1.55,
+                    }}
+                  >
+                    {subtitle}
+                  </div>
+                ) : null}
+              </div>
 
               <div
                 style={{
-                  background: "white",
-                  borderRadius: 18,
-                  padding: 14,
-                  border: "1px solid rgba(0,0,0,0.08)",
-                  fontSize: 13,
-                  lineHeight: 1.65,
-                  whiteSpace: "pre-wrap",
-                  color: "rgba(0,0,0,0.72)",
-                  minHeight: 120,
+                  borderRadius: 22,
+                  border: "1px solid rgba(0,0,0,0.10)",
+                  background: "rgba(255,255,255,0.78)",
+                  boxShadow:
+                    "inset 0 1px 0 rgba(255,255,255,0.92),0 28px 75px rgba(0,0,0,0.09)",
+                  overflow: "hidden",
                 }}
               >
-                {message || "Your email body preview will appear here."}
+                <div
+                  style={{
+                    padding: "18px 20px",
+                    fontSize: 15,
+                    lineHeight: 1.75,
+                    color: "rgba(0,0,0,0.82)",
+                    whiteSpace: "pre-wrap",
+                    minHeight: 130,
+                  }}
+                >
+                  {message || "Your email body preview will appear here."}
+                </div>
               </div>
+
+              {ctaLabel && ctaUrl ? (
+                <div style={{ textAlign: "center", marginTop: 18 }}>
+                  <span
+                    style={{
+                      display: "inline-block",
+                      padding: "13px 18px",
+                      borderRadius: 999,
+                      border: "1px solid rgba(0,0,0,0.10)",
+                      background: "rgba(255,255,255,0.86)",
+                      color: "#0b0b0b",
+                      textDecoration: "none",
+                      fontWeight: 950,
+                      letterSpacing: 0.4,
+                      boxShadow:
+                        "inset 0 1px 0 rgba(255,255,255,0.92),0 20px 55px rgba(0,0,0,0.08)",
+                    }}
+                  >
+                    {ctaLabel}
+                  </span>
+                </div>
+              ) : null}
 
               {footerText ? (
                 <div
                   style={{
-                    marginTop: 12,
+                    marginTop: 16,
                     fontSize: 11,
                     lineHeight: 1.65,
                     color: "rgba(0,0,0,0.55)",
@@ -749,6 +911,19 @@ export default function MailConsoleSendForm({
                   {footerText}
                 </div>
               ) : null}
+
+              <div
+                style={{
+                  marginTop: 8,
+                  textAlign: "center",
+                  fontSize: 11,
+                  lineHeight: 1.5,
+                  color: "rgba(0,0,0,0.52)",
+                }}
+              >
+                © {new Date().getFullYear()} StayKnown™ · A 6 Clement Joshua
+                service™
+              </div>
             </div>
           </aside>
         </div>

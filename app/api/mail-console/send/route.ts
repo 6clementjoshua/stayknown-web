@@ -1,3 +1,5 @@
+import { getMailConsoleSiteUrl } from "@/lib/mailConsoleAdmin";
+import { createUnsubscribeToken } from "@/lib/mailConsoleUnsubscribe";
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import {
@@ -874,6 +876,12 @@ export async function POST(req: NextRequest) {
     const from = `${senderRow.from_name} <${senderRow.from_email}>`;
 
     const newsletterLike = mode === "newsletter" || mode === "advert";
+    const siteUrl = getMailConsoleSiteUrl();
+
+    function unsubscribeLinkFor(email: string) {
+      const token = createUnsubscribeToken(email);
+      return `${siteUrl}/unsubscribe?email=${encodeURIComponent(email)}&token=${encodeURIComponent(token)}`;
+    }
 
     const headers: Record<string, string> = {};
 
@@ -958,12 +966,32 @@ export async function POST(req: NextRequest) {
 
         logId = Number(logRow?.id || 0) || null;
 
+        const recipientUnsubscribeLink = newsletterLike
+          ? unsubscribeLinkFor(recipient)
+          : "";
+
+        const htmlForRecipient = newsletterLike
+          ? html.replace(
+              "</div>\n              </td>",
+              `<div style="height:8px;"></div>
+       <div style="text-align:center;font-size:11px;line-height:1.6;color:rgba(0,0,0,0.55);">
+         <a href="${recipientUnsubscribeLink}" style="color:rgba(0,0,0,0.72);font-weight:900;">Unsubscribe from marketing emails</a>
+       </div>
+       </div>
+              </td>`,
+            )
+          : html;
+
+        if (newsletterLike) {
+          headers["List-Unsubscribe"] = `<${recipientUnsubscribeLink}>`;
+        }
+
         const resendResult = await sendResend({
           apiKey: resendApiKey,
           from,
           to: recipient,
           subject,
-          html,
+          html: htmlForRecipient,
           text,
           replyTo,
           attachments,

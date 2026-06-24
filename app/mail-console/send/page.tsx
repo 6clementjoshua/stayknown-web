@@ -7,6 +7,15 @@ import {
   verifyMailConsoleSessionToken,
 } from "@/lib/mailConsoleServerAuth";
 
+type MailTemplate = {
+  id: string;
+  name: string;
+  mode: string;
+  subject: string | null;
+  body_text: string | null;
+  default_image_position: string;
+};
+
 type SenderIdentity = {
   id: string;
   label: string;
@@ -93,11 +102,23 @@ export default async function MailConsoleSendPage() {
     throw new Error(footerError.message);
   }
 
+  const { data: templateRows, error: templateError } = await admin
+    .from("mail_console_templates")
+    .select("id,name,mode,subject,body_text,default_image_position")
+    .eq("is_active", true)
+    .order("mode", { ascending: true })
+    .order("name", { ascending: true });
+
+  if (templateError) {
+    throw new Error(templateError.message);
+  }
+
   return (
     <MailConsoleSendForm
       adminEmail={adminEmail}
       senders={(senderRows || []) as SenderIdentity[]}
       footerPolicies={(footerRows || []) as FooterPolicy[]}
+      templates={(templateRows || []) as MailTemplate[]}
     />
   );
 }

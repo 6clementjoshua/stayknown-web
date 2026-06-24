@@ -177,6 +177,60 @@ export default async function MailConsolePage() {
                 Compose Email
               </Link>
 
+              <Link
+                href="/mail-console/logs"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  borderRadius: 999,
+                  padding: "13px 18px",
+                  background: "white",
+                  color: "#050505",
+                  fontWeight: 950,
+                  textDecoration: "none",
+                  boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.10)",
+                }}
+              >
+                Logs
+              </Link>
+
+              <Link
+                href="/mail-console/footer-policies"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  borderRadius: 999,
+                  padding: "13px 18px",
+                  background: "white",
+                  color: "#050505",
+                  fontWeight: 950,
+                  textDecoration: "none",
+                  boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.10)",
+                }}
+              >
+                Footer Policies
+              </Link>
+
+              <Link
+                href="/mail-console/templates"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  borderRadius: 999,
+                  padding: "13px 18px",
+                  background: "white",
+                  color: "#050505",
+                  fontWeight: 950,
+                  textDecoration: "none",
+                  boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.10)",
+                }}
+              >
+                Templates
+              </Link>
+
               <form action="/api/mail-console/logout" method="post">
                 <button
                   type="submit"
@@ -188,7 +242,6 @@ export default async function MailConsolePage() {
                     color: "#050505",
                     fontWeight: 950,
                     cursor: "pointer",
-                    borderColor: "rgba(0,0,0,0.10)",
                     boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.10)",
                   }}
                 >
