@@ -87,7 +87,7 @@ export default function MailConsoleSendForm({
   const [badge, setBadge] = useState(defaultBadgeForMode("support"));
   const [message, setMessage] = useState("");
   const [imageUrl, setImageUrl] = useState("");
-  const [imagePosition, setImagePosition] = useState<ImagePosition>("none");
+  const [imagePosition, setImagePosition] = useState<ImagePosition>("top");
   const [ctaLabel, setCtaLabel] = useState("");
   const [ctaUrl, setCtaUrl] = useState("");
   const [footerPolicyId, setFooterPolicyId] = useState("");
@@ -431,10 +431,10 @@ export default function MailConsoleSendForm({
                   }
                   style={inputStyle}
                 >
-                  <option value="none">No image</option>
-                  <option value="top">Before message</option>
+                  <option value="top">Before message — default</option>
                   <option value="bottom">After message</option>
                   <option value="both">Before and after</option>
+                  <option value="none">No extra image</option>
                 </select>
               </div>
             </div>
@@ -472,7 +472,7 @@ export default function MailConsoleSendForm({
                     setFooterPolicyId(e.target.value);
                     setCustomFooter("");
                   }}
-                  style={inputStyle}
+                  style={{ ...inputStyle, textAlign: "center" }}
                 >
                   <option value="">Select footer policy</option>
                   {allowedFooters.map((f) => (
@@ -504,7 +504,13 @@ export default function MailConsoleSendForm({
                 value={customFooter || selectedFooter?.footer_html || ""}
                 onChange={(e) => setCustomFooter(e.target.value)}
                 placeholder="Select a footer policy or write custom footer text..."
-                style={{ ...inputStyle, minHeight: 120, resize: "vertical" }}
+                style={{
+                  ...inputStyle,
+                  minHeight: 120,
+                  resize: "vertical",
+                  textAlign: "center",
+                  lineHeight: 1.65,
+                }}
               />
             </div>
 
@@ -734,9 +740,10 @@ export default function MailConsoleSendForm({
                   style={{
                     marginTop: 12,
                     fontSize: 11,
-                    lineHeight: 1.55,
+                    lineHeight: 1.65,
                     color: "rgba(0,0,0,0.55)",
                     whiteSpace: "pre-wrap",
+                    textAlign: "center",
                   }}
                 >
                   {footerText}

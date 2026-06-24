@@ -129,10 +129,19 @@ function htmlToText(html: string) {
     .trim();
 }
 
+function getSiteUrl() {
+  return (
+    clean(process.env.NEXT_PUBLIC_SITE_URL) ||
+    clean(process.env.SITE_URL) ||
+    "https://stay-known.com"
+  ).replace(/\/+$/g, "");
+}
+
 function getLogoUrl() {
   return (
+    clean(process.env.MAIL_CONSOLE_BRAND_LOGO_URL) ||
     clean(process.env.BRAND_LOGO_URL) ||
-    "https://ipognlibpkbauusvfeic.supabase.co/storage/v1/object/public/public-assets/stayknown-logo.png"
+    `${getSiteUrl()}/6logo.png`
   );
 }
 
@@ -271,6 +280,25 @@ function linkOnlyFilesBlock(files: Array<{ filename: string; url: string }>) {
       <div style="font-size:11px;line-height:1.5;color:rgba(0,0,0,0.55);margin-top:8px;">
         These links may expire for security.
       </div>
+    </div>
+  `;
+}
+
+function centeredFooterHtml(footerText: string) {
+  const cleanFooter = clean(footerText);
+
+  if (!cleanFooter) return "";
+
+  return `
+    <div style="
+      text-align:center;
+      margin:0 auto;
+      max-width:500px;
+      font-size:11px;
+      line-height:1.65;
+      color:rgba(0,0,0,0.55);
+    ">
+      ${escapeHtml(cleanFooter).replaceAll("\n", "<br/>")}
     </div>
   `;
 }
@@ -416,7 +444,7 @@ function buildHtml(p: {
     subtitle: p.subtitle,
     badge: p.badge,
     contentHtml,
-    footerHtml: escapeHtml(p.footerHtml).replaceAll("\n", "<br/>"),
+    footerHtml: centeredFooterHtml(p.footerHtml),
   });
 }
 
@@ -641,10 +669,17 @@ export async function POST(req: NextRequest) {
       footerPolicy = (fp || null) as FooterPolicy | null;
     }
 
-    const finalFooter =
-      footerHtml ||
-      footerPolicy?.footer_html ||
-      "This message was sent by StayKnown.";
+    const finalFooter = footerHtml || footerPolicy?.footer_html || "";
+
+    if (!finalFooter) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "Select a footer policy or write a custom footer.",
+        },
+        { status: 400 },
+      );
+    }
 
     const replyMode =
       mode === "newsletter" || mode === "advert" ? "no_reply" : "reply_enabled";
