@@ -7,6 +7,123 @@ type MailMode = "support" | "newsletter" | "advert" | "investor";
 type ImagePosition = "none" | "top" | "bottom" | "both";
 type AttachmentMode = "attach" | "link_only" | "inline_image";
 
+type PolicyLinkKey =
+  | "privacy"
+  | "terms"
+  | "location_safety"
+  | "contact_consent"
+  | "acceptable_use"
+  | "safety"
+  | "trust_safety"
+  | "verification_policy"
+  | "emergency"
+  | "minors"
+  | "guardian_consent"
+  | "abuse"
+  | "retention"
+  | "law"
+  | "security"
+  | "creator_policy"
+  | "donor_policy"
+  | "billing_policy";
+
+const POLICY_LINK_OPTIONS: Array<{
+  key: PolicyLinkKey;
+  label: string;
+  href: string;
+}> = [
+  {
+    key: "privacy",
+    label: "Privacy Policy",
+    href: "https://stay-known.com/privacy",
+  },
+  {
+    key: "terms",
+    label: "Terms of Service",
+    href: "https://stay-known.com/terms",
+  },
+  {
+    key: "location_safety",
+    label: "Location & Live Safety",
+    href: "https://stay-known.com/location-safety",
+  },
+  {
+    key: "contact_consent",
+    label: "Contact Consent",
+    href: "https://stay-known.com/contact-consent",
+  },
+  {
+    key: "acceptable_use",
+    label: "Acceptable Use",
+    href: "https://stay-known.com/acceptable-use",
+  },
+  {
+    key: "safety",
+    label: "Safety & Anti-Stalking",
+    href: "https://stay-known.com/safety",
+  },
+  {
+    key: "trust_safety",
+    label: "Trust & Safety",
+    href: "https://stay-known.com/trust-safety",
+  },
+  {
+    key: "verification_policy",
+    label: "Verification Policy",
+    href: "https://stay-known.com/verification-policy",
+  },
+  {
+    key: "emergency",
+    label: "Emergency Disclaimer",
+    href: "https://stay-known.com/emergency",
+  },
+  {
+    key: "minors",
+    label: "Child Safety & Minor Use",
+    href: "https://stay-known.com/minors",
+  },
+  {
+    key: "guardian_consent",
+    label: "Guardian Consent",
+    href: "https://stay-known.com/guardian-consent",
+  },
+  {
+    key: "abuse",
+    label: "Abuse Reporting",
+    href: "https://stay-known.com/abuse",
+  },
+  {
+    key: "retention",
+    label: "Data Retention",
+    href: "https://stay-known.com/retention",
+  },
+  {
+    key: "law",
+    label: "Law Enforcement Requests",
+    href: "https://stay-known.com/law",
+  },
+  {
+    key: "security",
+    label: "Security Disclosure",
+    href: "https://stay-known.com/security",
+  },
+  {
+    key: "creator_policy",
+    label: "Creator Policy",
+    href: "https://stay-known.com/creator-policy",
+  },
+  {
+    key: "donor_policy",
+    label: "Donor Policy",
+    href: "https://stay-known.com/donor-policy",
+  },
+  {
+    key: "billing_policy",
+    label: "Billing & Refunds",
+    href: "https://stay-known.com/billing-policy",
+  },
+];
+
 type MailTemplate = {
   id: string;
   name: string;
@@ -107,6 +224,9 @@ export default function MailConsoleSendForm({
   const [ctaUrl, setCtaUrl] = useState("");
   const [footerPolicyId, setFooterPolicyId] = useState("");
   const [customFooter, setCustomFooter] = useState("");
+  const [selectedPolicyLinks, setSelectedPolicyLinks] = useState<
+    PolicyLinkKey[]
+  >(["privacy", "terms"]);
   const [files, setFiles] = useState<PickedFile[]>([]);
   const [status, setStatus] = useState("");
   const [sending, setSending] = useState(false);
@@ -194,6 +314,7 @@ export default function MailConsoleSendForm({
           cta_url: ctaUrl,
           footer_policy_id: footerPolicyId,
           footer_html: customFooter || selectedFooter?.footer_html || "",
+          policy_links: selectedPolicyLinks,
         }),
       });
 
@@ -240,6 +361,16 @@ export default function MailConsoleSendForm({
     setFiles((prev) => prev.filter((f) => f.id !== id));
   }
 
+  function togglePolicyLink(key: PolicyLinkKey) {
+    setSelectedPolicyLinks((prev) => {
+      if (prev.includes(key)) {
+        return prev.filter((x) => x !== key);
+      }
+
+      return [...prev, key];
+    });
+  }
+
   async function sendEmail() {
     if (sending) return;
 
@@ -266,6 +397,7 @@ export default function MailConsoleSendForm({
         "footer_html",
         customFooter || selectedFooter?.footer_html || "",
       );
+      form.append("policy_links", JSON.stringify(selectedPolicyLinks));
 
       form.append(
         "file_modes",
@@ -586,6 +718,61 @@ export default function MailConsoleSendForm({
                   lineHeight: 1.65,
                 }}
               />
+            </div>
+
+            <div style={fieldStyle}>
+              <label style={labelStyle}>Clickable policy links</label>
+
+              <div
+                style={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: 8,
+                  justifyContent: "center",
+                  borderRadius: 18,
+                  border: "1px solid rgba(0,0,0,0.08)",
+                  background: "rgba(0,0,0,0.025)",
+                  padding: 12,
+                }}
+              >
+                {POLICY_LINK_OPTIONS.map((item) => {
+                  const active = selectedPolicyLinks.includes(item.key);
+
+                  return (
+                    <button
+                      key={item.key}
+                      type="button"
+                      onClick={() => togglePolicyLink(item.key)}
+                      style={{
+                        border: 0,
+                        borderRadius: 999,
+                        padding: "9px 11px",
+                        background: active ? "#050505" : "white",
+                        color: active ? "white" : "#050505",
+                        fontSize: 12,
+                        fontWeight: 900,
+                        cursor: "pointer",
+                        boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.10)",
+                      }}
+                    >
+                      {item.label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div
+                style={{
+                  marginTop: 8,
+                  fontSize: 12,
+                  lineHeight: 1.55,
+                  color: "rgba(0,0,0,0.58)",
+                  textAlign: "center",
+                }}
+              >
+                Selected links will appear centered and clickable in the
+                delivered email footer.
+              </div>
             </div>
 
             <div style={sectionHeaderStyle}>Attachments</div>
@@ -909,6 +1096,43 @@ export default function MailConsoleSendForm({
                   }}
                 >
                   {footerText}
+                </div>
+              ) : null}
+
+              {selectedPolicyLinks.length > 0 ? (
+                <div
+                  style={{
+                    marginTop: 10,
+                    display: "flex",
+                    flexWrap: "wrap",
+                    gap: 8,
+                    justifyContent: "center",
+                    fontSize: 11,
+                    lineHeight: 1.5,
+                    textAlign: "center",
+                  }}
+                >
+                  {selectedPolicyLinks.map((key) => {
+                    const item = POLICY_LINK_OPTIONS.find((x) => x.key === key);
+                    if (!item) return null;
+
+                    return (
+                      <a
+                        key={key}
+                        href={item.href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                          color: "rgba(0,0,0,0.72)",
+                          fontWeight: 900,
+                          textDecoration: "underline",
+                          textUnderlineOffset: 3,
+                        }}
+                      >
+                        {item.label}
+                      </a>
+                    );
+                  })}
                 </div>
               ) : null}
 

@@ -38,6 +38,98 @@ type ResendAttachment = {
   content_type?: string;
 };
 
+type PolicyLinkKey =
+  | "privacy"
+  | "terms"
+  | "location_safety"
+  | "contact_consent"
+  | "acceptable_use"
+  | "safety"
+  | "trust_safety"
+  | "verification_policy"
+  | "emergency"
+  | "minors"
+  | "guardian_consent"
+  | "abuse"
+  | "retention"
+  | "law"
+  | "security"
+  | "creator_policy"
+  | "donor_policy"
+  | "billing_policy";
+
+const POLICY_LINK_OPTIONS: Record<
+  PolicyLinkKey,
+  {
+    label: string;
+    href: string;
+  }
+> = {
+  privacy: { label: "Privacy Policy", href: "https://stay-known.com/privacy" },
+  terms: { label: "Terms of Service", href: "https://stay-known.com/terms" },
+  location_safety: {
+    label: "Location & Live Safety",
+    href: "https://stay-known.com/location-safety",
+  },
+  contact_consent: {
+    label: "Contact Consent",
+    href: "https://stay-known.com/contact-consent",
+  },
+  acceptable_use: {
+    label: "Acceptable Use",
+    href: "https://stay-known.com/acceptable-use",
+  },
+  safety: {
+    label: "Safety & Anti-Stalking",
+    href: "https://stay-known.com/safety",
+  },
+  trust_safety: {
+    label: "Trust & Safety",
+    href: "https://stay-known.com/trust-safety",
+  },
+  verification_policy: {
+    label: "Verification Policy",
+    href: "https://stay-known.com/verification-policy",
+  },
+  emergency: {
+    label: "Emergency Disclaimer",
+    href: "https://stay-known.com/emergency",
+  },
+  minors: {
+    label: "Child Safety & Minor Use",
+    href: "https://stay-known.com/minors",
+  },
+  guardian_consent: {
+    label: "Guardian Consent",
+    href: "https://stay-known.com/guardian-consent",
+  },
+  abuse: { label: "Abuse Reporting", href: "https://stay-known.com/abuse" },
+  retention: {
+    label: "Data Retention",
+    href: "https://stay-known.com/retention",
+  },
+  law: {
+    label: "Law Enforcement Requests",
+    href: "https://stay-known.com/law",
+  },
+  security: {
+    label: "Security Disclosure",
+    href: "https://stay-known.com/security",
+  },
+  creator_policy: {
+    label: "Creator Policy",
+    href: "https://stay-known.com/creator-policy",
+  },
+  donor_policy: {
+    label: "Donor Policy",
+    href: "https://stay-known.com/donor-policy",
+  },
+  billing_policy: {
+    label: "Billing & Refunds",
+    href: "https://stay-known.com/billing-policy",
+  },
+};
+
 function clean(v: unknown) {
   return typeof v === "string" ? v.trim() : "";
 }
@@ -112,6 +204,54 @@ function textToHtml(text: string) {
       return `<p style="margin:0 0 14px 0;font-size:15px;line-height:1.75;color:rgba(0,0,0,0.82);">${lines}</p>`;
     })
     .join("");
+}
+
+function parsePolicyLinks(raw: string): PolicyLinkKey[] {
+  try {
+    const parsed = JSON.parse(raw || "[]");
+
+    if (!Array.isArray(parsed)) {
+      return ["privacy", "terms"];
+    }
+
+    const allowed = new Set(Object.keys(POLICY_LINK_OPTIONS));
+
+    const links = parsed
+      .map((x) => clean(x))
+      .filter((x): x is PolicyLinkKey => allowed.has(x));
+
+    return [...new Set(links)];
+  } catch (_) {
+    return ["privacy", "terms"];
+  }
+}
+
+function policyLinksHtml(keys: PolicyLinkKey[]) {
+  if (keys.length === 0) return "";
+
+  const links = keys
+    .map((key) => {
+      const item = POLICY_LINK_OPTIONS[key];
+
+      if (!item) return "";
+
+      return `<a href="${escapeHtml(item.href)}" target="_blank" rel="noopener noreferrer" style="color:rgba(0,0,0,0.72);font-weight:900;text-decoration:underline;text-underline-offset:3px;">${escapeHtml(item.label)}</a>`;
+    })
+    .filter(Boolean)
+    .join(`<span style="color:rgba(0,0,0,0.25);padding:0 6px;">•</span>`);
+
+  return `
+    <div style="
+      margin:10px auto 0;
+      text-align:center;
+      max-width:500px;
+      font-size:11px;
+      line-height:1.65;
+      color:rgba(0,0,0,0.55);
+    ">
+      ${links}
+    </div>
+  `;
 }
 
 function htmlToText(html: string) {
@@ -286,10 +426,15 @@ function linkOnlyFilesBlock(files: Array<{ filename: string; url: string }>) {
   `;
 }
 
-function centeredFooterHtml(footerText: string) {
-  const cleanFooter = clean(footerText);
+function centeredFooterHtml(footerHtml: string) {
+  const cleanFooter = clean(footerHtml);
 
   if (!cleanFooter) return "";
+
+  const parts = cleanFooter.split("\n\n");
+
+  const textPart = parts[0] || "";
+  const htmlParts = parts.slice(1).join("\n\n");
 
   return `
     <div style="
@@ -300,8 +445,9 @@ function centeredFooterHtml(footerText: string) {
       line-height:1.65;
       color:rgba(0,0,0,0.55);
     ">
-      ${escapeHtml(cleanFooter).replaceAll("\n", "<br/>")}
+      ${escapeHtml(textPart).replaceAll("\n", "<br/>")}
     </div>
+    ${htmlParts}
   `;
 }
 
@@ -571,6 +717,9 @@ export async function POST(req: NextRequest) {
     const ctaUrl = clean(form.get("cta_url"));
     const footerPolicyId = clean(form.get("footer_policy_id"));
     const footerHtml = clean(form.get("footer_html"));
+    const selectedPolicyLinks = parsePolicyLinks(
+      clean(form.get("policy_links")),
+    );
 
     if (!senderIdentityId) {
       return NextResponse.json(
@@ -671,9 +820,9 @@ export async function POST(req: NextRequest) {
       footerPolicy = (fp || null) as FooterPolicy | null;
     }
 
-    const finalFooter = footerHtml || footerPolicy?.footer_html || "";
+    const finalFooterText = footerHtml || footerPolicy?.footer_html || "";
 
-    if (!finalFooter) {
+    if (!finalFooterText) {
       return NextResponse.json(
         {
           ok: false,
@@ -682,6 +831,8 @@ export async function POST(req: NextRequest) {
         { status: 400 },
       );
     }
+
+    const finalFooter = `${finalFooterText}\n\n${policyLinksHtml(selectedPolicyLinks)}`;
 
     const replyMode =
       mode === "newsletter" || mode === "advert" ? "no_reply" : "reply_enabled";
@@ -714,6 +865,7 @@ export async function POST(req: NextRequest) {
           admin_email: adminEmail,
           sender_email: senderRow.from_email,
           recipient_count: recipients.length,
+          policy_links: selectedPolicyLinks,
         },
       })
       .select("id")

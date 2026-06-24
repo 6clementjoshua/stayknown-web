@@ -44,6 +44,9 @@ export async function POST(req: NextRequest) {
     const ctaLabel = clean(body.cta_label);
     const ctaUrl = clean(body.cta_url);
     const footerPolicyId = clean(body.footer_policy_id);
+    const policyLinks = Array.isArray(body.policy_links)
+      ? body.policy_links
+      : [];
 
     const { data, error } = await admin
       .from("mail_console_campaigns")
@@ -70,6 +73,7 @@ export async function POST(req: NextRequest) {
         meta: {
           created_from: "mail_console_save_draft",
           admin_email: adminEmail,
+          policy_links: policyLinks,
         },
       })
       .select("id")
