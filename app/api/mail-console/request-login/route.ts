@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { createMailConsoleLoginToken } from "@/lib/mailConsoleServerAuth";
 
 const OWNER_EMAIL = "6clementjoshua@gmail.com";
 
@@ -88,7 +89,7 @@ function buildAdminLoginEmailHtml(params: {
                     </a>
 
                     <p style="margin:18px 0 0;font-size:12px;line-height:1.6;color:rgba(0,0,0,0.55);">
-                      If you did not request this, ignore this email. Do not forward this link.
+                      This private link expires in 15 minutes. If you did not request this, ignore this email.
                     </p>
                   </div>
                 </div>
@@ -164,7 +165,6 @@ export async function POST(req: NextRequest) {
     const supabaseUrl = clean(
       process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL,
     );
-
     const supabaseServiceRoleKey = clean(process.env.SUPABASE_SERVICE_ROLE_KEY);
     const resendApiKey = clean(process.env.RESEND_API_KEY);
 
@@ -191,8 +191,6 @@ export async function POST(req: NextRequest) {
 
     const siteUrl =
       clean(process.env.NEXT_PUBLIC_SITE_URL) || "https://stay-known.com";
-
-    const callbackUrl = `${siteUrl.replace(/\/+$/g, "")}/mail-auth/callback`;
 
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey, {
       auth: {
@@ -225,30 +223,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { data: linkData, error: linkError } =
-      await supabaseAdmin.auth.admin.generateLink({
-        type: "magiclink",
-        email,
-        options: {
-          redirectTo: callbackUrl,
-        },
-      });
-
-    if (linkError) {
-      return NextResponse.json(
-        { ok: false, error: linkError.message },
-        { status: 400 },
-      );
-    }
-
-    const actionLink = clean(linkData?.properties?.action_link);
-
-    if (!actionLink) {
-      return NextResponse.json(
-        { ok: false, error: "Supabase did not return a login link." },
-        { status: 500 },
-      );
-    }
+    const token = createMailConsoleLoginToken(email);
+    const loginLink = `${siteUrl.replace(/\/+$/g, "")}/mail-auth/callback?token=${encodeURIComponent(token)}`;
 
     const from =
       clean(process.env.MAIL_CONSOLE_LOGIN_FROM) ||
@@ -261,7 +237,7 @@ export async function POST(req: NextRequest) {
       to: email,
       subject: "StayKnown Mail Console Admin Login",
       html: buildAdminLoginEmailHtml({
-        loginLink: actionLink,
+        loginLink,
         email,
       }),
     });
@@ -270,7 +246,6 @@ export async function POST(req: NextRequest) {
       ok: true,
       message:
         "Admin login link sent. Open your email and tap the StayKnown Mail Console link.",
-      redirectTo: callbackUrl,
     });
   } catch (err) {
     return NextResponse.json(
