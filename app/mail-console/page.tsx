@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
@@ -89,14 +90,8 @@ export default async function MailConsolePage() {
 
   const senders = (senderRows || []) as SenderIdentity[];
 
-  const thStyle: React.CSSProperties = {
-    textAlign: "left",
-    padding: "12px 14px",
-    fontSize: 12,
-    fontWeight: 950,
-    color: "rgba(0,0,0,0.62)",
-    whiteSpace: "nowrap",
-  };
+  const supportCount = senders.filter((s) => s.can_send_support).length;
+  const newsletterCount = senders.filter((s) => s.can_send_newsletter).length;
 
   return (
     <main
@@ -107,11 +102,11 @@ export default async function MailConsolePage() {
         color: "#050505",
       }}
     >
-      <section style={{ maxWidth: 1040, margin: "0 auto" }}>
+      <section style={{ maxWidth: 1080, margin: "0 auto" }}>
         <header
           style={{
-            borderRadius: 28,
-            background: "rgba(255,255,255,0.88)",
+            borderRadius: 30,
+            background: "rgba(255,255,255,0.9)",
             border: "1px solid rgba(0,0,0,0.08)",
             boxShadow: "0 24px 70px rgba(0,0,0,0.09)",
             padding: 24,
@@ -121,7 +116,7 @@ export default async function MailConsolePage() {
           <div
             style={{
               display: "flex",
-              gap: 14,
+              gap: 18,
               alignItems: "center",
               justifyContent: "space-between",
               flexWrap: "wrap",
@@ -132,7 +127,7 @@ export default async function MailConsolePage() {
                 style={{
                   fontSize: 12,
                   fontWeight: 950,
-                  letterSpacing: 2.4,
+                  letterSpacing: 2.8,
                   textTransform: "uppercase",
                   color: "rgba(0,0,0,0.58)",
                 }}
@@ -143,7 +138,7 @@ export default async function MailConsolePage() {
               <h1
                 style={{
                   margin: "8px 0 4px",
-                  fontSize: 32,
+                  fontSize: 34,
                   lineHeight: 1.05,
                   fontWeight: 950,
                 }}
@@ -163,22 +158,44 @@ export default async function MailConsolePage() {
               </p>
             </div>
 
-            <form action="/api/mail-console/logout" method="post">
-              <button
-                type="submit"
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              <Link
+                href="/mail-console/send"
                 style={{
-                  border: 0,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
                   borderRadius: 999,
-                  padding: "12px 16px",
+                  padding: "13px 18px",
                   background: "#050505",
                   color: "white",
-                  fontWeight: 900,
-                  cursor: "pointer",
+                  fontWeight: 950,
+                  textDecoration: "none",
+                  boxShadow: "0 16px 38px rgba(0,0,0,0.18)",
                 }}
               >
-                Logout
-              </button>
-            </form>
+                Compose Email
+              </Link>
+
+              <form action="/api/mail-console/logout" method="post">
+                <button
+                  type="submit"
+                  style={{
+                    border: 0,
+                    borderRadius: 999,
+                    padding: "13px 18px",
+                    background: "white",
+                    color: "#050505",
+                    fontWeight: 950,
+                    cursor: "pointer",
+                    borderColor: "rgba(0,0,0,0.10)",
+                    boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.10)",
+                  }}
+                >
+                  Logout
+                </button>
+              </form>
+            </div>
           </div>
         </header>
 
@@ -198,38 +215,83 @@ export default async function MailConsolePage() {
 
           <div style={cardStyle}>
             <div style={labelStyle}>SUPPORT SENDERS</div>
-            <div style={countStyle}>
-              {senders.filter((s) => s.can_send_support).length}
-            </div>
+            <div style={countStyle}>{supportCount}</div>
             <div style={hintStyle}>Can be used for reply-enabled email.</div>
           </div>
 
           <div style={cardStyle}>
             <div style={labelStyle}>NEWSLETTER SENDERS</div>
-            <div style={countStyle}>
-              {senders.filter((s) => s.can_send_newsletter).length}
-            </div>
+            <div style={countStyle}>{newsletterCount}</div>
             <div style={hintStyle}>Can be used for newsletters/adverts.</div>
           </div>
         </div>
 
         <section
           style={{
-            borderRadius: 28,
+            borderRadius: 30,
+            background: "white",
+            border: "1px solid rgba(0,0,0,0.08)",
+            overflow: "hidden",
+            marginBottom: 18,
+          }}
+        >
+          <div style={{ padding: 22 }}>
+            <h2 style={{ margin: 0, fontSize: 22, fontWeight: 950 }}>
+              Send branded email
+            </h2>
+
+            <p
+              style={{
+                margin: "8px 0 18px",
+                fontSize: 14,
+                lineHeight: 1.65,
+                color: "rgba(0,0,0,0.62)",
+                maxWidth: 760,
+              }}
+            >
+              Compose support messages, newsletters, adverts, investor updates,
+              and branded company communication from verified StayKnown sender
+              addresses.
+            </p>
+
+            <Link
+              href="/mail-console/send"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                borderRadius: 999,
+                padding: "13px 18px",
+                background: "#050505",
+                color: "white",
+                fontWeight: 950,
+                textDecoration: "none",
+              }}
+            >
+              Open Composer
+            </Link>
+          </div>
+        </section>
+
+        <details
+          style={{
+            borderRadius: 30,
             background: "white",
             border: "1px solid rgba(0,0,0,0.08)",
             overflow: "hidden",
           }}
         >
-          <div
+          <summary
             style={{
               padding: 18,
-              borderBottom: "1px solid rgba(0,0,0,0.08)",
+              cursor: "pointer",
               fontWeight: 950,
+              listStyle: "none",
+              borderBottom: "1px solid rgba(0,0,0,0.08)",
             }}
           >
-            Sender identities
-          </div>
+            View sender identities
+          </summary>
 
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
@@ -258,14 +320,14 @@ export default async function MailConsolePage() {
               </tbody>
             </table>
           </div>
-        </section>
+        </details>
       </section>
     </main>
   );
 }
 
 const cardStyle: React.CSSProperties = {
-  borderRadius: 24,
+  borderRadius: 26,
   background: "white",
   border: "1px solid rgba(0,0,0,0.08)",
   padding: 20,
@@ -287,4 +349,13 @@ const hintStyle: React.CSSProperties = {
   fontSize: 13,
   opacity: 0.62,
   marginTop: 4,
+};
+
+const thStyle: React.CSSProperties = {
+  textAlign: "left",
+  padding: "12px 14px",
+  fontSize: 12,
+  fontWeight: 950,
+  color: "rgba(0,0,0,0.62)",
+  whiteSpace: "nowrap",
 };
