@@ -1,14 +1,12 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { useRouter } from "next/navigation";
 import { mailConsoleSupabase } from "@/lib/mailConsoleSupabase";
 
-export default function MailLoginPage() {
-  const router = useRouter();
+const OWNER_EMAIL = "6clementjoshua@gmail.com";
 
-  const [email, setEmail] = useState("6clementjoshua@gmail.com");
-  const [password, setPassword] = useState("");
+export default function MailLoginPage() {
+  const [email, setEmail] = useState(OWNER_EMAIL);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
 
@@ -21,43 +19,34 @@ export default function MailLoginPage() {
     try {
       const cleanEmail = email.trim().toLowerCase();
 
-      if (!cleanEmail || !password.trim()) {
-        setMessage("Enter your email and password.");
+      if (!cleanEmail) {
+        setMessage("Enter your admin email.");
         return;
       }
 
-      const { data, error } = await mailConsoleSupabase.auth.signInWithPassword(
-        {
-          email: cleanEmail,
-          password,
-        },
-      );
-
-      if (error || !data.session) {
-        setMessage(error?.message || "Login failed.");
-        return;
-      }
-
-      const { data: adminRow, error: adminError } = await mailConsoleSupabase
-        .from("mail_console_admins")
-        .select("id,email,role,is_active")
-        .eq("email", cleanEmail)
-        .eq("is_active", true)
-        .maybeSingle();
-
-      if (adminError) {
-        setMessage(adminError.message);
-        await mailConsoleSupabase.auth.signOut();
-        return;
-      }
-
-      if (!adminRow) {
+      if (cleanEmail !== OWNER_EMAIL) {
         setMessage("This email is not allowed to access the mail console.");
-        await mailConsoleSupabase.auth.signOut();
         return;
       }
 
-      router.replace("/mail-console");
+      const redirectTo = `${window.location.origin}/mail-console`;
+
+      const { error } = await mailConsoleSupabase.auth.signInWithOtp({
+        email: cleanEmail,
+        options: {
+          emailRedirectTo: redirectTo,
+          shouldCreateUser: false,
+        },
+      });
+
+      if (error) {
+        setMessage(error.message);
+        return;
+      }
+
+      setMessage(
+        "Login link sent. Open your email and tap the link to enter the mail console.",
+      );
     } catch (err) {
       setMessage(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
@@ -110,7 +99,7 @@ export default function MailLoginPage() {
               color: "#050505",
             }}
           >
-            Private Admin Login
+            Private Email Login
           </h1>
 
           <p
@@ -121,8 +110,8 @@ export default function MailLoginPage() {
               color: "rgba(0,0,0,0.58)",
             }}
           >
-            Login to send support emails, newsletters, adverts, and investor
-            messages using StayKnown sender addresses.
+            Enter your admin email. StayKnown will send a secure login link to
+            your inbox.
           </p>
         </div>
 
@@ -152,36 +141,6 @@ export default function MailLoginPage() {
               padding: "14px 14px",
               fontSize: 14,
               outline: "none",
-              marginBottom: 14,
-              color: "#050505",
-            }}
-          />
-
-          <label
-            style={{
-              display: "block",
-              fontSize: 12,
-              fontWeight: 900,
-              color: "rgba(0,0,0,0.68)",
-              marginBottom: 7,
-            }}
-          >
-            Password
-          </label>
-
-          <input
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            autoComplete="current-password"
-            type="password"
-            style={{
-              width: "100%",
-              borderRadius: 16,
-              border: "1px solid rgba(0,0,0,0.12)",
-              background: "white",
-              padding: "14px 14px",
-              fontSize: 14,
-              outline: "none",
               marginBottom: 16,
               color: "#050505",
             }}
@@ -203,7 +162,7 @@ export default function MailLoginPage() {
               boxShadow: "0 18px 44px rgba(0,0,0,0.18)",
             }}
           >
-            {busy ? "Checking..." : "Open Mail Console"}
+            {busy ? "Sending login link..." : "Send Login Link"}
           </button>
         </form>
 
@@ -212,9 +171,15 @@ export default function MailLoginPage() {
             style={{
               marginTop: 16,
               borderRadius: 16,
-              background: "rgba(255,0,0,0.06)",
-              border: "1px solid rgba(255,0,0,0.14)",
-              color: "#8a1111",
+              background: message.toLowerCase().includes("sent")
+                ? "rgba(0,180,90,0.08)"
+                : "rgba(255,0,0,0.06)",
+              border: message.toLowerCase().includes("sent")
+                ? "1px solid rgba(0,180,90,0.18)"
+                : "1px solid rgba(255,0,0,0.14)",
+              color: message.toLowerCase().includes("sent")
+                ? "#075f35"
+                : "#8a1111",
               padding: 12,
               fontSize: 13,
               lineHeight: 1.5,
