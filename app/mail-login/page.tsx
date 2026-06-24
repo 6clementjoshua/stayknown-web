@@ -1,7 +1,6 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { mailConsoleSupabase } from "@/lib/mailConsoleSupabase";
 
 const OWNER_EMAIL = "6clementjoshua@gmail.com";
 
@@ -24,28 +23,26 @@ export default function MailLoginPage() {
         return;
       }
 
-      if (cleanEmail !== OWNER_EMAIL) {
-        setMessage("This email is not allowed to access the mail console.");
-        return;
-      }
-
-      const redirectTo = `${window.location.origin}/mail-console`;
-
-      const { error } = await mailConsoleSupabase.auth.signInWithOtp({
-        email: cleanEmail,
-        options: {
-          emailRedirectTo: redirectTo,
-          shouldCreateUser: false,
+      const res = await fetch("/api/mail-console/request-login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         },
+        body: JSON.stringify({
+          email: cleanEmail,
+        }),
       });
 
-      if (error) {
-        setMessage(error.message);
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok || !data.ok) {
+        setMessage(data.error || "Could not send login link.");
         return;
       }
 
       setMessage(
-        "Login link sent. Open your email and tap the link to enter the mail console.",
+        data.message ||
+          "Login link sent. Open your email and tap the link to enter the mail console.",
       );
     } catch (err) {
       setMessage(err instanceof Error ? err.message : "Something went wrong.");
