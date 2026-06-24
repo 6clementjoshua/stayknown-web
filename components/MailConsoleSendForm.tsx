@@ -93,9 +93,8 @@ export default function MailConsoleSendForm({
   const [footerPolicyId, setFooterPolicyId] = useState("");
   const [customFooter, setCustomFooter] = useState("");
   const [files, setFiles] = useState<PickedFile[]>([]);
-  const [status, setStatus] = useState(
-    "Composer ready. The real send API is the next step.",
-  );
+  const [status, setStatus] = useState("");
+  const [sending, setSending] = useState(false);
 
   const allowedSenders = useMemo(
     () => senders.filter((s) => senderAllowedForMode(s, mode)),
@@ -156,10 +155,68 @@ export default function MailConsoleSendForm({
     setFiles((prev) => prev.filter((f) => f.id !== id));
   }
 
+  async function sendEmail() {
+    if (sending) return;
+
+    setSending(true);
+    setStatus("");
+
+    try {
+      const form = new FormData();
+
+      form.append("mode", mode);
+      form.append("sender_identity_id", senderId);
+      form.append("to", to);
+      form.append("subject", subject);
+      form.append("title", title);
+      form.append("subtitle", subtitle);
+      form.append("badge", badge);
+      form.append("message", message);
+      form.append("image_url", imageUrl);
+      form.append("image_position", imagePosition);
+      form.append("cta_label", ctaLabel);
+      form.append("cta_url", ctaUrl);
+      form.append("footer_policy_id", footerPolicyId);
+      form.append(
+        "footer_html",
+        customFooter || selectedFooter?.footer_html || "",
+      );
+
+      form.append(
+        "file_modes",
+        JSON.stringify(files.map((picked) => picked.mode)),
+      );
+
+      for (const picked of files) {
+        form.append("files", picked.file, picked.file.name);
+      }
+
+      const res = await fetch("/api/mail-console/send", {
+        method: "POST",
+        body: form,
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok || !data.ok) {
+        setStatus(data.error || "Email send failed.");
+        return;
+      }
+
+      setStatus(
+        `Sent successfully. Sent: ${data.summary?.sent ?? 0}, failed: ${
+          data.summary?.failed ?? 0
+        }, skipped: ${data.summary?.skipped ?? 0}.`,
+      );
+    } catch (err) {
+      setStatus(err instanceof Error ? err.message : "Email send failed.");
+    } finally {
+      setSending(false);
+    }
+  }
+
   function previewOnly() {
-    setStatus(
-      "Preview confirmed. Next step will wire this form to /api/mail-console/send.",
-    );
+    setStatus("Preview updated.");
   }
 
   const footerText = customFooter || selectedFooter?.footer_html || "";
@@ -530,25 +587,26 @@ export default function MailConsoleSendForm({
               <button
                 type="button"
                 onClick={previewOnly}
-                style={primaryButtonStyle}
+                style={secondaryButtonStyle}
               >
                 Preview Setup
               </button>
 
               <button
                 type="button"
-                onClick={() =>
-                  setStatus(
-                    "Send button will be activated after /api/mail-console/send is added next.",
-                  )
-                }
-                style={secondaryButtonStyle}
+                onClick={sendEmail}
+                disabled={sending}
+                style={{
+                  ...primaryButtonStyle,
+                  opacity: sending ? 0.58 : 1,
+                  cursor: sending ? "not-allowed" : "pointer",
+                }}
               >
-                Send Email
+                {sending ? "Sending..." : "Send Email"}
               </button>
             </div>
 
-            <div style={statusStyle}>{status}</div>
+            {status ? <div style={statusStyle}>{status}</div> : null}
           </section>
 
           <aside style={panelStyle}>
