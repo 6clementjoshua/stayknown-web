@@ -1,7 +1,10 @@
 "use client";
 
-import { FormEvent, useState } from "react";
-import { mailConsoleSupabase } from "@/lib/mailConsoleSupabase";
+import { FormEvent, useMemo, useState } from "react";
+import {
+  getMailConsoleConfigStatus,
+  mailConsoleSupabase,
+} from "@/lib/mailConsoleSupabase";
 
 const OWNER_EMAIL = "6clementjoshua@gmail.com";
 
@@ -9,6 +12,8 @@ export default function MailLoginPage() {
   const [email, setEmail] = useState(OWNER_EMAIL);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
+
+  const config = useMemo(() => getMailConsoleConfigStatus(), []);
 
   async function handleLogin(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -18,6 +23,13 @@ export default function MailLoginPage() {
 
     try {
       const cleanEmail = email.trim().toLowerCase();
+
+      if (!config.hasUrl || !config.hasAnonKey) {
+        setMessage(
+          `Missing Supabase browser config. URL: ${config.hasUrl ? "yes" : "no"}, anon key: ${config.hasAnonKey ? "yes" : "no"}`,
+        );
+        return;
+      }
 
       if (!cleanEmail) {
         setMessage("Enter your admin email.");
@@ -48,7 +60,13 @@ export default function MailLoginPage() {
         "Login link sent. Open your email and tap the link to enter the mail console.",
       );
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : "Something went wrong.");
+      const msg = err instanceof Error ? err.message : "Something went wrong.";
+
+      setMessage(
+        msg.toLowerCase().includes("failed to fetch")
+          ? `Failed to reach Supabase Auth. Check NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in Vercel, then redeploy. Current URL: ${config.url || "missing"}`
+          : msg,
+      );
     } finally {
       setBusy(false);
     }
@@ -113,6 +131,23 @@ export default function MailLoginPage() {
             Enter your admin email. StayKnown will send a secure login link to
             your inbox.
           </p>
+        </div>
+
+        <div
+          style={{
+            marginBottom: 14,
+            borderRadius: 16,
+            background: "rgba(0,0,0,0.035)",
+            border: "1px solid rgba(0,0,0,0.08)",
+            padding: 12,
+            fontSize: 12,
+            lineHeight: 1.5,
+            color: "rgba(0,0,0,0.62)",
+          }}
+        >
+          Supabase URL: {config.hasUrl ? "loaded" : "missing"}
+          <br />
+          Supabase anon key: {config.hasAnonKey ? "loaded" : "missing"}
         </div>
 
         <form onSubmit={handleLogin}>
