@@ -1,11 +1,43 @@
 "use client";
 
 import Link from "next/link";
-import { ChangeEvent, useEffect, useMemo, useState } from "react";
+import {
+  ChangeEvent,
+  KeyboardEvent,
+  ClipboardEvent,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 type MailMode = "support" | "newsletter" | "advert" | "investor";
 type ImagePosition = "none" | "top" | "bottom" | "both";
 type AttachmentMode = "attach" | "link_only" | "inline_image";
+type BodyMediaPlacement = "top" | "bottom" | "custom";
+type BodyBlockKind = "audio" | "image" | "message";
+
+type RecipientStatus =
+  | "ready"
+  | "queued"
+  | "sending"
+  | "sent"
+  | "failed"
+  | "skipped"
+  | "draft";
+
+type RecipientChip = {
+  id: string;
+  email: string;
+  status: RecipientStatus;
+  error?: string;
+};
+
+type RecipientIssue = {
+  value: string;
+  reason: string;
+  suggestion?: string;
+};
 
 type PolicyLinkKey =
   | "privacy"
@@ -26,6 +58,10 @@ type PolicyLinkKey =
   | "creator_policy"
   | "donor_policy"
   | "billing_policy";
+
+const MAX_RECIPIENTS = 50;
+const SEND_BATCH_SIZE = 5;
+const RESEND_SAFE_WINDOW_MS = 1050;
 
 const POLICY_LINK_OPTIONS: Array<{
   key: PolicyLinkKey;
@@ -200,6 +236,142 @@ function niceFileSize(size: number) {
   return `${(size / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+function makeId(prefix: string) {
+  return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function normalizeEmailInput(value: string) {
+  return value.trim().toLowerCase();
+}
+
+function isValidEmail(email: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+function commaDomainSuggestion(value: string) {
+  const trimmed = value.trim().replace(/^,+|,+$/g, "");
+
+  if (!trimmed.includes("@") || !trimmed.includes(",")) {
+    return "";
+  }
+
+  const atIndex = trimmed.indexOf("@");
+  const commaIndex = trimmed.lastIndexOf(",");
+
+  if (commaIndex < atIndex) {
+    return "";
+  }
+
+  const left = trimmed.slice(0, commaIndex);
+  const right = trimmed.slice(commaIndex + 1);
+
+  if (!/^[a-z]{2,12}$/i.test(right)) {
+    return "";
+  }
+
+  const fixed = `${left}.${right}`.toLowerCase();
+
+  return isValidEmail(fixed) ? fixed : "";
+}
+
+function parseRecipientText(raw: string) {
+  const candidates: string[] = [];
+  const issues: RecipientIssue[] = [];
+
+  const segments = raw
+    .split(/[\s;\n\r\t]+/)
+    .map((x) => x.trim())
+    .filter(Boolean);
+
+  for (const segment of segments) {
+    const typoSuggestion = commaDomainSuggestion(segment);
+
+    if (typoSuggestion) {
+      issues.push({
+        value: segment,
+        reason: "This looks like a comma was used instead of a dot.",
+        suggestion: typoSuggestion,
+      });
+      continue;
+    }
+
+    const parts = segment
+      .split(",")
+      .map((x) => x.trim())
+      .filter(Boolean);
+
+    for (const part of parts) {
+      const suggestion = commaDomainSuggestion(part);
+
+      if (suggestion) {
+        issues.push({
+          value: part,
+          reason: "This looks like a comma was used instead of a dot.",
+          suggestion,
+        });
+        continue;
+      }
+
+      candidates.push(part);
+    }
+  }
+
+  return { candidates, issues };
+}
+
+function mergeRecipientList(existing: RecipientChip[], raw: string) {
+  const parsed = parseRecipientText(raw);
+  const next = [...existing];
+  const issues = [...parsed.issues];
+  const seen = new Set(existing.map((r) => r.email));
+  let candidatesAdded = 0;
+
+  for (const candidate of parsed.candidates) {
+    const email = normalizeEmailInput(candidate);
+
+    if (!email) continue;
+
+    if (!isValidEmail(email)) {
+      issues.push({
+        value: candidate,
+        reason: "Invalid email address.",
+      });
+      continue;
+    }
+
+    if (seen.has(email)) {
+      issues.push({
+        value: email,
+        reason: "Duplicate email already added.",
+      });
+      continue;
+    }
+
+    if (next.length >= MAX_RECIPIENTS) {
+      issues.push({
+        value: email,
+        reason: `Maximum ${MAX_RECIPIENTS} recipients allowed per send.`,
+      });
+      continue;
+    }
+
+    seen.add(email);
+    candidatesAdded += 1;
+
+    next.push({
+      id: makeId("recipient"),
+      email,
+      status: "ready",
+    });
+  }
+
+  return { next, issues, candidatesAdded };
+}
+
+function delay(ms: number) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
 export default function MailConsoleSendForm({
   adminEmail,
   senders,
@@ -213,7 +385,9 @@ export default function MailConsoleSendForm({
 
   const [mode, setMode] = useState<MailMode>("support");
   const [senderId, setSenderId] = useState("");
-  const [to, setTo] = useState("");
+  const [recipients, setRecipients] = useState<RecipientChip[]>([]);
+  const [recipientInput, setRecipientInput] = useState("");
+  const [recipientIssues, setRecipientIssues] = useState<RecipientIssue[]>([]);
   const [subject, setSubject] = useState("");
   const [title, setTitle] = useState(defaultTitleForMode("support"));
   const [subtitle, setSubtitle] = useState("");
@@ -225,6 +399,28 @@ export default function MailConsoleSendForm({
   const [bannerTopPreviewUrl, setBannerTopPreviewUrl] = useState("");
   const [bannerBottomPreviewUrl, setBannerBottomPreviewUrl] = useState("");
   const [imagePosition, setImagePosition] = useState<ImagePosition>("none");
+  const [bannerHeight, setBannerHeight] = useState(96);
+
+  const [bodyAudioFile, setBodyAudioFile] = useState<File | null>(null);
+  const [bodyAudioPreviewUrl, setBodyAudioPreviewUrl] = useState("");
+  const [bodyAudioPlacement, setBodyAudioPlacement] =
+    useState<BodyMediaPlacement>("custom");
+  const [bodyAudioSize, setBodyAudioSize] = useState(76);
+  const [bodyAudioHint, setBodyAudioHint] = useState("");
+
+  const [bodyImageFile, setBodyImageFile] = useState<File | null>(null);
+  const [bodyImagePreviewUrl, setBodyImagePreviewUrl] = useState("");
+  const [bodyImagePlacement, setBodyImagePlacement] =
+    useState<BodyMediaPlacement>("custom");
+  const [bodyImageSize, setBodyImageSize] = useState(88);
+
+  const [bodyBlockOrder, setBodyBlockOrder] = useState<BodyBlockKind[]>([
+    "audio",
+    "message",
+    "image",
+  ]);
+  const [draggingBodyBlock, setDraggingBodyBlock] =
+    useState<BodyBlockKind | null>(null);
 
   const [ctaLabel, setCtaLabel] = useState("");
   const [ctaUrl, setCtaUrl] = useState("");
@@ -240,12 +436,36 @@ export default function MailConsoleSendForm({
   const [sending, setSending] = useState(false);
   const [logoFailed, setLogoFailed] = useState(false);
 
+  const [sendOverlayOpen, setSendOverlayOpen] = useState(false);
+  const [sendComplete, setSendComplete] = useState(false);
+  const [sendRows, setSendRows] = useState<RecipientChip[]>([]);
+  const [activeSendEmail, setActiveSendEmail] = useState("");
+  const sendAbortRef = useRef<AbortController | null>(null);
+  const stopSendRef = useRef(false);
+  const activeRowRef = useRef<HTMLDivElement | null>(null);
+
   useEffect(() => {
     return () => {
       if (bannerTopPreviewUrl) URL.revokeObjectURL(bannerTopPreviewUrl);
       if (bannerBottomPreviewUrl) URL.revokeObjectURL(bannerBottomPreviewUrl);
+      if (bodyAudioPreviewUrl) URL.revokeObjectURL(bodyAudioPreviewUrl);
+      if (bodyImagePreviewUrl) URL.revokeObjectURL(bodyImagePreviewUrl);
     };
-  }, [bannerTopPreviewUrl, bannerBottomPreviewUrl]);
+  }, [
+    bannerTopPreviewUrl,
+    bannerBottomPreviewUrl,
+    bodyAudioPreviewUrl,
+    bodyImagePreviewUrl,
+  ]);
+
+  useEffect(() => {
+    if (!activeSendEmail) return;
+
+    activeRowRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "center",
+    });
+  }, [activeSendEmail, sendRows]);
 
   const allowedTemplates = useMemo(
     () => templates.filter((t) => t.mode === mode),
@@ -272,6 +492,27 @@ export default function MailConsoleSendForm({
     () => allowedFooters.find((f) => f.id === footerPolicyId) || null,
     [allowedFooters, footerPolicyId],
   );
+
+  const sendSummary = useMemo(() => {
+    const total = sendRows.length;
+    const sent = sendRows.filter((r) => r.status === "sent").length;
+    const failed = sendRows.filter((r) => r.status === "failed").length;
+    const skipped = sendRows.filter((r) => r.status === "skipped").length;
+    const sendingNow = sendRows.filter((r) => r.status === "sending").length;
+    const draft = sendRows.filter((r) => r.status === "draft").length;
+    const queued = sendRows.filter((r) => r.status === "queued").length;
+
+    return {
+      total,
+      sent,
+      failed,
+      skipped,
+      sendingNow,
+      draft,
+      queued,
+      done: sent + failed + skipped + draft,
+    };
+  }, [sendRows]);
 
   function changeMode(nextMode: MailMode) {
     setMode(nextMode);
@@ -306,6 +547,82 @@ export default function MailConsoleSendForm({
     }
 
     setStatus(`Template loaded: ${template.name}`);
+  }
+
+  function addRecipientsFromText(raw: string, clearInput = true) {
+    if (!raw.trim()) return false;
+
+    const merged = mergeRecipientList(recipients, raw);
+
+    setRecipients(merged.next);
+    setRecipientIssues(merged.issues);
+
+    if (clearInput && merged.candidatesAdded) {
+      setRecipientInput("");
+    }
+
+    if (clearInput && merged.issues.length === 0) {
+      setRecipientInput("");
+    }
+
+    if (merged.issues.length > 0) {
+      setStatus("Fix the highlighted recipient email issue before sending.");
+    } else {
+      setStatus("");
+    }
+
+    return merged.issues.length === 0;
+  }
+
+  function commitRecipientInput() {
+    if (!recipientInput.trim()) return;
+    addRecipientsFromText(recipientInput, true);
+  }
+
+  function removeRecipient(email: string) {
+    setRecipients((prev) => prev.filter((r) => r.email !== email));
+    setRecipientIssues((prev) => prev.filter((i) => i.value !== email));
+  }
+
+  function applyRecipientSuggestion(issue: RecipientIssue) {
+    if (!issue.suggestion) return;
+
+    const merged = mergeRecipientList(recipients, issue.suggestion);
+
+    setRecipients(merged.next);
+    setRecipientIssues((prev) => prev.filter((x) => x.value !== issue.value));
+    setRecipientInput("");
+  }
+
+  function handleRecipientKeyDown(e: KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "Enter" || e.key === "Tab") {
+      e.preventDefault();
+      commitRecipientInput();
+      return;
+    }
+
+    if (e.key === ",") {
+      const current = recipientInput.trim();
+
+      if (isValidEmail(normalizeEmailInput(current))) {
+        e.preventDefault();
+        addRecipientsFromText(current, true);
+      }
+    }
+
+    if (e.key === "Backspace" && !recipientInput && recipients.length > 0) {
+      const last = recipients[recipients.length - 1];
+      removeRecipient(last.email);
+    }
+  }
+
+  function handleRecipientPaste(e: ClipboardEvent<HTMLInputElement>) {
+    const text = e.clipboardData.getData("text");
+
+    if (!text.trim()) return;
+
+    e.preventDefault();
+    addRecipientsFromText(text, true);
   }
 
   function pickBannerFile(file: File | null, placement: "top" | "bottom") {
@@ -353,6 +670,69 @@ export default function MailConsoleSendForm({
     setStatus("Banner image removed.");
   }
 
+  function pickBodyAudioFile(file: File | null) {
+    if (!file) return;
+
+    if (!file.type.startsWith("audio/")) {
+      setStatus("Body audio must be an audio file.");
+      return;
+    }
+
+    if (bodyAudioPreviewUrl) URL.revokeObjectURL(bodyAudioPreviewUrl);
+
+    const previewUrl = URL.createObjectURL(file);
+    setBodyAudioFile(file);
+    setBodyAudioPreviewUrl(previewUrl);
+    setStatus("Body audio selected and shown in preview.");
+  }
+
+  function clearBodyAudio() {
+    if (bodyAudioPreviewUrl) URL.revokeObjectURL(bodyAudioPreviewUrl);
+
+    setBodyAudioFile(null);
+    setBodyAudioPreviewUrl("");
+    setBodyAudioHint("");
+    setStatus("Body audio removed.");
+  }
+
+  function pickBodyImageFile(file: File | null) {
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      setStatus("Body image must be an image file.");
+      return;
+    }
+
+    if (bodyImagePreviewUrl) URL.revokeObjectURL(bodyImagePreviewUrl);
+
+    const previewUrl = URL.createObjectURL(file);
+    setBodyImageFile(file);
+    setBodyImagePreviewUrl(previewUrl);
+    setStatus("Body image selected and shown in preview.");
+  }
+
+  function clearBodyImage() {
+    if (bodyImagePreviewUrl) URL.revokeObjectURL(bodyImagePreviewUrl);
+
+    setBodyImageFile(null);
+    setBodyImagePreviewUrl("");
+    setStatus("Body image removed.");
+  }
+
+  function moveBodyBlock(dragged: BodyBlockKind, target: BodyBlockKind) {
+    if (dragged === target) return;
+
+    setBodyBlockOrder((prev) => {
+      const next = prev.filter((x) => x !== dragged);
+      const targetIndex = next.indexOf(target);
+
+      if (targetIndex < 0) return prev;
+
+      next.splice(targetIndex, 0, dragged);
+      return next;
+    });
+  }
+
   async function saveDraft() {
     if (savingDraft) return;
 
@@ -368,6 +748,7 @@ export default function MailConsoleSendForm({
         body: JSON.stringify({
           mode,
           sender_identity_id: senderId,
+          recipient_emails: recipients.map((r) => r.email),
           subject,
           title,
           message,
@@ -376,6 +757,17 @@ export default function MailConsoleSendForm({
           banner_note:
             bannerTopFile || bannerBottomFile
               ? "Banner image was selected from device. Device files are included when sending, but not preserved inside saved drafts yet."
+              : "",
+          banner_height: bannerHeight,
+          body_audio_placement: bodyAudioPlacement,
+          body_audio_size: bodyAudioSize,
+          body_audio_hint: bodyAudioHint,
+          body_image_placement: bodyImagePlacement,
+          body_image_size: bodyImageSize,
+          body_block_order: bodyBlockOrder,
+          body_media_note:
+            bodyAudioFile || bodyImageFile
+              ? "Body audio/image files are selected from device and included when sending, but not preserved inside saved drafts yet."
               : "",
           cta_label: ctaLabel,
           cta_url: ctaUrl,
@@ -438,78 +830,326 @@ export default function MailConsoleSendForm({
     });
   }
 
+  function buildEmailForm(chunkEmails: string[]) {
+    const form = new FormData();
+
+    form.append("mode", mode);
+    form.append("sender_identity_id", senderId);
+    form.append("to", chunkEmails.join(","));
+    form.append("subject", subject);
+    form.append("title", title);
+    form.append("subtitle", subtitle);
+    form.append("badge", badge);
+    form.append("message", message);
+
+    form.append("image_position", imagePosition);
+    form.append("banner_position", imagePosition);
+    form.append("banner_height", String(bannerHeight));
+
+    if (bannerTopFile) {
+      form.append("banner_top_file", bannerTopFile, bannerTopFile.name);
+    }
+
+    if (bannerBottomFile) {
+      form.append(
+        "banner_bottom_file",
+        bannerBottomFile,
+        bannerBottomFile.name,
+      );
+    }
+
+    form.append("body_audio_placement", bodyAudioPlacement);
+    form.append("body_audio_size", String(bodyAudioSize));
+    form.append("body_audio_hint", bodyAudioHint);
+    form.append("body_image_placement", bodyImagePlacement);
+    form.append("body_image_size", String(bodyImageSize));
+    form.append("body_block_order", JSON.stringify(bodyPreviewOrder));
+
+    if (bodyAudioFile) {
+      form.append("body_audio_file", bodyAudioFile, bodyAudioFile.name);
+    }
+
+    if (bodyImageFile) {
+      form.append("body_image_file", bodyImageFile, bodyImageFile.name);
+    }
+
+    form.append("cta_label", ctaLabel);
+    form.append("cta_url", ctaUrl);
+    form.append("footer_policy_id", footerPolicyId);
+    form.append(
+      "footer_html",
+      customFooter || selectedFooter?.footer_html || "",
+    );
+    form.append("policy_links", JSON.stringify(selectedPolicyLinks));
+
+    form.append(
+      "file_modes",
+      JSON.stringify(files.map((picked) => picked.mode)),
+    );
+
+    for (const picked of files) {
+      form.append("files", picked.file, picked.file.name);
+    }
+
+    return form;
+  }
+
+  function updateSendRowStatus(
+    chunkEmails: string[],
+    status: RecipientStatus,
+    error = "",
+  ) {
+    setSendRows((prev) =>
+      prev.map((row) =>
+        chunkEmails.includes(row.email)
+          ? {
+              ...row,
+              status,
+              error: error || row.error,
+            }
+          : row,
+      ),
+    );
+
+    setRecipients((prev) =>
+      prev.map((row) =>
+        chunkEmails.includes(row.email)
+          ? {
+              ...row,
+              status,
+              error: error || row.error,
+            }
+          : row,
+      ),
+    );
+  }
+
+  function updateSendResults(
+    results: Array<Record<string, unknown>>,
+    fallbackChunk: string[],
+  ) {
+    if (!Array.isArray(results) || results.length === 0) {
+      updateSendRowStatus(fallbackChunk, "sent");
+      return;
+    }
+
+    setSendRows((prev) =>
+      prev.map((row) => {
+        const result = results.find(
+          (item) =>
+            typeof item.email === "string" &&
+            item.email.toLowerCase() === row.email,
+        );
+
+        if (!result) return row;
+
+        const statusText =
+          typeof result.status === "string" ? result.status : "sent";
+        const error =
+          typeof result.error === "string"
+            ? result.error
+            : typeof result.reason === "string"
+              ? result.reason
+              : "";
+
+        const nextStatus: RecipientStatus =
+          statusText === "failed"
+            ? "failed"
+            : statusText === "skipped"
+              ? "skipped"
+              : "sent";
+
+        return {
+          ...row,
+          status: nextStatus,
+          error,
+        };
+      }),
+    );
+
+    setRecipients((prev) =>
+      prev.map((row) => {
+        const result = results.find(
+          (item) =>
+            typeof item.email === "string" &&
+            item.email.toLowerCase() === row.email,
+        );
+
+        if (!result) return row;
+
+        const statusText =
+          typeof result.status === "string" ? result.status : "sent";
+        const error =
+          typeof result.error === "string"
+            ? result.error
+            : typeof result.reason === "string"
+              ? result.reason
+              : "";
+
+        const nextStatus: RecipientStatus =
+          statusText === "failed"
+            ? "failed"
+            : statusText === "skipped"
+              ? "skipped"
+              : "sent";
+
+        return {
+          ...row,
+          status: nextStatus,
+          error,
+        };
+      }),
+    );
+  }
+
+  function stopSendingAndSaveDraft() {
+    stopSendRef.current = true;
+    sendAbortRef.current?.abort();
+
+    setSendRows((prev) =>
+      prev.map((row) =>
+        row.status === "queued" || row.status === "sending"
+          ? {
+              ...row,
+              status: "draft",
+              error: "Stopped and kept for draft/resume.",
+            }
+          : row,
+      ),
+    );
+
+    setRecipients((prev) =>
+      prev.map((row) =>
+        row.status === "queued" || row.status === "sending"
+          ? {
+              ...row,
+              status: "draft",
+              error: "Stopped and kept for draft/resume.",
+            }
+          : row,
+      ),
+    );
+
+    saveDraft();
+    setSendComplete(true);
+    setSending(false);
+    setStatus(
+      "Sending stopped. Remaining recipients were kept with the draft.",
+    );
+  }
+
   async function sendEmail() {
     if (sending) return;
 
+    const merged = recipientInput.trim()
+      ? mergeRecipientList(recipients, recipientInput)
+      : {
+          next: recipients,
+          issues: [] as RecipientIssue[],
+          candidatesAdded: 0,
+        };
+
+    if (merged.issues.length > 0) {
+      setRecipients(merged.next);
+      setRecipientIssues(merged.issues);
+      setStatus("Fix duplicate or invalid recipient emails before sending.");
+      return;
+    }
+
+    const finalRecipients = merged.next;
+
+    setRecipients(finalRecipients);
+    setRecipientInput("");
+    setRecipientIssues([]);
+
+    if (finalRecipients.length === 0) {
+      setStatus("Add at least one recipient email.");
+      return;
+    }
+
+    if (finalRecipients.length > MAX_RECIPIENTS) {
+      setStatus(`Maximum ${MAX_RECIPIENTS} recipient emails allowed.`);
+      return;
+    }
+
     setSending(true);
     setStatus("");
+    setSendComplete(false);
+    setSendOverlayOpen(true);
+    stopSendRef.current = false;
+
+    const initialRows = finalRecipients.map((row) => ({
+      ...row,
+      status: "queued" as RecipientStatus,
+      error: "",
+    }));
+
+    setSendRows(initialRows);
+    setRecipients(initialRows);
 
     try {
-      const form = new FormData();
+      const emailList = finalRecipients.map((r) => r.email);
 
-      form.append("mode", mode);
-      form.append("sender_identity_id", senderId);
-      form.append("to", to);
-      form.append("subject", subject);
-      form.append("title", title);
-      form.append("subtitle", subtitle);
-      form.append("badge", badge);
-      form.append("message", message);
+      for (let i = 0; i < emailList.length; i += SEND_BATCH_SIZE) {
+        if (stopSendRef.current) break;
 
-      form.append("image_position", imagePosition);
-      form.append("banner_position", imagePosition);
+        const chunk = emailList.slice(i, i + SEND_BATCH_SIZE);
+        const startedAt = Date.now();
 
-      if (bannerTopFile) {
-        form.append("banner_top_file", bannerTopFile, bannerTopFile.name);
+        setActiveSendEmail(chunk[0] || "");
+        updateSendRowStatus(chunk, "sending");
+
+        const controller = new AbortController();
+        sendAbortRef.current = controller;
+
+        try {
+          const res = await fetch("/api/mail-console/send", {
+            method: "POST",
+            body: buildEmailForm(chunk),
+            signal: controller.signal,
+          });
+
+          const data = await res.json().catch(() => ({}));
+
+          if (!res.ok || !data.ok) {
+            const error = data.error || "Email send failed for this batch.";
+            updateSendRowStatus(chunk, "failed", error);
+          } else {
+            updateSendResults(data.summary?.results || [], chunk);
+          }
+        } catch (err) {
+          if (stopSendRef.current) {
+            updateSendRowStatus(chunk, "draft", "Stopped and kept for draft.");
+            break;
+          }
+
+          updateSendRowStatus(
+            chunk,
+            "failed",
+            err instanceof Error ? err.message : "Email send failed.",
+          );
+        }
+
+        const elapsed = Date.now() - startedAt;
+        const waitMs = RESEND_SAFE_WINDOW_MS - elapsed;
+
+        if (
+          waitMs > 0 &&
+          i + SEND_BATCH_SIZE < emailList.length &&
+          !stopSendRef.current
+        ) {
+          await delay(waitMs);
+        }
       }
 
-      if (bannerBottomFile) {
-        form.append(
-          "banner_bottom_file",
-          bannerBottomFile,
-          bannerBottomFile.name,
-        );
+      if (!stopSendRef.current) {
+        setSendComplete(true);
+        setStatus("Email sending process completed.");
       }
-
-      form.append("cta_label", ctaLabel);
-      form.append("cta_url", ctaUrl);
-      form.append("footer_policy_id", footerPolicyId);
-      form.append(
-        "footer_html",
-        customFooter || selectedFooter?.footer_html || "",
-      );
-      form.append("policy_links", JSON.stringify(selectedPolicyLinks));
-
-      form.append(
-        "file_modes",
-        JSON.stringify(files.map((picked) => picked.mode)),
-      );
-
-      for (const picked of files) {
-        form.append("files", picked.file, picked.file.name);
-      }
-
-      const res = await fetch("/api/mail-console/send", {
-        method: "POST",
-        body: form,
-      });
-
-      const data = await res.json().catch(() => ({}));
-
-      if (!res.ok || !data.ok) {
-        setStatus(data.error || "Email send failed.");
-        return;
-      }
-
-      setStatus(
-        `Sent successfully. Sent: ${data.summary?.sent ?? 0}, failed: ${
-          data.summary?.failed ?? 0
-        }, skipped: ${data.summary?.skipped ?? 0}.`,
-      );
-    } catch (err) {
-      setStatus(err instanceof Error ? err.message : "Email send failed.");
     } finally {
+      sendAbortRef.current = null;
       setSending(false);
+      setActiveSendEmail("");
     }
   }
 
@@ -521,6 +1161,146 @@ export default function MailConsoleSendForm({
   const hasAnyBanner = Boolean(bannerTopFile || bannerBottomFile);
   const topBannerPreview = bannerTopPreviewUrl || bannerBottomPreviewUrl;
   const bottomBannerPreview = bannerBottomPreviewUrl || bannerTopPreviewUrl;
+
+  const enabledBodyBlocks = new Set<BodyBlockKind>(["message"]);
+
+  if (bodyAudioFile) enabledBodyBlocks.add("audio");
+  if (bodyImageFile) enabledBodyBlocks.add("image");
+
+  const bodyPreviewOrder = (() => {
+    const baseOrder = bodyBlockOrder.filter((x) => enabledBodyBlocks.has(x));
+
+    if (!baseOrder.includes("message")) {
+      baseOrder.push("message");
+    }
+
+    const topBlocks: BodyBlockKind[] = [];
+    const customBlocks: BodyBlockKind[] = [];
+    const bottomBlocks: BodyBlockKind[] = [];
+
+    for (const block of baseOrder) {
+      if (block === "message") {
+        customBlocks.push(block);
+        continue;
+      }
+
+      const placement =
+        block === "audio" ? bodyAudioPlacement : bodyImagePlacement;
+
+      if (placement === "top") {
+        topBlocks.push(block);
+      } else if (placement === "bottom") {
+        bottomBlocks.push(block);
+      } else {
+        customBlocks.push(block);
+      }
+    }
+
+    return [...topBlocks, ...customBlocks, ...bottomBlocks];
+  })();
+
+  function renderPreviewBodyBlock(block: BodyBlockKind) {
+    if (block === "audio" && bodyAudioFile) {
+      return (
+        <div
+          key="audio"
+          draggable
+          onDragStart={() => setDraggingBodyBlock("audio")}
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={() => {
+            if (draggingBodyBlock) moveBodyBlock(draggingBodyBlock, "audio");
+            setDraggingBodyBlock(null);
+          }}
+          style={previewDraggableBlockStyle}
+        >
+          <div
+            style={{
+              ...previewAudioPillStyle,
+              width: `${bodyAudioSize}%`,
+            }}
+          >
+            <div style={previewAudioIconStyle}>🎧</div>
+
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <div style={previewAudioTitleStyle}>StayKnown Audio</div>
+              <div style={previewAudioMetaStyle}>
+                {bodyAudioFile.name || "Audio message"}
+              </div>
+            </div>
+
+            <audio
+              src={bodyAudioPreviewUrl}
+              controls
+              style={{
+                width: 130,
+                height: 30,
+                maxWidth: "42%",
+              }}
+            />
+          </div>
+
+          {bodyAudioHint ? (
+            <div style={previewAudioHintStyle}>{bodyAudioHint}</div>
+          ) : null}
+
+          <div style={previewDragHintStyle}>Drag to reorder inside body</div>
+        </div>
+      );
+    }
+
+    if (block === "image" && bodyImageFile) {
+      return (
+        <div
+          key="image"
+          draggable
+          onDragStart={() => setDraggingBodyBlock("image")}
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={() => {
+            if (draggingBodyBlock) moveBodyBlock(draggingBodyBlock, "image");
+            setDraggingBodyBlock(null);
+          }}
+          style={previewDraggableBlockStyle}
+        >
+          <div
+            style={{
+              ...previewBodyImageWrapStyle,
+              width: `${bodyImageSize}%`,
+            }}
+          >
+            <img
+              src={bodyImagePreviewUrl}
+              alt="Body image"
+              style={previewBodyImageStyle}
+            />
+          </div>
+
+          <div style={previewDragHintStyle}>Drag to reorder inside body</div>
+        </div>
+      );
+    }
+
+    return (
+      <div
+        key="message"
+        draggable
+        onDragStart={() => setDraggingBodyBlock("message")}
+        onDragOver={(e) => e.preventDefault()}
+        onDrop={() => {
+          if (draggingBodyBlock) moveBodyBlock(draggingBodyBlock, "message");
+          setDraggingBodyBlock(null);
+        }}
+        style={previewDraggableBlockStyle}
+      >
+        <div style={previewMessageCardStyle}>
+          <div style={previewMessageBodyStyle}>
+            {message || "Your email body preview will appear here."}
+          </div>
+        </div>
+
+        <div style={previewDragHintStyle}>Drag to reorder inside body</div>
+      </div>
+    );
+  }
 
   return (
     <main
@@ -536,11 +1316,14 @@ export default function MailConsoleSendForm({
         .sk-mail-composer {
           font-family:
             Inter,
+            "SF Pro Display",
+            "SF Pro Text",
             ui-sans-serif,
             system-ui,
             -apple-system,
             BlinkMacSystemFont,
             "Segoe UI",
+            Arial,
             sans-serif;
         }
 
@@ -602,6 +1385,16 @@ export default function MailConsoleSendForm({
           border-color: rgba(0, 0, 0, 0.18) !important;
           box-shadow: 0 18px 44px rgba(0, 0, 0, 0.08);
           background: rgba(255, 255, 255, 0.96) !important;
+        }
+
+        .sk-recipient-chip-remove {
+          opacity: 0;
+          pointer-events: none;
+        }
+
+        .sk-recipient-chip:hover .sk-recipient-chip-remove {
+          opacity: 1;
+          pointer-events: auto;
         }
       `}</style>
 
@@ -698,12 +1491,102 @@ export default function MailConsoleSendForm({
 
             <div style={fieldStyle}>
               <label style={labelStyle}>Recipient email(s)</label>
-              <textarea
-                value={to}
-                onChange={(e) => setTo(e.target.value)}
-                placeholder="one@email.com or multiple emails separated by comma/new line"
-                style={{ ...inputStyle, minHeight: 78, resize: "vertical" }}
-              />
+
+              <div style={recipientBoxStyle}>
+                {recipients.map((recipient) => (
+                  <div
+                    key={recipient.id}
+                    className="sk-recipient-chip"
+                    style={{
+                      ...recipientChipStyle,
+                      borderColor:
+                        recipient.status === "failed"
+                          ? "rgba(220,38,38,0.35)"
+                          : recipient.status === "sent"
+                            ? "rgba(22,163,74,0.34)"
+                            : recipient.status === "sending"
+                              ? "rgba(37,99,235,0.35)"
+                              : "rgba(0,0,0,0.10)",
+                      background:
+                        recipient.status === "failed"
+                          ? "rgba(254,226,226,0.86)"
+                          : recipient.status === "sent"
+                            ? "rgba(220,252,231,0.78)"
+                            : recipient.status === "sending"
+                              ? "rgba(219,234,254,0.82)"
+                              : "white",
+                    }}
+                  >
+                    <span style={recipientEmailTextStyle}>
+                      {recipient.email}
+                    </span>
+
+                    <span style={recipientStatusDotStyle}>
+                      {recipient.status === "sent"
+                        ? "✓"
+                        : recipient.status === "failed"
+                          ? "!"
+                          : recipient.status === "sending"
+                            ? "…"
+                            : recipient.status === "skipped"
+                              ? "↷"
+                              : recipient.status === "draft"
+                                ? "D"
+                                : ""}
+                    </span>
+
+                    <button
+                      type="button"
+                      className="sk-recipient-chip-remove"
+                      onClick={() => removeRecipient(recipient.email)}
+                      style={recipientRemoveStyle}
+                      aria-label={`Remove ${recipient.email}`}
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+
+                <input
+                  value={recipientInput}
+                  onChange={(e) => setRecipientInput(e.target.value)}
+                  onKeyDown={handleRecipientKeyDown}
+                  onPaste={handleRecipientPaste}
+                  onBlur={commitRecipientInput}
+                  placeholder={
+                    recipients.length === 0
+                      ? "Paste emails, then press Enter or comma"
+                      : "Add another email"
+                  }
+                  style={recipientInputStyle}
+                />
+              </div>
+
+              <div style={recipientHelpStyle}>
+                {recipients.length}/{MAX_RECIPIENTS} recipients · comma, Enter,
+                semicolon, Tab and paste are supported.
+              </div>
+
+              {recipientIssues.length > 0 ? (
+                <div style={recipientIssueBoxStyle}>
+                  {recipientIssues.map((issue, index) => (
+                    <div key={`${issue.value}-${index}`} style={issueRowStyle}>
+                      <b>{issue.value}</b>
+                      <span>{issue.reason}</span>
+
+                      {issue.suggestion ? (
+                        <button
+                          type="button"
+                          onClick={() => applyRecipientSuggestion(issue)}
+                          style={issueSuggestionButtonStyle}
+                        >
+                          Use {issue.suggestion}
+                        </button>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              ) : null}
             </div>
 
             <div style={fieldStyle}>
@@ -805,6 +1688,19 @@ export default function MailConsoleSendForm({
                 {bannerTopFile ? (
                   <div style={bannerFileNameStyle}>{bannerTopFile.name}</div>
                 ) : null}
+
+                <div style={compactSliderRowStyle}>
+                  <span>Banner height</span>
+                  <input
+                    type="range"
+                    min={64}
+                    max={150}
+                    value={bannerHeight}
+                    onChange={(e) => setBannerHeight(Number(e.target.value))}
+                    style={rangeStyle}
+                  />
+                  <b>{bannerHeight}px</b>
+                </div>
               </div>
             </div>
 
@@ -851,6 +1747,148 @@ export default function MailConsoleSendForm({
                 ) : null}
               </div>
             ) : null}
+
+            <div style={sectionHeaderStyle}>Inside message body</div>
+
+            <div style={grid2Style}>
+              <div style={compactMediaPanelStyle}>
+                <div style={compactPanelTitleStyle}>Audio inside body</div>
+
+                <div style={compactGridStyle}>
+                  <div>
+                    <label style={labelStyle}>Placement</label>
+                    <select
+                      value={bodyAudioPlacement}
+                      onChange={(e) =>
+                        setBodyAudioPlacement(
+                          e.target.value as BodyMediaPlacement,
+                        )
+                      }
+                      style={inputStyle}
+                    >
+                      <option value="custom">Default / drag in preview</option>
+                      <option value="top">Beginning of body</option>
+                      <option value="bottom">End of body</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label style={labelStyle}>Size</label>
+                    <input
+                      type="range"
+                      min={48}
+                      max={100}
+                      value={bodyAudioSize}
+                      onChange={(e) => setBodyAudioSize(Number(e.target.value))}
+                      style={rangeStyle}
+                    />
+                  </div>
+                </div>
+
+                <div style={bannerPickerStyle}>
+                  <label data-button="true" style={filePickButtonStyle}>
+                    Choose audio
+                    <input
+                      type="file"
+                      accept="audio/*"
+                      style={{ display: "none" }}
+                      onChange={(e) => {
+                        pickBodyAudioFile(e.target.files?.[0] || null);
+                        e.currentTarget.value = "";
+                      }}
+                    />
+                  </label>
+
+                  {bodyAudioFile ? (
+                    <button
+                      type="button"
+                      onClick={clearBodyAudio}
+                      style={smallButtonStyle}
+                    >
+                      Remove
+                    </button>
+                  ) : null}
+                </div>
+
+                {bodyAudioFile ? (
+                  <div style={bannerFileNameStyle}>{bodyAudioFile.name}</div>
+                ) : null}
+
+                <div style={{ marginTop: 10 }}>
+                  <label style={labelStyle}>Tiny hint under audio</label>
+                  <input
+                    value={bodyAudioHint}
+                    onChange={(e) => setBodyAudioHint(e.target.value)}
+                    placeholder="Example: Listen to this short StayKnown update."
+                    style={inputStyle}
+                  />
+                </div>
+              </div>
+
+              <div style={compactMediaPanelStyle}>
+                <div style={compactPanelTitleStyle}>Image inside body</div>
+
+                <div style={compactGridStyle}>
+                  <div>
+                    <label style={labelStyle}>Placement</label>
+                    <select
+                      value={bodyImagePlacement}
+                      onChange={(e) =>
+                        setBodyImagePlacement(
+                          e.target.value as BodyMediaPlacement,
+                        )
+                      }
+                      style={inputStyle}
+                    >
+                      <option value="custom">Default / drag in preview</option>
+                      <option value="top">Beginning of body</option>
+                      <option value="bottom">End of body</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label style={labelStyle}>Size</label>
+                    <input
+                      type="range"
+                      min={45}
+                      max={100}
+                      value={bodyImageSize}
+                      onChange={(e) => setBodyImageSize(Number(e.target.value))}
+                      style={rangeStyle}
+                    />
+                  </div>
+                </div>
+
+                <div style={bannerPickerStyle}>
+                  <label data-button="true" style={filePickButtonStyle}>
+                    Choose image
+                    <input
+                      type="file"
+                      accept="image/*"
+                      style={{ display: "none" }}
+                      onChange={(e) => {
+                        pickBodyImageFile(e.target.files?.[0] || null);
+                        e.currentTarget.value = "";
+                      }}
+                    />
+                  </label>
+
+                  {bodyImageFile ? (
+                    <button
+                      type="button"
+                      onClick={clearBodyImage}
+                      style={smallButtonStyle}
+                    >
+                      Remove
+                    </button>
+                  ) : null}
+                </div>
+
+                {bodyImageFile ? (
+                  <div style={bannerFileNameStyle}>{bodyImageFile.name}</div>
+                ) : null}
+              </div>
+            </div>
 
             <div style={sectionHeaderStyle}>CTA button</div>
 
@@ -1049,11 +2087,11 @@ export default function MailConsoleSendForm({
               <button
                 type="button"
                 onClick={saveDraft}
-                disabled={savingDraft}
+                disabled={savingDraft || sending}
                 style={{
                   ...secondaryButtonStyle,
-                  opacity: savingDraft ? 0.58 : 1,
-                  cursor: savingDraft ? "not-allowed" : "pointer",
+                  opacity: savingDraft || sending ? 0.58 : 1,
+                  cursor: savingDraft || sending ? "not-allowed" : "pointer",
                 }}
               >
                 {savingDraft ? "Saving..." : "Save Draft"}
@@ -1098,14 +2136,7 @@ export default function MailConsoleSendForm({
 
             <div style={summaryRowStyle}>
               <span>Recipients</span>
-              <b>
-                {
-                  to
-                    .split(/[,\n;]/)
-                    .map((x) => x.trim())
-                    .filter(Boolean).length
-                }
-              </b>
+              <b>{recipients.length}</b>
             </div>
 
             <div style={summaryRowStyle}>
@@ -1180,15 +2211,17 @@ export default function MailConsoleSendForm({
                   <img
                     src={topBannerPreview}
                     alt="Top banner"
-                    style={previewBannerImageStyle}
+                    style={{
+                      ...previewBannerImageStyle,
+                      height: bannerHeight,
+                      maxHeight: bannerHeight,
+                    }}
                   />
                 </div>
               ) : null}
 
-              <div style={previewMessageCardStyle}>
-                <div style={previewMessageBodyStyle}>
-                  {message || "Your email body preview will appear here."}
-                </div>
+              <div style={previewBodyStackStyle}>
+                {bodyPreviewOrder.map((block) => renderPreviewBodyBlock(block))}
               </div>
 
               {bottomBannerPreview &&
@@ -1198,7 +2231,11 @@ export default function MailConsoleSendForm({
                   <img
                     src={bottomBannerPreview}
                     alt="Bottom banner"
-                    style={previewBannerImageStyle}
+                    style={{
+                      ...previewBannerImageStyle,
+                      height: bannerHeight,
+                      maxHeight: bannerHeight,
+                    }}
                   />
                 </div>
               ) : null}
@@ -1242,16 +2279,158 @@ export default function MailConsoleSendForm({
           </aside>
         </div>
       </section>
+
+      {sendOverlayOpen ? (
+        <div style={sendOverlayStyle}>
+          <div style={sendModalStyle}>
+            <div style={sendModalHeaderStyle}>
+              <div>
+                <div style={kickerStyle}>Sending Queue</div>
+                <h2 style={sendTitleStyle}>
+                  {sendComplete ? "Sending complete" : "Sending emails..."}
+                </h2>
+                <p style={sendSubStyle}>
+                  Sending in groups of {SEND_BATCH_SIZE}. Already sent emails
+                  cannot be cancelled. Stopping now keeps remaining queued
+                  emails in draft status.
+                </p>
+              </div>
+
+              {sendComplete ? (
+                <button
+                  type="button"
+                  onClick={() => setSendOverlayOpen(false)}
+                  style={secondaryButtonStyle}
+                >
+                  Close
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={stopSendingAndSaveDraft}
+                  style={dangerButtonStyle}
+                >
+                  Stop & save remaining as draft
+                </button>
+              )}
+            </div>
+
+            <div style={sendStatsGridStyle}>
+              <div style={sendStatStyle}>
+                <span>Total</span>
+                <b>{sendSummary.total}</b>
+              </div>
+              <div style={sendStatStyle}>
+                <span>Sent</span>
+                <b>{sendSummary.sent}</b>
+              </div>
+              <div style={sendStatStyle}>
+                <span>Failed</span>
+                <b>{sendSummary.failed}</b>
+              </div>
+              <div style={sendStatStyle}>
+                <span>Skipped</span>
+                <b>{sendSummary.skipped}</b>
+              </div>
+              <div style={sendStatStyle}>
+                <span>Draft</span>
+                <b>{sendSummary.draft}</b>
+              </div>
+            </div>
+
+            <div style={sendProgressTrackStyle}>
+              <div
+                style={{
+                  ...sendProgressFillStyle,
+                  width:
+                    sendSummary.total > 0
+                      ? `${Math.round((sendSummary.done / sendSummary.total) * 100)}%`
+                      : "0%",
+                }}
+              />
+            </div>
+
+            <div style={sendRowsWrapStyle}>
+              {sendRows.map((row, index) => {
+                const active = row.email === activeSendEmail;
+
+                return (
+                  <div
+                    key={row.id}
+                    ref={active ? activeRowRef : null}
+                    style={{
+                      ...sendRowStyle,
+                      borderColor: active
+                        ? "rgba(37,99,235,0.30)"
+                        : "rgba(0,0,0,0.08)",
+                      background: active ? "rgba(219,234,254,0.76)" : "white",
+                    }}
+                  >
+                    <div style={sendRowIndexStyle}>{index + 1}</div>
+
+                    <div style={{ minWidth: 0 }}>
+                      <div style={sendRowEmailStyle}>{row.email}</div>
+                      {row.error ? (
+                        <div style={sendRowErrorStyle}>{row.error}</div>
+                      ) : null}
+                    </div>
+
+                    <div
+                      style={{
+                        ...sendStatusPillStyle,
+                        background:
+                          row.status === "sent"
+                            ? "rgba(22,163,74,0.12)"
+                            : row.status === "failed"
+                              ? "rgba(220,38,38,0.12)"
+                              : row.status === "sending"
+                                ? "rgba(37,99,235,0.12)"
+                                : row.status === "skipped"
+                                  ? "rgba(234,179,8,0.14)"
+                                  : row.status === "draft"
+                                    ? "rgba(107,114,128,0.12)"
+                                    : "rgba(0,0,0,0.045)",
+                        color:
+                          row.status === "sent"
+                            ? "#15803d"
+                            : row.status === "failed"
+                              ? "#b91c1c"
+                              : row.status === "sending"
+                                ? "#1d4ed8"
+                                : row.status === "skipped"
+                                  ? "#92400e"
+                                  : "#374151",
+                      }}
+                    >
+                      {row.status === "sent"
+                        ? "✓ sent"
+                        : row.status === "failed"
+                          ? "failed"
+                          : row.status === "sending"
+                            ? "sending..."
+                            : row.status === "skipped"
+                              ? "skipped"
+                              : row.status === "draft"
+                                ? "draft"
+                                : "queued"}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      ) : null}
     </main>
   );
 }
 
 const panelStyle: React.CSSProperties = {
-  borderRadius: 30,
+  borderRadius: 24,
   background: "white",
-  border: "1px solid rgba(0,0,0,0.08)",
-  boxShadow: "0 24px 70px rgba(0,0,0,0.06)",
-  padding: 22,
+  border: "1px solid rgba(0,0,0,0.075)",
+  boxShadow: "0 18px 55px rgba(0,0,0,0.055)",
+  padding: 18,
 };
 
 const kickerStyle: React.CSSProperties = {
@@ -1300,16 +2479,16 @@ const sectionHeaderStyle: React.CSSProperties = {
 
 const grid2Style: React.CSSProperties = {
   display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
-  gap: 14,
-  marginBottom: 14,
+  gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))",
+  gap: 10,
+  marginBottom: 12,
 };
 
 const grid3Style: React.CSSProperties = {
   display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-  gap: 14,
-  marginBottom: 14,
+  gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+  gap: 10,
+  marginBottom: 12,
 };
 
 const fieldStyle: React.CSSProperties = {
@@ -1318,21 +2497,129 @@ const fieldStyle: React.CSSProperties = {
 
 const labelStyle: React.CSSProperties = {
   display: "block",
-  fontSize: 12,
-  fontWeight: 950,
-  color: "rgba(0,0,0,0.65)",
-  marginBottom: 7,
+  fontSize: 11,
+  fontWeight: 900,
+  color: "rgba(0,0,0,0.62)",
+  marginBottom: 6,
 };
 
 const inputStyle: React.CSSProperties = {
   width: "100%",
-  borderRadius: 16,
-  border: "1px solid rgba(0,0,0,0.12)",
+  borderRadius: 13,
+  border: "1px solid rgba(0,0,0,0.11)",
   background: "white",
-  padding: "13px 14px",
-  fontSize: 14,
+  padding: "10px 11px",
+  fontSize: 13,
   color: "#050505",
   outline: "none",
+};
+
+const recipientBoxStyle: React.CSSProperties = {
+  display: "flex",
+  flexWrap: "wrap",
+  gap: 7,
+  alignItems: "center",
+  minHeight: 48,
+  borderRadius: 16,
+  border: "1px solid rgba(0,0,0,0.11)",
+  background: "white",
+  padding: 8,
+};
+
+const recipientChipStyle: React.CSSProperties = {
+  position: "relative",
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 6,
+  maxWidth: "100%",
+  borderRadius: 999,
+  border: "1px solid rgba(0,0,0,0.10)",
+  padding: "7px 24px 7px 10px",
+  fontSize: 12,
+  fontWeight: 850,
+  color: "#050505",
+  boxShadow: "0 8px 20px rgba(0,0,0,0.04)",
+};
+
+const recipientEmailTextStyle: React.CSSProperties = {
+  maxWidth: 230,
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+  whiteSpace: "nowrap",
+};
+
+const recipientStatusDotStyle: React.CSSProperties = {
+  fontSize: 10,
+  fontWeight: 950,
+  color: "rgba(0,0,0,0.58)",
+};
+
+const recipientRemoveStyle: React.CSSProperties = {
+  position: "absolute",
+  top: -5,
+  right: -5,
+  width: 18,
+  height: 18,
+  borderRadius: 999,
+  border: 0,
+  background: "#050505",
+  color: "white",
+  fontSize: 13,
+  fontWeight: 900,
+  lineHeight: "18px",
+  cursor: "pointer",
+  padding: 0,
+  transition: "opacity 160ms ease, transform 160ms ease",
+};
+
+const recipientInputStyle: React.CSSProperties = {
+  flex: "1 1 220px",
+  minWidth: 180,
+  border: 0,
+  outline: "none",
+  fontSize: 13,
+  padding: "8px 6px",
+  color: "#050505",
+  background: "transparent",
+};
+
+const recipientHelpStyle: React.CSSProperties = {
+  marginTop: 7,
+  fontSize: 11,
+  color: "rgba(0,0,0,0.55)",
+  lineHeight: 1.45,
+};
+
+const recipientIssueBoxStyle: React.CSSProperties = {
+  marginTop: 8,
+  display: "grid",
+  gap: 6,
+};
+
+const issueRowStyle: React.CSSProperties = {
+  display: "flex",
+  gap: 8,
+  alignItems: "center",
+  justifyContent: "space-between",
+  flexWrap: "wrap",
+  borderRadius: 14,
+  border: "1px solid rgba(220,38,38,0.18)",
+  background: "rgba(254,226,226,0.72)",
+  color: "#7f1d1d",
+  padding: "8px 10px",
+  fontSize: 12,
+  lineHeight: 1.35,
+};
+
+const issueSuggestionButtonStyle: React.CSSProperties = {
+  border: 0,
+  borderRadius: 999,
+  background: "white",
+  color: "#7f1d1d",
+  padding: "6px 9px",
+  fontSize: 11,
+  fontWeight: 900,
+  cursor: "pointer",
 };
 
 const bannerPickerStyle: React.CSSProperties = {
@@ -1351,13 +2638,13 @@ const filePickButtonStyle: React.CSSProperties = {
   alignItems: "center",
   justifyContent: "center",
   borderRadius: 999,
-  padding: "10px 14px",
+  padding: "8px 11px",
   background: "#050505",
   color: "white",
-  fontWeight: 950,
-  fontSize: 13,
+  fontWeight: 900,
+  fontSize: 12,
   cursor: "pointer",
-  boxShadow: "0 14px 30px rgba(0,0,0,0.12)",
+  boxShadow: "0 10px 22px rgba(0,0,0,0.10)",
 };
 
 const bannerFileNameStyle: React.CSSProperties = {
@@ -1406,31 +2693,45 @@ const fileMetaStyle: React.CSSProperties = {
 const primaryButtonStyle: React.CSSProperties = {
   border: 0,
   borderRadius: 999,
-  padding: "13px 18px",
+  padding: "10px 14px",
   background: "#050505",
   color: "white",
-  fontWeight: 950,
+  fontWeight: 900,
+  fontSize: 13,
   cursor: "pointer",
 };
 
 const secondaryButtonStyle: React.CSSProperties = {
   border: 0,
   borderRadius: 999,
-  padding: "13px 18px",
+  padding: "10px 14px",
   background: "white",
   color: "#050505",
-  fontWeight: 950,
+  fontWeight: 900,
+  fontSize: 13,
   cursor: "pointer",
   boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.12)",
+};
+
+const dangerButtonStyle: React.CSSProperties = {
+  border: 0,
+  borderRadius: 999,
+  padding: "10px 14px",
+  background: "#7f1d1d",
+  color: "white",
+  fontWeight: 900,
+  fontSize: 13,
+  cursor: "pointer",
 };
 
 const smallButtonStyle: React.CSSProperties = {
   border: 0,
   borderRadius: 999,
-  padding: "10px 12px",
+  padding: "8px 10px",
   background: "rgba(0,0,0,0.06)",
   color: "#050505",
-  fontWeight: 900,
+  fontWeight: 850,
+  fontSize: 12,
   cursor: "pointer",
 };
 
@@ -1536,7 +2837,8 @@ const previewBannerWrapStyle: React.CSSProperties = {
 const previewBannerImageStyle: React.CSSProperties = {
   display: "block",
   width: "100%",
-  maxHeight: 420,
+  height: 96,
+  maxHeight: 96,
   objectFit: "cover",
 };
 
@@ -1605,4 +2907,265 @@ const previewLegalStyle: React.CSSProperties = {
   fontSize: 11,
   lineHeight: 1.5,
   color: "rgba(0,0,0,0.52)",
+};
+
+const compactGridStyle: React.CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "1fr 1fr",
+  gap: 10,
+  marginBottom: 10,
+};
+
+const compactMediaPanelStyle: React.CSSProperties = {
+  borderRadius: 18,
+  border: "1px solid rgba(0,0,0,0.08)",
+  background: "rgba(0,0,0,0.018)",
+  padding: 12,
+};
+
+const compactPanelTitleStyle: React.CSSProperties = {
+  fontSize: 12,
+  fontWeight: 950,
+  letterSpacing: 0.8,
+  color: "rgba(0,0,0,0.74)",
+  marginBottom: 10,
+};
+
+const compactSliderRowStyle: React.CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "auto minmax(90px, 1fr) auto",
+  alignItems: "center",
+  gap: 8,
+  marginTop: 8,
+  fontSize: 11,
+  color: "rgba(0,0,0,0.58)",
+};
+
+const rangeStyle: React.CSSProperties = {
+  width: "100%",
+  accentColor: "#050505",
+};
+
+const previewBodyStackStyle: React.CSSProperties = {
+  display: "grid",
+  gap: 10,
+};
+
+const previewDraggableBlockStyle: React.CSSProperties = {
+  cursor: "grab",
+};
+
+const previewDragHintStyle: React.CSSProperties = {
+  marginTop: 5,
+  textAlign: "center",
+  fontSize: 10,
+  color: "rgba(0,0,0,0.38)",
+};
+
+const previewAudioPillStyle: React.CSSProperties = {
+  margin: "0 auto",
+  display: "flex",
+  alignItems: "center",
+  gap: 10,
+  borderRadius: 999,
+  border: "1px solid rgba(0,0,0,0.10)",
+  background: "rgba(255,255,255,0.88)",
+  boxShadow:
+    "inset 0 1px 0 rgba(255,255,255,0.92),0 15px 38px rgba(0,0,0,0.075)",
+  padding: "9px 12px",
+};
+
+const previewAudioIconStyle: React.CSSProperties = {
+  width: 32,
+  height: 32,
+  borderRadius: 999,
+  background: "#050505",
+  color: "white",
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  fontSize: 14,
+  flexShrink: 0,
+};
+
+const previewAudioTitleStyle: React.CSSProperties = {
+  fontSize: 13,
+  fontWeight: 950,
+  color: "#050505",
+  whiteSpace: "nowrap",
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+};
+
+const previewAudioMetaStyle: React.CSSProperties = {
+  marginTop: 2,
+  fontSize: 10,
+  color: "rgba(0,0,0,0.52)",
+  whiteSpace: "nowrap",
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+};
+
+const previewAudioHintStyle: React.CSSProperties = {
+  width: "76%",
+  margin: "6px auto 0",
+  textAlign: "center",
+  fontSize: 11,
+  lineHeight: 1.45,
+  color: "rgba(0,0,0,0.56)",
+};
+
+const previewBodyImageWrapStyle: React.CSSProperties = {
+  margin: "0 auto",
+  borderRadius: 18,
+  overflow: "hidden",
+  border: "1px solid rgba(0,0,0,0.10)",
+  background: "white",
+  boxShadow: "0 16px 45px rgba(0,0,0,0.07)",
+};
+
+const previewBodyImageStyle: React.CSSProperties = {
+  display: "block",
+  width: "100%",
+  maxHeight: 280,
+  objectFit: "cover",
+};
+
+const sendOverlayStyle: React.CSSProperties = {
+  position: "fixed",
+  inset: 0,
+  zIndex: 9999,
+  background: "rgba(0,0,0,0.42)",
+  backdropFilter: "blur(18px)",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  padding: 18,
+};
+
+const sendModalStyle: React.CSSProperties = {
+  width: "min(760px, 100%)",
+  maxHeight: "88vh",
+  overflow: "hidden",
+  display: "grid",
+  gridTemplateRows: "auto auto auto 1fr",
+  borderRadius: 28,
+  background: "white",
+  border: "1px solid rgba(0,0,0,0.08)",
+  boxShadow: "0 40px 110px rgba(0,0,0,0.28)",
+  padding: 18,
+};
+
+const sendModalHeaderStyle: React.CSSProperties = {
+  display: "flex",
+  gap: 14,
+  alignItems: "flex-start",
+  justifyContent: "space-between",
+  flexWrap: "wrap",
+  marginBottom: 14,
+};
+
+const sendTitleStyle: React.CSSProperties = {
+  margin: "6px 0",
+  fontSize: 24,
+  lineHeight: 1.05,
+  fontWeight: 950,
+  color: "#050505",
+};
+
+const sendSubStyle: React.CSSProperties = {
+  margin: 0,
+  maxWidth: 520,
+  fontSize: 12,
+  lineHeight: 1.55,
+  color: "rgba(0,0,0,0.62)",
+};
+
+const sendStatsGridStyle: React.CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(95px, 1fr))",
+  gap: 8,
+  marginBottom: 12,
+};
+
+const sendStatStyle: React.CSSProperties = {
+  borderRadius: 16,
+  background: "rgba(0,0,0,0.035)",
+  border: "1px solid rgba(0,0,0,0.06)",
+  padding: "10px 12px",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  gap: 8,
+  fontSize: 12,
+};
+
+const sendProgressTrackStyle: React.CSSProperties = {
+  height: 9,
+  borderRadius: 999,
+  background: "rgba(0,0,0,0.07)",
+  overflow: "hidden",
+  marginBottom: 12,
+};
+
+const sendProgressFillStyle: React.CSSProperties = {
+  height: "100%",
+  borderRadius: 999,
+  background: "#050505",
+  transition: "width 220ms ease",
+};
+
+const sendRowsWrapStyle: React.CSSProperties = {
+  overflowY: "auto",
+  display: "grid",
+  gap: 8,
+  paddingRight: 4,
+};
+
+const sendRowStyle: React.CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "34px minmax(0, 1fr) auto",
+  gap: 10,
+  alignItems: "center",
+  borderRadius: 16,
+  border: "1px solid rgba(0,0,0,0.08)",
+  padding: 10,
+  transition: "background 180ms ease, border-color 180ms ease",
+};
+
+const sendRowIndexStyle: React.CSSProperties = {
+  width: 28,
+  height: 28,
+  borderRadius: 999,
+  background: "rgba(0,0,0,0.06)",
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  fontSize: 11,
+  fontWeight: 950,
+  color: "rgba(0,0,0,0.64)",
+};
+
+const sendRowEmailStyle: React.CSSProperties = {
+  fontSize: 13,
+  fontWeight: 900,
+  color: "#050505",
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+  whiteSpace: "nowrap",
+};
+
+const sendRowErrorStyle: React.CSSProperties = {
+  marginTop: 3,
+  fontSize: 11,
+  lineHeight: 1.35,
+  color: "#b91c1c",
+};
+
+const sendStatusPillStyle: React.CSSProperties = {
+  borderRadius: 999,
+  padding: "6px 9px",
+  fontSize: 11,
+  fontWeight: 950,
+  whiteSpace: "nowrap",
 };

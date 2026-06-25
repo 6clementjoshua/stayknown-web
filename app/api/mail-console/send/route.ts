@@ -15,6 +15,8 @@ export const runtime = "nodejs";
 type MailMode = "support" | "newsletter" | "advert" | "investor";
 type ImagePosition = "none" | "top" | "bottom" | "both";
 type AttachmentMode = "attach" | "link_only" | "inline_image";
+type BodyMediaPlacement = "top" | "bottom" | "custom";
+type BodyBlockKind = "audio" | "image" | "message";
 
 type SenderRow = {
   id: string;
@@ -194,6 +196,23 @@ function safeAttachmentMode(v: unknown): AttachmentMode {
   return "attach";
 }
 
+function safeBodyMediaPlacement(v: unknown): BodyMediaPlacement {
+  const s = clean(v).toLowerCase();
+
+  if (s === "top") return "top";
+  if (s === "bottom") return "bottom";
+
+  return "custom";
+}
+
+function safeNumber(v: unknown, fallback: number, min: number, max: number) {
+  const n = Number(clean(v));
+
+  if (!Number.isFinite(n)) return fallback;
+
+  return Math.max(min, Math.min(max, Math.round(n)));
+}
+
 function isPublicHttpUrl(v: string) {
   try {
     const u = new URL(v);
@@ -203,14 +222,37 @@ function isPublicHttpUrl(v: string) {
   }
 }
 
-function parseRecipients(raw: string) {
-  const emails = raw
+function parseRecipientsStrict(raw: string) {
+  const parts = raw
     .split(/[,\n;]/)
     .map((x) => normalizeEmail(x))
-    .filter(Boolean)
-    .filter(isValidEmail);
+    .filter(Boolean);
 
-  return [...new Set(emails)];
+  const valid: string[] = [];
+  const invalid: string[] = [];
+  const duplicate: string[] = [];
+  const seen = new Set<string>();
+
+  for (const email of parts) {
+    if (!isValidEmail(email)) {
+      invalid.push(email);
+      continue;
+    }
+
+    if (seen.has(email)) {
+      duplicate.push(email);
+      continue;
+    }
+
+    seen.add(email);
+    valid.push(email);
+  }
+
+  return {
+    recipients: valid,
+    invalid: [...new Set(invalid)],
+    duplicate: [...new Set(duplicate)],
+  };
 }
 
 function parsePolicyLinks(raw: string): PolicyLinkKey[] {
@@ -230,6 +272,34 @@ function parsePolicyLinks(raw: string): PolicyLinkKey[] {
     return [...new Set(links)];
   } catch (_) {
     return ["privacy", "terms"];
+  }
+}
+
+function parseBodyBlockOrder(raw: string): BodyBlockKind[] {
+  try {
+    const parsed = JSON.parse(raw || "[]");
+
+    if (!Array.isArray(parsed)) {
+      return ["audio", "message", "image"];
+    }
+
+    const allowed = new Set(["audio", "message", "image"]);
+
+    const order = parsed
+      .map((x) => clean(x))
+      .filter((x): x is BodyBlockKind => allowed.has(x));
+
+    const unique = [...new Set(order)];
+
+    for (const required of ["audio", "message", "image"] as BodyBlockKind[]) {
+      if (!unique.includes(required)) {
+        unique.push(required);
+      }
+    }
+
+    return unique;
+  } catch (_) {
+    return ["audio", "message", "image"];
   }
 }
 
@@ -368,19 +438,19 @@ function pill(text: string) {
   `;
 }
 
-function bannerImageBlock(contentId: string, alt: string) {
+function bannerImageBlock(contentId: string, alt: string, height: number) {
   return `
     <div style="
-      margin:14px 0;
-      border-radius:20px;
+      margin:12px 0;
+      border-radius:16px;
       border:1px solid rgba(0,0,0,0.10);
       overflow:hidden;
       background:#ffffff;
-      box-shadow:0 20px 60px rgba(0,0,0,0.07);
+      box-shadow:0 14px 34px rgba(0,0,0,0.07);
     ">
       <img src="cid:${escapeHtml(contentId)}" alt="${escapeHtml(
         alt,
-      )}" style="display:block;width:100%;max-height:420px;object-fit:cover;" />
+      )}" style="display:block;width:100%;height:${height}px;max-height:${height}px;object-fit:cover;" />
     </div>
   `;
 }
@@ -389,15 +459,123 @@ function inlineImageBlock(contentId: string, alt: string) {
   return `
     <div style="
       margin:14px 0;
-      border-radius:20px;
+      border-radius:18px;
       border:1px solid rgba(0,0,0,0.10);
       overflow:hidden;
       background:#ffffff;
-      box-shadow:0 20px 60px rgba(0,0,0,0.07);
+      box-shadow:0 16px 45px rgba(0,0,0,0.07);
     ">
       <img src="cid:${escapeHtml(contentId)}" alt="${escapeHtml(
         alt,
-      )}" style="display:block;width:100%;max-height:420px;object-fit:cover;" />
+      )}" style="display:block;width:100%;max-height:360px;object-fit:cover;" />
+    </div>
+  `;
+}
+
+function bodyImageBlock(contentId: string, alt: string, size: number) {
+  return `
+    <div style="text-align:center;margin:12px 0;">
+      <div style="
+        display:inline-block;
+        width:${size}%;
+        max-width:100%;
+        border-radius:18px;
+        overflow:hidden;
+        border:1px solid rgba(0,0,0,0.10);
+        background:#ffffff;
+        box-shadow:0 16px 45px rgba(0,0,0,0.07);
+      ">
+        <img src="cid:${escapeHtml(contentId)}" alt="${escapeHtml(
+          alt,
+        )}" style="display:block;width:100%;max-height:280px;object-fit:cover;" />
+      </div>
+    </div>
+  `;
+}
+
+function bodyAudioPillBlock(params: {
+  url: string;
+  filename: string;
+  size: number;
+  hint: string;
+}) {
+  const hint = clean(params.hint);
+
+  return `
+    <div style="text-align:center;margin:12px 0;">
+      <a href="${escapeHtml(params.url)}" target="_blank" rel="noopener noreferrer" style="
+        display:inline-flex;
+        align-items:center;
+        gap:10px;
+        width:${params.size}%;
+        max-width:100%;
+        min-width:240px;
+        box-sizing:border-box;
+        border-radius:999px;
+        border:1px solid rgba(0,0,0,0.10);
+        background:rgba(255,255,255,0.88);
+        box-shadow:inset 0 1px 0 rgba(255,255,255,0.92),0 15px 38px rgba(0,0,0,0.075);
+        padding:9px 12px;
+        color:#050505;
+        text-decoration:none;
+      ">
+        <span style="
+          width:32px;
+          height:32px;
+          border-radius:999px;
+          background:#050505;
+          color:#ffffff;
+          display:inline-flex;
+          align-items:center;
+          justify-content:center;
+          font-size:14px;
+          flex-shrink:0;
+        ">🎧</span>
+
+        <span style="display:block;text-align:left;min-width:0;">
+          <span style="
+            display:block;
+            font-size:13px;
+            font-weight:950;
+            color:#050505;
+            white-space:nowrap;
+            overflow:hidden;
+            text-overflow:ellipsis;
+          ">StayKnown Audio</span>
+
+          <span style="
+            display:block;
+            margin-top:2px;
+            font-size:10px;
+            color:rgba(0,0,0,0.52);
+            white-space:nowrap;
+            overflow:hidden;
+            text-overflow:ellipsis;
+          ">${escapeHtml(params.filename || "Tap to listen")}</span>
+        </span>
+
+        <span style="
+          margin-left:auto;
+          font-size:11px;
+          font-weight:900;
+          color:rgba(0,0,0,0.68);
+          white-space:nowrap;
+        ">Tap to listen</span>
+      </a>
+
+      ${
+        hint
+          ? `<div style="
+              width:${params.size}%;
+              max-width:100%;
+              margin:6px auto 0;
+              text-align:center;
+              font-size:11px;
+              line-height:1.45;
+              color:rgba(0,0,0,0.56);
+            ">${escapeHtml(hint)}</div>`
+          : ""
+      }
     </div>
   `;
 }
@@ -409,22 +587,22 @@ function ctaButton(label: string, url: string) {
     <div style="text-align:center;margin-top:18px;margin-bottom:4px;">
       <a href="${escapeHtml(url)}" style="
         display:inline-block;
-        padding:13px 18px;
+        padding:12px 16px;
         border-radius:999px;
         border:1px solid rgba(0,0,0,0.10);
         background:rgba(255,255,255,0.86);
         color:#0b0b0b;
         text-decoration:none;
         font-weight:950;
-        letter-spacing:0.4px;
-        box-shadow:inset 0 1px 0 rgba(255,255,255,0.92),0 20px 55px rgba(0,0,0,0.08);
+        letter-spacing:0.3px;
+        box-shadow:inset 0 1px 0 rgba(255,255,255,0.92),0 18px 45px rgba(0,0,0,0.075);
       ">${escapeHtml(label)}</a>
     </div>
   `;
 }
 
 function dividerHtml() {
-  return `<div style="height:1px;background:rgba(0,0,0,0.08);margin:18px 0;"></div>`;
+  return `<div style="height:1px;background:rgba(0,0,0,0.08);margin:16px 0;"></div>`;
 }
 
 function centeredFooterTextHtml(footerText: string) {
@@ -551,6 +729,49 @@ function emailShell(p: {
   </div>`;
 }
 
+function resolveBodyBlockOrder(params: {
+  rawOrder: BodyBlockKind[];
+  hasAudio: boolean;
+  hasImage: boolean;
+  audioPlacement: BodyMediaPlacement;
+  imagePlacement: BodyMediaPlacement;
+}) {
+  const enabled = new Set<BodyBlockKind>(["message"]);
+
+  if (params.hasAudio) enabled.add("audio");
+  if (params.hasImage) enabled.add("image");
+
+  const base = params.rawOrder.filter((x) => enabled.has(x));
+
+  if (!base.includes("message")) {
+    base.push("message");
+  }
+
+  const topBlocks: BodyBlockKind[] = [];
+  const customBlocks: BodyBlockKind[] = [];
+  const bottomBlocks: BodyBlockKind[] = [];
+
+  for (const block of base) {
+    if (block === "message") {
+      customBlocks.push(block);
+      continue;
+    }
+
+    const placement =
+      block === "audio" ? params.audioPlacement : params.imagePlacement;
+
+    if (placement === "top") {
+      topBlocks.push(block);
+    } else if (placement === "bottom") {
+      bottomBlocks.push(block);
+    } else {
+      customBlocks.push(block);
+    }
+  }
+
+  return [...topBlocks, ...customBlocks, ...bottomBlocks];
+}
+
 function buildHtml(p: {
   appName: string;
   mode: MailMode;
@@ -561,11 +782,22 @@ function buildHtml(p: {
   bannerTopContentId: string;
   bannerBottomContentId: string;
   bannerPosition: ImagePosition;
+  bannerHeight: number;
   ctaLabel: string;
   ctaUrl: string;
   footerHtml: string;
   inlineImageBlocks: string;
   linkOnlyFiles: Array<{ filename: string; url: string }>;
+  bodyAudioUrl: string;
+  bodyAudioFilename: string;
+  bodyAudioHint: string;
+  bodyAudioSize: number;
+  bodyImageContentId: string;
+  bodyImageFilename: string;
+  bodyImageSize: number;
+  bodyBlockOrder: BodyBlockKind[];
+  bodyAudioPlacement: BodyMediaPlacement;
+  bodyImagePlacement: BodyMediaPlacement;
 }) {
   const messageHtml = textToHtml(p.message);
 
@@ -575,14 +807,54 @@ function buildHtml(p: {
   const remoteTop =
     topBannerContentId &&
     (p.bannerPosition === "top" || p.bannerPosition === "both")
-      ? bannerImageBlock(topBannerContentId, p.title)
+      ? bannerImageBlock(topBannerContentId, p.title, p.bannerHeight)
       : "";
 
   const remoteBottom =
     bottomBannerContentId &&
     (p.bannerPosition === "bottom" || p.bannerPosition === "both")
-      ? bannerImageBlock(bottomBannerContentId, p.title)
+      ? bannerImageBlock(bottomBannerContentId, p.title, p.bannerHeight)
       : "";
+
+  const resolvedBodyOrder = resolveBodyBlockOrder({
+    rawOrder: p.bodyBlockOrder,
+    hasAudio: Boolean(p.bodyAudioUrl),
+    hasImage: Boolean(p.bodyImageContentId),
+    audioPlacement: p.bodyAudioPlacement,
+    imagePlacement: p.bodyImagePlacement,
+  });
+
+  const bodyBlocks = resolvedBodyOrder
+    .map((block) => {
+      if (block === "audio" && p.bodyAudioUrl) {
+        return bodyAudioPillBlock({
+          url: p.bodyAudioUrl,
+          filename: p.bodyAudioFilename || "StayKnown audio",
+          size: p.bodyAudioSize,
+          hint: p.bodyAudioHint,
+        });
+      }
+
+      if (block === "image" && p.bodyImageContentId) {
+        return bodyImageBlock(
+          p.bodyImageContentId,
+          p.bodyImageFilename || "StayKnown body image",
+          p.bodyImageSize,
+        );
+      }
+
+      if (block === "message") {
+        return `
+          <div style="font-size:15px;line-height:1.75;color:rgba(0,0,0,0.82);">
+            ${messageHtml}
+          </div>
+        `;
+      }
+
+      return "";
+    })
+    .filter(Boolean)
+    .join("");
 
   const cta = ctaButton(p.ctaLabel, p.ctaUrl);
 
@@ -600,9 +872,7 @@ function buildHtml(p: {
 
     ${p.inlineImageBlocks}
 
-    <div style="font-size:15px;line-height:1.75;color:rgba(0,0,0,0.82);">
-      ${messageHtml}
-    </div>
+    ${bodyBlocks}
 
     ${cta ? `${dividerHtml()}${cta}` : ""}
 
@@ -744,7 +1014,8 @@ export async function POST(req: NextRequest) {
 
     const mode = safeMode(form.get("mode"));
     const senderIdentityId = clean(form.get("sender_identity_id"));
-    const recipients = parseRecipients(clean(form.get("to")));
+    const parsedRecipients = parseRecipientsStrict(clean(form.get("to")));
+    const recipients = parsedRecipients.recipients;
     const subject = clean(form.get("subject"));
     const title = clean(form.get("title"));
     const subtitle = clean(form.get("subtitle"));
@@ -753,11 +1024,17 @@ export async function POST(req: NextRequest) {
 
     const bannerTopFileRaw = form.get("banner_top_file");
     const bannerBottomFileRaw = form.get("banner_bottom_file");
+    const bodyAudioFileRaw = form.get("body_audio_file");
+    const bodyImageFileRaw = form.get("body_image_file");
 
     const bannerTopFile =
       bannerTopFileRaw instanceof File ? bannerTopFileRaw : null;
     const bannerBottomFile =
       bannerBottomFileRaw instanceof File ? bannerBottomFileRaw : null;
+    const bodyAudioFile =
+      bodyAudioFileRaw instanceof File ? bodyAudioFileRaw : null;
+    const bodyImageFile =
+      bodyImageFileRaw instanceof File ? bodyImageFileRaw : null;
 
     const bannerPosition =
       bannerTopFile || bannerBottomFile
@@ -765,6 +1042,23 @@ export async function POST(req: NextRequest) {
             form.get("banner_position") || form.get("image_position"),
           )
         : "none";
+
+    const bannerHeight = safeNumber(form.get("banner_height"), 96, 64, 150);
+
+    const bodyAudioPlacement = safeBodyMediaPlacement(
+      form.get("body_audio_placement"),
+    );
+    const bodyAudioSize = safeNumber(form.get("body_audio_size"), 76, 48, 100);
+    const bodyAudioHint = clean(form.get("body_audio_hint")).slice(0, 160);
+
+    const bodyImagePlacement = safeBodyMediaPlacement(
+      form.get("body_image_placement"),
+    );
+    const bodyImageSize = safeNumber(form.get("body_image_size"), 88, 45, 100);
+
+    const bodyBlockOrder = parseBodyBlockOrder(
+      clean(form.get("body_block_order")),
+    );
 
     const ctaLabel = clean(form.get("cta_label"));
     const ctaUrl = clean(form.get("cta_url"));
@@ -777,6 +1071,28 @@ export async function POST(req: NextRequest) {
     if (!senderIdentityId) {
       return NextResponse.json(
         { ok: false, error: "Select a sender address." },
+        { status: 400 },
+      );
+    }
+
+    if (parsedRecipients.invalid.length > 0) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: `Invalid recipient email(s): ${parsedRecipients.invalid.join(", ")}`,
+          invalid_emails: parsedRecipients.invalid,
+        },
+        { status: 400 },
+      );
+    }
+
+    if (parsedRecipients.duplicate.length > 0) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: `Duplicate recipient email(s): ${parsedRecipients.duplicate.join(", ")}`,
+          duplicate_emails: parsedRecipients.duplicate,
+        },
         { status: 400 },
       );
     }
@@ -830,6 +1146,20 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    if (bodyAudioFile && !bodyAudioFile.type.startsWith("audio/")) {
+      return NextResponse.json(
+        { ok: false, error: "Body audio must be an audio file." },
+        { status: 400 },
+      );
+    }
+
+    if (bodyImageFile && !bodyImageFile.type.startsWith("image/")) {
+      return NextResponse.json(
+        { ok: false, error: "Body image must be an image file." },
+        { status: 400 },
+      );
+    }
+
     if (bannerTopFile && bannerTopFile.size > 8 * 1024 * 1024) {
       return NextResponse.json(
         { ok: false, error: "Top banner image must be under 8MB." },
@@ -840,6 +1170,20 @@ export async function POST(req: NextRequest) {
     if (bannerBottomFile && bannerBottomFile.size > 8 * 1024 * 1024) {
       return NextResponse.json(
         { ok: false, error: "Bottom banner image must be under 8MB." },
+        { status: 400 },
+      );
+    }
+
+    if (bodyImageFile && bodyImageFile.size > 8 * 1024 * 1024) {
+      return NextResponse.json(
+        { ok: false, error: "Body image must be under 8MB." },
+        { status: 400 },
+      );
+    }
+
+    if (bodyAudioFile && bodyAudioFile.size > 20 * 1024 * 1024) {
+      return NextResponse.json(
+        { ok: false, error: "Body audio must be under 20MB." },
         { status: 400 },
       );
     }
@@ -943,8 +1287,17 @@ export async function POST(req: NextRequest) {
           recipient_count: recipients.length,
           policy_links: selectedPolicyLinks,
           banner_position: bannerPosition,
+          banner_height: bannerHeight,
           banner_top_file_name: bannerTopFile?.name || null,
           banner_bottom_file_name: bannerBottomFile?.name || null,
+          body_audio_file_name: bodyAudioFile?.name || null,
+          body_audio_placement: bodyAudioPlacement,
+          body_audio_size: bodyAudioSize,
+          body_audio_hint: bodyAudioHint || null,
+          body_image_file_name: bodyImageFile?.name || null,
+          body_image_placement: bodyImagePlacement,
+          body_image_size: bodyImageSize,
+          body_block_order: bodyBlockOrder,
         },
       })
       .select("id")
@@ -982,6 +1335,8 @@ export async function POST(req: NextRequest) {
 
     let bannerTopContentId = "";
     let bannerBottomContentId = "";
+    let bodyImageContentId = "";
+    let bodyAudioUrl = "";
 
     if (bannerTopFile) {
       const buffer = Buffer.from(await bannerTopFile.arrayBuffer());
@@ -1011,15 +1366,88 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    if (bodyImageFile) {
+      const buffer = Buffer.from(await bodyImageFile.arrayBuffer());
+
+      totalAttachmentRawBytes += buffer.length;
+      bodyImageContentId = `sk-body-image-${randomUUID()}`;
+
+      attachments.push({
+        filename: cleanFilename(bodyImageFile.name || "body-image.png"),
+        content: buffer.toString("base64"),
+        contentId: bodyImageContentId,
+        content_type: bodyImageFile.type || "image/png",
+      });
+
+      await admin.from("mail_console_attachments").insert({
+        campaign_id: campaignId,
+        file_name: cleanFilename(bodyImageFile.name || "body-image.png"),
+        mime_type: bodyImageFile.type || "image/png",
+        size_bytes: bodyImageFile.size,
+        storage_bucket: "mail-console-attachments",
+        storage_path: `inline-body/${campaignId}/${cleanFilename(
+          bodyImageFile.name || "body-image.png",
+        )}`,
+        attachment_mode: "inline_image",
+        created_by: null,
+      });
+    }
+
     if (totalAttachmentRawBytes > 25 * 1024 * 1024) {
       return NextResponse.json(
         {
           ok: false,
           error:
-            "Banner images are too large for one email. Please reduce the image size.",
+            "Inline images are too large for one email. Please reduce banner/body image size.",
         },
         { status: 400 },
       );
+    }
+
+    if (bodyAudioFile) {
+      const filename = cleanFilename(
+        bodyAudioFile.name || "stayknown-audio.mp3",
+      );
+      const buffer = Buffer.from(await bodyAudioFile.arrayBuffer());
+      const storagePath = `${campaignId}/body-audio-${randomUUID()}-${filename}`;
+
+      const { error: uploadError } = await admin.storage
+        .from("mail-console-attachments")
+        .upload(storagePath, buffer, {
+          contentType: bodyAudioFile.type || "audio/mpeg",
+          upsert: false,
+        });
+
+      if (uploadError) {
+        throw new Error(
+          `Audio upload failed for ${filename}: ${uploadError.message}`,
+        );
+      }
+
+      const { data: signed, error: signedError } = await admin.storage
+        .from("mail-console-attachments")
+        .createSignedUrl(storagePath, 7 * 24 * 60 * 60);
+
+      if (signedError || !signed?.signedUrl) {
+        throw new Error(
+          `Audio signed URL failed for ${filename}: ${
+            signedError?.message || "unknown error"
+          }`,
+        );
+      }
+
+      bodyAudioUrl = signed.signedUrl;
+
+      await admin.from("mail_console_attachments").insert({
+        campaign_id: campaignId,
+        file_name: filename,
+        mime_type: bodyAudioFile.type || "audio/mpeg",
+        size_bytes: bodyAudioFile.size,
+        storage_bucket: "mail-console-attachments",
+        storage_path: storagePath,
+        attachment_mode: "link_only",
+        created_by: null,
+      });
     }
 
     for (let i = 0; i < files.length; i += 1) {
@@ -1144,11 +1572,22 @@ export async function POST(req: NextRequest) {
       bannerTopContentId,
       bannerBottomContentId,
       bannerPosition,
+      bannerHeight,
       ctaLabel,
       ctaUrl,
       footerHtml: finalFooterHtml,
       inlineImageBlocks: inlineBlocks.join(""),
       linkOnlyFiles,
+      bodyAudioUrl,
+      bodyAudioFilename: bodyAudioFile?.name || "",
+      bodyAudioHint,
+      bodyAudioSize,
+      bodyImageContentId,
+      bodyImageFilename: bodyImageFile?.name || "",
+      bodyImageSize,
+      bodyBlockOrder,
+      bodyAudioPlacement,
+      bodyImagePlacement,
     });
 
     const text = htmlToText(html.replace("<!--SK_UNSUBSCRIBE-->", ""));
@@ -1235,6 +1674,9 @@ export async function POST(req: NextRequest) {
               attachment_count: attachments.length,
               link_only_count: linkOnlyFiles.length,
               banner_position: bannerPosition,
+              banner_height: bannerHeight,
+              has_body_audio: Boolean(bodyAudioUrl),
+              has_body_image: Boolean(bodyImageContentId),
             },
           })
           .select("id")
@@ -1300,6 +1742,9 @@ export async function POST(req: NextRequest) {
                 attachment_count: attachments.length,
                 link_only_count: linkOnlyFiles.length,
                 banner_position: bannerPosition,
+                banner_height: bannerHeight,
+                has_body_audio: Boolean(bodyAudioUrl),
+                has_body_image: Boolean(bodyImageContentId),
                 resend: resendResult,
               },
             })
@@ -1375,8 +1820,17 @@ export async function POST(req: NextRequest) {
           attachment_count: attachments.length,
           link_only_count: linkOnlyFiles.length,
           banner_position: bannerPosition,
+          banner_height: bannerHeight,
           banner_top_file_name: bannerTopFile?.name || null,
           banner_bottom_file_name: bannerBottomFile?.name || null,
+          body_audio_file_name: bodyAudioFile?.name || null,
+          body_audio_placement: bodyAudioPlacement,
+          body_audio_size: bodyAudioSize,
+          body_audio_hint: bodyAudioHint || null,
+          body_image_file_name: bodyImageFile?.name || null,
+          body_image_placement: bodyImagePlacement,
+          body_image_size: bodyImageSize,
+          body_block_order: bodyBlockOrder,
           policy_links: selectedPolicyLinks,
           summary,
         },
