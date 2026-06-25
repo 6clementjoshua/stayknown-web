@@ -1,15 +1,16 @@
-import { getMailConsoleSiteUrl } from "@/lib/mailConsoleAdmin";
-import { createUnsubscribeToken } from "@/lib/mailConsoleUnsubscribe";
+import { randomUUID } from "crypto";
 import { readFile } from "fs/promises";
 import path from "path";
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-
-export const runtime = "nodejs";
+import { getMailConsoleSiteUrl } from "@/lib/mailConsoleAdmin";
+import { createUnsubscribeToken } from "@/lib/mailConsoleUnsubscribe";
 import {
   MAIL_CONSOLE_COOKIE,
   verifyMailConsoleSessionToken,
 } from "@/lib/mailConsoleServerAuth";
+
+export const runtime = "nodejs";
 
 type MailMode = "support" | "newsletter" | "advert" | "investor";
 type ImagePosition = "none" | "top" | "bottom" | "both";
@@ -42,24 +43,6 @@ type ResendAttachment = {
   content_type?: string;
 };
 
-const STAYKNOWN_LOGO_CONTENT_ID = "stayknown-brand-logo";
-
-async function getStayKnownLogoAttachment(): Promise<ResendAttachment | null> {
-  try {
-    const logoPath = path.join(process.cwd(), "public", "6logo.png");
-    const logoBuffer = await readFile(logoPath);
-
-    return {
-      filename: "6logo.png",
-      content: logoBuffer.toString("base64"),
-      contentId: STAYKNOWN_LOGO_CONTENT_ID,
-      content_type: "image/png",
-    };
-  } catch (_) {
-    return null;
-  }
-}
-
 type PolicyLinkKey =
   | "privacy"
   | "terms"
@@ -80,6 +63,8 @@ type PolicyLinkKey =
   | "donor_policy"
   | "billing_policy";
 
+const STAYKNOWN_LOGO_CONTENT_ID = "stayknown-brand-logo";
+
 const POLICY_LINK_OPTIONS: Record<
   PolicyLinkKey,
   {
@@ -87,8 +72,14 @@ const POLICY_LINK_OPTIONS: Record<
     href: string;
   }
 > = {
-  privacy: { label: "Privacy Policy", href: "https://stay-known.com/privacy" },
-  terms: { label: "Terms of Service", href: "https://stay-known.com/terms" },
+  privacy: {
+    label: "Privacy Policy",
+    href: "https://stay-known.com/privacy",
+  },
+  terms: {
+    label: "Terms of Service",
+    href: "https://stay-known.com/terms",
+  },
   location_safety: {
     label: "Location & Live Safety",
     href: "https://stay-known.com/location-safety",
@@ -125,7 +116,10 @@ const POLICY_LINK_OPTIONS: Record<
     label: "Guardian Consent",
     href: "https://stay-known.com/guardian-consent",
   },
-  abuse: { label: "Abuse Reporting", href: "https://stay-known.com/abuse" },
+  abuse: {
+    label: "Abuse Reporting",
+    href: "https://stay-known.com/abuse",
+  },
   retention: {
     label: "Data Retention",
     href: "https://stay-known.com/retention",
@@ -175,22 +169,28 @@ function isValidEmail(email: string) {
 
 function safeMode(v: unknown): MailMode {
   const s = clean(v).toLowerCase();
+
   if (s === "newsletter") return "newsletter";
   if (s === "advert") return "advert";
   if (s === "investor") return "investor";
+
   return "support";
 }
 
 function safeImagePosition(v: unknown): ImagePosition {
   const s = clean(v).toLowerCase();
+
   if (s === "top" || s === "bottom" || s === "both") return s;
+
   return "none";
 }
 
 function safeAttachmentMode(v: unknown): AttachmentMode {
   const s = clean(v).toLowerCase();
+
   if (s === "link_only") return "link_only";
   if (s === "inline_image") return "inline_image";
+
   return "attach";
 }
 
@@ -211,21 +211,6 @@ function parseRecipients(raw: string) {
     .filter(isValidEmail);
 
   return [...new Set(emails)];
-}
-
-function textToHtml(text: string) {
-  return text
-    .trim()
-    .split(/\n{2,}/)
-    .map((para) => {
-      const lines = para
-        .split(/\n/)
-        .map((line) => escapeHtml(line))
-        .join("<br/>");
-
-      return `<p style="margin:0 0 14px 0;font-size:15px;line-height:1.75;color:rgba(0,0,0,0.82);">${lines}</p>`;
-    })
-    .join("");
 }
 
 function parsePolicyLinks(raw: string): PolicyLinkKey[] {
@@ -257,7 +242,11 @@ function policyLinksHtml(keys: PolicyLinkKey[]) {
 
       if (!item) return "";
 
-      return `<a href="${escapeHtml(item.href)}" target="_blank" rel="noopener noreferrer" style="color:rgba(0,0,0,0.72);font-weight:900;text-decoration:underline;text-underline-offset:3px;">${escapeHtml(item.label)}</a>`;
+      return `<a href="${escapeHtml(
+        item.href,
+      )}" target="_blank" rel="noopener noreferrer" style="color:rgba(0,0,0,0.72);font-weight:900;text-decoration:underline;text-underline-offset:3px;">${escapeHtml(
+        item.label,
+      )}</a>`;
     })
     .filter(Boolean)
     .join(`<span style="color:rgba(0,0,0,0.25);padding:0 6px;">•</span>`);
@@ -274,6 +263,21 @@ function policyLinksHtml(keys: PolicyLinkKey[]) {
       ${links}
     </div>
   `;
+}
+
+function textToHtml(text: string) {
+  return text
+    .trim()
+    .split(/\n{2,}/)
+    .map((para) => {
+      const lines = para
+        .split(/\n/)
+        .map((line) => escapeHtml(line))
+        .join("<br/>");
+
+      return `<p style="margin:0 0 14px 0;font-size:15px;line-height:1.75;color:rgba(0,0,0,0.82);">${lines}</p>`;
+    })
+    .join("");
 }
 
 function htmlToText(html: string) {
@@ -293,20 +297,31 @@ function htmlToText(html: string) {
     .trim();
 }
 
-function getSiteUrl() {
+function cleanFilename(name: string) {
   return (
-    clean(process.env.NEXT_PUBLIC_SITE_URL) ||
-    clean(process.env.SITE_URL) ||
-    "https://stay-known.com"
-  ).replace(/\/+$/g, "");
+    name
+      .replace(/[^\w.\-() ]+/g, "_")
+      .replace(/\s+/g, "_")
+      .slice(0, 120) || "attachment"
+  );
 }
 
-function getLogoUrl() {
-  return (
-    clean(process.env.MAIL_CONSOLE_BRAND_LOGO_URL) ||
-    clean(process.env.BRAND_LOGO_URL) ||
-    "https://ipognlibpkbauusvfeic.supabase.co/storage/v1/object/public/public-assets/stayknown-logo.png"
-  );
+async function getStayKnownLogoAttachment(): Promise<ResendAttachment> {
+  try {
+    const logoPath = path.join(process.cwd(), "public", "6logo.png");
+    const logoBuffer = await readFile(logoPath);
+
+    return {
+      filename: "6logo.png",
+      content: logoBuffer.toString("base64"),
+      contentId: STAYKNOWN_LOGO_CONTENT_ID,
+      content_type: "image/png",
+    };
+  } catch (_) {
+    throw new Error(
+      "Brand logo missing. Add public/6logo.png before sending email.",
+    );
+  }
 }
 
 function trademarkHtml(appName: string) {
@@ -328,8 +343,9 @@ function brandLogoHtml(appName: string) {
   return `
     ${trademarkHtml(appName)}
     <div style="text-align:center;margin:0 0 10px 0;">
-      <img src="cid:${STAYKNOWN_LOGO_CONTENT_ID}" width="64" height="64" alt="${escapeHtml(appName)}"
-        style="display:inline-block;width:64px;height:64px;border-radius:18px;background:#ffffff;box-shadow:0 14px 38px rgba(0,0,0,0.14);" />
+      <img src="cid:${STAYKNOWN_LOGO_CONTENT_ID}" width="64" height="64" alt="${escapeHtml(
+        appName,
+      )}" style="display:inline-block;width:64px;height:64px;border-radius:18px;background:#ffffff;box-shadow:0 14px 38px rgba(0,0,0,0.14);" />
       <div style="height:6px;"></div>
     </div>
   `;
@@ -352,9 +368,7 @@ function pill(text: string) {
   `;
 }
 
-function remoteImageBlock(url: string, alt: string) {
-  if (!url || !isPublicHttpUrl(url)) return "";
-
+function bannerImageBlock(contentId: string, alt: string) {
   return `
     <div style="
       margin:14px 0;
@@ -364,8 +378,9 @@ function remoteImageBlock(url: string, alt: string) {
       background:#ffffff;
       box-shadow:0 20px 60px rgba(0,0,0,0.07);
     ">
-      <img src="${escapeHtml(url)}" alt="${escapeHtml(alt)}"
-        style="display:block;width:100%;max-height:420px;object-fit:cover;" />
+      <img src="cid:${escapeHtml(contentId)}" alt="${escapeHtml(
+        alt,
+      )}" style="display:block;width:100%;max-height:420px;object-fit:cover;" />
     </div>
   `;
 }
@@ -380,8 +395,9 @@ function inlineImageBlock(contentId: string, alt: string) {
       background:#ffffff;
       box-shadow:0 20px 60px rgba(0,0,0,0.07);
     ">
-      <img src="cid:${escapeHtml(contentId)}" alt="${escapeHtml(alt)}"
-        style="display:block;width:100%;max-height:420px;object-fit:cover;" />
+      <img src="cid:${escapeHtml(contentId)}" alt="${escapeHtml(
+        alt,
+      )}" style="display:block;width:100%;max-height:420px;object-fit:cover;" />
     </div>
   `;
 }
@@ -411,6 +427,25 @@ function dividerHtml() {
   return `<div style="height:1px;background:rgba(0,0,0,0.08);margin:18px 0;"></div>`;
 }
 
+function centeredFooterTextHtml(footerText: string) {
+  const cleanFooter = clean(footerText);
+
+  if (!cleanFooter) return "";
+
+  return `
+    <div style="
+      text-align:center;
+      margin:0 auto;
+      max-width:500px;
+      font-size:11px;
+      line-height:1.65;
+      color:rgba(0,0,0,0.55);
+    ">
+      ${escapeHtml(cleanFooter).replaceAll("\n", "<br/>")}
+    </div>
+  `;
+}
+
 function linkOnlyFilesBlock(files: Array<{ filename: string; url: string }>) {
   if (files.length === 0) return "";
 
@@ -418,7 +453,9 @@ function linkOnlyFilesBlock(files: Array<{ filename: string; url: string }>) {
     .map(
       (f) => `
       <div style="padding:10px 0;border-top:1px solid rgba(0,0,0,0.08);">
-        <a href="${escapeHtml(f.url)}" style="color:#050505;font-weight:900;text-decoration:none;">
+        <a href="${escapeHtml(
+          f.url,
+        )}" style="color:#050505;font-weight:900;text-decoration:none;">
           ${escapeHtml(f.filename)}
         </a>
       </div>
@@ -443,31 +480,6 @@ function linkOnlyFilesBlock(files: Array<{ filename: string; url: string }>) {
         These links may expire for security.
       </div>
     </div>
-  `;
-}
-
-function centeredFooterHtml(footerHtml: string) {
-  const cleanFooter = clean(footerHtml);
-
-  if (!cleanFooter) return "";
-
-  const parts = cleanFooter.split("\n\n");
-
-  const textPart = parts[0] || "";
-  const htmlParts = parts.slice(1).join("\n\n");
-
-  return `
-    <div style="
-      text-align:center;
-      margin:0 auto;
-      max-width:500px;
-      font-size:11px;
-      line-height:1.65;
-      color:rgba(0,0,0,0.55);
-    ">
-      ${escapeHtml(textPart).replaceAll("\n", "<br/>")}
-    </div>
-    ${htmlParts}
   `;
 }
 
@@ -526,6 +538,7 @@ function emailShell(p: {
 
                 <div style="text-align:center;font-size:11px;color:rgba(0,0,0,0.55);line-height:1.5;">
                   ${p.footerHtml}
+                  <!--SK_UNSUBSCRIBE-->
                   <div style="height:6px;"></div>
                   <span style="color:rgba(0,0,0,0.52);">${escapeHtml(legalLine)}</span>
                 </div>
@@ -545,8 +558,8 @@ function buildHtml(p: {
   subtitle: string;
   badge: string;
   message: string;
-  bannerImageUrlTop: string;
-  bannerImageUrlBottom: string;
+  bannerTopContentId: string;
+  bannerBottomContentId: string;
   bannerPosition: ImagePosition;
   ctaLabel: string;
   ctaUrl: string;
@@ -556,21 +569,24 @@ function buildHtml(p: {
 }) {
   const messageHtml = textToHtml(p.message);
 
-  const topBannerUrl = p.bannerImageUrlTop;
-  const bottomBannerUrl = p.bannerImageUrlBottom || p.bannerImageUrlTop;
+  const topBannerContentId = p.bannerTopContentId || p.bannerBottomContentId;
+  const bottomBannerContentId = p.bannerBottomContentId || p.bannerTopContentId;
 
   const remoteTop =
-    p.bannerPosition === "top" || p.bannerPosition === "both"
-      ? remoteImageBlock(topBannerUrl, p.title)
+    topBannerContentId &&
+    (p.bannerPosition === "top" || p.bannerPosition === "both")
+      ? bannerImageBlock(topBannerContentId, p.title)
       : "";
 
   const remoteBottom =
-    p.bannerPosition === "bottom" || p.bannerPosition === "both"
-      ? remoteImageBlock(bottomBannerUrl, p.title)
+    bottomBannerContentId &&
+    (p.bannerPosition === "bottom" || p.bannerPosition === "both")
+      ? bannerImageBlock(bottomBannerContentId, p.title)
       : "";
+
   const cta = ctaButton(p.ctaLabel, p.ctaUrl);
 
-  const modeLabel =
+  const modeLabelText =
     p.mode === "newsletter"
       ? "Newsletter"
       : p.mode === "advert"
@@ -605,7 +621,7 @@ function buildHtml(p: {
       line-height:1.55;
       text-align:center;
     ">
-      ${escapeHtml(modeLabel)}
+      ${escapeHtml(modeLabelText)}
     </div>
   `;
 
@@ -615,8 +631,21 @@ function buildHtml(p: {
     subtitle: p.subtitle,
     badge: p.badge,
     contentHtml,
-    footerHtml: centeredFooterHtml(p.footerHtml),
+    footerHtml: p.footerHtml,
   });
+}
+
+function unsubscribeHtml(link: string) {
+  return `
+    <div style="height:8px;"></div>
+    <div style="text-align:center;font-size:11px;line-height:1.6;color:rgba(0,0,0,0.55);">
+      <a href="${escapeHtml(
+        link,
+      )}" style="color:rgba(0,0,0,0.72);font-weight:900;text-decoration:underline;text-underline-offset:3px;">
+        Unsubscribe from marketing emails
+      </a>
+    </div>
+  `;
 }
 
 async function sendResend(params: {
@@ -660,15 +689,6 @@ async function sendResend(params: {
   }
 
   return data;
-}
-
-function cleanFilename(name: string) {
-  return (
-    name
-      .replace(/[^\w.\-() ]+/g, "_")
-      .replace(/\s+/g, "_")
-      .slice(0, 120) || "attachment"
-  );
 }
 
 export async function POST(req: NextRequest) {
@@ -724,24 +744,28 @@ export async function POST(req: NextRequest) {
 
     const mode = safeMode(form.get("mode"));
     const senderIdentityId = clean(form.get("sender_identity_id"));
-    const recipientRaw = clean(form.get("to"));
-    const recipients = parseRecipients(recipientRaw);
-
+    const recipients = parseRecipients(clean(form.get("to")));
     const subject = clean(form.get("subject"));
     const title = clean(form.get("title"));
     const subtitle = clean(form.get("subtitle"));
     const badge = clean(form.get("badge"));
     const message = clean(form.get("message"));
-    const bannerImageUrlTop =
-      clean(form.get("banner_image_url_top")) || clean(form.get("image_url"));
 
-    const bannerImageUrlBottom = clean(form.get("banner_image_url_bottom"));
+    const bannerTopFileRaw = form.get("banner_top_file");
+    const bannerBottomFileRaw = form.get("banner_bottom_file");
 
-    const bannerPosition = bannerImageUrlTop
-      ? safeImagePosition(
-          form.get("banner_position") || form.get("image_position"),
-        )
-      : "none";
+    const bannerTopFile =
+      bannerTopFileRaw instanceof File ? bannerTopFileRaw : null;
+    const bannerBottomFile =
+      bannerBottomFileRaw instanceof File ? bannerBottomFileRaw : null;
+
+    const bannerPosition =
+      bannerTopFile || bannerBottomFile
+        ? safeImagePosition(
+            form.get("banner_position") || form.get("image_position"),
+          )
+        : "none";
+
     const ctaLabel = clean(form.get("cta_label"));
     const ctaUrl = clean(form.get("cta_url"));
     const footerPolicyId = clean(form.get("footer_policy_id"));
@@ -785,29 +809,37 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (bannerImageUrlTop && !isPublicHttpUrl(bannerImageUrlTop)) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: "Top banner image URL must start with http:// or https://.",
-        },
-        { status: 400 },
-      );
-    }
-
-    if (bannerImageUrlBottom && !isPublicHttpUrl(bannerImageUrlBottom)) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: "Bottom banner image URL must start with http:// or https://.",
-        },
-        { status: 400 },
-      );
-    }
-
     if (ctaUrl && !isPublicHttpUrl(ctaUrl)) {
       return NextResponse.json(
         { ok: false, error: "CTA URL must start with http:// or https://." },
+        { status: 400 },
+      );
+    }
+
+    if (bannerTopFile && !bannerTopFile.type.startsWith("image/")) {
+      return NextResponse.json(
+        { ok: false, error: "Top banner must be an image file." },
+        { status: 400 },
+      );
+    }
+
+    if (bannerBottomFile && !bannerBottomFile.type.startsWith("image/")) {
+      return NextResponse.json(
+        { ok: false, error: "Bottom banner must be an image file." },
+        { status: 400 },
+      );
+    }
+
+    if (bannerTopFile && bannerTopFile.size > 8 * 1024 * 1024) {
+      return NextResponse.json(
+        { ok: false, error: "Top banner image must be under 8MB." },
+        { status: 400 },
+      );
+    }
+
+    if (bannerBottomFile && bannerBottomFile.size > 8 * 1024 * 1024) {
+      return NextResponse.json(
+        { ok: false, error: "Bottom banner image must be under 8MB." },
         { status: 400 },
       );
     }
@@ -874,7 +906,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const finalFooter = `${finalFooterText}\n\n${policyLinksHtml(selectedPolicyLinks)}`;
+    const finalFooterHtml =
+      centeredFooterTextHtml(finalFooterText) +
+      policyLinksHtml(selectedPolicyLinks);
 
     const replyMode =
       mode === "newsletter" || mode === "advert" ? "no_reply" : "reply_enabled";
@@ -894,12 +928,12 @@ export async function POST(req: NextRequest) {
         subject,
         body_html: textToHtml(message),
         body_text: message,
-        image_url: bannerImageUrlTop || null,
+        image_url: null,
         image_position: bannerPosition,
         cta_label: ctaLabel || null,
         cta_url: ctaUrl || null,
-        footer_html: finalFooter,
-        footer_text: htmlToText(finalFooter),
+        footer_html: finalFooterHtml,
+        footer_text: htmlToText(finalFooterHtml),
         reply_mode: replyMode,
         status: "sending",
         meta: {
@@ -908,8 +942,9 @@ export async function POST(req: NextRequest) {
           sender_email: senderRow.from_email,
           recipient_count: recipients.length,
           policy_links: selectedPolicyLinks,
-          banner_image_url_top: bannerImageUrlTop || null,
-          banner_image_url_bottom: bannerImageUrlBottom || null,
+          banner_position: bannerPosition,
+          banner_top_file_name: bannerTopFile?.name || null,
+          banner_bottom_file_name: bannerBottomFile?.name || null,
         },
       })
       .select("id")
@@ -943,9 +978,48 @@ export async function POST(req: NextRequest) {
     const inlineBlocks: string[] = [];
 
     const logoAttachment = await getStayKnownLogoAttachment();
+    attachments.push(logoAttachment);
 
-    if (logoAttachment) {
-      attachments.push(logoAttachment);
+    let bannerTopContentId = "";
+    let bannerBottomContentId = "";
+
+    if (bannerTopFile) {
+      const buffer = Buffer.from(await bannerTopFile.arrayBuffer());
+
+      totalAttachmentRawBytes += buffer.length;
+      bannerTopContentId = `sk-banner-top-${randomUUID()}`;
+
+      attachments.push({
+        filename: cleanFilename(bannerTopFile.name || "top-banner.png"),
+        content: buffer.toString("base64"),
+        contentId: bannerTopContentId,
+        content_type: bannerTopFile.type || "image/png",
+      });
+    }
+
+    if (bannerBottomFile) {
+      const buffer = Buffer.from(await bannerBottomFile.arrayBuffer());
+
+      totalAttachmentRawBytes += buffer.length;
+      bannerBottomContentId = `sk-banner-bottom-${randomUUID()}`;
+
+      attachments.push({
+        filename: cleanFilename(bannerBottomFile.name || "bottom-banner.png"),
+        content: buffer.toString("base64"),
+        contentId: bannerBottomContentId,
+        content_type: bannerBottomFile.type || "image/png",
+      });
+    }
+
+    if (totalAttachmentRawBytes > 25 * 1024 * 1024) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error:
+            "Banner images are too large for one email. Please reduce the image size.",
+        },
+        { status: 400 },
+      );
     }
 
     for (let i = 0; i < files.length; i += 1) {
@@ -980,7 +1054,7 @@ export async function POST(req: NextRequest) {
       });
 
       if (fileMode === "link_only") {
-        const storagePath = `${campaignId}/${crypto.randomUUID()}-${filename}`;
+        const storagePath = `${campaignId}/${randomUUID()}-${filename}`;
 
         const { error: uploadError } = await admin.storage
           .from("mail-console-attachments")
@@ -1001,7 +1075,9 @@ export async function POST(req: NextRequest) {
 
         if (signedError || !signed?.signedUrl) {
           throw new Error(
-            `Signed URL failed for ${filename}: ${signedError?.message || "unknown error"}`,
+            `Signed URL failed for ${filename}: ${
+              signedError?.message || "unknown error"
+            }`,
           );
         }
 
@@ -1037,7 +1113,7 @@ export async function POST(req: NextRequest) {
       const base64 = buffer.toString("base64");
 
       if (fileMode === "inline_image" && mime.startsWith("image/")) {
-        const contentId = `sk-inline-${i}-${crypto.randomUUID()}`;
+        const contentId = `sk-inline-${i}-${randomUUID()}`;
 
         attachments.push({
           filename,
@@ -1065,30 +1141,27 @@ export async function POST(req: NextRequest) {
       subtitle,
       badge,
       message,
-      bannerImageUrlTop,
-      bannerImageUrlBottom,
+      bannerTopContentId,
+      bannerBottomContentId,
       bannerPosition,
       ctaLabel,
       ctaUrl,
-      footerHtml: finalFooter,
+      footerHtml: finalFooterHtml,
       inlineImageBlocks: inlineBlocks.join(""),
       linkOnlyFiles,
     });
-    const text = htmlToText(html);
-    const from = `${senderRow.from_name} <${senderRow.from_email}>`;
 
+    const text = htmlToText(html.replace("<!--SK_UNSUBSCRIBE-->", ""));
+    const from = `${senderRow.from_name} <${senderRow.from_email}>`;
     const newsletterLike = mode === "newsletter" || mode === "advert";
     const siteUrl = getMailConsoleSiteUrl();
 
     function unsubscribeLinkFor(email: string) {
       const token = createUnsubscribeToken(email);
-      return `${siteUrl}/unsubscribe?email=${encodeURIComponent(email)}&token=${encodeURIComponent(token)}`;
-    }
 
-    const headers: Record<string, string> = {};
-
-    if (newsletterLike) {
-      headers["X-StayKnown-Email-Type"] = mode;
+      return `${siteUrl}/unsubscribe?email=${encodeURIComponent(
+        email,
+      )}&token=${encodeURIComponent(token)}`;
     }
 
     const summary = {
@@ -1100,7 +1173,7 @@ export async function POST(req: NextRequest) {
     };
 
     for (const recipient of recipients) {
-      let logId: number | null = null;
+      let logId: string | null = null;
       let campaignRecipientId: string | null = null;
 
       try {
@@ -1161,31 +1234,28 @@ export async function POST(req: NextRequest) {
               reply_mode: replyMode,
               attachment_count: attachments.length,
               link_only_count: linkOnlyFiles.length,
+              banner_position: bannerPosition,
             },
           })
           .select("id")
           .single();
 
-        logId = Number(logRow?.id || 0) || null;
+        logId = logRow?.id ? String(logRow.id) : null;
 
-        const recipientUnsubscribeLink = newsletterLike
-          ? unsubscribeLinkFor(recipient)
-          : "";
+        const perHeaders: Record<string, string> = {};
 
-        const htmlForRecipient = newsletterLike
-          ? html.replace(
-              "</div>\n              </td>",
-              `<div style="height:8px;"></div>
-       <div style="text-align:center;font-size:11px;line-height:1.6;color:rgba(0,0,0,0.55);">
-         <a href="${recipientUnsubscribeLink}" style="color:rgba(0,0,0,0.72);font-weight:900;">Unsubscribe from marketing emails</a>
-       </div>
-       </div>
-              </td>`,
-            )
-          : html;
+        let htmlForRecipient = html.replace("<!--SK_UNSUBSCRIBE-->", "");
 
         if (newsletterLike) {
-          headers["List-Unsubscribe"] = `<${recipientUnsubscribeLink}>`;
+          const recipientUnsubscribeLink = unsubscribeLinkFor(recipient);
+
+          htmlForRecipient = html.replace(
+            "<!--SK_UNSUBSCRIBE-->",
+            unsubscribeHtml(recipientUnsubscribeLink),
+          );
+
+          perHeaders["X-StayKnown-Email-Type"] = mode;
+          perHeaders["List-Unsubscribe"] = `<${recipientUnsubscribeLink}>`;
         }
 
         const resendResult = await sendResend({
@@ -1197,7 +1267,7 @@ export async function POST(req: NextRequest) {
           text,
           replyTo,
           attachments,
-          headers,
+          headers: perHeaders,
         });
 
         const resendId =
@@ -1229,6 +1299,7 @@ export async function POST(req: NextRequest) {
                 reply_mode: replyMode,
                 attachment_count: attachments.length,
                 link_only_count: linkOnlyFiles.length,
+                banner_position: bannerPosition,
                 resend: resendResult,
               },
             })
@@ -1303,6 +1374,10 @@ export async function POST(req: NextRequest) {
           recipient_count: recipients.length,
           attachment_count: attachments.length,
           link_only_count: linkOnlyFiles.length,
+          banner_position: bannerPosition,
+          banner_top_file_name: bannerTopFile?.name || null,
+          banner_bottom_file_name: bannerBottomFile?.name || null,
+          policy_links: selectedPolicyLinks,
           summary,
         },
       })

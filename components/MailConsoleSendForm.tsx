@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ChangeEvent, useMemo, useState } from "react";
+import { ChangeEvent, useEffect, useMemo, useState } from "react";
 
 type MailMode = "support" | "newsletter" | "advert" | "investor";
 type ImagePosition = "none" | "top" | "bottom" | "both";
@@ -206,9 +206,11 @@ export default function MailConsoleSendForm({
   footerPolicies,
   templates,
 }: Props) {
+  const brandLogoUrl = "/6logo.png";
+
   const [templateId, setTemplateId] = useState("");
   const [savingDraft, setSavingDraft] = useState(false);
-  const brandLogoUrl = "/6logo.png";
+
   const [mode, setMode] = useState<MailMode>("support");
   const [senderId, setSenderId] = useState("");
   const [to, setTo] = useState("");
@@ -217,19 +219,33 @@ export default function MailConsoleSendForm({
   const [subtitle, setSubtitle] = useState("");
   const [badge, setBadge] = useState(defaultBadgeForMode("support"));
   const [message, setMessage] = useState("");
-  const [imageUrl, setImageUrl] = useState("");
-  const [imageUrlBottom, setImageUrlBottom] = useState("");
+
+  const [bannerTopFile, setBannerTopFile] = useState<File | null>(null);
+  const [bannerBottomFile, setBannerBottomFile] = useState<File | null>(null);
+  const [bannerTopPreviewUrl, setBannerTopPreviewUrl] = useState("");
+  const [bannerBottomPreviewUrl, setBannerBottomPreviewUrl] = useState("");
   const [imagePosition, setImagePosition] = useState<ImagePosition>("none");
+
   const [ctaLabel, setCtaLabel] = useState("");
   const [ctaUrl, setCtaUrl] = useState("");
+
   const [footerPolicyId, setFooterPolicyId] = useState("");
   const [customFooter, setCustomFooter] = useState("");
   const [selectedPolicyLinks, setSelectedPolicyLinks] = useState<
     PolicyLinkKey[]
   >(["privacy", "terms"]);
+
   const [files, setFiles] = useState<PickedFile[]>([]);
   const [status, setStatus] = useState("");
   const [sending, setSending] = useState(false);
+  const [logoFailed, setLogoFailed] = useState(false);
+
+  useEffect(() => {
+    return () => {
+      if (bannerTopPreviewUrl) URL.revokeObjectURL(bannerTopPreviewUrl);
+      if (bannerBottomPreviewUrl) URL.revokeObjectURL(bannerBottomPreviewUrl);
+    };
+  }, [bannerTopPreviewUrl, bannerBottomPreviewUrl]);
 
   const allowedTemplates = useMemo(
     () => templates.filter((t) => t.mode === mode),
@@ -271,15 +287,17 @@ export default function MailConsoleSendForm({
     setTemplateId(nextTemplateId);
 
     const template = templates.find((t) => t.id === nextTemplateId);
-
     if (!template) return;
 
-    setMode(template.mode as MailMode);
+    const nextMode = template.mode as MailMode;
+
+    setMode(nextMode);
+    setSenderId("");
+    setFooterPolicyId("");
+    setCustomFooter("");
     setSubject(template.subject || "");
-    setTitle(
-      template.subject || defaultTitleForMode(template.mode as MailMode),
-    );
-    setBadge(defaultBadgeForMode(template.mode as MailMode));
+    setTitle(template.subject || defaultTitleForMode(nextMode));
+    setBadge(defaultBadgeForMode(nextMode));
     setMessage(template.body_text || "");
 
     const pos = template.default_image_position as ImagePosition;
@@ -288,6 +306,51 @@ export default function MailConsoleSendForm({
     }
 
     setStatus(`Template loaded: ${template.name}`);
+  }
+
+  function pickBannerFile(file: File | null, placement: "top" | "bottom") {
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      setStatus("Banner must be an image file.");
+      return;
+    }
+
+    const previewUrl = URL.createObjectURL(file);
+
+    if (placement === "top") {
+      if (bannerTopPreviewUrl) URL.revokeObjectURL(bannerTopPreviewUrl);
+      setBannerTopFile(file);
+      setBannerTopPreviewUrl(previewUrl);
+
+      if (imagePosition === "none") {
+        setImagePosition("top");
+      }
+    } else {
+      if (bannerBottomPreviewUrl) URL.revokeObjectURL(bannerBottomPreviewUrl);
+      setBannerBottomFile(file);
+      setBannerBottomPreviewUrl(previewUrl);
+
+      if (imagePosition === "none") {
+        setImagePosition("bottom");
+      }
+    }
+
+    setStatus("Banner image selected and shown in preview.");
+  }
+
+  function clearBanner(placement: "top" | "bottom") {
+    if (placement === "top") {
+      if (bannerTopPreviewUrl) URL.revokeObjectURL(bannerTopPreviewUrl);
+      setBannerTopFile(null);
+      setBannerTopPreviewUrl("");
+    } else {
+      if (bannerBottomPreviewUrl) URL.revokeObjectURL(bannerBottomPreviewUrl);
+      setBannerBottomFile(null);
+      setBannerBottomPreviewUrl("");
+    }
+
+    setStatus("Banner image removed.");
   }
 
   async function saveDraft() {
@@ -308,12 +371,12 @@ export default function MailConsoleSendForm({
           subject,
           title,
           message,
-          image_url: imageUrl,
-          image_url_bottom: imageUrlBottom,
           image_position: imagePosition,
-          banner_image_url_top: imageUrl,
-          banner_image_url_bottom: imageUrlBottom,
           banner_position: imagePosition,
+          banner_note:
+            bannerTopFile || bannerBottomFile
+              ? "Banner image was selected from device. Device files are included when sending, but not preserved inside saved drafts yet."
+              : "",
           cta_label: ctaLabel,
           cta_url: ctaUrl,
           footer_policy_id: footerPolicyId,
@@ -339,11 +402,11 @@ export default function MailConsoleSendForm({
 
   function handleFiles(e: ChangeEvent<HTMLInputElement>) {
     const picked = Array.from(e.target.files || []);
-
     if (picked.length === 0) return;
 
     const mapped = picked.map((file) => {
       const isImage = file.type.startsWith("image/");
+
       return {
         id: `${file.name}-${file.size}-${Date.now()}-${Math.random()}`,
         file,
@@ -392,11 +455,22 @@ export default function MailConsoleSendForm({
       form.append("subtitle", subtitle);
       form.append("badge", badge);
       form.append("message", message);
-      form.append("image_url", imageUrl);
+
       form.append("image_position", imagePosition);
-      form.append("banner_image_url_top", imageUrl);
-      form.append("banner_image_url_bottom", imageUrlBottom);
       form.append("banner_position", imagePosition);
+
+      if (bannerTopFile) {
+        form.append("banner_top_file", bannerTopFile, bannerTopFile.name);
+      }
+
+      if (bannerBottomFile) {
+        form.append(
+          "banner_bottom_file",
+          bannerBottomFile,
+          bannerBottomFile.name,
+        );
+      }
+
       form.append("cta_label", ctaLabel);
       form.append("cta_url", ctaUrl);
       form.append("footer_policy_id", footerPolicyId);
@@ -444,6 +518,9 @@ export default function MailConsoleSendForm({
   }
 
   const footerText = customFooter || selectedFooter?.footer_html || "";
+  const hasAnyBanner = Boolean(bannerTopFile || bannerBottomFile);
+  const topBannerPreview = bannerTopPreviewUrl || bannerBottomPreviewUrl;
+  const bottomBannerPreview = bannerBottomPreviewUrl || bannerTopPreviewUrl;
 
   return (
     <main
@@ -471,7 +548,8 @@ export default function MailConsoleSendForm({
         .sk-mail-composer a,
         .sk-mail-composer input,
         .sk-mail-composer select,
-        .sk-mail-composer textarea {
+        .sk-mail-composer textarea,
+        .sk-mail-composer label[data-button="true"] {
           transition:
             transform 180ms ease,
             box-shadow 180ms ease,
@@ -481,7 +559,8 @@ export default function MailConsoleSendForm({
         }
 
         .sk-mail-composer button:hover,
-        .sk-mail-composer a:hover {
+        .sk-mail-composer a:hover,
+        .sk-mail-composer label[data-button="true"]:hover {
           transform: translateY(-1px);
           box-shadow:
             inset 0 0 0 1px rgba(0, 0, 0, 0.12),
@@ -489,7 +568,8 @@ export default function MailConsoleSendForm({
         }
 
         .sk-mail-composer button:active,
-        .sk-mail-composer a:active {
+        .sk-mail-composer a:active,
+        .sk-mail-composer label[data-button="true"]:active {
           transform: translateY(0) scale(0.99);
         }
 
@@ -524,6 +604,7 @@ export default function MailConsoleSendForm({
           background: rgba(255, 255, 255, 0.96) !important;
         }
       `}</style>
+
       <section style={{ maxWidth: 1180, margin: "0 auto" }}>
         <header
           style={{
@@ -545,56 +626,12 @@ export default function MailConsoleSendForm({
             }}
           >
             <div>
-              <div
-                style={{
-                  fontSize: 12,
-                  fontWeight: 950,
-                  letterSpacing: 2.8,
-                  textTransform: "uppercase",
-                  color: "rgba(0,0,0,0.58)",
-                }}
-              >
-                StayKnown Mail Console
-              </div>
-
-              <h1
-                style={{
-                  margin: "8px 0 4px",
-                  fontSize: 34,
-                  lineHeight: 1.05,
-                  fontWeight: 950,
-                }}
-              >
-                Compose Email
-              </h1>
-
-              <p
-                style={{
-                  margin: 0,
-                  fontSize: 14,
-                  color: "rgba(0,0,0,0.62)",
-                  lineHeight: 1.5,
-                }}
-              >
-                Logged in as {adminEmail}
-              </p>
+              <div style={kickerStyle}>StayKnown Mail Console</div>
+              <h1 style={h1Style}>Compose Email</h1>
+              <p style={subStyle}>Logged in as {adminEmail}</p>
             </div>
 
-            <Link
-              href="/mail-console"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                borderRadius: 999,
-                padding: "13px 18px",
-                background: "white",
-                color: "#050505",
-                fontWeight: 950,
-                textDecoration: "none",
-                boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.10)",
-              }}
-            >
+            <Link href="/mail-console" style={whitePillLinkStyle}>
               Back to Dashboard
             </Link>
           </div>
@@ -624,57 +661,8 @@ export default function MailConsoleSendForm({
                 ))}
               </select>
             </div>
-            <div style={sectionHeaderStyle}>Banner image</div>
 
-            <div style={grid2Style}>
-              <div>
-                <label style={labelStyle}>Top banner image URL</label>
-                <input
-                  value={imageUrl}
-                  onChange={(e) => setImageUrl(e.target.value)}
-                  placeholder="https://..."
-                  style={inputStyle}
-                />
-              </div>
-
-              <div>
-                <label style={labelStyle}>Banner position</label>
-                <select
-                  value={imagePosition}
-                  onChange={(e) =>
-                    setImagePosition(e.target.value as ImagePosition)
-                  }
-                  style={inputStyle}
-                >
-                  <option value="none">No banner image</option>
-                  <option value="top">Before message</option>
-                  <option value="bottom">After message</option>
-                  <option value="both">Before and after</option>
-                </select>
-              </div>
-            </div>
-
-            {imagePosition === "both" || imagePosition === "bottom" ? (
-              <div style={fieldStyle}>
-                <label style={labelStyle}>
-                  {imagePosition === "both"
-                    ? "Second / bottom banner image URL"
-                    : "Bottom banner image URL"}
-                </label>
-                <input
-                  value={imageUrlBottom}
-                  onChange={(e) => setImageUrlBottom(e.target.value)}
-                  placeholder={
-                    imagePosition === "both"
-                      ? "Optional. If empty, the top banner repeats at the bottom."
-                      : "https://..."
-                  }
-                  style={inputStyle}
-                />
-              </div>
-            ) : null}
-
-            <div style={sectionHeaderStyle}>CTA button</div>
+            <div style={sectionHeaderStyle}>Message setup</div>
 
             <div style={grid2Style}>
               <div>
@@ -768,7 +756,101 @@ export default function MailConsoleSendForm({
               />
             </div>
 
-            <div style={sectionHeaderStyle}>Brand image and CTA</div>
+            <div style={sectionHeaderStyle}>Banner image</div>
+
+            <div style={grid2Style}>
+              <div>
+                <label style={labelStyle}>Banner position</label>
+                <select
+                  value={imagePosition}
+                  onChange={(e) =>
+                    setImagePosition(e.target.value as ImagePosition)
+                  }
+                  style={inputStyle}
+                >
+                  <option value="none">No banner image</option>
+                  <option value="top">Before message</option>
+                  <option value="bottom">After message</option>
+                  <option value="both">Before and after</option>
+                </select>
+              </div>
+
+              <div>
+                <label style={labelStyle}>Top banner image</label>
+                <div style={bannerPickerStyle}>
+                  <label data-button="true" style={filePickButtonStyle}>
+                    Choose image
+                    <input
+                      type="file"
+                      accept="image/*"
+                      style={{ display: "none" }}
+                      onChange={(e) => {
+                        pickBannerFile(e.target.files?.[0] || null, "top");
+                        e.currentTarget.value = "";
+                      }}
+                    />
+                  </label>
+
+                  {bannerTopFile ? (
+                    <button
+                      type="button"
+                      onClick={() => clearBanner("top")}
+                      style={smallButtonStyle}
+                    >
+                      Remove
+                    </button>
+                  ) : null}
+                </div>
+
+                {bannerTopFile ? (
+                  <div style={bannerFileNameStyle}>{bannerTopFile.name}</div>
+                ) : null}
+              </div>
+            </div>
+
+            {imagePosition === "both" || imagePosition === "bottom" ? (
+              <div style={fieldStyle}>
+                <label style={labelStyle}>
+                  {imagePosition === "both"
+                    ? "Second / bottom banner image"
+                    : "Bottom banner image"}
+                </label>
+
+                <div style={bannerPickerStyle}>
+                  <label data-button="true" style={filePickButtonStyle}>
+                    Choose image
+                    <input
+                      type="file"
+                      accept="image/*"
+                      style={{ display: "none" }}
+                      onChange={(e) => {
+                        pickBannerFile(e.target.files?.[0] || null, "bottom");
+                        e.currentTarget.value = "";
+                      }}
+                    />
+                  </label>
+
+                  {bannerBottomFile ? (
+                    <button
+                      type="button"
+                      onClick={() => clearBanner("bottom")}
+                      style={smallButtonStyle}
+                    >
+                      Remove
+                    </button>
+                  ) : null}
+                </div>
+
+                {bannerBottomFile ? (
+                  <div style={bannerFileNameStyle}>{bannerBottomFile.name}</div>
+                ) : imagePosition === "both" && bannerTopFile ? (
+                  <div style={bannerFileNameStyle}>
+                    No second image selected. Top banner will repeat at the
+                    bottom.
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
 
             <div style={sectionHeaderStyle}>CTA button</div>
 
@@ -850,18 +932,7 @@ export default function MailConsoleSendForm({
             <div style={fieldStyle}>
               <label style={labelStyle}>Clickable policy links</label>
 
-              <div
-                style={{
-                  display: "flex",
-                  flexWrap: "wrap",
-                  gap: 8,
-                  justifyContent: "center",
-                  borderRadius: 18,
-                  border: "1px solid rgba(0,0,0,0.08)",
-                  background: "rgba(0,0,0,0.025)",
-                  padding: 12,
-                }}
-              >
+              <div style={policyBoxStyle}>
                 {POLICY_LINK_OPTIONS.map((item) => {
                   const active = selectedPolicyLinks.includes(item.key);
 
@@ -888,15 +959,7 @@ export default function MailConsoleSendForm({
                 })}
               </div>
 
-              <div
-                style={{
-                  marginTop: 8,
-                  fontSize: 12,
-                  lineHeight: 1.55,
-                  color: "rgba(0,0,0,0.58)",
-                  textAlign: "center",
-                }}
-              >
+              <div style={helpTextStyle}>
                 Selected links will appear centered and clickable in the
                 delivered email footer.
               </div>
@@ -912,17 +975,9 @@ export default function MailConsoleSendForm({
                 accept="image/*,video/*,application/pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.zip"
               />
 
-              <div
-                style={{
-                  marginTop: 10,
-                  fontSize: 13,
-                  lineHeight: 1.6,
-                  color: "rgba(0,0,0,0.62)",
-                }}
-              >
-                Images can be inline, attached, or link-only. Videos and large
-                documents should usually be attached or link-only for better
-                delivery.
+              <div style={helpTextStyle}>
+                Attachments are separate from banner images. Use this for files,
+                documents, videos, PDFs, or extra inline images.
               </div>
             </div>
 
@@ -938,13 +993,7 @@ export default function MailConsoleSendForm({
                       <div style={{ fontWeight: 900, wordBreak: "break-word" }}>
                         {picked.file.name}
                       </div>
-                      <div
-                        style={{
-                          fontSize: 12,
-                          color: "rgba(0,0,0,0.58)",
-                          marginTop: 3,
-                        }}
-                      >
+                      <div style={fileMetaStyle}>
                         {picked.file.type || "unknown type"} ·{" "}
                         {niceFileSize(picked.file.size)}
                       </div>
@@ -981,7 +1030,14 @@ export default function MailConsoleSendForm({
               </div>
             ) : null}
 
-            <div style={{ display: "flex", gap: 10, marginTop: 22 }}>
+            <div
+              style={{
+                display: "flex",
+                gap: 10,
+                marginTop: 22,
+                flexWrap: "wrap",
+              }}
+            >
               <button
                 type="button"
                 onClick={previewOnly}
@@ -1059,7 +1115,7 @@ export default function MailConsoleSendForm({
 
             <div style={summaryRowStyle}>
               <span>Banner</span>
-              <b>{imageUrl ? imagePosition : "None"}</b>
+              <b>{hasAnyBanner ? imagePosition : "None"}</b>
             </div>
 
             <div style={summaryRowStyle}>
@@ -1074,231 +1130,91 @@ export default function MailConsoleSendForm({
 
             <div style={{ height: 16 }} />
 
-            <div
-              style={{
-                borderRadius: 22,
-                background: "#f3f4f6",
-                border: "1px solid rgba(0,0,0,0.08)",
-                padding: 16,
-              }}
-            >
-              <div
-                style={{
-                  textAlign: "center",
-                  marginBottom: 10,
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: 12,
-                    fontWeight: 950,
-                    letterSpacing: 2.6,
-                    color: "rgba(0,0,0,0.78)",
-                  }}
-                >
-                  STAYKNOWN™
-                </div>
-
+            <div style={previewOuterStyle}>
+              <div style={{ textAlign: "center", marginBottom: 10 }}>
+                <div style={previewBrandTextStyle}>STAYKNOWN™</div>
                 <div style={{ height: 6 }} />
-
-                <div
-                  style={{
-                    fontSize: 11,
-                    fontWeight: 900,
-                    letterSpacing: 1.6,
-                    color: "rgba(0,0,0,0.58)",
-                  }}
-                >
+                <div style={previewServiceTextStyle}>
                   A 6 Clement Joshua service™
                 </div>
-
                 <div style={{ height: 10 }} />
 
-                <img
-                  src={brandLogoUrl}
-                  alt="StayKnown"
-                  width={64}
-                  height={64}
-                  onError={(event) => {
-                    event.currentTarget.style.display = "none";
-                  }}
-                  style={{
-                    display: "inline-block",
-                    borderRadius: 18,
-                    boxShadow: "0 14px 38px rgba(0,0,0,0.14)",
-                    background: "white",
-                  }}
-                />
+                {logoFailed ? (
+                  <div style={logoFallbackStyle}>6</div>
+                ) : (
+                  <img
+                    src={brandLogoUrl}
+                    alt="StayKnown"
+                    width={64}
+                    height={64}
+                    onError={() => setLogoFailed(true)}
+                    style={{
+                      display: "inline-block",
+                      width: 64,
+                      height: 64,
+                      borderRadius: 18,
+                      boxShadow: "0 14px 38px rgba(0,0,0,0.14)",
+                      background: "white",
+                    }}
+                  />
+                )}
 
                 <div style={{ height: 14 }} />
 
-                <div
-                  style={{
-                    fontSize: 18,
-                    fontWeight: 950,
-                    letterSpacing: 0.2,
-                    color: "#0b0b0b",
-                    lineHeight: 1.35,
-                  }}
-                >
-                  {title || "Header title"}
-                </div>
+                <div style={previewTitleStyle}>{title || "Header title"}</div>
 
                 {badge ? (
                   <div style={{ marginTop: 10 }}>
-                    <span
-                      style={{
-                        display: "inline-block",
-                        padding: "6px 12px",
-                        borderRadius: 999,
-                        border: "1px solid rgba(0,0,0,0.10)",
-                        background: "rgba(255,255,255,0.72)",
-                        fontSize: 12,
-                        fontWeight: 800,
-                        letterSpacing: 0.6,
-                        color: "#111",
-                      }}
-                    >
-                      {badge}
-                    </span>
+                    <span style={previewBadgeStyle}>{badge}</span>
                   </div>
                 ) : null}
 
                 {subtitle ? (
-                  <div
-                    style={{
-                      marginTop: 10,
-                      fontSize: 13,
-                      color: "rgba(0,0,0,0.65)",
-                      lineHeight: 1.55,
-                    }}
-                  >
-                    {subtitle}
-                  </div>
+                  <div style={previewSubtitleStyle}>{subtitle}</div>
                 ) : null}
               </div>
-              {imageUrl &&
+
+              {topBannerPreview &&
               (imagePosition === "top" || imagePosition === "both") ? (
-                <div
-                  style={{
-                    margin: "14px 0",
-                    borderRadius: 20,
-                    border: "1px solid rgba(0,0,0,0.10)",
-                    overflow: "hidden",
-                    background: "#ffffff",
-                    boxShadow: "0 20px 60px rgba(0,0,0,0.07)",
-                  }}
-                >
+                <div style={previewBannerWrapStyle}>
                   <img
-                    src={imageUrl}
+                    src={topBannerPreview}
                     alt="Top banner"
-                    style={{
-                      display: "block",
-                      width: "100%",
-                      maxHeight: 420,
-                      objectFit: "cover",
-                    }}
+                    style={previewBannerImageStyle}
                   />
                 </div>
               ) : null}
-              <div
-                style={{
-                  borderRadius: 22,
-                  border: "1px solid rgba(0,0,0,0.10)",
-                  background: "rgba(255,255,255,0.78)",
-                  boxShadow:
-                    "inset 0 1px 0 rgba(255,255,255,0.92),0 28px 75px rgba(0,0,0,0.09)",
-                  overflow: "hidden",
-                }}
-              >
-                <div
-                  style={{
-                    padding: "18px 20px",
-                    fontSize: 15,
-                    lineHeight: 1.75,
-                    color: "rgba(0,0,0,0.82)",
-                    whiteSpace: "pre-wrap",
-                    minHeight: 130,
-                  }}
-                >
+
+              <div style={previewMessageCardStyle}>
+                <div style={previewMessageBodyStyle}>
                   {message || "Your email body preview will appear here."}
                 </div>
               </div>
-              {(imageUrl || imageUrlBottom) &&
+
+              {bottomBannerPreview &&
               imagePosition !== "none" &&
               (imagePosition === "bottom" || imagePosition === "both") ? (
-                <div
-                  style={{
-                    margin: "14px 0",
-                    borderRadius: 20,
-                    border: "1px solid rgba(0,0,0,0.10)",
-                    overflow: "hidden",
-                    background: "#ffffff",
-                    boxShadow: "0 20px 60px rgba(0,0,0,0.07)",
-                  }}
-                >
+                <div style={previewBannerWrapStyle}>
                   <img
-                    src={imageUrlBottom || imageUrl}
+                    src={bottomBannerPreview}
                     alt="Bottom banner"
-                    style={{
-                      display: "block",
-                      width: "100%",
-                      maxHeight: 420,
-                      objectFit: "cover",
-                    }}
+                    style={previewBannerImageStyle}
                   />
                 </div>
               ) : null}
+
               {ctaLabel && ctaUrl ? (
                 <div style={{ textAlign: "center", marginTop: 18 }}>
-                  <span
-                    style={{
-                      display: "inline-block",
-                      padding: "13px 18px",
-                      borderRadius: 999,
-                      border: "1px solid rgba(0,0,0,0.10)",
-                      background: "rgba(255,255,255,0.86)",
-                      color: "#0b0b0b",
-                      textDecoration: "none",
-                      fontWeight: 950,
-                      letterSpacing: 0.4,
-                      boxShadow:
-                        "inset 0 1px 0 rgba(255,255,255,0.92),0 20px 55px rgba(0,0,0,0.08)",
-                    }}
-                  >
-                    {ctaLabel}
-                  </span>
+                  <span style={previewCtaStyle}>{ctaLabel}</span>
                 </div>
               ) : null}
 
               {footerText ? (
-                <div
-                  style={{
-                    marginTop: 16,
-                    fontSize: 11,
-                    lineHeight: 1.65,
-                    color: "rgba(0,0,0,0.55)",
-                    whiteSpace: "pre-wrap",
-                    textAlign: "center",
-                  }}
-                >
-                  {footerText}
-                </div>
+                <div style={previewFooterStyle}>{footerText}</div>
               ) : null}
 
               {selectedPolicyLinks.length > 0 ? (
-                <div
-                  style={{
-                    marginTop: 10,
-                    display: "flex",
-                    flexWrap: "wrap",
-                    gap: 8,
-                    justifyContent: "center",
-                    fontSize: 11,
-                    lineHeight: 1.5,
-                    textAlign: "center",
-                  }}
-                >
+                <div style={previewPolicyLinksStyle}>
                   {selectedPolicyLinks.map((key) => {
                     const item = POLICY_LINK_OPTIONS.find((x) => x.key === key);
                     if (!item) return null;
@@ -1309,12 +1225,7 @@ export default function MailConsoleSendForm({
                         href={item.href}
                         target="_blank"
                         rel="noopener noreferrer"
-                        style={{
-                          color: "rgba(0,0,0,0.72)",
-                          fontWeight: 900,
-                          textDecoration: "underline",
-                          textUnderlineOffset: 3,
-                        }}
+                        style={previewPolicyLinkStyle}
                       >
                         {item.label}
                       </a>
@@ -1323,15 +1234,7 @@ export default function MailConsoleSendForm({
                 </div>
               ) : null}
 
-              <div
-                style={{
-                  marginTop: 8,
-                  textAlign: "center",
-                  fontSize: 11,
-                  lineHeight: 1.5,
-                  color: "rgba(0,0,0,0.52)",
-                }}
-              >
+              <div style={previewLegalStyle}>
                 © {new Date().getFullYear()} StayKnown™ · A 6 Clement Joshua
                 service™
               </div>
@@ -1349,6 +1252,41 @@ const panelStyle: React.CSSProperties = {
   border: "1px solid rgba(0,0,0,0.08)",
   boxShadow: "0 24px 70px rgba(0,0,0,0.06)",
   padding: 22,
+};
+
+const kickerStyle: React.CSSProperties = {
+  fontSize: 12,
+  fontWeight: 950,
+  letterSpacing: 2.8,
+  textTransform: "uppercase",
+  color: "rgba(0,0,0,0.58)",
+};
+
+const h1Style: React.CSSProperties = {
+  margin: "8px 0 4px",
+  fontSize: 34,
+  lineHeight: 1.05,
+  fontWeight: 950,
+};
+
+const subStyle: React.CSSProperties = {
+  margin: 0,
+  fontSize: 14,
+  color: "rgba(0,0,0,0.62)",
+  lineHeight: 1.5,
+};
+
+const whitePillLinkStyle: React.CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  borderRadius: 999,
+  padding: "13px 18px",
+  background: "white",
+  color: "#050505",
+  fontWeight: 950,
+  textDecoration: "none",
+  boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.10)",
 };
 
 const sectionHeaderStyle: React.CSSProperties = {
@@ -1397,6 +1335,50 @@ const inputStyle: React.CSSProperties = {
   outline: "none",
 };
 
+const bannerPickerStyle: React.CSSProperties = {
+  display: "flex",
+  gap: 10,
+  alignItems: "center",
+  justifyContent: "space-between",
+  borderRadius: 18,
+  border: "1px dashed rgba(0,0,0,0.20)",
+  background: "rgba(0,0,0,0.025)",
+  padding: 12,
+};
+
+const filePickButtonStyle: React.CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  borderRadius: 999,
+  padding: "10px 14px",
+  background: "#050505",
+  color: "white",
+  fontWeight: 950,
+  fontSize: 13,
+  cursor: "pointer",
+  boxShadow: "0 14px 30px rgba(0,0,0,0.12)",
+};
+
+const bannerFileNameStyle: React.CSSProperties = {
+  marginTop: 8,
+  fontSize: 12,
+  lineHeight: 1.5,
+  color: "rgba(0,0,0,0.58)",
+  wordBreak: "break-word",
+};
+
+const policyBoxStyle: React.CSSProperties = {
+  display: "flex",
+  flexWrap: "wrap",
+  gap: 8,
+  justifyContent: "center",
+  borderRadius: 18,
+  border: "1px solid rgba(0,0,0,0.08)",
+  background: "rgba(0,0,0,0.025)",
+  padding: 12,
+};
+
 const uploadBoxStyle: React.CSSProperties = {
   borderRadius: 22,
   border: "1px dashed rgba(0,0,0,0.20)",
@@ -1413,6 +1395,12 @@ const fileRowStyle: React.CSSProperties = {
   border: "1px solid rgba(0,0,0,0.08)",
   background: "white",
   padding: 12,
+};
+
+const fileMetaStyle: React.CSSProperties = {
+  fontSize: 12,
+  color: "rgba(0,0,0,0.58)",
+  marginTop: 3,
 };
 
 const primaryButtonStyle: React.CSSProperties = {
@@ -1464,4 +1452,157 @@ const summaryRowStyle: React.CSSProperties = {
   borderBottom: "1px solid rgba(0,0,0,0.08)",
   padding: "12px 0",
   fontSize: 13,
+};
+
+const helpTextStyle: React.CSSProperties = {
+  marginTop: 8,
+  fontSize: 12,
+  lineHeight: 1.55,
+  color: "rgba(0,0,0,0.58)",
+  textAlign: "center",
+};
+
+const previewOuterStyle: React.CSSProperties = {
+  borderRadius: 22,
+  background: "#f3f4f6",
+  border: "1px solid rgba(0,0,0,0.08)",
+  padding: 16,
+};
+
+const previewBrandTextStyle: React.CSSProperties = {
+  fontSize: 12,
+  fontWeight: 950,
+  letterSpacing: 2.6,
+  color: "rgba(0,0,0,0.78)",
+};
+
+const previewServiceTextStyle: React.CSSProperties = {
+  fontSize: 11,
+  fontWeight: 900,
+  letterSpacing: 1.6,
+  color: "rgba(0,0,0,0.58)",
+};
+
+const logoFallbackStyle: React.CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  width: 64,
+  height: 64,
+  borderRadius: 18,
+  background: "white",
+  color: "#050505",
+  fontSize: 24,
+  fontWeight: 950,
+  boxShadow: "0 14px 38px rgba(0,0,0,0.14)",
+};
+
+const previewTitleStyle: React.CSSProperties = {
+  fontSize: 18,
+  fontWeight: 950,
+  letterSpacing: 0.2,
+  color: "#0b0b0b",
+  lineHeight: 1.35,
+};
+
+const previewBadgeStyle: React.CSSProperties = {
+  display: "inline-block",
+  padding: "6px 12px",
+  borderRadius: 999,
+  border: "1px solid rgba(0,0,0,0.10)",
+  background: "rgba(255,255,255,0.72)",
+  fontSize: 12,
+  fontWeight: 800,
+  letterSpacing: 0.6,
+  color: "#111",
+};
+
+const previewSubtitleStyle: React.CSSProperties = {
+  marginTop: 10,
+  fontSize: 13,
+  color: "rgba(0,0,0,0.65)",
+  lineHeight: 1.55,
+};
+
+const previewBannerWrapStyle: React.CSSProperties = {
+  margin: "14px 0",
+  borderRadius: 20,
+  border: "1px solid rgba(0,0,0,0.10)",
+  overflow: "hidden",
+  background: "#ffffff",
+  boxShadow: "0 20px 60px rgba(0,0,0,0.07)",
+};
+
+const previewBannerImageStyle: React.CSSProperties = {
+  display: "block",
+  width: "100%",
+  maxHeight: 420,
+  objectFit: "cover",
+};
+
+const previewMessageCardStyle: React.CSSProperties = {
+  borderRadius: 22,
+  border: "1px solid rgba(0,0,0,0.10)",
+  background: "rgba(255,255,255,0.78)",
+  boxShadow:
+    "inset 0 1px 0 rgba(255,255,255,0.92),0 28px 75px rgba(0,0,0,0.09)",
+  overflow: "hidden",
+};
+
+const previewMessageBodyStyle: React.CSSProperties = {
+  padding: "18px 20px",
+  fontSize: 15,
+  lineHeight: 1.75,
+  color: "rgba(0,0,0,0.82)",
+  whiteSpace: "pre-wrap",
+  minHeight: 130,
+};
+
+const previewCtaStyle: React.CSSProperties = {
+  display: "inline-block",
+  padding: "13px 18px",
+  borderRadius: 999,
+  border: "1px solid rgba(0,0,0,0.10)",
+  background: "rgba(255,255,255,0.86)",
+  color: "#0b0b0b",
+  textDecoration: "none",
+  fontWeight: 950,
+  letterSpacing: 0.4,
+  boxShadow:
+    "inset 0 1px 0 rgba(255,255,255,0.92),0 20px 55px rgba(0,0,0,0.08)",
+};
+
+const previewFooterStyle: React.CSSProperties = {
+  marginTop: 16,
+  fontSize: 11,
+  lineHeight: 1.65,
+  color: "rgba(0,0,0,0.55)",
+  whiteSpace: "pre-wrap",
+  textAlign: "center",
+};
+
+const previewPolicyLinksStyle: React.CSSProperties = {
+  marginTop: 10,
+  display: "flex",
+  flexWrap: "wrap",
+  gap: 8,
+  justifyContent: "center",
+  fontSize: 11,
+  lineHeight: 1.5,
+  textAlign: "center",
+};
+
+const previewPolicyLinkStyle: React.CSSProperties = {
+  color: "rgba(0,0,0,0.72)",
+  fontWeight: 900,
+  textDecoration: "underline",
+  textUnderlineOffset: 3,
+};
+
+const previewLegalStyle: React.CSSProperties = {
+  marginTop: 8,
+  textAlign: "center",
+  fontSize: 11,
+  lineHeight: 1.5,
+  color: "rgba(0,0,0,0.52)",
 };
