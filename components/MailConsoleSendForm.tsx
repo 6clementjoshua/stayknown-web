@@ -594,6 +594,31 @@ export default function MailConsoleSendForm({
     };
   }, [sendRows]);
 
+  const sendOverlayKicker =
+    sendSummary.total <= 1
+      ? "Single Email Delivery"
+      : sendSummary.total <= SEND_BATCH_SIZE
+        ? "Direct Email Delivery"
+        : "Sending Queue";
+
+  const sendOverlayTitle = sendComplete
+    ? sendSummary.total <= 1
+      ? "Email sent"
+      : "Sending complete"
+    : sendSummary.total <= 1
+      ? "Sending 1 email..."
+      : `Sending ${sendSummary.total} emails...`;
+
+  const sendOverlayDescription =
+    sendSummary.total <= 1
+      ? "This email is being delivered now. No batch waiting is used for a single recipient."
+      : sendSummary.total <= SEND_BATCH_SIZE
+        ? `Sending ${sendSummary.total} emails in one direct batch. No extra waiting step is needed because this is under the ${SEND_BATCH_SIZE}-recipient batch limit.`
+        : `Sending ${sendSummary.total} emails in batches of ${SEND_BATCH_SIZE}. Already sent emails cannot be cancelled. Stopping now keeps remaining queued emails in draft status.`;
+
+  const stopSendButtonLabel =
+    sendSummary.total <= 1 ? "Stop send" : "Stop & save remaining as draft";
+
   function changeMode(nextMode: MailMode) {
     setMode(nextMode);
     setSenderId("");
@@ -1354,12 +1379,9 @@ export default function MailConsoleSendForm({
 
         const elapsed = Date.now() - startedAt;
         const waitMs = RESEND_SAFE_WINDOW_MS - elapsed;
+        const hasNextBatch = i + SEND_BATCH_SIZE < emailList.length;
 
-        if (
-          waitMs > 0 &&
-          i + SEND_BATCH_SIZE < emailList.length &&
-          !stopSendRef.current
-        ) {
+        if (waitMs > 0 && hasNextBatch && !stopSendRef.current) {
           await delay(waitMs);
         }
       }
@@ -3210,15 +3232,9 @@ ${BODY_AUDIO_TOKEN} for body audio`}
           <div style={sendModalStyle}>
             <div style={sendModalHeaderStyle}>
               <div>
-                <div style={kickerStyle}>Sending Queue</div>
-                <h2 style={sendTitleStyle}>
-                  {sendComplete ? "Sending complete" : "Sending emails..."}
-                </h2>
-                <p style={sendSubStyle}>
-                  Sending in groups of {SEND_BATCH_SIZE}. Already sent emails
-                  cannot be cancelled. Stopping now keeps remaining queued
-                  emails in draft status.
-                </p>
+                <div style={kickerStyle}>{sendOverlayKicker}</div>
+                <h2 style={sendTitleStyle}>{sendOverlayTitle}</h2>
+                <p style={sendSubStyle}>{sendOverlayDescription}</p>
               </div>
 
               {sendComplete ? (
@@ -3235,7 +3251,7 @@ ${BODY_AUDIO_TOKEN} for body audio`}
                   onClick={stopSendingAndSaveDraft}
                   style={dangerButtonStyle}
                 >
-                  Stop & save remaining as draft
+                  {stopSendButtonLabel}
                 </button>
               )}
             </div>
