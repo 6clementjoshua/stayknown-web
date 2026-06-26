@@ -568,7 +568,7 @@ function inlineImageBlock(contentId: string, alt: string) {
 }
 
 function bodyImageBlock(params: {
-  contentId: string;
+  url: string;
   alt: string;
   size: number;
   hint: string;
@@ -578,6 +578,8 @@ function bodyImageBlock(params: {
   const hint = clean(params.hint);
   const hintColor = safeHexColor(params.hintColor);
   const hintFontStyle = safeBodyHintFontStyle(params.hintFontStyle);
+
+  if (!params.url) return "";
 
   return `
     <div style="text-align:center;margin:14px 0;">
@@ -592,7 +594,7 @@ function bodyImageBlock(params: {
         background:#ffffff;
         box-shadow:0 16px 45px rgba(0,0,0,0.07);
       ">
-        <img src="cid:${escapeHtml(params.contentId)}" alt="${escapeHtml(
+        <img src="${escapeHtml(params.url)}" alt="${escapeHtml(
           params.alt,
         )}" style="display:block;width:100%;max-height:260px;object-fit:cover;" />
       </div>
@@ -614,7 +616,6 @@ function bodyImageBlock(params: {
     </div>
   `;
 }
-
 function bodyAudioPillBlock(params: {
   url: string;
   displayName: string;
@@ -1070,7 +1071,7 @@ function buildHtml(p: {
   bodyAudioHintColor: string;
   bodyAudioHintFontStyle: BodyHintFontStyle;
   bodyAudioSize: number;
-  bodyImageContentId: string;
+  bodyImageUrl: string;
   bodyImageDisplayName: string;
   bodyImageHint: string;
   bodyImageHintColor: string;
@@ -1108,9 +1109,9 @@ function buildHtml(p: {
       : "";
 
   const standaloneBodyImageHtml =
-    p.bodyImageContentId && p.bodyImagePlacement !== "custom"
+    p.bodyImageUrl && p.bodyImagePlacement !== "custom"
       ? bodyImageBlock({
-          contentId: p.bodyImageContentId,
+          url: p.bodyImageUrl,
           alt: p.bodyImageDisplayName || "StayKnown Image",
           size: p.bodyImageSize,
           hint: p.bodyImageHint,
@@ -1118,7 +1119,6 @@ function buildHtml(p: {
           hintFontStyle: p.bodyImageHintFontStyle,
         })
       : "";
-
   const tokenBodyAudioHtml = p.bodyAudioUrl
     ? bodyAudioPillBlock({
         url: p.bodyAudioUrl,
@@ -1130,9 +1130,9 @@ function buildHtml(p: {
       })
     : "";
 
-  const tokenBodyImageHtml = p.bodyImageContentId
+  const tokenBodyImageHtml = p.bodyImageUrl
     ? bodyImageBlock({
-        contentId: p.bodyImageContentId,
+        url: p.bodyImageUrl,
         alt: p.bodyImageDisplayName || "StayKnown Image",
         size: p.bodyImageSize,
         hint: p.bodyImageHint,
@@ -1140,12 +1140,10 @@ function buildHtml(p: {
         hintFontStyle: p.bodyImageHintFontStyle,
       })
     : "";
-
   const audioAlreadyInsideMessage =
     Boolean(p.bodyAudioUrl) && p.message.includes(BODY_AUDIO_TOKEN);
   const imageAlreadyInsideMessage =
-    Boolean(p.bodyImageContentId) && p.message.includes(BODY_IMAGE_TOKEN);
-
+    Boolean(p.bodyImageUrl) && p.message.includes(BODY_IMAGE_TOKEN);
   const messageHtml = renderMessageHtmlWithInlineMedia({
     message: p.message,
     bodyAudioHtml: tokenBodyAudioHtml,
@@ -1155,7 +1153,7 @@ function buildHtml(p: {
   const resolvedBodyOrder = resolveBodyBlockOrder({
     rawOrder: p.bodyBlockOrder,
     hasAudio: Boolean(p.bodyAudioUrl),
-    hasImage: Boolean(p.bodyImageContentId),
+    hasImage: Boolean(p.bodyImageUrl),
     audioPlacement: p.bodyAudioPlacement,
     imagePlacement: p.bodyImagePlacement,
     audioAlreadyInsideMessage,
@@ -1179,13 +1177,13 @@ function buildHtml(p: {
         });
       }
 
-      if (block === "image" && p.bodyImageContentId) {
+      if (block === "image" && p.bodyImageUrl) {
         if (p.bodyImagePlacement !== "custom") {
           return standaloneBodyImageHtml;
         }
 
         return bodyImageBlock({
-          contentId: p.bodyImageContentId,
+          url: p.bodyImageUrl,
           alt: p.bodyImageDisplayName || "StayKnown Image",
           size: p.bodyImageSize,
           hint: p.bodyImageHint,
@@ -1809,7 +1807,7 @@ export async function POST(req: NextRequest) {
 
     let bannerTopContentId = "";
     let bannerBottomContentId = "";
-    let bodyImageContentId = "";
+    let bodyImageUrl = "";
     let bodyAudioUrl = "";
 
     if (bannerTopFile) {
@@ -1851,27 +1849,47 @@ export async function POST(req: NextRequest) {
     }
 
     if (bodyImageFile) {
+      const filename = bodyImageDisplayName;
       const buffer = Buffer.from(await bodyImageFile.arrayBuffer());
 
-      totalAttachmentRawBytes += buffer.length;
-      bodyImageContentId = `sk-body-image-${randomUUID()}`;
+      const storagePath = `${campaignId}/body-image-${randomUUID()}-${cleanFilename(
+        filename,
+      )}`;
 
-      attachments.push({
-        filename: bodyImageDisplayName,
-        content: buffer.toString("base64"),
-        content_id: bodyImageContentId,
-        content_type: bodyImageFile.type || "image/png",
-      });
+      const { error: uploadError } = await admin.storage
+        .from("mail-console-attachments")
+        .upload(storagePath, buffer, {
+          contentType: bodyImageFile.type || "image/png",
+          upsert: false,
+        });
+
+      if (uploadError) {
+        throw new Error(
+          `Body image upload failed for ${filename}: ${uploadError.message}`,
+        );
+      }
+
+      const { data: signed, error: signedError } = await admin.storage
+        .from("mail-console-attachments")
+        .createSignedUrl(storagePath, 365 * 24 * 60 * 60);
+
+      if (signedError || !signed?.signedUrl) {
+        throw new Error(
+          `Body image signed URL failed for ${filename}: ${
+            signedError?.message || "unknown error"
+          }`,
+        );
+      }
+
+      bodyImageUrl = signed.signedUrl;
 
       await admin.from("mail_console_attachments").insert({
         campaign_id: campaignId,
-        file_name: bodyImageDisplayName,
+        file_name: filename,
         mime_type: bodyImageFile.type || "image/png",
         size_bytes: bodyImageFile.size,
         storage_bucket: "mail-console-attachments",
-        storage_path: `inline-body/${campaignId}/${cleanFilename(
-          bodyImageDisplayName,
-        )}`,
+        storage_path: storagePath,
         attachment_mode: "inline_image",
         created_by: null,
       });
@@ -2082,7 +2100,7 @@ export async function POST(req: NextRequest) {
       bodyAudioHintColor,
       bodyAudioHintFontStyle,
       bodyAudioSize,
-      bodyImageContentId,
+      bodyImageUrl,
       bodyImageDisplayName,
       bodyImageHint,
       bodyImageHintColor,
@@ -2184,11 +2202,12 @@ export async function POST(req: NextRequest) {
               banner_position: bannerPosition,
               banner_height: bannerHeight,
               has_body_audio: Boolean(bodyAudioUrl),
-              has_body_image: Boolean(bodyImageContentId),
+              has_body_image: Boolean(bodyImageUrl),
               body_audio_display_name: bodyAudioDisplayName,
               body_audio_hint_color: bodyAudioHintColor,
               body_audio_hint_font_style: bodyAudioHintFontStyle,
               body_image_display_name: bodyImageDisplayName,
+              body_image_url: bodyImageUrl || null,
               body_image_hint: bodyImageHint || null,
               body_image_hint_color: bodyImageHintColor,
               body_image_hint_font_style: bodyImageHintFontStyle,
@@ -2265,7 +2284,7 @@ export async function POST(req: NextRequest) {
                 banner_position: bannerPosition,
                 banner_height: bannerHeight,
                 has_body_audio: Boolean(bodyAudioUrl),
-                has_body_image: Boolean(bodyImageContentId),
+                has_body_image: Boolean(bodyImageUrl),
                 body_audio_display_name: bodyAudioDisplayName,
                 body_audio_hint_color: bodyAudioHintColor,
                 body_audio_hint_font_style: bodyAudioHintFontStyle,

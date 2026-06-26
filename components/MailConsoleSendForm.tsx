@@ -1415,15 +1415,11 @@ export default function MailConsoleSendForm({
       const placement =
         block === "audio" ? bodyAudioPlacement : bodyImagePlacement;
 
-      const blockAlreadyInsideMessage =
-        (block === "audio" &&
-          placement === "custom" &&
-          messageHasBodyAudioToken) ||
-        (block === "image" &&
-          placement === "custom" &&
-          messageHasBodyImageToken);
+      const shouldOnlyRenderInsideMessage =
+        (block === "audio" && placement === "custom") ||
+        (block === "image" && placement === "custom");
 
-      if (blockAlreadyInsideMessage) {
+      if (shouldOnlyRenderInsideMessage) {
         continue;
       }
 
@@ -1431,8 +1427,6 @@ export default function MailConsoleSendForm({
         topBlocks.push(block);
       } else if (placement === "bottom") {
         bottomBlocks.push(block);
-      } else {
-        customBlocks.push(block);
       }
     }
 
@@ -2285,6 +2279,24 @@ ${BODY_AUDIO_TOKEN} for body audio`}
                 marker will render in that exact position in preview and in the
                 delivered email after the send route is patched.
               </div>
+
+              {bodyImageFile &&
+              bodyImagePlacement === "custom" &&
+              !messageHasBodyImageToken ? (
+                <div style={storeWarningStyle}>
+                  Body image is selected, but it will not show until you place
+                  your cursor in the message and click “Insert image here”.
+                </div>
+              ) : null}
+
+              {bodyAudioFile &&
+              bodyAudioPlacement === "custom" &&
+              !messageHasBodyAudioToken ? (
+                <div style={storeWarningStyle}>
+                  Body audio is selected, but it will not show until you place
+                  your cursor in the message and click “Insert audio here”.
+                </div>
+              ) : null}
             </div>
 
             <div style={sectionHeaderStyle}>Banner image</div>
