@@ -65,6 +65,9 @@ const MAX_RECIPIENTS = 50;
 const SEND_BATCH_SIZE = 5;
 const RESEND_SAFE_WINDOW_MS = 1050;
 
+const BODY_IMAGE_TOKEN = "{{image}}";
+const BODY_AUDIO_TOKEN = "{{audio}}";
+
 const POLICY_LINK_OPTIONS: Array<{
   key: PolicyLinkKey;
   label: string;
@@ -194,6 +197,7 @@ type PickedFile = {
   id: string;
   file: File;
   mode: AttachmentMode;
+  displayName: string;
 };
 
 type Props = {
@@ -392,6 +396,26 @@ function publicHttpLink(value: string) {
   }
 }
 
+function cleanDisplayFilename(value: string, fallback: string) {
+  const cleaned = value
+    .trim()
+    .replace(/[<>:"/\\|?*\u0000-\u001F]+/g, "")
+    .replace(/\s+/g, " ")
+    .slice(0, 90);
+
+  return cleaned || fallback;
+}
+
+function defaultAttachmentDisplayName(file: File, index: number) {
+  const serial = String(index + 1).padStart(2, "0");
+
+  if (file.type.startsWith("image/")) return `StayKnown Image ${serial}`;
+  if (file.type.startsWith("audio/")) return `StayKnown Audio ${serial}`;
+  if (file.type.startsWith("video/")) return `StayKnown Video ${serial}`;
+
+  return `StayKnown File ${serial}`;
+}
+
 export default function MailConsoleSendForm({
   adminEmail,
   senders,
@@ -399,6 +423,7 @@ export default function MailConsoleSendForm({
   templates,
 }: Props) {
   const brandLogoUrl = "/6logo.png";
+  const messageTextareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   const [templateId, setTemplateId] = useState("");
   const [savingDraft, setSavingDraft] = useState(false);
@@ -423,6 +448,8 @@ export default function MailConsoleSendForm({
 
   const [bodyAudioFile, setBodyAudioFile] = useState<File | null>(null);
   const [bodyAudioPreviewUrl, setBodyAudioPreviewUrl] = useState("");
+  const [bodyAudioDisplayName, setBodyAudioDisplayName] =
+    useState("StayKnown Audio");
   const [bodyAudioPlacement, setBodyAudioPlacement] =
     useState<BodyMediaPlacement>("custom");
   const [bodyAudioSize, setBodyAudioSize] = useState(76);
@@ -433,6 +460,8 @@ export default function MailConsoleSendForm({
 
   const [bodyImageFile, setBodyImageFile] = useState<File | null>(null);
   const [bodyImagePreviewUrl, setBodyImagePreviewUrl] = useState("");
+  const [bodyImageDisplayName, setBodyImageDisplayName] =
+    useState("StayKnown Image");
   const [bodyImagePlacement, setBodyImagePlacement] =
     useState<BodyMediaPlacement>("custom");
   const [bodyImageSize, setBodyImageSize] = useState(88);
@@ -734,7 +763,10 @@ export default function MailConsoleSendForm({
     const previewUrl = URL.createObjectURL(file);
     setBodyAudioFile(file);
     setBodyAudioPreviewUrl(previewUrl);
-    setStatus("Body audio selected and shown in preview.");
+    setBodyAudioDisplayName((prev) => prev.trim() || "StayKnown Audio");
+    setStatus(
+      "Body audio selected. Tap inside the message and insert {{audio}} where you want it.",
+    );
   }
 
   function clearBodyAudio() {
@@ -742,9 +774,13 @@ export default function MailConsoleSendForm({
 
     setBodyAudioFile(null);
     setBodyAudioPreviewUrl("");
+    setBodyAudioDisplayName("StayKnown Audio");
     setBodyAudioHint("");
     setBodyAudioHintColor("#6b7280");
     setBodyAudioHintFontStyle("normal");
+    setMessage((prev) =>
+      prev.replaceAll(BODY_AUDIO_TOKEN, "").replace(/\n{3,}/g, "\n\n"),
+    );
     setStatus("Body audio removed.");
   }
 
@@ -761,7 +797,10 @@ export default function MailConsoleSendForm({
     const previewUrl = URL.createObjectURL(file);
     setBodyImageFile(file);
     setBodyImagePreviewUrl(previewUrl);
-    setStatus("Body image selected and shown in preview.");
+    setBodyImageDisplayName((prev) => prev.trim() || "StayKnown Image");
+    setStatus(
+      "Body image selected. Tap inside the message and insert {{image}} where you want it.",
+    );
   }
 
   function clearBodyImage() {
@@ -769,9 +808,13 @@ export default function MailConsoleSendForm({
 
     setBodyImageFile(null);
     setBodyImagePreviewUrl("");
+    setBodyImageDisplayName("StayKnown Image");
     setBodyImageHint("");
     setBodyImageHintColor("#6b7280");
     setBodyImageHintFontStyle("normal");
+    setMessage((prev) =>
+      prev.replaceAll(BODY_IMAGE_TOKEN, "").replace(/\n{3,}/g, "\n\n"),
+    );
     setStatus("Body image removed.");
   }
 
@@ -786,6 +829,42 @@ export default function MailConsoleSendForm({
 
       next.splice(targetIndex, 0, dragged);
       return next;
+    });
+  }
+
+  function insertBodyTokenAtCursor(
+    token: typeof BODY_IMAGE_TOKEN | typeof BODY_AUDIO_TOKEN,
+  ) {
+    const textarea = messageTextareaRef.current;
+    const current = message;
+
+    if (!textarea) {
+      setMessage((prev) => `${prev.trimEnd()}\n\n${token}\n\n`);
+      setStatus(`${token} inserted into the message body.`);
+      return;
+    }
+
+    const start = textarea.selectionStart ?? current.length;
+    const end = textarea.selectionEnd ?? start;
+
+    const before = current.slice(0, start);
+    const after = current.slice(end);
+
+    const prefix = before && !before.endsWith("\n") ? "\n\n" : "";
+    const suffix = after && !after.startsWith("\n") ? "\n\n" : "";
+    const insert = `${prefix}${token}${suffix}`;
+
+    const next = `${before}${insert}${after}`;
+
+    setMessage(next);
+    setStatus(
+      `${token} inserted. It will render there in preview and delivered email.`,
+    );
+
+    window.requestAnimationFrame(() => {
+      const nextCursor = start + insert.length;
+      textarea.focus();
+      textarea.setSelectionRange(nextCursor, nextCursor);
     });
   }
 
@@ -817,11 +896,13 @@ export default function MailConsoleSendForm({
           banner_height: bannerHeight,
           body_audio_placement: bodyAudioPlacement,
           body_audio_size: bodyAudioSize,
+          body_audio_display_name: bodyAudioDisplayName,
           body_audio_hint: bodyAudioHint,
           body_audio_hint_color: bodyAudioHintColor,
           body_audio_hint_font_style: bodyAudioHintFontStyle,
           body_image_placement: bodyImagePlacement,
           body_image_size: bodyImageSize,
+          body_image_display_name: bodyImageDisplayName,
           body_image_hint: bodyImageHint,
           body_image_hint_color: bodyImageHintColor,
           body_image_hint_font_style: bodyImageHintFontStyle,
@@ -862,24 +943,56 @@ export default function MailConsoleSendForm({
     const picked = Array.from(e.target.files || []);
     if (picked.length === 0) return;
 
-    const mapped = picked.map((file) => {
-      const isImage = file.type.startsWith("image/");
-
-      return {
+    setFiles((prev) => {
+      const mapped = picked.map((file, index) => ({
         id: `${file.name}-${file.size}-${Date.now()}-${Math.random()}`,
         file,
-        mode: isImage
-          ? ("inline_image" as AttachmentMode)
-          : ("attach" as AttachmentMode),
-      };
+        mode: "attach" as AttachmentMode,
+        displayName: defaultAttachmentDisplayName(file, prev.length + index),
+      }));
+
+      return [...prev, ...mapped];
     });
 
-    setFiles((prev) => [...prev, ...mapped]);
     e.target.value = "";
+    setStatus(
+      "Files added as normal attachments by default. You may choose only one file as inline or link-only.",
+    );
   }
 
   function updateFileMode(id: string, mode: AttachmentMode) {
-    setFiles((prev) => prev.map((f) => (f.id === id ? { ...f, mode } : f)));
+    setFiles((prev) =>
+      prev.map((f) => {
+        if (f.id === id) {
+          return {
+            ...f,
+            mode,
+          };
+        }
+
+        if (mode !== "attach") {
+          return {
+            ...f,
+            mode: "attach",
+          };
+        }
+
+        return f;
+      }),
+    );
+  }
+
+  function updateFileDisplayName(id: string, displayName: string) {
+    setFiles((prev) =>
+      prev.map((f) =>
+        f.id === id
+          ? {
+              ...f,
+              displayName,
+            }
+          : f,
+      ),
+    );
   }
 
   function removeFile(id: string) {
@@ -908,6 +1021,13 @@ export default function MailConsoleSendForm({
     form.append("badge", badge);
     form.append("message", message);
 
+    if (typeof window !== "undefined") {
+      form.append(
+        "brand_logo_url",
+        new URL(brandLogoUrl, window.location.origin).toString(),
+      );
+    }
+
     form.append("image_position", imagePosition);
     form.append("banner_position", imagePosition);
     form.append("banner_height", String(bannerHeight));
@@ -926,11 +1046,19 @@ export default function MailConsoleSendForm({
 
     form.append("body_audio_placement", bodyAudioPlacement);
     form.append("body_audio_size", String(bodyAudioSize));
+    form.append(
+      "body_audio_display_name",
+      cleanDisplayFilename(bodyAudioDisplayName, "StayKnown Audio"),
+    );
     form.append("body_audio_hint", bodyAudioHint);
     form.append("body_audio_hint_color", bodyAudioHintColor);
     form.append("body_audio_hint_font_style", bodyAudioHintFontStyle);
     form.append("body_image_placement", bodyImagePlacement);
     form.append("body_image_size", String(bodyImageSize));
+    form.append(
+      "body_image_display_name",
+      cleanDisplayFilename(bodyImageDisplayName, "StayKnown Image"),
+    );
     form.append("body_image_hint", bodyImageHint);
     form.append("body_image_hint_color", bodyImageHintColor);
     form.append("body_image_hint_font_style", bodyImageHintFontStyle);
@@ -963,8 +1091,26 @@ export default function MailConsoleSendForm({
       JSON.stringify(files.map((picked) => picked.mode)),
     );
 
-    for (const picked of files) {
-      form.append("files", picked.file, picked.file.name);
+    form.append(
+      "file_display_names",
+      JSON.stringify(
+        files.map((picked, index) =>
+          cleanDisplayFilename(
+            picked.displayName,
+            defaultAttachmentDisplayName(picked.file, index),
+          ),
+        ),
+      ),
+    );
+
+    for (let i = 0; i < files.length; i += 1) {
+      const picked = files[i];
+      const displayName = cleanDisplayFilename(
+        picked.displayName,
+        defaultAttachmentDisplayName(picked.file, i),
+      );
+
+      form.append("files", picked.file, displayName);
     }
 
     return form;
@@ -1241,6 +1387,8 @@ export default function MailConsoleSendForm({
   const appStoreHref = appStoreEnabled ? publicHttpLink(appStoreUrl) : "";
   const hasAnyStoreBadge = Boolean(googlePlayHref || appStoreHref);
   const hasConfiguredStoreBadge = googlePlayEnabled || appStoreEnabled;
+  const messageHasBodyImageToken = message.includes(BODY_IMAGE_TOKEN);
+  const messageHasBodyAudioToken = message.includes(BODY_AUDIO_TOKEN);
 
   const enabledBodyBlocks = new Set<BodyBlockKind>(["message"]);
 
@@ -1266,6 +1414,18 @@ export default function MailConsoleSendForm({
 
       const placement =
         block === "audio" ? bodyAudioPlacement : bodyImagePlacement;
+
+      const blockAlreadyInsideMessage =
+        (block === "audio" &&
+          placement === "custom" &&
+          messageHasBodyAudioToken) ||
+        (block === "image" &&
+          placement === "custom" &&
+          messageHasBodyImageToken);
+
+      if (blockAlreadyInsideMessage) {
+        continue;
+      }
 
       if (placement === "top") {
         topBlocks.push(block);
@@ -1376,6 +1536,136 @@ export default function MailConsoleSendForm({
     setReadOnlyPreviewOpen(true);
   }
 
+  function renderInlineBodyAudio() {
+    if (!bodyAudioFile) return null;
+
+    return (
+      <div style={embeddedMediaSlotStyle}>
+        <div
+          style={{
+            ...previewAudioPillStyle,
+            width: `${bodyAudioSize}%`,
+            minWidth: "min(210px, 100%)",
+            maxWidth: "100%",
+          }}
+        >
+          <div style={previewAudioIconStyle}>🎧</div>
+
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <div style={previewAudioTitleStyle}>
+              {cleanDisplayFilename(bodyAudioDisplayName, "StayKnown Audio")}
+            </div>
+            <div style={previewAudioMetaStyle}>Audio message</div>
+          </div>
+
+          <audio
+            src={bodyAudioPreviewUrl}
+            controls
+            style={{
+              width: 126,
+              height: 30,
+              maxWidth: "44%",
+            }}
+          />
+        </div>
+
+        {bodyAudioHint ? (
+          <div
+            style={{
+              ...previewMediaHintStyle,
+              width: `${bodyAudioSize}%`,
+              color: bodyAudioHintColor,
+              fontStyle: bodyAudioHintFontStyle,
+            }}
+          >
+            {bodyAudioHint}
+          </div>
+        ) : null}
+      </div>
+    );
+  }
+
+  function renderInlineBodyImage(readOnly = false) {
+    if (!bodyImageFile) return null;
+
+    const imageNode = (
+      <img
+        src={bodyImagePreviewUrl}
+        alt={cleanDisplayFilename(bodyImageDisplayName, "StayKnown Image")}
+        style={previewBodyImageStyle}
+      />
+    );
+
+    return (
+      <div style={embeddedMediaSlotStyle}>
+        {readOnly ? (
+          <a
+            href={bodyImagePreviewUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              ...previewBodyImageWrapStyle,
+              display: "block",
+              width: `${bodyImageSize}%`,
+              minWidth: "min(170px, 100%)",
+              maxWidth: "100%",
+              textDecoration: "none",
+            }}
+          >
+            {imageNode}
+          </a>
+        ) : (
+          <div
+            style={{
+              ...previewBodyImageWrapStyle,
+              width: `${bodyImageSize}%`,
+              minWidth: "min(170px, 100%)",
+              maxWidth: "100%",
+            }}
+          >
+            {imageNode}
+          </div>
+        )}
+
+        {bodyImageHint ? (
+          <div
+            style={{
+              ...previewMediaHintStyle,
+              width: `${bodyImageSize}%`,
+              color: bodyImageHintColor,
+              fontStyle: bodyImageHintFontStyle,
+            }}
+          >
+            {bodyImageHint}
+          </div>
+        ) : null}
+      </div>
+    );
+  }
+
+  function renderMessageTextWithInlineMedia(readOnly = false) {
+    const content = message || "Your email body preview will appear here.";
+    const parts = content.split(/(\{\{image\}\}|\{\{audio\}\})/g);
+
+    return parts.map((part, index) => {
+      if (part === BODY_IMAGE_TOKEN) {
+        return (
+          <div key={`message-image-${index}`}>
+            {renderInlineBodyImage(readOnly)}
+          </div>
+        );
+      }
+
+      if (part === BODY_AUDIO_TOKEN) {
+        return (
+          <div key={`message-audio-${index}`}>{renderInlineBodyAudio()}</div>
+        );
+      }
+
+      return <span key={`message-text-${index}`}>{part}</span>;
+    });
+  }
+
   function renderReadOnlyBodyBlock(block: BodyBlockKind) {
     if (block === "audio" && bodyAudioFile) {
       return (
@@ -1467,7 +1757,7 @@ export default function MailConsoleSendForm({
       <div key="readonly-message" style={readOnlyBodyBlockStyle}>
         <div style={previewMessageCardStyle}>
           <div style={previewMessageBodyStyle}>
-            {message || "Your email body preview will appear here."}
+            {renderMessageTextWithInlineMedia(true)}
           </div>
         </div>
       </div>
@@ -1499,10 +1789,10 @@ export default function MailConsoleSendForm({
             <div style={previewAudioIconStyle}>🎧</div>
 
             <div style={{ minWidth: 0, flex: 1 }}>
-              <div style={previewAudioTitleStyle}>StayKnown Audio</div>
-              <div style={previewAudioMetaStyle}>
-                {bodyAudioFile.name || "Audio message"}
+              <div style={previewAudioTitleStyle}>
+                {cleanDisplayFilename(bodyAudioDisplayName, "StayKnown Audio")}
               </div>
+              <div style={previewAudioMetaStyle}>Audio message</div>
             </div>
 
             <audio
@@ -1594,7 +1884,7 @@ export default function MailConsoleSendForm({
       >
         <div style={previewMessageCardStyle}>
           <div style={previewMessageBodyStyle}>
-            {message || "Your email body preview will appear here."}
+            {renderMessageTextWithInlineMedia(false)}
           </div>
         </div>
 
@@ -1951,11 +2241,50 @@ export default function MailConsoleSendForm({
             <div style={fieldStyle}>
               <label style={labelStyle}>Message body</label>
               <textarea
+                ref={messageTextareaRef}
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
-                placeholder="Write the main email message here..."
-                style={{ ...inputStyle, minHeight: 210, resize: "vertical" }}
+                placeholder={`Write the main email message here...
+
+Tap inside this box where you want media, then use:
+${BODY_IMAGE_TOKEN} for body image
+${BODY_AUDIO_TOKEN} for body audio`}
+                style={{ ...inputStyle, minHeight: 240, resize: "vertical" }}
               />
+
+              <div style={tokenButtonRowStyle}>
+                <button
+                  type="button"
+                  onClick={() => insertBodyTokenAtCursor(BODY_IMAGE_TOKEN)}
+                  disabled={!bodyImageFile}
+                  style={{
+                    ...tinyUtilityButtonStyle,
+                    opacity: bodyImageFile ? 1 : 0.5,
+                    cursor: bodyImageFile ? "pointer" : "not-allowed",
+                  }}
+                >
+                  Insert image here
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => insertBodyTokenAtCursor(BODY_AUDIO_TOKEN)}
+                  disabled={!bodyAudioFile}
+                  style={{
+                    ...tinyUtilityButtonStyle,
+                    opacity: bodyAudioFile ? 1 : 0.5,
+                    cursor: bodyAudioFile ? "pointer" : "not-allowed",
+                  }}
+                >
+                  Insert audio here
+                </button>
+              </div>
+
+              <div style={helpTextStyle}>
+                Put your cursor inside the message, then insert image/audio. The
+                marker will render in that exact position in preview and in the
+                delivered email after the send route is patched.
+              </div>
             </div>
 
             <div style={sectionHeaderStyle}>Banner image</div>
@@ -2134,6 +2463,31 @@ export default function MailConsoleSendForm({
                 ) : null}
 
                 <div style={{ marginTop: 10 }}>
+                  <label style={labelStyle}>Audio display name</label>
+                  <input
+                    value={bodyAudioDisplayName}
+                    onChange={(e) => setBodyAudioDisplayName(e.target.value)}
+                    placeholder="StayKnown Audio"
+                    style={inputStyle}
+                  />
+                </div>
+
+                <div style={tokenButtonRowStyle}>
+                  <button
+                    type="button"
+                    onClick={() => insertBodyTokenAtCursor(BODY_AUDIO_TOKEN)}
+                    disabled={!bodyAudioFile}
+                    style={{
+                      ...tinyUtilityButtonStyle,
+                      opacity: bodyAudioFile ? 1 : 0.5,
+                      cursor: bodyAudioFile ? "pointer" : "not-allowed",
+                    }}
+                  >
+                    Insert audio in message
+                  </button>
+                </div>
+
+                <div style={{ marginTop: 10 }}>
                   <label style={labelStyle}>Tiny hint under audio</label>
                   <input
                     value={bodyAudioHint}
@@ -2234,6 +2588,31 @@ export default function MailConsoleSendForm({
                 {bodyImageFile ? (
                   <div style={bannerFileNameStyle}>{bodyImageFile.name}</div>
                 ) : null}
+
+                <div style={{ marginTop: 10 }}>
+                  <label style={labelStyle}>Image display name</label>
+                  <input
+                    value={bodyImageDisplayName}
+                    onChange={(e) => setBodyImageDisplayName(e.target.value)}
+                    placeholder="StayKnown Image"
+                    style={inputStyle}
+                  />
+                </div>
+
+                <div style={tokenButtonRowStyle}>
+                  <button
+                    type="button"
+                    onClick={() => insertBodyTokenAtCursor(BODY_IMAGE_TOKEN)}
+                    disabled={!bodyImageFile}
+                    style={{
+                      ...tinyUtilityButtonStyle,
+                      opacity: bodyImageFile ? 1 : 0.5,
+                      cursor: bodyImageFile ? "pointer" : "not-allowed",
+                    }}
+                  >
+                    Insert image in message
+                  </button>
+                </div>
 
                 <div style={{ marginTop: 10 }}>
                   <label style={labelStyle}>Tiny hint under image</label>
@@ -2495,53 +2874,97 @@ export default function MailConsoleSendForm({
 
             {files.length > 0 ? (
               <div style={{ marginTop: 12, display: "grid", gap: 10 }}>
-                {files.map((picked) => (
-                  <div
-                    key={picked.id}
-                    className="sk-mail-file-row"
-                    style={fileRowStyle}
-                  >
-                    <div style={{ minWidth: 0 }}>
-                      <div style={{ fontWeight: 900, wordBreak: "break-word" }}>
-                        {picked.file.name}
+                {files.map((picked) => {
+                  const isImage = picked.file.type.startsWith("image/");
+                  const hasAnotherSpecialFile = files.some(
+                    (item) => item.id !== picked.id && item.mode !== "attach",
+                  );
+
+                  return (
+                    <div
+                      key={picked.id}
+                      className="sk-mail-file-row"
+                      style={fileRowStyle}
+                    >
+                      <div style={{ minWidth: 0 }}>
+                        <div
+                          style={{
+                            fontWeight: 900,
+                            wordBreak: "break-word",
+                          }}
+                        >
+                          {picked.displayName || "StayKnown File"}
+                        </div>
+
+                        <div style={fileMetaStyle}>
+                          Original: {picked.file.name} ·{" "}
+                          {picked.file.type || "unknown type"} ·{" "}
+                          {niceFileSize(picked.file.size)}
+                        </div>
+
+                        <input
+                          value={picked.displayName}
+                          onChange={(e) =>
+                            updateFileDisplayName(picked.id, e.target.value)
+                          }
+                          placeholder="Display name shown to recipient"
+                          style={{
+                            ...inputStyle,
+                            marginTop: 8,
+                            padding: "9px 11px",
+                            fontSize: 12,
+                          }}
+                        />
                       </div>
-                      <div style={fileMetaStyle}>
-                        {picked.file.type || "unknown type"} ·{" "}
-                        {niceFileSize(picked.file.size)}
-                      </div>
+
+                      <select
+                        value={picked.mode}
+                        onChange={(e) =>
+                          updateFileMode(
+                            picked.id,
+                            e.target.value as AttachmentMode,
+                          )
+                        }
+                        style={{
+                          ...inputStyle,
+                          width: 170,
+                          padding: "10px 12px",
+                        }}
+                      >
+                        <option value="attach">Attach at end</option>
+                        <option
+                          value="link_only"
+                          disabled={hasAnotherSpecialFile}
+                        >
+                          Link only
+                        </option>
+                        <option
+                          value="inline_image"
+                          disabled={!isImage || hasAnotherSpecialFile}
+                        >
+                          Inline image
+                        </option>
+                      </select>
+
+                      <button
+                        type="button"
+                        onClick={() => removeFile(picked.id)}
+                        style={smallButtonStyle}
+                      >
+                        Remove
+                      </button>
                     </div>
+                  );
+                })}
 
-                    <select
-                      value={picked.mode}
-                      onChange={(e) =>
-                        updateFileMode(
-                          picked.id,
-                          e.target.value as AttachmentMode,
-                        )
-                      }
-                      style={{
-                        ...inputStyle,
-                        width: 150,
-                        padding: "10px 12px",
-                      }}
-                    >
-                      <option value="attach">Attach</option>
-                      <option value="link_only">Link only</option>
-                      <option value="inline_image">Inline image</option>
-                    </select>
-
-                    <button
-                      type="button"
-                      onClick={() => removeFile(picked.id)}
-                      style={smallButtonStyle}
-                    >
-                      Remove
-                    </button>
-                  </div>
-                ))}
+                <div style={helpTextStyle}>
+                  All uploaded files are normal attachments by default. Only one
+                  file can be changed to inline image or link-only. This
+                  prevents many screenshots from appearing inside the email
+                  body.
+                </div>
               </div>
             ) : null}
-
             <div
               style={{
                 display: "flex",
@@ -3650,6 +4073,31 @@ const storeWarningStyle: React.CSSProperties = {
   fontWeight: 750,
 };
 
+const tokenButtonRowStyle: React.CSSProperties = {
+  display: "flex",
+  gap: 8,
+  flexWrap: "wrap",
+  marginTop: 10,
+};
+
+const tinyUtilityButtonStyle: React.CSSProperties = {
+  border: 0,
+  borderRadius: 999,
+  padding: "8px 11px",
+  background: "#050505",
+  color: "white",
+  fontSize: 11,
+  fontWeight: 900,
+  cursor: "pointer",
+};
+
+const embeddedMediaSlotStyle: React.CSSProperties = {
+  display: "block",
+  width: "100%",
+  margin: "14px auto",
+  textAlign: "center",
+};
+
 const previewFooterStyle: React.CSSProperties = {
   marginTop: 16,
   fontSize: 11,
@@ -3824,7 +4272,7 @@ const previewMediaHintStyle: React.CSSProperties = {
 
 const previewBodyImageWrapStyle: React.CSSProperties = {
   margin: "0 auto",
-  borderRadius: 999,
+  borderRadius: 22,
   overflow: "hidden",
   border: "1px solid rgba(0,0,0,0.10)",
   background: "white",
@@ -3834,7 +4282,7 @@ const previewBodyImageWrapStyle: React.CSSProperties = {
 const previewBodyImageStyle: React.CSSProperties = {
   display: "block",
   width: "100%",
-  maxHeight: 220,
+  maxHeight: 260,
   objectFit: "cover",
 };
 

@@ -1,6 +1,4 @@
 import { randomUUID } from "crypto";
-import { readFile } from "fs/promises";
-import path from "path";
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { getMailConsoleSiteUrl } from "@/lib/mailConsoleAdmin";
@@ -67,7 +65,8 @@ type PolicyLinkKey =
   | "donor_policy"
   | "billing_policy";
 
-const STAYKNOWN_LOGO_CONTENT_ID = "stayknown-brand-logo";
+const BODY_IMAGE_TOKEN = "{{image}}";
+const BODY_AUDIO_TOKEN = "{{audio}}";
 
 const POLICY_LINK_OPTIONS: Record<
   PolicyLinkKey,
@@ -339,6 +338,89 @@ function parseBodyBlockOrder(raw: string): BodyBlockKind[] {
   }
 }
 
+function parseStringArray(raw: string) {
+  try {
+    const parsed = JSON.parse(raw || "[]");
+
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+
+    return parsed.map((x) => clean(x)).filter(Boolean);
+  } catch (_) {
+    return [];
+  }
+}
+
+function fileExtension(name: string) {
+  const safeName = clean(name);
+  const match = safeName.match(/(\.[a-z0-9]{1,10})$/i);
+
+  return match ? match[1].toLowerCase() : "";
+}
+
+function mimeDefaultExtension(mime: string) {
+  const lower = mime.toLowerCase();
+
+  if (lower.includes("png")) return ".png";
+  if (lower.includes("jpeg") || lower.includes("jpg")) return ".jpg";
+  if (lower.includes("webp")) return ".webp";
+  if (lower.includes("gif")) return ".gif";
+  if (lower.includes("mp3") || lower.includes("mpeg")) return ".mp3";
+  if (lower.includes("wav")) return ".wav";
+  if (lower.includes("mp4")) return ".mp4";
+  if (lower.includes("pdf")) return ".pdf";
+  if (lower.includes("zip")) return ".zip";
+
+  return "";
+}
+
+function cleanFilename(name: string) {
+  return (
+    name
+      .replace(/[^\w.\-() ]+/g, "_")
+      .replace(/\s+/g, "_")
+      .slice(0, 120) || "attachment"
+  );
+}
+
+function cleanDisplayFilename(
+  value: string,
+  fallback: string,
+  originalName = "",
+  mime = "",
+) {
+  const originalExt = fileExtension(originalName) || mimeDefaultExtension(mime);
+
+  const cleanedBase =
+    value
+      .trim()
+      .replace(/[<>:"/\\|?*\u0000-\u001F]+/g, "")
+      .replace(/\s+/g, " ")
+      .replace(/\.[a-z0-9]{1,10}$/i, "")
+      .slice(0, 90) ||
+    fallback
+      .trim()
+      .replace(/[<>:"/\\|?*\u0000-\u001F]+/g, "")
+      .replace(/\s+/g, " ")
+      .replace(/\.[a-z0-9]{1,10}$/i, "")
+      .slice(0, 90) ||
+    "StayKnown File";
+
+  return `${cleanedBase}${originalExt}`;
+}
+
+function defaultAttachmentDisplayName(file: File, index: number) {
+  const serial = String(index + 1).padStart(2, "0");
+  const ext = fileExtension(file.name) || mimeDefaultExtension(file.type);
+
+  if (file.type.startsWith("image/")) return `StayKnown Image ${serial}${ext}`;
+  if (file.type.startsWith("audio/")) return `StayKnown Audio ${serial}${ext}`;
+  if (file.type.startsWith("video/")) return `StayKnown Video ${serial}${ext}`;
+
+  return `StayKnown File ${serial}${ext}`;
+}
+
 function policyLinksHtml(keys: PolicyLinkKey[]) {
   if (keys.length === 0) return "";
 
@@ -403,33 +485,6 @@ function htmlToText(html: string) {
     .trim();
 }
 
-function cleanFilename(name: string) {
-  return (
-    name
-      .replace(/[^\w.\-() ]+/g, "_")
-      .replace(/\s+/g, "_")
-      .slice(0, 120) || "attachment"
-  );
-}
-
-async function getStayKnownLogoAttachment(): Promise<ResendAttachment> {
-  try {
-    const logoPath = path.join(process.cwd(), "public", "6logo.png");
-    const logoBuffer = await readFile(logoPath);
-
-    return {
-      filename: "6logo.png",
-      content: logoBuffer.toString("base64"),
-      contentId: STAYKNOWN_LOGO_CONTENT_ID,
-      content_type: "image/png",
-    };
-  } catch (_) {
-    throw new Error(
-      "Brand logo missing. Add public/6logo.png before sending email.",
-    );
-  }
-}
-
 function trademarkHtml(appName: string) {
   return `
     <div style="text-align:center;margin:0 0 10px 0;">
@@ -445,11 +500,15 @@ function trademarkHtml(appName: string) {
   `;
 }
 
-function brandLogoHtml(appName: string) {
+function brandLogoHtml(appName: string, brandLogoUrl: string) {
+  if (!brandLogoUrl) {
+    return trademarkHtml(appName);
+  }
+
   return `
     ${trademarkHtml(appName)}
     <div style="text-align:center;margin:0 0 10px 0;">
-      <img src="cid:${STAYKNOWN_LOGO_CONTENT_ID}" width="64" height="64" alt="${escapeHtml(
+      <img src="${escapeHtml(brandLogoUrl)}" width="64" height="64" alt="${escapeHtml(
         appName,
       )}" style="display:inline-block;width:64px;height:64px;border-radius:18px;background:#ffffff;box-shadow:0 14px 38px rgba(0,0,0,0.14);" />
       <div style="height:6px;"></div>
@@ -521,13 +580,13 @@ function bodyImageBlock(params: {
   const hintFontStyle = safeBodyHintFontStyle(params.hintFontStyle);
 
   return `
-    <div style="text-align:center;margin:12px 0;">
+    <div style="text-align:center;margin:14px 0;">
       <div style="
         display:inline-block;
         width:${params.size}%;
         max-width:100%;
         min-width:170px;
-        border-radius:999px;
+        border-radius:22px;
         overflow:hidden;
         border:1px solid rgba(0,0,0,0.10);
         background:#ffffff;
@@ -535,7 +594,7 @@ function bodyImageBlock(params: {
       ">
         <img src="cid:${escapeHtml(params.contentId)}" alt="${escapeHtml(
           params.alt,
-        )}" style="display:block;width:100%;max-height:220px;object-fit:cover;" />
+        )}" style="display:block;width:100%;max-height:260px;object-fit:cover;" />
       </div>
 
       ${
@@ -558,7 +617,7 @@ function bodyImageBlock(params: {
 
 function bodyAudioPillBlock(params: {
   url: string;
-  filename: string;
+  displayName: string;
   size: number;
   hint: string;
   hintColor: string;
@@ -567,9 +626,10 @@ function bodyAudioPillBlock(params: {
   const hint = clean(params.hint);
   const hintColor = safeHexColor(params.hintColor);
   const hintFontStyle = safeBodyHintFontStyle(params.hintFontStyle);
+  const displayName = clean(params.displayName) || "StayKnown Audio";
 
   return `
-    <div style="text-align:center;margin:12px 0;">
+    <div style="text-align:center;margin:14px 0;">
       <a href="${escapeHtml(params.url)}" target="_blank" rel="noopener noreferrer" style="
         display:inline-flex;
         align-items:center;
@@ -608,7 +668,7 @@ function bodyAudioPillBlock(params: {
             white-space:nowrap;
             overflow:hidden;
             text-overflow:ellipsis;
-          ">StayKnown Audio</span>
+          ">${escapeHtml(displayName)}</span>
 
           <span style="
             display:block;
@@ -618,7 +678,7 @@ function bodyAudioPillBlock(params: {
             white-space:nowrap;
             overflow:hidden;
             text-overflow:ellipsis;
-          ">${escapeHtml(params.filename || "Tap to listen")}</span>
+          ">Audio message</span>
         </span>
 
         <span style="
@@ -834,6 +894,7 @@ function linkOnlyFilesBlock(files: Array<{ filename: string; url: string }>) {
 
 function emailShell(p: {
   appName: string;
+  brandLogoUrl: string;
   title: string;
   subtitle: string;
   badge: string;
@@ -851,7 +912,7 @@ function emailShell(p: {
           <table role="presentation" cellpadding="0" cellspacing="0" width="560" style="width:560px;max-width:100%;">
             <tr>
               <td style="padding:10px 6px;">
-                ${brandLogoHtml(p.appName)}
+                ${brandLogoHtml(p.appName, p.brandLogoUrl)}
 
                 <div style="text-align:center;font-size:18px;font-weight:950;letter-spacing:0.6px;color:#0b0b0b;line-height:1.35;">
                   ${escapeHtml(p.title)}
@@ -906,6 +967,8 @@ function resolveBodyBlockOrder(params: {
   hasImage: boolean;
   audioPlacement: BodyMediaPlacement;
   imagePlacement: BodyMediaPlacement;
+  audioAlreadyInsideMessage: boolean;
+  imageAlreadyInsideMessage: boolean;
 }) {
   const enabled = new Set<BodyBlockKind>(["message"]);
 
@@ -928,6 +991,14 @@ function resolveBodyBlockOrder(params: {
       continue;
     }
 
+    if (block === "audio" && params.audioAlreadyInsideMessage) {
+      continue;
+    }
+
+    if (block === "image" && params.imageAlreadyInsideMessage) {
+      continue;
+    }
+
     const placement =
       block === "audio" ? params.audioPlacement : params.imagePlacement;
 
@@ -943,8 +1014,37 @@ function resolveBodyBlockOrder(params: {
   return [...topBlocks, ...customBlocks, ...bottomBlocks];
 }
 
+function renderMessageHtmlWithInlineMedia(params: {
+  message: string;
+  bodyAudioHtml: string;
+  bodyImageHtml: string;
+}) {
+  const source = params.message || "";
+
+  if (!source.trim()) {
+    return "";
+  }
+
+  const parts = source.split(/(\{\{image\}\}|\{\{audio\}\})/g);
+
+  return parts
+    .map((part) => {
+      if (part === BODY_IMAGE_TOKEN) {
+        return params.bodyImageHtml || "";
+      }
+
+      if (part === BODY_AUDIO_TOKEN) {
+        return params.bodyAudioHtml || "";
+      }
+
+      return textToHtml(part);
+    })
+    .join("");
+}
+
 function buildHtml(p: {
   appName: string;
+  brandLogoUrl: string;
   mode: MailMode;
   title: string;
   subtitle: string;
@@ -965,13 +1065,13 @@ function buildHtml(p: {
   inlineImageBlocks: string;
   linkOnlyFiles: Array<{ filename: string; url: string }>;
   bodyAudioUrl: string;
-  bodyAudioFilename: string;
+  bodyAudioDisplayName: string;
   bodyAudioHint: string;
   bodyAudioHintColor: string;
   bodyAudioHintFontStyle: BodyHintFontStyle;
   bodyAudioSize: number;
   bodyImageContentId: string;
-  bodyImageFilename: string;
+  bodyImageDisplayName: string;
   bodyImageHint: string;
   bodyImageHintColor: string;
   bodyImageHintFontStyle: BodyHintFontStyle;
@@ -980,8 +1080,6 @@ function buildHtml(p: {
   bodyAudioPlacement: BodyMediaPlacement;
   bodyImagePlacement: BodyMediaPlacement;
 }) {
-  const messageHtml = textToHtml(p.message);
-
   const topBannerContentId = p.bannerTopContentId || p.bannerBottomContentId;
   const bottomBannerContentId = p.bannerBottomContentId || p.bannerTopContentId;
 
@@ -997,20 +1095,83 @@ function buildHtml(p: {
       ? bannerImageBlock(bottomBannerContentId, p.title, p.bannerHeight)
       : "";
 
+  const standaloneBodyAudioHtml =
+    p.bodyAudioUrl && p.bodyAudioPlacement !== "custom"
+      ? bodyAudioPillBlock({
+          url: p.bodyAudioUrl,
+          displayName: p.bodyAudioDisplayName || "StayKnown Audio",
+          size: p.bodyAudioSize,
+          hint: p.bodyAudioHint,
+          hintColor: p.bodyAudioHintColor,
+          hintFontStyle: p.bodyAudioHintFontStyle,
+        })
+      : "";
+
+  const standaloneBodyImageHtml =
+    p.bodyImageContentId && p.bodyImagePlacement !== "custom"
+      ? bodyImageBlock({
+          contentId: p.bodyImageContentId,
+          alt: p.bodyImageDisplayName || "StayKnown Image",
+          size: p.bodyImageSize,
+          hint: p.bodyImageHint,
+          hintColor: p.bodyImageHintColor,
+          hintFontStyle: p.bodyImageHintFontStyle,
+        })
+      : "";
+
+  const tokenBodyAudioHtml = p.bodyAudioUrl
+    ? bodyAudioPillBlock({
+        url: p.bodyAudioUrl,
+        displayName: p.bodyAudioDisplayName || "StayKnown Audio",
+        size: p.bodyAudioSize,
+        hint: p.bodyAudioHint,
+        hintColor: p.bodyAudioHintColor,
+        hintFontStyle: p.bodyAudioHintFontStyle,
+      })
+    : "";
+
+  const tokenBodyImageHtml = p.bodyImageContentId
+    ? bodyImageBlock({
+        contentId: p.bodyImageContentId,
+        alt: p.bodyImageDisplayName || "StayKnown Image",
+        size: p.bodyImageSize,
+        hint: p.bodyImageHint,
+        hintColor: p.bodyImageHintColor,
+        hintFontStyle: p.bodyImageHintFontStyle,
+      })
+    : "";
+
+  const audioAlreadyInsideMessage =
+    Boolean(p.bodyAudioUrl) && p.message.includes(BODY_AUDIO_TOKEN);
+  const imageAlreadyInsideMessage =
+    Boolean(p.bodyImageContentId) && p.message.includes(BODY_IMAGE_TOKEN);
+
+  const messageHtml = renderMessageHtmlWithInlineMedia({
+    message: p.message,
+    bodyAudioHtml: tokenBodyAudioHtml,
+    bodyImageHtml: tokenBodyImageHtml,
+  });
+
   const resolvedBodyOrder = resolveBodyBlockOrder({
     rawOrder: p.bodyBlockOrder,
     hasAudio: Boolean(p.bodyAudioUrl),
     hasImage: Boolean(p.bodyImageContentId),
     audioPlacement: p.bodyAudioPlacement,
     imagePlacement: p.bodyImagePlacement,
+    audioAlreadyInsideMessage,
+    imageAlreadyInsideMessage,
   });
 
   const bodyBlocks = resolvedBodyOrder
     .map((block) => {
       if (block === "audio" && p.bodyAudioUrl) {
+        if (p.bodyAudioPlacement !== "custom") {
+          return standaloneBodyAudioHtml;
+        }
+
         return bodyAudioPillBlock({
           url: p.bodyAudioUrl,
-          filename: p.bodyAudioFilename || "StayKnown audio",
+          displayName: p.bodyAudioDisplayName || "StayKnown Audio",
           size: p.bodyAudioSize,
           hint: p.bodyAudioHint,
           hintColor: p.bodyAudioHintColor,
@@ -1019,9 +1180,13 @@ function buildHtml(p: {
       }
 
       if (block === "image" && p.bodyImageContentId) {
+        if (p.bodyImagePlacement !== "custom") {
+          return standaloneBodyImageHtml;
+        }
+
         return bodyImageBlock({
           contentId: p.bodyImageContentId,
-          alt: p.bodyImageFilename || "StayKnown body image",
+          alt: p.bodyImageDisplayName || "StayKnown Image",
           size: p.bodyImageSize,
           hint: p.bodyImageHint,
           hintColor: p.bodyImageHintColor,
@@ -1043,6 +1208,7 @@ function buildHtml(p: {
     .join("");
 
   const cta = ctaButton(p.ctaLabel, p.ctaUrl);
+
   const storeBadges = storeBadgesBlock({
     placement: p.storeBadgePlacement,
     googlePlayEnabled: p.googlePlayEnabled,
@@ -1094,6 +1260,7 @@ function buildHtml(p: {
 
   return emailShell({
     appName: p.appName,
+    brandLogoUrl: p.brandLogoUrl,
     title: p.title,
     subtitle: p.subtitle,
     badge: p.badge,
@@ -1219,6 +1386,14 @@ export async function POST(req: NextRequest) {
     const badge = clean(form.get("badge"));
     const message = clean(form.get("message"));
 
+    const siteUrl = getMailConsoleSiteUrl();
+    const formLogoUrl = safePublicHttpUrl(form.get("brand_logo_url"));
+    const envLogoUrl = safePublicHttpUrl(process.env.MAIL_CONSOLE_LOGO_URL);
+    const fallbackLogoUrl = safePublicHttpUrl(
+      `${siteUrl.replace(/\/$/, "")}/6logo.png`,
+    );
+    const brandLogoUrl = formLogoUrl || envLogoUrl || fallbackLogoUrl;
+
     const bannerTopFileRaw = form.get("banner_top_file");
     const bannerBottomFileRaw = form.get("banner_bottom_file");
     const bodyAudioFileRaw = form.get("body_audio_file");
@@ -1246,6 +1421,12 @@ export async function POST(req: NextRequest) {
       form.get("body_audio_placement"),
     );
     const bodyAudioSize = safeNumber(form.get("body_audio_size"), 76, 32, 100);
+    const bodyAudioDisplayName = cleanDisplayFilename(
+      clean(form.get("body_audio_display_name")),
+      "StayKnown Audio",
+      bodyAudioFile?.name || "",
+      bodyAudioFile?.type || "audio/mpeg",
+    );
     const bodyAudioHint = clean(form.get("body_audio_hint")).slice(0, 160);
     const bodyAudioHintColor = safeHexColor(form.get("body_audio_hint_color"));
     const bodyAudioHintFontStyle = safeBodyHintFontStyle(
@@ -1256,6 +1437,12 @@ export async function POST(req: NextRequest) {
       form.get("body_image_placement"),
     );
     const bodyImageSize = safeNumber(form.get("body_image_size"), 88, 32, 100);
+    const bodyImageDisplayName = cleanDisplayFilename(
+      clean(form.get("body_image_display_name")),
+      "StayKnown Image",
+      bodyImageFile?.name || "",
+      bodyImageFile?.type || "image/png",
+    );
     const bodyImageHint = clean(form.get("body_image_hint")).slice(0, 160);
     const bodyImageHintColor = safeHexColor(form.get("body_image_hint_color"));
     const bodyImageHintFontStyle = safeBodyHintFontStyle(
@@ -1499,6 +1686,58 @@ export async function POST(req: NextRequest) {
         ? clean(senderRow.reply_to_email) || clean(senderRow.from_email)
         : "";
 
+    const files = form
+      .getAll("files")
+      .filter((v) => v instanceof File) as File[];
+
+    const fileModesRaw = clean(form.get("file_modes"));
+    const fileDisplayNamesRaw = clean(form.get("file_display_names"));
+
+    let fileModes: AttachmentMode[] = [];
+
+    try {
+      const parsed = JSON.parse(fileModesRaw || "[]");
+      fileModes = Array.isArray(parsed)
+        ? parsed.map((x) => safeAttachmentMode(x))
+        : [];
+    } catch (_) {
+      fileModes = [];
+    }
+
+    const fileDisplayNames = parseStringArray(fileDisplayNamesRaw);
+    const normalizedFileModes = files.map(
+      (_, index) => fileModes[index] || "attach",
+    );
+    const specialAttachmentCount = normalizedFileModes.filter(
+      (modeValue) => modeValue !== "attach",
+    ).length;
+
+    if (specialAttachmentCount > 1) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error:
+            "Only one attachment can be inline image or link-only. Keep the rest as normal attachments.",
+        },
+        { status: 400 },
+      );
+    }
+
+    for (let i = 0; i < files.length; i += 1) {
+      const file = files[i];
+      const fileMode = normalizedFileModes[i];
+
+      if (fileMode === "inline_image" && !file.type.startsWith("image/")) {
+        return NextResponse.json(
+          {
+            ok: false,
+            error: "Only image files can use Inline image mode.",
+          },
+          { status: 400 },
+        );
+      }
+    }
+
     const { data: campaign, error: campaignError } = await admin
       .from("mail_console_campaigns")
       .insert({
@@ -1521,6 +1760,7 @@ export async function POST(req: NextRequest) {
           created_from: "next_api_mail_console_send",
           admin_email: adminEmail,
           sender_email: senderRow.from_email,
+          brand_logo_url: brandLogoUrl || null,
           recipient_count: recipients.length,
           policy_links: selectedPolicyLinks,
           store_badge_placement: storeBadgePlacement,
@@ -1533,18 +1773,24 @@ export async function POST(req: NextRequest) {
           banner_top_file_name: bannerTopFile?.name || null,
           banner_bottom_file_name: bannerBottomFile?.name || null,
           body_audio_file_name: bodyAudioFile?.name || null,
+          body_audio_display_name: bodyAudioDisplayName,
           body_audio_placement: bodyAudioPlacement,
           body_audio_size: bodyAudioSize,
           body_audio_hint: bodyAudioHint || null,
           body_audio_hint_color: bodyAudioHintColor,
           body_audio_hint_font_style: bodyAudioHintFontStyle,
           body_image_file_name: bodyImageFile?.name || null,
+          body_image_display_name: bodyImageDisplayName,
           body_image_placement: bodyImagePlacement,
           body_image_size: bodyImageSize,
           body_image_hint: bodyImageHint || null,
           body_image_hint_color: bodyImageHintColor,
           body_image_hint_font_style: bodyImageHintFontStyle,
           body_block_order: bodyBlockOrder,
+          message_has_body_audio_token: message.includes(BODY_AUDIO_TOKEN),
+          message_has_body_image_token: message.includes(BODY_IMAGE_TOKEN),
+          file_modes: normalizedFileModes,
+          file_display_names: fileDisplayNames,
         },
       })
       .select("id")
@@ -1556,29 +1802,10 @@ export async function POST(req: NextRequest) {
 
     campaignId = campaign.id;
 
-    const files = form
-      .getAll("files")
-      .filter((v) => v instanceof File) as File[];
-    const fileModesRaw = clean(form.get("file_modes"));
-
-    let fileModes: AttachmentMode[] = [];
-
-    try {
-      const parsed = JSON.parse(fileModesRaw || "[]");
-      fileModes = Array.isArray(parsed)
-        ? parsed.map((x) => safeAttachmentMode(x))
-        : [];
-    } catch (_) {
-      fileModes = [];
-    }
-
     let totalAttachmentRawBytes = 0;
     const attachments: ResendAttachment[] = [];
     const linkOnlyFiles: Array<{ filename: string; url: string }> = [];
     const inlineBlocks: string[] = [];
-
-    const logoAttachment = await getStayKnownLogoAttachment();
-    attachments.push(logoAttachment);
 
     let bannerTopContentId = "";
     let bannerBottomContentId = "";
@@ -1592,7 +1819,12 @@ export async function POST(req: NextRequest) {
       bannerTopContentId = `sk-banner-top-${randomUUID()}`;
 
       attachments.push({
-        filename: cleanFilename(bannerTopFile.name || "top-banner.png"),
+        filename: cleanDisplayFilename(
+          "StayKnown Top Banner",
+          "StayKnown Top Banner",
+          bannerTopFile.name,
+          bannerTopFile.type,
+        ),
         content: buffer.toString("base64"),
         contentId: bannerTopContentId,
         content_type: bannerTopFile.type || "image/png",
@@ -1606,7 +1838,12 @@ export async function POST(req: NextRequest) {
       bannerBottomContentId = `sk-banner-bottom-${randomUUID()}`;
 
       attachments.push({
-        filename: cleanFilename(bannerBottomFile.name || "bottom-banner.png"),
+        filename: cleanDisplayFilename(
+          "StayKnown Bottom Banner",
+          "StayKnown Bottom Banner",
+          bannerBottomFile.name,
+          bannerBottomFile.type,
+        ),
         content: buffer.toString("base64"),
         contentId: bannerBottomContentId,
         content_type: bannerBottomFile.type || "image/png",
@@ -1620,7 +1857,7 @@ export async function POST(req: NextRequest) {
       bodyImageContentId = `sk-body-image-${randomUUID()}`;
 
       attachments.push({
-        filename: cleanFilename(bodyImageFile.name || "body-image.png"),
+        filename: bodyImageDisplayName,
         content: buffer.toString("base64"),
         contentId: bodyImageContentId,
         content_type: bodyImageFile.type || "image/png",
@@ -1628,12 +1865,12 @@ export async function POST(req: NextRequest) {
 
       await admin.from("mail_console_attachments").insert({
         campaign_id: campaignId,
-        file_name: cleanFilename(bodyImageFile.name || "body-image.png"),
+        file_name: bodyImageDisplayName,
         mime_type: bodyImageFile.type || "image/png",
         size_bytes: bodyImageFile.size,
         storage_bucket: "mail-console-attachments",
         storage_path: `inline-body/${campaignId}/${cleanFilename(
-          bodyImageFile.name || "body-image.png",
+          bodyImageDisplayName,
         )}`,
         attachment_mode: "inline_image",
         created_by: null,
@@ -1652,11 +1889,11 @@ export async function POST(req: NextRequest) {
     }
 
     if (bodyAudioFile) {
-      const filename = cleanFilename(
-        bodyAudioFile.name || "stayknown-audio.mp3",
-      );
+      const filename = bodyAudioDisplayName;
       const buffer = Buffer.from(await bodyAudioFile.arrayBuffer());
-      const storagePath = `${campaignId}/body-audio-${randomUUID()}-${filename}`;
+      const storagePath = `${campaignId}/body-audio-${randomUUID()}-${cleanFilename(
+        filename,
+      )}`;
 
       const { error: uploadError } = await admin.storage
         .from("mail-console-attachments")
@@ -1699,8 +1936,15 @@ export async function POST(req: NextRequest) {
 
     for (let i = 0; i < files.length; i += 1) {
       const file = files[i];
-      const fileMode = fileModes[i] || "attach";
-      const filename = cleanFilename(file.name);
+      const fileMode = normalizedFileModes[i] || "attach";
+      const displayName = cleanDisplayFilename(
+        fileDisplayNames[i] || "",
+        defaultAttachmentDisplayName(file, i),
+        file.name,
+        file.type,
+      );
+      const filename = displayName;
+      const storageSafeName = cleanFilename(displayName);
       const mime = file.type || "application/octet-stream";
       const size = file.size;
 
@@ -1723,13 +1967,13 @@ export async function POST(req: NextRequest) {
         mime_type: mime,
         size_bytes: size,
         storage_bucket: "mail-console-attachments",
-        storage_path: `pending/${campaignId}/${filename}`,
+        storage_path: `pending/${campaignId}/${storageSafeName}`,
         attachment_mode: fileMode,
         created_by: null,
       });
 
       if (fileMode === "link_only") {
-        const storagePath = `${campaignId}/${randomUUID()}-${filename}`;
+        const storagePath = `${campaignId}/${randomUUID()}-${storageSafeName}`;
 
         const { error: uploadError } = await admin.storage
           .from("mail-console-attachments")
@@ -1765,6 +2009,7 @@ export async function POST(req: NextRequest) {
           .from("mail_console_attachments")
           .update({
             storage_path: storagePath,
+            file_name: filename,
           })
           .eq("campaign_id", campaignId)
           .eq("file_name", filename);
@@ -1811,6 +2056,7 @@ export async function POST(req: NextRequest) {
 
     const html = buildHtml({
       appName,
+      brandLogoUrl,
       mode,
       title: title || subject,
       subtitle,
@@ -1831,13 +2077,13 @@ export async function POST(req: NextRequest) {
       inlineImageBlocks: inlineBlocks.join(""),
       linkOnlyFiles,
       bodyAudioUrl,
-      bodyAudioFilename: bodyAudioFile?.name || "",
+      bodyAudioDisplayName,
       bodyAudioHint,
       bodyAudioHintColor,
       bodyAudioHintFontStyle,
       bodyAudioSize,
       bodyImageContentId,
-      bodyImageFilename: bodyImageFile?.name || "",
+      bodyImageDisplayName,
       bodyImageHint,
       bodyImageHintColor,
       bodyImageHintFontStyle,
@@ -1850,7 +2096,6 @@ export async function POST(req: NextRequest) {
     const text = htmlToText(html.replace("<!--SK_UNSUBSCRIBE-->", ""));
     const from = `${senderRow.from_name} <${senderRow.from_email}>`;
     const newsletterLike = mode === "newsletter" || mode === "advert";
-    const siteUrl = getMailConsoleSiteUrl();
 
     function unsubscribeLinkFor(email: string) {
       const token = createUnsubscribeToken(email);
@@ -1935,12 +2180,15 @@ export async function POST(req: NextRequest) {
               google_play_url: googlePlayUrl || null,
               app_store_enabled: appStoreEnabled,
               app_store_url: appStoreUrl || null,
+              brand_logo_url: brandLogoUrl || null,
               banner_position: bannerPosition,
               banner_height: bannerHeight,
               has_body_audio: Boolean(bodyAudioUrl),
               has_body_image: Boolean(bodyImageContentId),
+              body_audio_display_name: bodyAudioDisplayName,
               body_audio_hint_color: bodyAudioHintColor,
               body_audio_hint_font_style: bodyAudioHintFontStyle,
+              body_image_display_name: bodyImageDisplayName,
               body_image_hint: bodyImageHint || null,
               body_image_hint_color: bodyImageHintColor,
               body_image_hint_font_style: bodyImageHintFontStyle,
@@ -2008,12 +2256,20 @@ export async function POST(req: NextRequest) {
                 reply_mode: replyMode,
                 attachment_count: attachments.length,
                 link_only_count: linkOnlyFiles.length,
+                store_badge_placement: storeBadgePlacement,
+                google_play_enabled: googlePlayEnabled,
+                google_play_url: googlePlayUrl || null,
+                app_store_enabled: appStoreEnabled,
+                app_store_url: appStoreUrl || null,
+                brand_logo_url: brandLogoUrl || null,
                 banner_position: bannerPosition,
                 banner_height: bannerHeight,
                 has_body_audio: Boolean(bodyAudioUrl),
                 has_body_image: Boolean(bodyImageContentId),
+                body_audio_display_name: bodyAudioDisplayName,
                 body_audio_hint_color: bodyAudioHintColor,
                 body_audio_hint_font_style: bodyAudioHintFontStyle,
+                body_image_display_name: bodyImageDisplayName,
                 body_image_hint: bodyImageHint || null,
                 body_image_hint_color: bodyImageHintColor,
                 body_image_hint_font_style: bodyImageHintFontStyle,
@@ -2088,6 +2344,7 @@ export async function POST(req: NextRequest) {
           created_from: "next_api_mail_console_send",
           admin_email: adminEmail,
           sender_email: senderRow.from_email,
+          brand_logo_url: brandLogoUrl || null,
           recipient_count: recipients.length,
           attachment_count: attachments.length,
           link_only_count: linkOnlyFiles.length,
@@ -2101,12 +2358,14 @@ export async function POST(req: NextRequest) {
           banner_top_file_name: bannerTopFile?.name || null,
           banner_bottom_file_name: bannerBottomFile?.name || null,
           body_audio_file_name: bodyAudioFile?.name || null,
+          body_audio_display_name: bodyAudioDisplayName,
           body_audio_placement: bodyAudioPlacement,
           body_audio_size: bodyAudioSize,
           body_audio_hint: bodyAudioHint || null,
           body_audio_hint_color: bodyAudioHintColor,
           body_audio_hint_font_style: bodyAudioHintFontStyle,
           body_image_file_name: bodyImageFile?.name || null,
+          body_image_display_name: bodyImageDisplayName,
           body_image_placement: bodyImagePlacement,
           body_image_size: bodyImageSize,
           body_image_hint: bodyImageHint || null,
@@ -2114,6 +2373,10 @@ export async function POST(req: NextRequest) {
           body_image_hint_font_style: bodyImageHintFontStyle,
           body_block_order: bodyBlockOrder,
           policy_links: selectedPolicyLinks,
+          file_modes: normalizedFileModes,
+          file_display_names: fileDisplayNames,
+          message_has_body_audio_token: message.includes(BODY_AUDIO_TOKEN),
+          message_has_body_image_token: message.includes(BODY_IMAGE_TOKEN),
           summary,
         },
       })
