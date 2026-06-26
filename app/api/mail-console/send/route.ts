@@ -616,6 +616,7 @@ function bodyImageBlock(params: {
     </div>
   `;
 }
+
 function bodyAudioPillBlock(params: {
   url: string;
   displayName: string;
@@ -630,65 +631,105 @@ function bodyAudioPillBlock(params: {
   const displayName = clean(params.displayName) || "StayKnown Audio";
 
   return `
-    <div style="text-align:center;margin:14px 0;">
-      <a href="${escapeHtml(params.url)}" target="_blank" rel="noopener noreferrer" style="
-        display:inline-flex;
-        align-items:center;
-        gap:10px;
-        width:${params.size}%;
-        max-width:100%;
-        min-width:210px;
-        box-sizing:border-box;
-        border-radius:999px;
-        border:1px solid rgba(0,0,0,0.10);
-        background:rgba(255,255,255,0.88);
-        box-shadow:inset 0 1px 0 rgba(255,255,255,0.92),0 15px 38px rgba(0,0,0,0.075);
-        padding:9px 12px;
-        color:#050505;
-        text-decoration:none;
-      ">
-        <span style="
-          width:32px;
-          height:32px;
-          border-radius:999px;
-          background:#050505;
-          color:#ffffff;
+    <div style="text-align:center;margin:16px 0;">
+      <a
+        href="${escapeHtml(params.url)}"
+        target="_blank"
+        rel="noopener noreferrer"
+        style="
           display:inline-flex;
           align-items:center;
-          justify-content:center;
-          font-size:14px;
-          flex-shrink:0;
-        ">🎧</span>
+          gap:14px;
+          width:${params.size}%;
+          max-width:100%;
+          min-width:240px;
+          box-sizing:border-box;
+          border-radius:999px;
+          padding:14px 16px;
+          text-decoration:none;
+          color:#111111;
+          background:
+            linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(245,245,245,0.95) 100%);
+          border:1px solid rgba(255,255,255,0.88);
+          box-shadow:
+            inset 0 1px 0 rgba(255,255,255,0.98),
+            inset 0 -1px 0 rgba(220,220,220,0.65),
+            0 16px 40px rgba(0,0,0,0.14);
+        "
+      >
+        <span
+          style="
+            width:48px;
+            height:48px;
+            min-width:48px;
+            border-radius:999px;
+            display:inline-flex;
+            align-items:center;
+            justify-content:center;
+            background:
+              radial-gradient(circle at 30% 30%, rgba(255,255,255,0.98) 0%, rgba(247,247,247,0.96) 42%, rgba(228,228,228,0.94) 100%);
+            border:1px solid rgba(220,220,220,0.95);
+            box-shadow:
+              inset 0 2px 4px rgba(255,255,255,0.95),
+              inset 0 -3px 6px rgba(0,0,0,0.08),
+              0 8px 18px rgba(0,0,0,0.10);
+            font-size:20px;
+            line-height:1;
+            color:#111111;
+            flex-shrink:0;
+          "
+        >🎧</span>
 
-        <span style="display:block;text-align:left;min-width:0;">
-          <span style="
-            display:block;
-            font-size:13px;
-            font-weight:950;
-            color:#050505;
-            white-space:nowrap;
-            overflow:hidden;
-            text-overflow:ellipsis;
-          ">${escapeHtml(displayName)}</span>
+        <span style="display:block;min-width:0;flex:1;text-align:left;">
+          <span
+            style="
+              display:block;
+              font-size:17px;
+              line-height:1.2;
+              font-weight:900;
+              color:#111111;
+              white-space:nowrap;
+              overflow:hidden;
+              text-overflow:ellipsis;
+              letter-spacing:-0.2px;
+            "
+          >${escapeHtml(displayName)}</span>
 
-          <span style="
-            display:block;
-            margin-top:2px;
-            font-size:10px;
-            color:rgba(0,0,0,0.52);
-            white-space:nowrap;
-            overflow:hidden;
-            text-overflow:ellipsis;
-          ">Audio message</span>
+          <span
+            style="
+              display:block;
+              margin-top:4px;
+              font-size:12px;
+              line-height:1.3;
+              color:rgba(17,17,17,0.62);
+              white-space:nowrap;
+              overflow:hidden;
+              text-overflow:ellipsis;
+            "
+          >Audio message</span>
         </span>
 
-        <span style="
-          margin-left:auto;
-          font-size:11px;
-          font-weight:900;
-          color:rgba(0,0,0,0.68);
-          white-space:nowrap;
-        ">Tap to listen</span>
+        <span
+          style="
+            display:inline-flex;
+            align-items:center;
+            justify-content:center;
+            padding:10px 14px;
+            border-radius:999px;
+            background:
+              linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(236,236,236,0.95) 100%);
+            border:1px solid rgba(220,220,220,0.95);
+            box-shadow:
+              inset 0 1px 0 rgba(255,255,255,0.98),
+              0 4px 10px rgba(0,0,0,0.06);
+            font-size:12px;
+            line-height:1;
+            font-weight:900;
+            color:#111111;
+            white-space:nowrap;
+            flex-shrink:0;
+          "
+        >Tap to listen</span>
       </a>
 
       ${
@@ -696,7 +737,7 @@ function bodyAudioPillBlock(params: {
           ? `<div style="
               width:${params.size}%;
               max-width:100%;
-              margin:6px auto 0;
+              margin:8px auto 0;
               text-align:center;
               font-size:11px;
               line-height:1.45;
