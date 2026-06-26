@@ -15,10 +15,10 @@ type MailMode = "support" | "newsletter" | "advert" | "investor";
 type ImagePosition = "none" | "top" | "bottom" | "both";
 type AttachmentMode = "attach" | "link_only" | "inline_image";
 type BodyMediaPlacement = "top" | "bottom" | "custom";
+type BodyImageShape = "banner" | "pill" | "rectangle" | "square" | "circle";
 type BodyBlockKind = "audio" | "image" | "message";
 type BodyHintFontStyle = "normal" | "italic";
 type StoreBadgePlacement = "top" | "bottom";
-
 type RecipientStatus =
   | "ready"
   | "queued"
@@ -464,6 +464,8 @@ export default function MailConsoleSendForm({
     useState("StayKnown Image");
   const [bodyImagePlacement, setBodyImagePlacement] =
     useState<BodyMediaPlacement>("custom");
+  const [bodyImageShape, setBodyImageShape] =
+    useState<BodyImageShape>("rectangle");
   const [bodyImageSize, setBodyImageSize] = useState(88);
   const [bodyImageHint, setBodyImageHint] = useState("");
   const [bodyImageHintColor, setBodyImageHintColor] = useState("#6b7280");
@@ -508,19 +510,46 @@ export default function MailConsoleSendForm({
 
   const [readOnlyPreviewOpen, setReadOnlyPreviewOpen] = useState(false);
   const [readOnlyPreviewEmail, setReadOnlyPreviewEmail] = useState("");
+  const bannerTopPreviewUrlRef = useRef("");
+  const bannerBottomPreviewUrlRef = useRef("");
+  const bodyAudioPreviewUrlRef = useRef("");
+  const bodyImagePreviewUrlRef = useRef("");
+
+  useEffect(() => {
+    bannerTopPreviewUrlRef.current = bannerTopPreviewUrl;
+  }, [bannerTopPreviewUrl]);
+
+  useEffect(() => {
+    bannerBottomPreviewUrlRef.current = bannerBottomPreviewUrl;
+  }, [bannerBottomPreviewUrl]);
+
+  useEffect(() => {
+    bodyAudioPreviewUrlRef.current = bodyAudioPreviewUrl;
+  }, [bodyAudioPreviewUrl]);
+
+  useEffect(() => {
+    bodyImagePreviewUrlRef.current = bodyImagePreviewUrl;
+  }, [bodyImagePreviewUrl]);
+
   useEffect(() => {
     return () => {
-      if (bannerTopPreviewUrl) URL.revokeObjectURL(bannerTopPreviewUrl);
-      if (bannerBottomPreviewUrl) URL.revokeObjectURL(bannerBottomPreviewUrl);
-      if (bodyAudioPreviewUrl) URL.revokeObjectURL(bodyAudioPreviewUrl);
-      if (bodyImagePreviewUrl) URL.revokeObjectURL(bodyImagePreviewUrl);
+      if (bannerTopPreviewUrlRef.current) {
+        URL.revokeObjectURL(bannerTopPreviewUrlRef.current);
+      }
+
+      if (bannerBottomPreviewUrlRef.current) {
+        URL.revokeObjectURL(bannerBottomPreviewUrlRef.current);
+      }
+
+      if (bodyAudioPreviewUrlRef.current) {
+        URL.revokeObjectURL(bodyAudioPreviewUrlRef.current);
+      }
+
+      if (bodyImagePreviewUrlRef.current) {
+        URL.revokeObjectURL(bodyImagePreviewUrlRef.current);
+      }
     };
-  }, [
-    bannerTopPreviewUrl,
-    bannerBottomPreviewUrl,
-    bodyAudioPreviewUrl,
-    bodyImagePreviewUrl,
-  ]);
+  }, []);
 
   useEffect(() => {
     if (!activeSendEmail) return;
@@ -834,6 +863,7 @@ export default function MailConsoleSendForm({
     setBodyImageFile(null);
     setBodyImagePreviewUrl("");
     setBodyImageDisplayName("StayKnown Image");
+    setBodyImageShape("rectangle");
     setBodyImageHint("");
     setBodyImageHintColor("#6b7280");
     setBodyImageHintFontStyle("normal");
@@ -926,6 +956,7 @@ export default function MailConsoleSendForm({
           body_audio_hint_color: bodyAudioHintColor,
           body_audio_hint_font_style: bodyAudioHintFontStyle,
           body_image_placement: bodyImagePlacement,
+          body_image_shape: bodyImageShape,
           body_image_size: bodyImageSize,
           body_image_display_name: bodyImageDisplayName,
           body_image_hint: bodyImageHint,
@@ -1079,6 +1110,7 @@ export default function MailConsoleSendForm({
     form.append("body_audio_hint_color", bodyAudioHintColor);
     form.append("body_audio_hint_font_style", bodyAudioHintFontStyle);
     form.append("body_image_placement", bodyImagePlacement);
+    form.append("body_image_shape", bodyImageShape);
     form.append("body_image_size", String(bodyImageSize));
     form.append(
       "body_image_display_name",
@@ -1602,13 +1634,18 @@ export default function MailConsoleSendForm({
   }
 
   function renderInlineBodyImage(readOnly = false) {
-    if (!bodyImageFile) return null;
+    if (!bodyImageFile || !bodyImagePreviewUrl) return null;
+
+    const frameStyle = getPreviewBodyImageFrameStyle(
+      bodyImageShape,
+      bodyImageSize,
+    );
 
     const imageNode = (
       <img
         src={bodyImagePreviewUrl}
         alt={cleanDisplayFilename(bodyImageDisplayName, "StayKnown Image")}
-        style={previewBodyImageStyle}
+        style={getPreviewBodyImageStyle(bodyImageShape)}
       />
     );
 
@@ -1620,27 +1657,15 @@ export default function MailConsoleSendForm({
             target="_blank"
             rel="noopener noreferrer"
             style={{
-              ...previewBodyImageWrapStyle,
+              ...frameStyle,
               display: "block",
-              width: `${bodyImageSize}%`,
-              minWidth: "min(170px, 100%)",
-              maxWidth: "100%",
               textDecoration: "none",
             }}
           >
             {imageNode}
           </a>
         ) : (
-          <div
-            style={{
-              ...previewBodyImageWrapStyle,
-              width: `${bodyImageSize}%`,
-              minWidth: "min(170px, 100%)",
-              maxWidth: "100%",
-            }}
-          >
-            {imageNode}
-          </div>
+          <div style={frameStyle}>{imageNode}</div>
         )}
 
         {bodyImageHint ? (
@@ -1658,7 +1683,6 @@ export default function MailConsoleSendForm({
       </div>
     );
   }
-
   function renderMessageTextWithInlineMedia(readOnly = false) {
     const content = message || "Your email body preview will appear here.";
     const parts = content.split(/(\{\{image\}\}|\{\{audio\}\})/g);
@@ -1730,7 +1754,7 @@ export default function MailConsoleSendForm({
       );
     }
 
-    if (block === "image" && bodyImageFile) {
+    if (block === "image" && bodyImageFile && bodyImagePreviewUrl) {
       return (
         <div key="readonly-image" style={readOnlyBodyBlockStyle}>
           <a
@@ -1738,18 +1762,18 @@ export default function MailConsoleSendForm({
             target="_blank"
             rel="noopener noreferrer"
             style={{
-              ...previewBodyImageWrapStyle,
+              ...getPreviewBodyImageFrameStyle(bodyImageShape, bodyImageSize),
               display: "block",
-              width: `${bodyImageSize}%`,
-              minWidth: "min(170px, 100%)",
-              maxWidth: "100%",
               textDecoration: "none",
             }}
           >
             <img
               src={bodyImagePreviewUrl}
-              alt="Body image"
-              style={previewBodyImageStyle}
+              alt={cleanDisplayFilename(
+                bodyImageDisplayName,
+                "StayKnown Image",
+              )}
+              style={getPreviewBodyImageStyle(bodyImageShape)}
             />
           </a>
 
@@ -1768,7 +1792,6 @@ export default function MailConsoleSendForm({
         </div>
       );
     }
-
     return (
       <div key="readonly-message" style={readOnlyBodyBlockStyle}>
         <div style={previewMessageCardStyle}>
@@ -1840,7 +1863,7 @@ export default function MailConsoleSendForm({
       );
     }
 
-    if (block === "image" && bodyImageFile) {
+    if (block === "image" && bodyImageFile && bodyImagePreviewUrl) {
       return (
         <div
           key="image"
@@ -1854,17 +1877,15 @@ export default function MailConsoleSendForm({
           style={previewDraggableBlockStyle}
         >
           <div
-            style={{
-              ...previewBodyImageWrapStyle,
-              width: `${bodyImageSize}%`,
-              minWidth: "min(170px, 100%)",
-              maxWidth: "100%",
-            }}
+            style={getPreviewBodyImageFrameStyle(bodyImageShape, bodyImageSize)}
           >
             <img
               src={bodyImagePreviewUrl}
-              alt="Body image"
-              style={previewBodyImageStyle}
+              alt={cleanDisplayFilename(
+                bodyImageDisplayName,
+                "StayKnown Image",
+              )}
+              style={getPreviewBodyImageStyle(bodyImageShape)}
             />
           </div>
 
@@ -1885,7 +1906,6 @@ export default function MailConsoleSendForm({
         </div>
       );
     }
-
     return (
       <div
         key="message"
@@ -2578,6 +2598,23 @@ ${BODY_AUDIO_TOKEN} for body audio`}
                       <option value="custom">Default / drag in preview</option>
                       <option value="top">Beginning of body</option>
                       <option value="bottom">End of body</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label style={labelStyle}>Image style</label>
+                    <select
+                      value={bodyImageShape}
+                      onChange={(e) =>
+                        setBodyImageShape(e.target.value as BodyImageShape)
+                      }
+                      style={inputStyle}
+                    >
+                      <option value="rectangle">Rectangle</option>
+                      <option value="banner">Banner</option>
+                      <option value="pill">Pill rectangle</option>
+                      <option value="square">Square</option>
+                      <option value="circle">Circle</option>
                     </select>
                   </div>
 
@@ -3560,6 +3597,73 @@ ${BODY_AUDIO_TOKEN} for body audio`}
       ) : null}
     </main>
   );
+}
+
+function getPreviewBodyImageFrameStyle(
+  shape: BodyImageShape,
+  size: number,
+): React.CSSProperties {
+  const base: React.CSSProperties = {
+    width: `${size}%`,
+    maxWidth: "100%",
+    minWidth: "min(180px, 100%)",
+    margin: "0 auto",
+    overflow: "hidden",
+    border: "1px solid rgba(0,0,0,0.10)",
+    background: "rgba(255,255,255,0.82)",
+    boxShadow: "0 16px 45px rgba(0,0,0,0.07)",
+  };
+
+  if (shape === "banner") {
+    return {
+      ...base,
+      borderRadius: 18,
+      minWidth: "min(230px, 100%)",
+    };
+  }
+
+  if (shape === "pill") {
+    return {
+      ...base,
+      borderRadius: 28,
+      minWidth: "min(220px, 100%)",
+    };
+  }
+
+  if (shape === "square") {
+    return {
+      ...base,
+      borderRadius: 18,
+      aspectRatio: "1 / 1",
+      minWidth: "min(180px, 100%)",
+    };
+  }
+
+  if (shape === "circle") {
+    return {
+      ...base,
+      borderRadius: 999,
+      aspectRatio: "1 / 1",
+      minWidth: "min(180px, 100%)",
+    };
+  }
+
+  return {
+    ...base,
+    borderRadius: 18,
+  };
+}
+
+function getPreviewBodyImageStyle(shape: BodyImageShape): React.CSSProperties {
+  return {
+    display: "block",
+    width: "100%",
+    height: shape === "square" || shape === "circle" ? "100%" : "auto",
+    maxHeight: shape === "banner" ? 240 : 340,
+    objectFit: "contain",
+    objectPosition: "center",
+    background: "rgba(0,0,0,0.04)",
+  };
 }
 
 const panelStyle: React.CSSProperties = {

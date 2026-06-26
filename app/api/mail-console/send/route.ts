@@ -14,10 +14,10 @@ type MailMode = "support" | "newsletter" | "advert" | "investor";
 type ImagePosition = "none" | "top" | "bottom" | "both";
 type AttachmentMode = "attach" | "link_only" | "inline_image";
 type BodyMediaPlacement = "top" | "bottom" | "custom";
+type BodyImageShape = "banner" | "pill" | "rectangle" | "square" | "circle";
 type BodyBlockKind = "audio" | "image" | "message";
 type BodyHintFontStyle = "normal" | "italic";
 type StoreBadgePlacement = "top" | "bottom";
-
 type SenderRow = {
   id: string;
   label: string;
@@ -204,6 +204,17 @@ function safeBodyMediaPlacement(v: unknown): BodyMediaPlacement {
   if (s === "bottom") return "bottom";
 
   return "custom";
+}
+
+function safeBodyImageShape(v: unknown): BodyImageShape {
+  const s = clean(v).toLowerCase();
+
+  if (s === "banner") return "banner";
+  if (s === "pill") return "pill";
+  if (s === "square") return "square";
+  if (s === "circle") return "circle";
+
+  return "rectangle";
 }
 
 function safeBodyHintFontStyle(v: unknown): BodyHintFontStyle {
@@ -571,6 +582,7 @@ function bodyImageBlock(params: {
   url: string;
   alt: string;
   size: number;
+  shape: BodyImageShape;
   hint: string;
   hintColor: string;
   hintFontStyle: BodyHintFontStyle;
@@ -581,6 +593,27 @@ function bodyImageBlock(params: {
 
   if (!params.url) return "";
 
+  let borderRadius = "18px";
+  let extraWrapperStyle = "";
+  let imageHeight = "auto";
+  let maxHeight = "340px";
+
+  if (params.shape === "banner") {
+    borderRadius = "18px";
+    maxHeight = "240px";
+  } else if (params.shape === "pill") {
+    borderRadius = "28px";
+    maxHeight = "280px";
+  } else if (params.shape === "square") {
+    borderRadius = "18px";
+    extraWrapperStyle = "aspect-ratio:1 / 1;";
+    imageHeight = "100%";
+  } else if (params.shape === "circle") {
+    borderRadius = "999px";
+    extraWrapperStyle = "aspect-ratio:1 / 1;";
+    imageHeight = "100%";
+  }
+
   return `
     <div style="text-align:center;margin:14px 0;">
       <div style="
@@ -588,15 +621,24 @@ function bodyImageBlock(params: {
         width:${params.size}%;
         max-width:100%;
         min-width:170px;
-        border-radius:22px;
+        border-radius:${borderRadius};
         overflow:hidden;
         border:1px solid rgba(0,0,0,0.10);
-        background:#ffffff;
+        background:rgba(255,255,255,0.86);
         box-shadow:0 16px 45px rgba(0,0,0,0.07);
+        ${extraWrapperStyle}
       ">
         <img src="${escapeHtml(params.url)}" alt="${escapeHtml(
           params.alt,
-        )}" style="display:block;width:100%;max-height:260px;object-fit:cover;" />
+        )}" style="
+          display:block;
+          width:100%;
+          height:${imageHeight};
+          max-height:${maxHeight};
+          object-fit:contain;
+          object-position:center;
+          background:rgba(0,0,0,0.04);
+        " />
       </div>
 
       ${
@@ -1114,6 +1156,7 @@ function buildHtml(p: {
   bodyAudioSize: number;
   bodyImageUrl: string;
   bodyImageDisplayName: string;
+  bodyImageShape: BodyImageShape;
   bodyImageHint: string;
   bodyImageHintColor: string;
   bodyImageHintFontStyle: BodyHintFontStyle;
@@ -1155,6 +1198,7 @@ function buildHtml(p: {
           url: p.bodyImageUrl,
           alt: p.bodyImageDisplayName || "StayKnown Image",
           size: p.bodyImageSize,
+          shape: p.bodyImageShape,
           hint: p.bodyImageHint,
           hintColor: p.bodyImageHintColor,
           hintFontStyle: p.bodyImageHintFontStyle,
@@ -1176,6 +1220,7 @@ function buildHtml(p: {
         url: p.bodyImageUrl,
         alt: p.bodyImageDisplayName || "StayKnown Image",
         size: p.bodyImageSize,
+        shape: p.bodyImageShape,
         hint: p.bodyImageHint,
         hintColor: p.bodyImageHintColor,
         hintFontStyle: p.bodyImageHintFontStyle,
@@ -1227,6 +1272,7 @@ function buildHtml(p: {
           url: p.bodyImageUrl,
           alt: p.bodyImageDisplayName || "StayKnown Image",
           size: p.bodyImageSize,
+          shape: p.bodyImageShape,
           hint: p.bodyImageHint,
           hintColor: p.bodyImageHintColor,
           hintFontStyle: p.bodyImageHintFontStyle,
@@ -1475,6 +1521,7 @@ export async function POST(req: NextRequest) {
     const bodyImagePlacement = safeBodyMediaPlacement(
       form.get("body_image_placement"),
     );
+    const bodyImageShape = safeBodyImageShape(form.get("body_image_shape"));
     const bodyImageSize = safeNumber(form.get("body_image_size"), 88, 32, 100);
     const bodyImageDisplayName = cleanDisplayFilename(
       clean(form.get("body_image_display_name")),
@@ -1821,6 +1868,7 @@ export async function POST(req: NextRequest) {
           body_image_file_name: bodyImageFile?.name || null,
           body_image_display_name: bodyImageDisplayName,
           body_image_placement: bodyImagePlacement,
+          body_image_shape: bodyImageShape,
           body_image_size: bodyImageSize,
           body_image_hint: bodyImageHint || null,
           body_image_hint_color: bodyImageHintColor,
@@ -2143,6 +2191,7 @@ export async function POST(req: NextRequest) {
       bodyAudioSize,
       bodyImageUrl,
       bodyImageDisplayName,
+      bodyImageShape,
       bodyImageHint,
       bodyImageHintColor,
       bodyImageHintFontStyle,
@@ -2248,6 +2297,7 @@ export async function POST(req: NextRequest) {
               body_audio_hint_color: bodyAudioHintColor,
               body_audio_hint_font_style: bodyAudioHintFontStyle,
               body_image_display_name: bodyImageDisplayName,
+              body_image_shape: bodyImageShape,
               body_image_url: bodyImageUrl || null,
               body_image_hint: bodyImageHint || null,
               body_image_hint_color: bodyImageHintColor,
