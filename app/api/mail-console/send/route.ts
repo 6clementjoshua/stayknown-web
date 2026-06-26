@@ -41,7 +41,7 @@ type ResendAttachment = {
   filename: string;
   content?: string;
   path?: string;
-  contentId?: string;
+  content_id?: string;
   content_type?: string;
 };
 
@@ -1826,7 +1826,7 @@ export async function POST(req: NextRequest) {
           bannerTopFile.type,
         ),
         content: buffer.toString("base64"),
-        contentId: bannerTopContentId,
+        content_id: bannerTopContentId,
         content_type: bannerTopFile.type || "image/png",
       });
     }
@@ -1845,7 +1845,7 @@ export async function POST(req: NextRequest) {
           bannerBottomFile.type,
         ),
         content: buffer.toString("base64"),
-        contentId: bannerBottomContentId,
+        content_id: bannerBottomContentId,
         content_type: bannerBottomFile.type || "image/png",
       });
     }
@@ -1859,7 +1859,7 @@ export async function POST(req: NextRequest) {
       attachments.push({
         filename: bodyImageDisplayName,
         content: buffer.toString("base64"),
-        contentId: bodyImageContentId,
+        content_id: bodyImageContentId,
         content_type: bodyImageFile.type || "image/png",
       });
 
@@ -2038,7 +2038,7 @@ export async function POST(req: NextRequest) {
         attachments.push({
           filename,
           content: base64,
-          contentId,
+          content_id: contentId,
           content_type: mime,
         });
 
