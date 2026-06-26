@@ -17,6 +17,8 @@ type ImagePosition = "none" | "top" | "bottom" | "both";
 type AttachmentMode = "attach" | "link_only" | "inline_image";
 type BodyMediaPlacement = "top" | "bottom" | "custom";
 type BodyBlockKind = "audio" | "image" | "message";
+type BodyHintFontStyle = "normal" | "italic";
+type StoreBadgePlacement = "top" | "bottom";
 
 type SenderRow = {
   id: string;
@@ -203,6 +205,40 @@ function safeBodyMediaPlacement(v: unknown): BodyMediaPlacement {
   if (s === "bottom") return "bottom";
 
   return "custom";
+}
+
+function safeBodyHintFontStyle(v: unknown): BodyHintFontStyle {
+  const s = clean(v).toLowerCase();
+
+  return s === "italic" ? "italic" : "normal";
+}
+
+function safeStoreBadgePlacement(v: unknown): StoreBadgePlacement {
+  const s = clean(v).toLowerCase();
+
+  return s === "top" ? "top" : "bottom";
+}
+
+function safeBoolean(v: unknown) {
+  if (typeof v === "boolean") return v;
+
+  const s = clean(v).toLowerCase();
+
+  return s === "true" || s === "1" || s === "yes" || s === "on";
+}
+
+function safePublicHttpUrl(v: unknown) {
+  const url = clean(v);
+
+  if (!url) return "";
+
+  return isPublicHttpUrl(url) ? url : "";
+}
+
+function safeHexColor(v: unknown, fallback = "#6b7280") {
+  const s = clean(v);
+
+  return /^#[0-9a-f]{6}$/i.test(s) ? s : fallback;
 }
 
 function safeNumber(v: unknown, fallback: number, min: number, max: number) {
@@ -472,23 +508,50 @@ function inlineImageBlock(contentId: string, alt: string) {
   `;
 }
 
-function bodyImageBlock(contentId: string, alt: string, size: number) {
+function bodyImageBlock(params: {
+  contentId: string;
+  alt: string;
+  size: number;
+  hint: string;
+  hintColor: string;
+  hintFontStyle: BodyHintFontStyle;
+}) {
+  const hint = clean(params.hint);
+  const hintColor = safeHexColor(params.hintColor);
+  const hintFontStyle = safeBodyHintFontStyle(params.hintFontStyle);
+
   return `
     <div style="text-align:center;margin:12px 0;">
       <div style="
         display:inline-block;
-        width:${size}%;
+        width:${params.size}%;
         max-width:100%;
-        border-radius:18px;
+        min-width:170px;
+        border-radius:999px;
         overflow:hidden;
         border:1px solid rgba(0,0,0,0.10);
         background:#ffffff;
         box-shadow:0 16px 45px rgba(0,0,0,0.07);
       ">
-        <img src="cid:${escapeHtml(contentId)}" alt="${escapeHtml(
-          alt,
-        )}" style="display:block;width:100%;max-height:280px;object-fit:cover;" />
+        <img src="cid:${escapeHtml(params.contentId)}" alt="${escapeHtml(
+          params.alt,
+        )}" style="display:block;width:100%;max-height:220px;object-fit:cover;" />
       </div>
+
+      ${
+        hint
+          ? `<div style="
+              width:${params.size}%;
+              max-width:100%;
+              margin:6px auto 0;
+              text-align:center;
+              font-size:11px;
+              line-height:1.45;
+              color:${escapeHtml(hintColor)};
+              font-style:${hintFontStyle};
+            ">${escapeHtml(hint)}</div>`
+          : ""
+      }
     </div>
   `;
 }
@@ -498,8 +561,12 @@ function bodyAudioPillBlock(params: {
   filename: string;
   size: number;
   hint: string;
+  hintColor: string;
+  hintFontStyle: BodyHintFontStyle;
 }) {
   const hint = clean(params.hint);
+  const hintColor = safeHexColor(params.hintColor);
+  const hintFontStyle = safeBodyHintFontStyle(params.hintFontStyle);
 
   return `
     <div style="text-align:center;margin:12px 0;">
@@ -509,7 +576,7 @@ function bodyAudioPillBlock(params: {
         gap:10px;
         width:${params.size}%;
         max-width:100%;
-        min-width:240px;
+        min-width:210px;
         box-sizing:border-box;
         border-radius:999px;
         border:1px solid rgba(0,0,0,0.10);
@@ -572,7 +639,8 @@ function bodyAudioPillBlock(params: {
               text-align:center;
               font-size:11px;
               line-height:1.45;
-              color:rgba(0,0,0,0.56);
+              color:${escapeHtml(hintColor)};
+              font-style:${hintFontStyle};
             ">${escapeHtml(hint)}</div>`
           : ""
       }
@@ -597,6 +665,109 @@ function ctaButton(label: string, url: string) {
         letter-spacing:0.3px;
         box-shadow:inset 0 1px 0 rgba(255,255,255,0.92),0 18px 45px rgba(0,0,0,0.075);
       ">${escapeHtml(label)}</a>
+    </div>
+  `;
+}
+
+function storeBadgesBlock(params: {
+  placement: StoreBadgePlacement;
+  googlePlayEnabled: boolean;
+  googlePlayUrl: string;
+  appStoreEnabled: boolean;
+  appStoreUrl: string;
+}) {
+  const stores: Array<{
+    enabled: boolean;
+    href: string;
+    icon: string;
+    eyebrow: string;
+    label: string;
+  }> = [
+    {
+      enabled: params.googlePlayEnabled,
+      href: params.googlePlayUrl,
+      icon: "▶",
+      eyebrow: "GET IT ON",
+      label: "Google Play",
+    },
+    {
+      enabled: params.appStoreEnabled,
+      href: params.appStoreUrl,
+      icon: "",
+      eyebrow: "Download on the",
+      label: "App Store",
+    },
+  ].filter((item) => item.enabled && item.href);
+
+  if (stores.length === 0) return "";
+
+  const badges = stores
+    .map(
+      (item) => `
+        <a href="${escapeHtml(item.href)}" target="_blank" rel="noopener noreferrer" style="
+          display:inline-flex;
+          align-items:center;
+          gap:9px;
+          min-width:154px;
+          min-height:48px;
+          box-sizing:border-box;
+          border-radius:13px;
+          background:#050505;
+          color:#ffffff;
+          padding:8px 12px;
+          text-decoration:none;
+          box-shadow:0 14px 34px rgba(0,0,0,0.14);
+        ">
+          <span style="
+            width:26px;
+            min-width:26px;
+            height:26px;
+            display:inline-flex;
+            align-items:center;
+            justify-content:center;
+            font-size:20px;
+            line-height:1;
+          ">${escapeHtml(item.icon)}</span>
+
+          <span style="display:block;text-align:left;">
+            <span style="
+              display:block;
+              font-size:8px;
+              line-height:1;
+              font-weight:800;
+              letter-spacing:0.4px;
+              opacity:0.86;
+              text-transform:uppercase;
+            ">${escapeHtml(item.eyebrow)}</span>
+
+            <span style="
+              display:block;
+              margin-top:2px;
+              font-size:17px;
+              line-height:1.08;
+              font-weight:950;
+              letter-spacing:-0.2px;
+            ">${escapeHtml(item.label)}</span>
+          </span>
+        </a>
+      `,
+    )
+    .join("");
+
+  return `
+    <div style="
+      text-align:center;
+      margin:${params.placement === "top" ? "0 0 14px" : "16px 0 0"};
+    ">
+      <div style="
+        display:inline-flex;
+        flex-wrap:wrap;
+        align-items:center;
+        justify-content:center;
+        gap:10px;
+      ">
+        ${badges}
+      </div>
     </div>
   `;
 }
@@ -785,15 +956,25 @@ function buildHtml(p: {
   bannerHeight: number;
   ctaLabel: string;
   ctaUrl: string;
+  storeBadgePlacement: StoreBadgePlacement;
+  googlePlayEnabled: boolean;
+  googlePlayUrl: string;
+  appStoreEnabled: boolean;
+  appStoreUrl: string;
   footerHtml: string;
   inlineImageBlocks: string;
   linkOnlyFiles: Array<{ filename: string; url: string }>;
   bodyAudioUrl: string;
   bodyAudioFilename: string;
   bodyAudioHint: string;
+  bodyAudioHintColor: string;
+  bodyAudioHintFontStyle: BodyHintFontStyle;
   bodyAudioSize: number;
   bodyImageContentId: string;
   bodyImageFilename: string;
+  bodyImageHint: string;
+  bodyImageHintColor: string;
+  bodyImageHintFontStyle: BodyHintFontStyle;
   bodyImageSize: number;
   bodyBlockOrder: BodyBlockKind[];
   bodyAudioPlacement: BodyMediaPlacement;
@@ -832,15 +1013,20 @@ function buildHtml(p: {
           filename: p.bodyAudioFilename || "StayKnown audio",
           size: p.bodyAudioSize,
           hint: p.bodyAudioHint,
+          hintColor: p.bodyAudioHintColor,
+          hintFontStyle: p.bodyAudioHintFontStyle,
         });
       }
 
       if (block === "image" && p.bodyImageContentId) {
-        return bodyImageBlock(
-          p.bodyImageContentId,
-          p.bodyImageFilename || "StayKnown body image",
-          p.bodyImageSize,
-        );
+        return bodyImageBlock({
+          contentId: p.bodyImageContentId,
+          alt: p.bodyImageFilename || "StayKnown body image",
+          size: p.bodyImageSize,
+          hint: p.bodyImageHint,
+          hintColor: p.bodyImageHintColor,
+          hintFontStyle: p.bodyImageHintFontStyle,
+        });
       }
 
       if (block === "message") {
@@ -857,6 +1043,13 @@ function buildHtml(p: {
     .join("");
 
   const cta = ctaButton(p.ctaLabel, p.ctaUrl);
+  const storeBadges = storeBadgesBlock({
+    placement: p.storeBadgePlacement,
+    googlePlayEnabled: p.googlePlayEnabled,
+    googlePlayUrl: p.googlePlayUrl,
+    appStoreEnabled: p.appStoreEnabled,
+    appStoreUrl: p.appStoreUrl,
+  });
 
   const modeLabelText =
     p.mode === "newsletter"
@@ -870,9 +1063,13 @@ function buildHtml(p: {
   const contentHtml = `
     ${remoteTop}
 
+    ${p.storeBadgePlacement === "top" ? storeBadges : ""}
+
     ${p.inlineImageBlocks}
 
     ${bodyBlocks}
+
+    ${p.storeBadgePlacement === "bottom" ? storeBadges : ""}
 
     ${cta ? `${dividerHtml()}${cta}` : ""}
 
@@ -1048,13 +1245,22 @@ export async function POST(req: NextRequest) {
     const bodyAudioPlacement = safeBodyMediaPlacement(
       form.get("body_audio_placement"),
     );
-    const bodyAudioSize = safeNumber(form.get("body_audio_size"), 76, 48, 100);
+    const bodyAudioSize = safeNumber(form.get("body_audio_size"), 76, 32, 100);
     const bodyAudioHint = clean(form.get("body_audio_hint")).slice(0, 160);
+    const bodyAudioHintColor = safeHexColor(form.get("body_audio_hint_color"));
+    const bodyAudioHintFontStyle = safeBodyHintFontStyle(
+      form.get("body_audio_hint_font_style"),
+    );
 
     const bodyImagePlacement = safeBodyMediaPlacement(
       form.get("body_image_placement"),
     );
-    const bodyImageSize = safeNumber(form.get("body_image_size"), 88, 45, 100);
+    const bodyImageSize = safeNumber(form.get("body_image_size"), 88, 32, 100);
+    const bodyImageHint = clean(form.get("body_image_hint")).slice(0, 160);
+    const bodyImageHintColor = safeHexColor(form.get("body_image_hint_color"));
+    const bodyImageHintFontStyle = safeBodyHintFontStyle(
+      form.get("body_image_hint_font_style"),
+    );
 
     const bodyBlockOrder = parseBodyBlockOrder(
       clean(form.get("body_block_order")),
@@ -1062,6 +1268,15 @@ export async function POST(req: NextRequest) {
 
     const ctaLabel = clean(form.get("cta_label"));
     const ctaUrl = clean(form.get("cta_url"));
+
+    const storeBadgePlacement = safeStoreBadgePlacement(
+      form.get("store_badge_placement"),
+    );
+    const googlePlayEnabled = safeBoolean(form.get("google_play_enabled"));
+    const googlePlayUrl = safePublicHttpUrl(form.get("google_play_url"));
+    const appStoreEnabled = safeBoolean(form.get("app_store_enabled"));
+    const appStoreUrl = safePublicHttpUrl(form.get("app_store_url"));
+
     const footerPolicyId = clean(form.get("footer_policy_id"));
     const footerHtml = clean(form.get("footer_html"));
     const selectedPolicyLinks = parsePolicyLinks(
@@ -1128,6 +1343,28 @@ export async function POST(req: NextRequest) {
     if (ctaUrl && !isPublicHttpUrl(ctaUrl)) {
       return NextResponse.json(
         { ok: false, error: "CTA URL must start with http:// or https://." },
+        { status: 400 },
+      );
+    }
+
+    if (googlePlayEnabled && !googlePlayUrl) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error:
+            "Google Play badge is enabled, but the Google Play URL is missing or invalid. Use a public http:// or https:// link.",
+        },
+        { status: 400 },
+      );
+    }
+
+    if (appStoreEnabled && !appStoreUrl) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error:
+            "App Store badge is enabled, but the App Store URL is missing or invalid. Use a public http:// or https:// link.",
+        },
         { status: 400 },
       );
     }
@@ -1286,6 +1523,11 @@ export async function POST(req: NextRequest) {
           sender_email: senderRow.from_email,
           recipient_count: recipients.length,
           policy_links: selectedPolicyLinks,
+          store_badge_placement: storeBadgePlacement,
+          google_play_enabled: googlePlayEnabled,
+          google_play_url: googlePlayUrl || null,
+          app_store_enabled: appStoreEnabled,
+          app_store_url: appStoreUrl || null,
           banner_position: bannerPosition,
           banner_height: bannerHeight,
           banner_top_file_name: bannerTopFile?.name || null,
@@ -1294,9 +1536,14 @@ export async function POST(req: NextRequest) {
           body_audio_placement: bodyAudioPlacement,
           body_audio_size: bodyAudioSize,
           body_audio_hint: bodyAudioHint || null,
+          body_audio_hint_color: bodyAudioHintColor,
+          body_audio_hint_font_style: bodyAudioHintFontStyle,
           body_image_file_name: bodyImageFile?.name || null,
           body_image_placement: bodyImagePlacement,
           body_image_size: bodyImageSize,
+          body_image_hint: bodyImageHint || null,
+          body_image_hint_color: bodyImageHintColor,
+          body_image_hint_font_style: bodyImageHintFontStyle,
           body_block_order: bodyBlockOrder,
         },
       })
@@ -1575,15 +1822,25 @@ export async function POST(req: NextRequest) {
       bannerHeight,
       ctaLabel,
       ctaUrl,
+      storeBadgePlacement,
+      googlePlayEnabled,
+      googlePlayUrl,
+      appStoreEnabled,
+      appStoreUrl,
       footerHtml: finalFooterHtml,
       inlineImageBlocks: inlineBlocks.join(""),
       linkOnlyFiles,
       bodyAudioUrl,
       bodyAudioFilename: bodyAudioFile?.name || "",
       bodyAudioHint,
+      bodyAudioHintColor,
+      bodyAudioHintFontStyle,
       bodyAudioSize,
       bodyImageContentId,
       bodyImageFilename: bodyImageFile?.name || "",
+      bodyImageHint,
+      bodyImageHintColor,
+      bodyImageHintFontStyle,
       bodyImageSize,
       bodyBlockOrder,
       bodyAudioPlacement,
@@ -1673,10 +1930,20 @@ export async function POST(req: NextRequest) {
               reply_mode: replyMode,
               attachment_count: attachments.length,
               link_only_count: linkOnlyFiles.length,
+              store_badge_placement: storeBadgePlacement,
+              google_play_enabled: googlePlayEnabled,
+              google_play_url: googlePlayUrl || null,
+              app_store_enabled: appStoreEnabled,
+              app_store_url: appStoreUrl || null,
               banner_position: bannerPosition,
               banner_height: bannerHeight,
               has_body_audio: Boolean(bodyAudioUrl),
               has_body_image: Boolean(bodyImageContentId),
+              body_audio_hint_color: bodyAudioHintColor,
+              body_audio_hint_font_style: bodyAudioHintFontStyle,
+              body_image_hint: bodyImageHint || null,
+              body_image_hint_color: bodyImageHintColor,
+              body_image_hint_font_style: bodyImageHintFontStyle,
             },
           })
           .select("id")
@@ -1745,6 +2012,11 @@ export async function POST(req: NextRequest) {
                 banner_height: bannerHeight,
                 has_body_audio: Boolean(bodyAudioUrl),
                 has_body_image: Boolean(bodyImageContentId),
+                body_audio_hint_color: bodyAudioHintColor,
+                body_audio_hint_font_style: bodyAudioHintFontStyle,
+                body_image_hint: bodyImageHint || null,
+                body_image_hint_color: bodyImageHintColor,
+                body_image_hint_font_style: bodyImageHintFontStyle,
                 resend: resendResult,
               },
             })
@@ -1819,6 +2091,11 @@ export async function POST(req: NextRequest) {
           recipient_count: recipients.length,
           attachment_count: attachments.length,
           link_only_count: linkOnlyFiles.length,
+          store_badge_placement: storeBadgePlacement,
+          google_play_enabled: googlePlayEnabled,
+          google_play_url: googlePlayUrl || null,
+          app_store_enabled: appStoreEnabled,
+          app_store_url: appStoreUrl || null,
           banner_position: bannerPosition,
           banner_height: bannerHeight,
           banner_top_file_name: bannerTopFile?.name || null,
@@ -1827,9 +2104,14 @@ export async function POST(req: NextRequest) {
           body_audio_placement: bodyAudioPlacement,
           body_audio_size: bodyAudioSize,
           body_audio_hint: bodyAudioHint || null,
+          body_audio_hint_color: bodyAudioHintColor,
+          body_audio_hint_font_style: bodyAudioHintFontStyle,
           body_image_file_name: bodyImageFile?.name || null,
           body_image_placement: bodyImagePlacement,
           body_image_size: bodyImageSize,
+          body_image_hint: bodyImageHint || null,
+          body_image_hint_color: bodyImageHintColor,
+          body_image_hint_font_style: bodyImageHintFontStyle,
           body_block_order: bodyBlockOrder,
           policy_links: selectedPolicyLinks,
           summary,

@@ -16,6 +16,8 @@ type ImagePosition = "none" | "top" | "bottom" | "both";
 type AttachmentMode = "attach" | "link_only" | "inline_image";
 type BodyMediaPlacement = "top" | "bottom" | "custom";
 type BodyBlockKind = "audio" | "image" | "message";
+type BodyHintFontStyle = "normal" | "italic";
+type StoreBadgePlacement = "top" | "bottom";
 
 type RecipientStatus =
   | "ready"
@@ -372,6 +374,24 @@ function delay(ms: number) {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
+function publicHttpLink(value: string) {
+  const trimmed = value.trim();
+
+  if (!trimmed) return "";
+
+  try {
+    const parsed = new URL(trimmed);
+
+    if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+      return trimmed;
+    }
+
+    return "";
+  } catch (_) {
+    return "";
+  }
+}
+
 export default function MailConsoleSendForm({
   adminEmail,
   senders,
@@ -407,12 +427,19 @@ export default function MailConsoleSendForm({
     useState<BodyMediaPlacement>("custom");
   const [bodyAudioSize, setBodyAudioSize] = useState(76);
   const [bodyAudioHint, setBodyAudioHint] = useState("");
+  const [bodyAudioHintColor, setBodyAudioHintColor] = useState("#6b7280");
+  const [bodyAudioHintFontStyle, setBodyAudioHintFontStyle] =
+    useState<BodyHintFontStyle>("normal");
 
   const [bodyImageFile, setBodyImageFile] = useState<File | null>(null);
   const [bodyImagePreviewUrl, setBodyImagePreviewUrl] = useState("");
   const [bodyImagePlacement, setBodyImagePlacement] =
     useState<BodyMediaPlacement>("custom");
   const [bodyImageSize, setBodyImageSize] = useState(88);
+  const [bodyImageHint, setBodyImageHint] = useState("");
+  const [bodyImageHintColor, setBodyImageHintColor] = useState("#6b7280");
+  const [bodyImageHintFontStyle, setBodyImageHintFontStyle] =
+    useState<BodyHintFontStyle>("normal");
 
   const [bodyBlockOrder, setBodyBlockOrder] = useState<BodyBlockKind[]>([
     "audio",
@@ -421,9 +448,15 @@ export default function MailConsoleSendForm({
   ]);
   const [draggingBodyBlock, setDraggingBodyBlock] =
     useState<BodyBlockKind | null>(null);
-
   const [ctaLabel, setCtaLabel] = useState("");
   const [ctaUrl, setCtaUrl] = useState("");
+
+  const [storeBadgePlacement, setStoreBadgePlacement] =
+    useState<StoreBadgePlacement>("bottom");
+  const [googlePlayEnabled, setGooglePlayEnabled] = useState(false);
+  const [googlePlayUrl, setGooglePlayUrl] = useState("");
+  const [appStoreEnabled, setAppStoreEnabled] = useState(false);
+  const [appStoreUrl, setAppStoreUrl] = useState("");
 
   const [footerPolicyId, setFooterPolicyId] = useState("");
   const [customFooter, setCustomFooter] = useState("");
@@ -444,6 +477,8 @@ export default function MailConsoleSendForm({
   const stopSendRef = useRef(false);
   const activeRowRef = useRef<HTMLDivElement | null>(null);
 
+  const [readOnlyPreviewOpen, setReadOnlyPreviewOpen] = useState(false);
+  const [readOnlyPreviewEmail, setReadOnlyPreviewEmail] = useState("");
   useEffect(() => {
     return () => {
       if (bannerTopPreviewUrl) URL.revokeObjectURL(bannerTopPreviewUrl);
@@ -466,6 +501,22 @@ export default function MailConsoleSendForm({
       block: "center",
     });
   }, [activeSendEmail, sendRows]);
+
+  useEffect(() => {
+    if (!readOnlyPreviewOpen) return;
+
+    function closeOnEscape(e: globalThis.KeyboardEvent) {
+      if (e.key === "Escape") {
+        setReadOnlyPreviewOpen(false);
+      }
+    }
+
+    window.addEventListener("keydown", closeOnEscape);
+
+    return () => {
+      window.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [readOnlyPreviewOpen]);
 
   const allowedTemplates = useMemo(
     () => templates.filter((t) => t.mode === mode),
@@ -692,6 +743,8 @@ export default function MailConsoleSendForm({
     setBodyAudioFile(null);
     setBodyAudioPreviewUrl("");
     setBodyAudioHint("");
+    setBodyAudioHintColor("#6b7280");
+    setBodyAudioHintFontStyle("normal");
     setStatus("Body audio removed.");
   }
 
@@ -716,6 +769,9 @@ export default function MailConsoleSendForm({
 
     setBodyImageFile(null);
     setBodyImagePreviewUrl("");
+    setBodyImageHint("");
+    setBodyImageHintColor("#6b7280");
+    setBodyImageHintFontStyle("normal");
     setStatus("Body image removed.");
   }
 
@@ -762,8 +818,13 @@ export default function MailConsoleSendForm({
           body_audio_placement: bodyAudioPlacement,
           body_audio_size: bodyAudioSize,
           body_audio_hint: bodyAudioHint,
+          body_audio_hint_color: bodyAudioHintColor,
+          body_audio_hint_font_style: bodyAudioHintFontStyle,
           body_image_placement: bodyImagePlacement,
           body_image_size: bodyImageSize,
+          body_image_hint: bodyImageHint,
+          body_image_hint_color: bodyImageHintColor,
+          body_image_hint_font_style: bodyImageHintFontStyle,
           body_block_order: bodyBlockOrder,
           body_media_note:
             bodyAudioFile || bodyImageFile
@@ -771,6 +832,11 @@ export default function MailConsoleSendForm({
               : "",
           cta_label: ctaLabel,
           cta_url: ctaUrl,
+          store_badge_placement: storeBadgePlacement,
+          google_play_enabled: googlePlayEnabled,
+          google_play_url: googlePlayUrl,
+          app_store_enabled: appStoreEnabled,
+          app_store_url: appStoreUrl,
           footer_policy_id: footerPolicyId,
           footer_html: customFooter || selectedFooter?.footer_html || "",
           policy_links: selectedPolicyLinks,
@@ -861,8 +927,13 @@ export default function MailConsoleSendForm({
     form.append("body_audio_placement", bodyAudioPlacement);
     form.append("body_audio_size", String(bodyAudioSize));
     form.append("body_audio_hint", bodyAudioHint);
+    form.append("body_audio_hint_color", bodyAudioHintColor);
+    form.append("body_audio_hint_font_style", bodyAudioHintFontStyle);
     form.append("body_image_placement", bodyImagePlacement);
     form.append("body_image_size", String(bodyImageSize));
+    form.append("body_image_hint", bodyImageHint);
+    form.append("body_image_hint_color", bodyImageHintColor);
+    form.append("body_image_hint_font_style", bodyImageHintFontStyle);
     form.append("body_block_order", JSON.stringify(bodyPreviewOrder));
 
     if (bodyAudioFile) {
@@ -875,6 +946,11 @@ export default function MailConsoleSendForm({
 
     form.append("cta_label", ctaLabel);
     form.append("cta_url", ctaUrl);
+    form.append("store_badge_placement", storeBadgePlacement);
+    form.append("google_play_enabled", googlePlayEnabled ? "true" : "false");
+    form.append("google_play_url", googlePlayUrl);
+    form.append("app_store_enabled", appStoreEnabled ? "true" : "false");
+    form.append("app_store_url", appStoreUrl);
     form.append("footer_policy_id", footerPolicyId);
     form.append(
       "footer_html",
@@ -1161,6 +1237,10 @@ export default function MailConsoleSendForm({
   const hasAnyBanner = Boolean(bannerTopFile || bannerBottomFile);
   const topBannerPreview = bannerTopPreviewUrl || bannerBottomPreviewUrl;
   const bottomBannerPreview = bannerBottomPreviewUrl || bannerTopPreviewUrl;
+  const googlePlayHref = googlePlayEnabled ? publicHttpLink(googlePlayUrl) : "";
+  const appStoreHref = appStoreEnabled ? publicHttpLink(appStoreUrl) : "";
+  const hasAnyStoreBadge = Boolean(googlePlayHref || appStoreHref);
+  const hasConfiguredStoreBadge = googlePlayEnabled || appStoreEnabled;
 
   const enabledBodyBlocks = new Set<BodyBlockKind>(["message"]);
 
@@ -1199,6 +1279,201 @@ export default function MailConsoleSendForm({
     return [...topBlocks, ...customBlocks, ...bottomBlocks];
   })();
 
+  function renderStoreBadgesBlock(readOnly = false) {
+    const allStores: Array<{
+      key: "google" | "apple";
+      enabled: boolean;
+      href: string;
+      icon: string;
+      eyebrow: string;
+      label: string;
+      missingText: string;
+    }> = [
+      {
+        key: "google",
+        enabled: googlePlayEnabled,
+        href: googlePlayHref,
+        icon: "▶",
+        eyebrow: "GET IT ON",
+        label: "Google Play",
+        missingText: "Google Play link missing",
+      },
+      {
+        key: "apple",
+        enabled: appStoreEnabled,
+        href: appStoreHref,
+        icon: "",
+        eyebrow: "Download on the",
+        label: "App Store",
+        missingText: "App Store link missing",
+      },
+    ];
+
+    const stores = allStores.filter((item) => item.enabled);
+
+    if (stores.length === 0) return null;
+
+    return (
+      <div
+        style={{
+          ...storeBadgeWrapStyle,
+          opacity: stores.some((item) => item.href) ? 1 : 0.62,
+        }}
+      >
+        {stores.map((item) => {
+          const badgeContent = (
+            <>
+              <span style={storeBadgeIconStyle}>{item.icon}</span>
+              <span style={storeBadgeTextWrapStyle}>
+                <span style={storeBadgeEyebrowStyle}>
+                  {item.href ? item.eyebrow : "ADD LINK"}
+                </span>
+                <span style={storeBadgeLabelStyle}>
+                  {item.href ? item.label : item.missingText}
+                </span>
+              </span>
+            </>
+          );
+
+          if (!item.href) {
+            return (
+              <div
+                key={item.key}
+                title={item.missingText}
+                style={{
+                  ...storeBadgeStyle,
+                  cursor: "not-allowed",
+                  opacity: 0.62,
+                }}
+              >
+                {badgeContent}
+              </div>
+            );
+          }
+
+          return (
+            <a
+              key={item.key}
+              href={item.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              title={item.label}
+              style={{
+                ...storeBadgeStyle,
+                pointerEvents: readOnly ? "auto" : "auto",
+              }}
+            >
+              {badgeContent}
+            </a>
+          );
+        })}
+      </div>
+    );
+  }
+
+  function openReadOnlyPreview(email: string) {
+    setReadOnlyPreviewEmail(email);
+    setReadOnlyPreviewOpen(true);
+  }
+
+  function renderReadOnlyBodyBlock(block: BodyBlockKind) {
+    if (block === "audio" && bodyAudioFile) {
+      return (
+        <div key="readonly-audio" style={readOnlyBodyBlockStyle}>
+          <div
+            style={{
+              ...previewAudioPillStyle,
+              width: `${bodyAudioSize}%`,
+              minWidth: "min(210px, 100%)",
+              maxWidth: "100%",
+            }}
+          >
+            <div style={previewAudioIconStyle}>🎧</div>
+
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <div style={previewAudioTitleStyle}>StayKnown Audio</div>
+              <div style={previewAudioMetaStyle}>
+                {bodyAudioFile.name || "Audio message"}
+              </div>
+            </div>
+
+            <audio
+              src={bodyAudioPreviewUrl}
+              controls
+              style={{
+                width: 126,
+                height: 30,
+                maxWidth: "44%",
+              }}
+            />
+          </div>
+
+          {bodyAudioHint ? (
+            <div
+              style={{
+                ...previewMediaHintStyle,
+                width: `${bodyAudioSize}%`,
+                color: bodyAudioHintColor,
+                fontStyle: bodyAudioHintFontStyle,
+              }}
+            >
+              {bodyAudioHint}
+            </div>
+          ) : null}
+        </div>
+      );
+    }
+
+    if (block === "image" && bodyImageFile) {
+      return (
+        <div key="readonly-image" style={readOnlyBodyBlockStyle}>
+          <a
+            href={bodyImagePreviewUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              ...previewBodyImageWrapStyle,
+              display: "block",
+              width: `${bodyImageSize}%`,
+              minWidth: "min(170px, 100%)",
+              maxWidth: "100%",
+              textDecoration: "none",
+            }}
+          >
+            <img
+              src={bodyImagePreviewUrl}
+              alt="Body image"
+              style={previewBodyImageStyle}
+            />
+          </a>
+
+          {bodyImageHint ? (
+            <div
+              style={{
+                ...previewMediaHintStyle,
+                width: `${bodyImageSize}%`,
+                color: bodyImageHintColor,
+                fontStyle: bodyImageHintFontStyle,
+              }}
+            >
+              {bodyImageHint}
+            </div>
+          ) : null}
+        </div>
+      );
+    }
+
+    return (
+      <div key="readonly-message" style={readOnlyBodyBlockStyle}>
+        <div style={previewMessageCardStyle}>
+          <div style={previewMessageBodyStyle}>
+            {message || "Your email body preview will appear here."}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   function renderPreviewBodyBlock(block: BodyBlockKind) {
     if (block === "audio" && bodyAudioFile) {
       return (
@@ -1217,6 +1492,8 @@ export default function MailConsoleSendForm({
             style={{
               ...previewAudioPillStyle,
               width: `${bodyAudioSize}%`,
+              minWidth: "min(210px, 100%)",
+              maxWidth: "100%",
             }}
           >
             <div style={previewAudioIconStyle}>🎧</div>
@@ -1232,15 +1509,24 @@ export default function MailConsoleSendForm({
               src={bodyAudioPreviewUrl}
               controls
               style={{
-                width: 130,
+                width: 126,
                 height: 30,
-                maxWidth: "42%",
+                maxWidth: "44%",
               }}
             />
           </div>
 
           {bodyAudioHint ? (
-            <div style={previewAudioHintStyle}>{bodyAudioHint}</div>
+            <div
+              style={{
+                ...previewMediaHintStyle,
+                width: `${bodyAudioSize}%`,
+                color: bodyAudioHintColor,
+                fontStyle: bodyAudioHintFontStyle,
+              }}
+            >
+              {bodyAudioHint}
+            </div>
           ) : null}
 
           <div style={previewDragHintStyle}>Drag to reorder inside body</div>
@@ -1265,6 +1551,8 @@ export default function MailConsoleSendForm({
             style={{
               ...previewBodyImageWrapStyle,
               width: `${bodyImageSize}%`,
+              minWidth: "min(170px, 100%)",
+              maxWidth: "100%",
             }}
           >
             <img
@@ -1273,6 +1561,19 @@ export default function MailConsoleSendForm({
               style={previewBodyImageStyle}
             />
           </div>
+
+          {bodyImageHint ? (
+            <div
+              style={{
+                ...previewMediaHintStyle,
+                width: `${bodyImageSize}%`,
+                color: bodyImageHintColor,
+                fontStyle: bodyImageHintFontStyle,
+              }}
+            >
+              {bodyImageHint}
+            </div>
+          ) : null}
 
           <div style={previewDragHintStyle}>Drag to reorder inside body</div>
         </div>
@@ -1794,7 +2095,7 @@ export default function MailConsoleSendForm({
                     <label style={labelStyle}>Size</label>
                     <input
                       type="range"
-                      min={48}
+                      min={32}
                       max={100}
                       value={bodyAudioSize}
                       onChange={(e) => setBodyAudioSize(Number(e.target.value))}
@@ -1840,6 +2141,34 @@ export default function MailConsoleSendForm({
                     placeholder="Example: Listen to this short StayKnown update."
                     style={inputStyle}
                   />
+
+                  <div style={hintControlGridStyle}>
+                    <label style={hintControlStyle}>
+                      <span>Hint colour</span>
+                      <input
+                        type="color"
+                        value={bodyAudioHintColor}
+                        onChange={(e) => setBodyAudioHintColor(e.target.value)}
+                        style={colorInputStyle}
+                      />
+                    </label>
+
+                    <label style={hintControlStyle}>
+                      <span>Text style</span>
+                      <select
+                        value={bodyAudioHintFontStyle}
+                        onChange={(e) =>
+                          setBodyAudioHintFontStyle(
+                            e.target.value as BodyHintFontStyle,
+                          )
+                        }
+                        style={hintSelectStyle}
+                      >
+                        <option value="normal">Normal</option>
+                        <option value="italic">Italic</option>
+                      </select>
+                    </label>
+                  </div>
                 </div>
               </div>
 
@@ -1868,7 +2197,7 @@ export default function MailConsoleSendForm({
                     <label style={labelStyle}>Size</label>
                     <input
                       type="range"
-                      min={45}
+                      min={32}
                       max={100}
                       value={bodyImageSize}
                       onChange={(e) => setBodyImageSize(Number(e.target.value))}
@@ -1905,7 +2234,134 @@ export default function MailConsoleSendForm({
                 {bodyImageFile ? (
                   <div style={bannerFileNameStyle}>{bodyImageFile.name}</div>
                 ) : null}
+
+                <div style={{ marginTop: 10 }}>
+                  <label style={labelStyle}>Tiny hint under image</label>
+                  <input
+                    value={bodyImageHint}
+                    onChange={(e) => setBodyImageHint(e.target.value)}
+                    placeholder="Example: See how StayKnown protects real people."
+                    style={inputStyle}
+                  />
+
+                  <div style={hintControlGridStyle}>
+                    <label style={hintControlStyle}>
+                      <span>Hint colour</span>
+                      <input
+                        type="color"
+                        value={bodyImageHintColor}
+                        onChange={(e) => setBodyImageHintColor(e.target.value)}
+                        style={colorInputStyle}
+                      />
+                    </label>
+
+                    <label style={hintControlStyle}>
+                      <span>Text style</span>
+                      <select
+                        value={bodyImageHintFontStyle}
+                        onChange={(e) =>
+                          setBodyImageHintFontStyle(
+                            e.target.value as BodyHintFontStyle,
+                          )
+                        }
+                        style={hintSelectStyle}
+                      >
+                        <option value="normal">Normal</option>
+                        <option value="italic">Italic</option>
+                      </select>
+                    </label>
+                  </div>
+                </div>
               </div>
+            </div>
+
+            <div style={sectionHeaderStyle}>App store badges</div>
+
+            <div style={compactMediaPanelStyle}>
+              <div style={compactPanelTitleStyle}>
+                Store buttons inside body
+              </div>
+
+              <div style={grid2Style}>
+                <label style={storeToggleCardStyle}>
+                  <input
+                    type="checkbox"
+                    checked={googlePlayEnabled}
+                    onChange={(e) => setGooglePlayEnabled(e.target.checked)}
+                  />
+                  <span>
+                    <b>Add Google Play badge</b>
+                    <small>Shows a Google Play button in the email body.</small>
+                  </span>
+                </label>
+
+                <label style={storeToggleCardStyle}>
+                  <input
+                    type="checkbox"
+                    checked={appStoreEnabled}
+                    onChange={(e) => setAppStoreEnabled(e.target.checked)}
+                  />
+                  <span>
+                    <b>Add App Store badge</b>
+                    <small>
+                      Shows an Apple App Store button in the email body.
+                    </small>
+                  </span>
+                </label>
+              </div>
+
+              <div style={{ ...grid2Style, marginTop: 10 }}>
+                <div>
+                  <label style={labelStyle}>Google Play app link</label>
+                  <input
+                    value={googlePlayUrl}
+                    onChange={(e) => setGooglePlayUrl(e.target.value)}
+                    placeholder="https://play.google.com/store/apps/details?id=..."
+                    disabled={!googlePlayEnabled}
+                    style={{
+                      ...inputStyle,
+                      opacity: googlePlayEnabled ? 1 : 0.55,
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <label style={labelStyle}>Apple App Store app link</label>
+                  <input
+                    value={appStoreUrl}
+                    onChange={(e) => setAppStoreUrl(e.target.value)}
+                    placeholder="https://apps.apple.com/app/..."
+                    disabled={!appStoreEnabled}
+                    style={{
+                      ...inputStyle,
+                      opacity: appStoreEnabled ? 1 : 0.55,
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ marginTop: 10 }}>
+                <label style={labelStyle}>Badge position</label>
+                <select
+                  value={storeBadgePlacement}
+                  onChange={(e) =>
+                    setStoreBadgePlacement(
+                      e.target.value as StoreBadgePlacement,
+                    )
+                  }
+                  style={inputStyle}
+                >
+                  <option value="top">Top of message body</option>
+                  <option value="bottom">End of message body</option>
+                </select>
+              </div>
+
+              {hasConfiguredStoreBadge && !hasAnyStoreBadge ? (
+                <div style={storeWarningStyle}>
+                  Add a valid http:// or https:// store link before sending, or
+                  the badge will only show as a disabled placeholder in preview.
+                </div>
+              ) : null}
             </div>
 
             <div style={sectionHeaderStyle}>CTA button</div>
@@ -2173,6 +2629,16 @@ export default function MailConsoleSendForm({
             </div>
 
             <div style={summaryRowStyle}>
+              <span>Store badges</span>
+              <b>{hasAnyStoreBadge ? storeBadgePlacement : "None"}</b>
+            </div>
+
+            <div style={summaryRowStyle}>
+              <span>Files</span>
+              <b>{files.length}</b>
+            </div>
+
+            <div style={summaryRowStyle}>
               <span>Files</span>
               <b>{files.length}</b>
             </div>
@@ -2238,9 +2704,15 @@ export default function MailConsoleSendForm({
                 </div>
               ) : null}
 
+              {storeBadgePlacement === "top" ? renderStoreBadgesBlock() : null}
+
               <div style={previewBodyStackStyle}>
                 {bodyPreviewOrder.map((block) => renderPreviewBodyBlock(block))}
               </div>
+
+              {storeBadgePlacement === "bottom"
+                ? renderStoreBadgesBlock()
+                : null}
 
               {bottomBannerPreview &&
               imagePosition !== "none" &&
@@ -2354,6 +2826,14 @@ export default function MailConsoleSendForm({
                 <span>Draft</span>
                 <b>{sendSummary.draft}</b>
               </div>
+              <div style={sendStatStyle}>
+                <span>Sending</span>
+                <b>{sendSummary.sendingNow}</b>
+              </div>
+              <div style={sendStatStyle}>
+                <span>Queued</span>
+                <b>{sendSummary.queued}</b>
+              </div>
             </div>
 
             <div style={sendProgressTrackStyle}>
@@ -2376,8 +2856,19 @@ export default function MailConsoleSendForm({
                   <div
                     key={row.id}
                     ref={active ? activeRowRef : null}
+                    role="button"
+                    tabIndex={0}
+                    title="Open read-only email preview"
+                    onClick={() => openReadOnlyPreview(row.email)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        openReadOnlyPreview(row.email);
+                      }
+                    }}
                     style={{
                       ...sendRowStyle,
+                      cursor: "pointer",
                       borderColor: active
                         ? "rgba(37,99,235,0.30)"
                         : "rgba(0,0,0,0.08)",
@@ -2435,6 +2926,183 @@ export default function MailConsoleSendForm({
                   </div>
                 );
               })}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {readOnlyPreviewOpen ? (
+        <div
+          style={readOnlyOverlayStyle}
+          onClick={() => setReadOnlyPreviewOpen(false)}
+        >
+          <div style={readOnlyModalStyle} onClick={(e) => e.stopPropagation()}>
+            <div style={readOnlyModalHeaderStyle}>
+              <div>
+                <div style={kickerStyle}>Read-only email preview</div>
+                <h2 style={sendTitleStyle}>Sent email view</h2>
+                <p style={sendSubStyle}>
+                  {readOnlyPreviewEmail
+                    ? `Previewing email for ${readOnlyPreviewEmail}.`
+                    : "Previewing the composed email."}{" "}
+                  Audio can be played and images can be opened from this view.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setReadOnlyPreviewOpen(false)}
+                style={secondaryButtonStyle}
+              >
+                Close
+              </button>
+            </div>
+
+            <div style={readOnlyBodyScrollStyle}>
+              <div style={readOnlyEmailShellStyle}>
+                <div style={{ textAlign: "center", marginBottom: 10 }}>
+                  <div style={previewBrandTextStyle}>STAYKNOWN™</div>
+                  <div style={{ height: 6 }} />
+                  <div style={previewServiceTextStyle}>
+                    A 6 Clement Joshua service™
+                  </div>
+                  <div style={{ height: 10 }} />
+
+                  {logoFailed ? (
+                    <div style={logoFallbackStyle}>6</div>
+                  ) : (
+                    <img
+                      src={brandLogoUrl}
+                      alt="StayKnown"
+                      width={64}
+                      height={64}
+                      onError={() => setLogoFailed(true)}
+                      style={{
+                        display: "inline-block",
+                        width: 64,
+                        height: 64,
+                        borderRadius: 18,
+                        boxShadow: "0 14px 38px rgba(0,0,0,0.14)",
+                        background: "white",
+                      }}
+                    />
+                  )}
+
+                  <div style={{ height: 14 }} />
+
+                  <div style={previewTitleStyle}>{title || "Header title"}</div>
+
+                  {badge ? (
+                    <div style={{ marginTop: 10 }}>
+                      <span style={previewBadgeStyle}>{badge}</span>
+                    </div>
+                  ) : null}
+
+                  {subtitle ? (
+                    <div style={previewSubtitleStyle}>{subtitle}</div>
+                  ) : null}
+                </div>
+
+                {topBannerPreview &&
+                (imagePosition === "top" || imagePosition === "both") ? (
+                  <a
+                    href={topBannerPreview}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ ...previewBannerWrapStyle, display: "block" }}
+                  >
+                    <img
+                      src={topBannerPreview}
+                      alt="Top banner"
+                      style={{
+                        ...previewBannerImageStyle,
+                        height: bannerHeight,
+                        maxHeight: bannerHeight,
+                      }}
+                    />
+                  </a>
+                ) : null}
+
+                {storeBadgePlacement === "top"
+                  ? renderStoreBadgesBlock(true)
+                  : null}
+
+                <div style={previewBodyStackStyle}>
+                  {bodyPreviewOrder.map((block) =>
+                    renderReadOnlyBodyBlock(block),
+                  )}
+                </div>
+
+                {storeBadgePlacement === "bottom"
+                  ? renderStoreBadgesBlock(true)
+                  : null}
+
+                {bottomBannerPreview &&
+                imagePosition !== "none" &&
+                (imagePosition === "bottom" || imagePosition === "both") ? (
+                  <a
+                    href={bottomBannerPreview}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ ...previewBannerWrapStyle, display: "block" }}
+                  >
+                    <img
+                      src={bottomBannerPreview}
+                      alt="Bottom banner"
+                      style={{
+                        ...previewBannerImageStyle,
+                        height: bannerHeight,
+                        maxHeight: bannerHeight,
+                      }}
+                    />
+                  </a>
+                ) : null}
+
+                {ctaLabel && ctaUrl ? (
+                  <div style={{ textAlign: "center", marginTop: 18 }}>
+                    <a
+                      href={ctaUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={previewCtaStyle}
+                    >
+                      {ctaLabel}
+                    </a>
+                  </div>
+                ) : null}
+
+                {footerText ? (
+                  <div style={previewFooterStyle}>{footerText}</div>
+                ) : null}
+
+                {selectedPolicyLinks.length > 0 ? (
+                  <div style={previewPolicyLinksStyle}>
+                    {selectedPolicyLinks.map((key) => {
+                      const item = POLICY_LINK_OPTIONS.find(
+                        (x) => x.key === key,
+                      );
+                      if (!item) return null;
+
+                      return (
+                        <a
+                          key={key}
+                          href={item.href}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={previewPolicyLinkStyle}
+                        >
+                          {item.label}
+                        </a>
+                      );
+                    })}
+                  </div>
+                ) : null}
+
+                <div style={previewLegalStyle}>
+                  © {new Date().getFullYear()} StayKnown™ · A 6 Clement Joshua
+                  service™
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -2903,6 +3571,85 @@ const previewCtaStyle: React.CSSProperties = {
     "inset 0 1px 0 rgba(255,255,255,0.92),0 20px 55px rgba(0,0,0,0.08)",
 };
 
+const storeBadgeWrapStyle: React.CSSProperties = {
+  display: "flex",
+  flexWrap: "wrap",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: 10,
+  margin: "14px auto",
+};
+
+const storeBadgeStyle: React.CSSProperties = {
+  minWidth: 154,
+  minHeight: 48,
+  borderRadius: 13,
+  background: "#050505",
+  color: "white",
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 9,
+  padding: "8px 12px",
+  textDecoration: "none",
+  boxShadow: "0 14px 34px rgba(0,0,0,0.14)",
+};
+
+const storeBadgeIconStyle: React.CSSProperties = {
+  width: 26,
+  minWidth: 26,
+  height: 26,
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  fontSize: 20,
+  lineHeight: 1,
+};
+
+const storeBadgeTextWrapStyle: React.CSSProperties = {
+  display: "grid",
+  gap: 1,
+  textAlign: "left",
+};
+
+const storeBadgeEyebrowStyle: React.CSSProperties = {
+  fontSize: 8,
+  lineHeight: 1,
+  fontWeight: 800,
+  letterSpacing: 0.4,
+  opacity: 0.86,
+  textTransform: "uppercase",
+};
+
+const storeBadgeLabelStyle: React.CSSProperties = {
+  fontSize: 17,
+  lineHeight: 1.08,
+  fontWeight: 950,
+  letterSpacing: -0.2,
+};
+
+const storeToggleCardStyle: React.CSSProperties = {
+  borderRadius: 16,
+  border: "1px solid rgba(0,0,0,0.09)",
+  background: "white",
+  padding: 12,
+  display: "flex",
+  alignItems: "flex-start",
+  gap: 10,
+  cursor: "pointer",
+};
+
+const storeWarningStyle: React.CSSProperties = {
+  marginTop: 10,
+  borderRadius: 14,
+  border: "1px solid rgba(234,179,8,0.30)",
+  background: "rgba(254,249,195,0.72)",
+  padding: "10px 12px",
+  fontSize: 11,
+  lineHeight: 1.45,
+  color: "#854d0e",
+  fontWeight: 750,
+};
+
 const previewFooterStyle: React.CSSProperties = {
   marginTop: 16,
   fontSize: 11,
@@ -2975,6 +3722,38 @@ const rangeStyle: React.CSSProperties = {
   accentColor: "#050505",
 };
 
+const hintControlGridStyle: React.CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "minmax(0, 0.8fr) minmax(0, 1.2fr)",
+  gap: 8,
+  marginTop: 8,
+};
+
+const hintControlStyle: React.CSSProperties = {
+  display: "grid",
+  gap: 5,
+  fontSize: 10,
+  fontWeight: 900,
+  color: "rgba(0,0,0,0.50)",
+};
+
+const colorInputStyle: React.CSSProperties = {
+  width: "100%",
+  height: 34,
+  border: "1px solid rgba(0,0,0,0.11)",
+  borderRadius: 12,
+  padding: 4,
+  background: "white",
+  cursor: "pointer",
+};
+
+const hintSelectStyle: React.CSSProperties = {
+  ...inputStyle,
+  height: 34,
+  padding: "6px 9px",
+  fontSize: 12,
+};
+
 const previewBodyStackStyle: React.CSSProperties = {
   display: "grid",
   gap: 10,
@@ -3035,18 +3814,17 @@ const previewAudioMetaStyle: React.CSSProperties = {
   textOverflow: "ellipsis",
 };
 
-const previewAudioHintStyle: React.CSSProperties = {
-  width: "76%",
+const previewMediaHintStyle: React.CSSProperties = {
   margin: "6px auto 0",
   textAlign: "center",
   fontSize: 11,
   lineHeight: 1.45,
-  color: "rgba(0,0,0,0.56)",
+  color: "#6b7280",
 };
 
 const previewBodyImageWrapStyle: React.CSSProperties = {
   margin: "0 auto",
-  borderRadius: 18,
+  borderRadius: 999,
   overflow: "hidden",
   border: "1px solid rgba(0,0,0,0.10)",
   background: "white",
@@ -3056,8 +3834,57 @@ const previewBodyImageWrapStyle: React.CSSProperties = {
 const previewBodyImageStyle: React.CSSProperties = {
   display: "block",
   width: "100%",
-  maxHeight: 280,
+  maxHeight: 220,
   objectFit: "cover",
+};
+
+const readOnlyOverlayStyle: React.CSSProperties = {
+  position: "fixed",
+  inset: 0,
+  zIndex: 10020,
+  background: "rgba(0,0,0,0.48)",
+  backdropFilter: "blur(18px)",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  padding: 18,
+};
+
+const readOnlyModalStyle: React.CSSProperties = {
+  width: "min(760px, 100%)",
+  maxHeight: "92vh",
+  overflow: "hidden",
+  display: "grid",
+  gridTemplateRows: "auto 1fr",
+  borderRadius: 30,
+  background: "white",
+  border: "1px solid rgba(0,0,0,0.08)",
+  boxShadow: "0 44px 120px rgba(0,0,0,0.34)",
+  padding: 18,
+};
+
+const readOnlyModalHeaderStyle: React.CSSProperties = {
+  display: "flex",
+  gap: 14,
+  alignItems: "flex-start",
+  justifyContent: "space-between",
+  flexWrap: "wrap",
+  marginBottom: 14,
+};
+
+const readOnlyBodyScrollStyle: React.CSSProperties = {
+  overflowY: "auto",
+  paddingRight: 4,
+};
+
+const readOnlyEmailShellStyle: React.CSSProperties = {
+  ...previewOuterStyle,
+  width: "min(560px, 100%)",
+  margin: "0 auto",
+};
+
+const readOnlyBodyBlockStyle: React.CSSProperties = {
+  cursor: "default",
 };
 
 const sendOverlayStyle: React.CSSProperties = {
