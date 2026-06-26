@@ -1396,6 +1396,24 @@ export default function MailConsoleSendForm({
           opacity: 1;
           pointer-events: auto;
         }
+
+        .sk-mail-composer aside {
+          scrollbar-width: thin;
+          scrollbar-color: rgba(0, 0, 0, 0.22) transparent;
+        }
+
+        .sk-mail-composer aside::-webkit-scrollbar {
+          width: 8px;
+        }
+
+        .sk-mail-composer aside::-webkit-scrollbar-track {
+          background: transparent;
+        }
+
+        .sk-mail-composer aside::-webkit-scrollbar-thumb {
+          background: rgba(0, 0, 0, 0.18);
+          border-radius: 999px;
+        }
       `}</style>
 
       <section style={{ maxWidth: 1180, margin: "0 auto" }}>
@@ -2114,7 +2132,7 @@ export default function MailConsoleSendForm({
             {status ? <div style={statusStyle}>{status}</div> : null}
           </section>
 
-          <aside style={panelStyle}>
+          <aside style={previewPanelStickyStyle}>
             <div style={sectionHeaderStyle}>Live summary</div>
 
             <div style={summaryRowStyle}>
@@ -2431,6 +2449,17 @@ const panelStyle: React.CSSProperties = {
   border: "1px solid rgba(0,0,0,0.075)",
   boxShadow: "0 18px 55px rgba(0,0,0,0.055)",
   padding: 18,
+};
+
+const previewPanelStickyStyle: React.CSSProperties = {
+  ...panelStyle,
+  position: "sticky",
+  top: 18,
+  maxHeight: "calc(100vh - 36px)",
+  overflowY: "auto",
+  overflowX: "hidden",
+  overscrollBehavior: "contain",
+  alignSelf: "start",
 };
 
 const kickerStyle: React.CSSProperties = {
