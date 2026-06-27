@@ -13,6 +13,7 @@ type BodyImageShape = "banner" | "pill" | "rectangle" | "square" | "circle";
 type BodyBlockKind = "audio" | "image" | "message";
 type BodyHintFontStyle = "normal" | "italic";
 type StoreBadgePlacement = "top" | "bottom";
+type BodyInlineMediaKind = "audio" | "image";
 
 type MailConsoleAdminClient = Awaited<
   ReturnType<typeof requireMailConsoleAdmin>
@@ -50,6 +51,8 @@ type DraftAttachmentRole =
   | "banner_bottom"
   | "body_audio"
   | "body_image"
+  | "body_inline_audio"
+  | "body_inline_image"
   | "file";
 
 type DraftStoredAttachment = {
@@ -63,6 +66,31 @@ type DraftStoredAttachment = {
   attachment_mode: AttachmentMode;
   display_name: string;
   signed_url?: string;
+
+  inline_media_id?: string;
+  inline_media_kind?: BodyInlineMediaKind;
+  inline_media_size?: number;
+  inline_media_placement?: BodyMediaPlacement;
+  inline_media_hint?: string;
+  inline_media_hint_color?: string;
+  inline_media_hint_font_style?: BodyHintFontStyle;
+  inline_media_image_shape?: BodyImageShape;
+  inline_media_original_name?: string;
+};
+
+type BodyInlineMediaInput = {
+  id: string;
+  kind: BodyInlineMediaKind;
+  display_name: string;
+  size: number;
+  placement: BodyMediaPlacement;
+  hint: string;
+  hint_color: string;
+  hint_font_style: BodyHintFontStyle;
+  image_shape: BodyImageShape | null;
+  mime_type: string;
+  original_name: string;
+  file_field: string;
 };
 
 const STORAGE_BUCKET = "mail-console-attachments";
@@ -223,6 +251,62 @@ function safeBodyBlockOrder(v: unknown): BodyBlockKind[] {
   }
 
   return unique;
+}
+
+function safeBodyInlineMediaItems(v: unknown): BodyInlineMediaInput[] {
+  return safeArrayValue(v)
+    .map((item) => {
+      if (!item || typeof item !== "object") return null;
+
+      const row = item as Record<string, unknown>;
+      const id = clean(row.id);
+      const kindText = clean(row.kind).toLowerCase();
+      const kind: BodyInlineMediaKind | "" =
+        kindText === "audio" || kindText === "image" ? kindText : "";
+
+      if (!id || !kind) return null;
+
+      const displayName =
+        clean(row.display_name) ||
+        clean(row.displayName) ||
+        (kind === "audio" ? "StayKnown Audio" : "StayKnown Image");
+
+      const size = safeNumber(row.size, kind === "audio" ? 76 : 88, 32, 100);
+      const placement = safeBodyMediaPlacement(row.placement);
+      const hint = clean(row.hint).slice(0, 160);
+      const hintColor = safeHexColor(row.hint_color || row.hintColor);
+      const hintFontStyle = safeBodyHintFontStyle(
+        row.hint_font_style || row.hintFontStyle,
+      );
+      const imageShape =
+        kind === "image"
+          ? safeBodyImageShape(row.image_shape || row.imageShape)
+          : null;
+      const mimeType =
+        clean(row.mime_type || row.mimeType) ||
+        (kind === "audio" ? "audio/mpeg" : "image/png");
+      const originalName =
+        clean(row.original_name || row.originalName) || displayName;
+      const fileField =
+        clean(row.file_field || row.fileField) ||
+        `body_inline_media_file_${id}`;
+
+      return {
+        id,
+        kind,
+        display_name: displayName,
+        size,
+        placement,
+        hint,
+        hint_color: hintColor,
+        hint_font_style: hintFontStyle,
+        image_shape: imageShape,
+        mime_type: mimeType,
+        original_name: originalName,
+        file_field: fileField,
+      };
+    })
+    .filter((item): item is BodyInlineMediaInput => Boolean(item));
 }
 
 function fileExtension(name: string) {
@@ -397,47 +481,106 @@ function getFormStringArray(form: FormData, key: string) {
   return safeStringArray(clean(form.get(key)));
 }
 
+function isDraftAttachmentRole(role: string): role is DraftAttachmentRole {
+  return (
+    role === "banner_top" ||
+    role === "banner_bottom" ||
+    role === "body_audio" ||
+    role === "body_image" ||
+    role === "body_inline_audio" ||
+    role === "body_inline_image" ||
+    role === "file"
+  );
+}
+
 function safeDraftAttachments(v: unknown): DraftStoredAttachment[] {
   if (!Array.isArray(v)) return [];
 
-  return v
-    .map((item) => {
-      if (!item || typeof item !== "object") return null;
+  const attachments: DraftStoredAttachment[] = [];
 
-      const row = item as Record<string, unknown>;
-      const role = clean(row.role) as DraftAttachmentRole;
-      const attachmentMode = safeAttachmentMode(row.attachment_mode);
-      const storagePath = clean(row.storage_path);
-      const fileName = clean(row.file_name);
-      const mimeType = clean(row.mime_type) || "application/octet-stream";
-      const storageBucket = clean(row.storage_bucket) || STORAGE_BUCKET;
-      const sizeBytes = Number(row.size_bytes);
+  for (const item of v) {
+    if (!item || typeof item !== "object") continue;
 
-      if (
-        role !== "banner_top" &&
-        role !== "banner_bottom" &&
-        role !== "body_audio" &&
-        role !== "body_image" &&
-        role !== "file"
-      ) {
-        return null;
-      }
+    const row = item as Record<string, unknown>;
+    const role = clean(row.role);
 
-      if (!storagePath || !fileName) return null;
+    if (!isDraftAttachmentRole(role)) continue;
 
-      return {
-        id: clean(row.id) || randomUUID(),
-        role,
-        file_name: fileName,
-        display_name: clean(row.display_name) || fileName,
-        mime_type: mimeType,
-        size_bytes: Number.isFinite(sizeBytes) ? sizeBytes : 0,
-        storage_bucket: storageBucket,
-        storage_path: storagePath,
-        attachment_mode: attachmentMode,
-      };
-    })
-    .filter((item): item is DraftStoredAttachment => Boolean(item));
+    const attachmentMode = safeAttachmentMode(row.attachment_mode);
+    const storagePath = clean(row.storage_path);
+    const fileName = clean(row.file_name);
+    const mimeType = clean(row.mime_type) || "application/octet-stream";
+    const storageBucket = clean(row.storage_bucket) || STORAGE_BUCKET;
+    const sizeBytes = Number(row.size_bytes);
+
+    if (!storagePath || !fileName) continue;
+
+    const attachment: DraftStoredAttachment = {
+      id: clean(row.id) || randomUUID(),
+      role,
+      file_name: fileName,
+      display_name: clean(row.display_name) || fileName,
+      mime_type: mimeType,
+      size_bytes: Number.isFinite(sizeBytes) ? sizeBytes : 0,
+      storage_bucket: storageBucket,
+      storage_path: storagePath,
+      attachment_mode: attachmentMode,
+    };
+
+    const inlineMediaId = clean(row.inline_media_id);
+    if (inlineMediaId) {
+      attachment.inline_media_id = inlineMediaId;
+    }
+
+    const inlineMediaKindText = clean(row.inline_media_kind).toLowerCase();
+    if (inlineMediaKindText === "audio" || inlineMediaKindText === "image") {
+      attachment.inline_media_kind = inlineMediaKindText;
+    }
+
+    const inlineMediaSize = Number(row.inline_media_size);
+    if (Number.isFinite(inlineMediaSize)) {
+      attachment.inline_media_size = inlineMediaSize;
+    }
+
+    const inlineMediaPlacement = clean(row.inline_media_placement);
+    if (inlineMediaPlacement) {
+      attachment.inline_media_placement =
+        safeBodyMediaPlacement(inlineMediaPlacement);
+    }
+
+    const inlineMediaHint = clean(row.inline_media_hint);
+    if (inlineMediaHint) {
+      attachment.inline_media_hint = inlineMediaHint;
+    }
+
+    const inlineMediaHintColor = clean(row.inline_media_hint_color);
+    if (inlineMediaHintColor) {
+      attachment.inline_media_hint_color = inlineMediaHintColor;
+    }
+
+    const inlineMediaHintFontStyle = clean(row.inline_media_hint_font_style);
+    if (inlineMediaHintFontStyle) {
+      attachment.inline_media_hint_font_style = safeBodyHintFontStyle(
+        inlineMediaHintFontStyle,
+      );
+    }
+
+    const inlineMediaImageShape = clean(row.inline_media_image_shape);
+    if (inlineMediaImageShape) {
+      attachment.inline_media_image_shape = safeBodyImageShape(
+        inlineMediaImageShape,
+      );
+    }
+
+    const inlineMediaOriginalName = clean(row.inline_media_original_name);
+    if (inlineMediaOriginalName) {
+      attachment.inline_media_original_name = inlineMediaOriginalName;
+    }
+
+    attachments.push(attachment);
+  }
+
+  return attachments;
 }
 
 async function signDraftAttachment(
@@ -462,6 +605,7 @@ async function uploadDraftAttachment(params: {
   role: DraftAttachmentRole;
   displayName: string;
   attachmentMode: AttachmentMode;
+  inlineMedia?: BodyInlineMediaInput;
 }) {
   const mime = params.file.type || "application/octet-stream";
   const filename = cleanDisplayFilename(
@@ -511,6 +655,16 @@ async function uploadDraftAttachment(params: {
     storage_bucket: STORAGE_BUCKET,
     storage_path: storagePath,
     attachment_mode: params.attachmentMode,
+
+    inline_media_id: params.inlineMedia?.id,
+    inline_media_kind: params.inlineMedia?.kind,
+    inline_media_size: params.inlineMedia?.size,
+    inline_media_placement: params.inlineMedia?.placement,
+    inline_media_hint: params.inlineMedia?.hint || undefined,
+    inline_media_hint_color: params.inlineMedia?.hint_color,
+    inline_media_hint_font_style: params.inlineMedia?.hint_font_style,
+    inline_media_image_shape: params.inlineMedia?.image_shape || undefined,
+    inline_media_original_name: params.inlineMedia?.original_name,
   } satisfies DraftStoredAttachment;
 }
 
@@ -521,6 +675,10 @@ function validateDraftFiles(params: {
   bodyImageFile: File | null;
   files: File[];
   fileModes: AttachmentMode[];
+  bodyInlineMediaFiles: Array<{
+    item: BodyInlineMediaInput;
+    file: File | null;
+  }>;
 }) {
   const imageLimit = 8 * 1024 * 1024;
   const audioLimit = 20 * 1024 * 1024;
@@ -559,6 +717,28 @@ function validateDraftFiles(params: {
 
   if (params.bodyAudioFile && params.bodyAudioFile.size > audioLimit) {
     return "Body audio must be under 20MB.";
+  }
+
+  for (const media of params.bodyInlineMediaFiles) {
+    const file = media.file;
+
+    if (!file) continue;
+
+    if (media.item.kind === "image" && !file.type.startsWith("image/")) {
+      return "Inserted body image must be an image file.";
+    }
+
+    if (media.item.kind === "audio" && !file.type.startsWith("audio/")) {
+      return "Inserted body audio must be an audio file.";
+    }
+
+    if (media.item.kind === "image" && file.size > imageLimit) {
+      return `${media.item.display_name || file.name || "Inserted image"} must be under 8MB.`;
+    }
+
+    if (media.item.kind === "audio" && file.size > audioLimit) {
+      return `${media.item.display_name || file.name || "Inserted audio"} must be under 20MB.`;
+    }
   }
 
   for (let i = 0; i < params.files.length; i += 1) {
@@ -653,6 +833,32 @@ export async function GET(req: NextRequest) {
       ),
     );
 
+    const signedInlineMediaItems = signedAttachments
+      .filter(
+        (attachment) =>
+          attachment.role === "body_inline_audio" ||
+          attachment.role === "body_inline_image",
+      )
+      .map((attachment) => ({
+        id: attachment.inline_media_id || attachment.id,
+        kind:
+          attachment.inline_media_kind ||
+          (attachment.role === "body_inline_audio" ? "audio" : "image"),
+        display_name: attachment.display_name || attachment.file_name,
+        size: attachment.inline_media_size || 76,
+        placement: attachment.inline_media_placement || "custom",
+        hint: attachment.inline_media_hint || "",
+        hint_color: attachment.inline_media_hint_color || "#6b7280",
+        hint_font_style: attachment.inline_media_hint_font_style || "normal",
+        image_shape: attachment.inline_media_image_shape || null,
+        mime_type: attachment.mime_type,
+        original_name:
+          attachment.inline_media_original_name || attachment.file_name,
+        signed_url: attachment.signed_url || "",
+        storage_bucket: attachment.storage_bucket,
+        storage_path: attachment.storage_path,
+      }));
+
     const status = clean(campaign.status).toLowerCase();
     const openMode = getOpenMode(status);
 
@@ -664,12 +870,17 @@ export async function GET(req: NextRequest) {
       editable: openMode === "editable",
       readonly: openMode === "readonly",
       attachments: signedAttachments,
+      body_inline_media_items: signedInlineMediaItems,
       campaign: {
         ...campaign,
         meta: {
           ...baseMeta,
           draft_attachments: signedAttachments,
           draft_attachment_count: signedAttachments.length,
+          body_inline_media_items:
+            signedInlineMediaItems.length > 0
+              ? signedInlineMediaItems
+              : baseMeta.body_inline_media_items || [],
         },
       },
     });
@@ -777,6 +988,10 @@ export async function POST(req: NextRequest) {
     const bodyBlockOrder = safeBodyBlockOrder(fieldUnknown("body_block_order"));
     const bodyMediaNote = field("body_media_note");
 
+    const bodyInlineMediaItems = safeBodyInlineMediaItems(
+      fieldUnknown("body_inline_media_items"),
+    );
+
     const ctaLabel = field("cta_label");
     const ctaUrl = field("cta_url");
 
@@ -808,6 +1023,11 @@ export async function POST(req: NextRequest) {
     const bodyImageFile = getOptionalFile(form, "body_image_file");
     const files = getFiles(form, "files");
 
+    const bodyInlineMediaFiles = bodyInlineMediaItems.map((item) => ({
+      item,
+      file: getOptionalFile(form, item.file_field),
+    }));
+
     const normalizedFileModes = files.map(
       (_, index) => fileModes[index] || "attach",
     );
@@ -819,6 +1039,7 @@ export async function POST(req: NextRequest) {
       bodyImageFile,
       files,
       fileModes: normalizedFileModes,
+      bodyInlineMediaFiles,
     });
 
     if (validationError) {
@@ -843,7 +1064,7 @@ export async function POST(req: NextRequest) {
     const baseMeta = {
       created_from: "mail_console_save_draft",
       open_behavior: "draft_opens_editable_sent_opens_readonly",
-      draft_storage_version: "formdata_files_v1",
+      draft_storage_version: "formdata_files_v2_inline_body_media",
       admin_email: adminEmail,
 
       subtitle: subtitle || null,
@@ -880,8 +1101,29 @@ export async function POST(req: NextRequest) {
       body_block_order: bodyBlockOrder,
       body_media_note: bodyMediaNote || null,
 
-      message_has_body_audio_token: message.includes("{{audio}}"),
-      message_has_body_image_token: message.includes("{{image}}"),
+      body_inline_media_items: bodyInlineMediaItems.map((item) => ({
+        id: item.id,
+        kind: item.kind,
+        display_name: item.display_name,
+        size: item.size,
+        placement: item.placement,
+        hint: item.hint || "",
+        hint_color: item.hint_color,
+        hint_font_style: item.hint_font_style,
+        image_shape: item.image_shape,
+        mime_type: item.mime_type,
+        original_name: item.original_name,
+        has_uploaded_file: Boolean(
+          bodyInlineMediaFiles.find(
+            (mediaFile) => mediaFile.item.id === item.id && mediaFile.file,
+          ),
+        ),
+      })),
+
+      message_has_body_audio_token:
+        message.includes("{{audio}}") || /\{\{audio:[^}]+\}\}/.test(message),
+      message_has_body_image_token:
+        message.includes("{{image}}") || /\{\{image:[^}]+\}\}/.test(message),
 
       recipient_emails: recipientEmails,
       recipient_count: recipientEmails.length,
@@ -991,6 +1233,26 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    for (const media of bodyInlineMediaFiles) {
+      if (!media.file) continue;
+
+      const role: DraftAttachmentRole =
+        media.item.kind === "audio" ? "body_inline_audio" : "body_inline_image";
+
+      uploadedAttachments.push(
+        await uploadDraftAttachment({
+          admin,
+          campaignId: draftId,
+          file: media.file,
+          role,
+          displayName: media.item.display_name,
+          attachmentMode:
+            media.item.kind === "audio" ? "link_only" : "inline_image",
+          inlineMedia: media.item,
+        }),
+      );
+    }
+
     for (let i = 0; i < files.length; i += 1) {
       const file = files[i];
       const attachmentMode = normalizedFileModes[i] || "attach";
@@ -1013,8 +1275,39 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const storedInlineMediaItems = uploadedAttachments
+      .filter(
+        (attachment) =>
+          attachment.role === "body_inline_audio" ||
+          attachment.role === "body_inline_image",
+      )
+      .map((attachment) => ({
+        id: attachment.inline_media_id || attachment.id,
+        kind:
+          attachment.inline_media_kind ||
+          (attachment.role === "body_inline_audio" ? "audio" : "image"),
+        display_name: attachment.display_name || attachment.file_name,
+        size: attachment.inline_media_size || 76,
+        placement: attachment.inline_media_placement || "custom",
+        hint: attachment.inline_media_hint || "",
+        hint_color: attachment.inline_media_hint_color || "#6b7280",
+        hint_font_style: attachment.inline_media_hint_font_style || "normal",
+        image_shape: attachment.inline_media_image_shape || null,
+        mime_type: attachment.mime_type,
+        original_name:
+          attachment.inline_media_original_name || attachment.file_name,
+        storage_bucket: attachment.storage_bucket,
+        storage_path: attachment.storage_path,
+      }));
+
     const finalMeta = {
       ...baseMeta,
+      body_inline_media_items:
+        storedInlineMediaItems.length > 0
+          ? storedInlineMediaItems
+          : baseMeta.body_inline_media_items,
+      body_inline_media_count: storedInlineMediaItems.length,
+
       draft_has_stored_files: uploadedAttachments.length > 0,
       draft_attachment_count: uploadedAttachments.length,
       draft_attachments: uploadedAttachments,
@@ -1047,11 +1340,38 @@ export async function POST(req: NextRequest) {
       ),
     );
 
+    const signedInlineMediaItems = signedAttachments
+      .filter(
+        (attachment) =>
+          attachment.role === "body_inline_audio" ||
+          attachment.role === "body_inline_image",
+      )
+      .map((attachment) => ({
+        id: attachment.inline_media_id || attachment.id,
+        kind:
+          attachment.inline_media_kind ||
+          (attachment.role === "body_inline_audio" ? "audio" : "image"),
+        display_name: attachment.display_name || attachment.file_name,
+        size: attachment.inline_media_size || 76,
+        placement: attachment.inline_media_placement || "custom",
+        hint: attachment.inline_media_hint || "",
+        hint_color: attachment.inline_media_hint_color || "#6b7280",
+        hint_font_style: attachment.inline_media_hint_font_style || "normal",
+        image_shape: attachment.inline_media_image_shape || null,
+        mime_type: attachment.mime_type,
+        original_name:
+          attachment.inline_media_original_name || attachment.file_name,
+        signed_url: attachment.signed_url || "",
+        storage_bucket: attachment.storage_bucket,
+        storage_path: attachment.storage_path,
+      }));
+
     return NextResponse.json({
       ok: true,
       draft_id: draftId,
       attachment_count: signedAttachments.length,
       attachments: signedAttachments,
+      body_inline_media_items: signedInlineMediaItems,
       open_url: `/mail-console/send?draft_id=${encodeURIComponent(draftId)}`,
       readonly_url: `/mail-console/send?campaign_id=${encodeURIComponent(
         draftId,

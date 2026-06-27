@@ -227,7 +227,14 @@ type OpenCampaignRow = {
 
 type StoredDraftAttachment = {
   id: string;
-  role: "banner_top" | "banner_bottom" | "body_audio" | "body_image" | "file";
+  role:
+    | "banner_top"
+    | "banner_bottom"
+    | "body_audio"
+    | "body_image"
+    | "body_inline_audio"
+    | "body_inline_image"
+    | "file";
   file_name: string;
   display_name: string;
   mime_type: string;
@@ -236,6 +243,60 @@ type StoredDraftAttachment = {
   storage_path: string;
   attachment_mode: AttachmentMode;
   signed_url?: string;
+
+  inline_media_id?: string;
+  inline_media_kind?: "audio" | "image";
+  inline_media_size?: number;
+  inline_media_placement?: BodyMediaPlacement;
+  inline_media_hint?: string;
+  inline_media_hint_color?: string;
+  inline_media_hint_font_style?: BodyHintFontStyle;
+  inline_media_image_shape?: BodyImageShape;
+  inline_media_original_name?: string;
+};
+
+type StoredDraftInlineMediaItem = {
+  id: string;
+  kind: "audio" | "image";
+  display_name?: string;
+  displayName?: string;
+  size?: number;
+  placement?: BodyMediaPlacement;
+  hint?: string;
+  hint_color?: string;
+  hintColor?: string;
+  hint_font_style?: BodyHintFontStyle;
+  hintFontStyle?: BodyHintFontStyle;
+  image_shape?: BodyImageShape | null;
+  imageShape?: BodyImageShape | null;
+  mime_type?: string;
+  mimeType?: string;
+  original_name?: string;
+  originalName?: string;
+  signed_url?: string;
+  signedUrl?: string;
+  storage_bucket?: string;
+  storageBucket?: string;
+  storage_path?: string;
+  storagePath?: string;
+};
+
+type BodyInlineMediaItem = {
+  id: string;
+  kind: "audio" | "image";
+  file: File | null;
+  previewUrl: string;
+  displayName: string;
+  size: number;
+  placement: BodyMediaPlacement;
+  hint: string;
+  hintColor: string;
+  hintFontStyle: BodyHintFontStyle;
+  imageShape?: BodyImageShape;
+  mimeType: string;
+  originalName: string;
+  storageBucket?: string;
+  storagePath?: string;
 };
 
 type OpenCampaignResponse = {
@@ -248,6 +309,7 @@ type OpenCampaignResponse = {
   readonly?: boolean;
   campaign?: OpenCampaignRow;
   attachments?: StoredDraftAttachment[];
+  body_inline_media_items?: StoredDraftInlineMediaItem[];
 };
 
 type Props = {
@@ -432,6 +494,40 @@ function revokePreviewUrl(url: string) {
   if (!url.startsWith("blob:")) return;
 
   URL.revokeObjectURL(url);
+}
+
+function bodyInlineToken(kind: "audio" | "image", id: string) {
+  return `{{${kind}:${id}}}`;
+}
+
+function parseBodyInlineToken(token: string) {
+  const match = token.match(/^\{\{(audio|image):([^}]+)\}\}$/);
+
+  if (!match) return null;
+
+  return {
+    kind: match[1] as "audio" | "image",
+    id: match[2],
+  };
+}
+
+function bodyInlineFormPayload(item: BodyInlineMediaItem) {
+  return {
+    id: item.id,
+    kind: item.kind,
+    display_name: item.displayName,
+    size: item.size,
+    placement: item.placement,
+    hint: item.hint,
+    hint_color: item.hintColor,
+    hint_font_style: item.hintFontStyle,
+    image_shape: item.imageShape || null,
+    mime_type: item.mimeType,
+    original_name: item.originalName,
+    file_field: `body_inline_media_file_${item.id}`,
+    storage_bucket: item.storageBucket || null,
+    storage_path: item.storagePath || null,
+  };
 }
 
 function publicHttpLink(value: string) {
@@ -663,6 +759,10 @@ export default function MailConsoleSendForm({
   const [bodyImageHintColor, setBodyImageHintColor] = useState("#6b7280");
   const [bodyImageHintFontStyle, setBodyImageHintFontStyle] =
     useState<BodyHintFontStyle>("normal");
+  const [bodyInlineMediaItems, setBodyInlineMediaItems] = useState<
+    BodyInlineMediaItem[]
+  >([]);
+  const bodyInlineMediaItemsRef = useRef<BodyInlineMediaItem[]>([]);
 
   const [bodyBlockOrder, setBodyBlockOrder] = useState<BodyBlockKind[]>([
     "audio",
@@ -708,6 +808,10 @@ export default function MailConsoleSendForm({
   const bodyImagePreviewUrlRef = useRef("");
 
   useEffect(() => {
+    bodyInlineMediaItemsRef.current = bodyInlineMediaItems;
+  }, [bodyInlineMediaItems]);
+
+  useEffect(() => {
     bannerTopPreviewUrlRef.current = bannerTopPreviewUrl;
   }, [bannerTopPreviewUrl]);
 
@@ -729,6 +833,10 @@ export default function MailConsoleSendForm({
       revokePreviewUrl(bannerBottomPreviewUrlRef.current);
       revokePreviewUrl(bodyAudioPreviewUrlRef.current);
       revokePreviewUrl(bodyImagePreviewUrlRef.current);
+
+      for (const item of bodyInlineMediaItemsRef.current) {
+        revokePreviewUrl(item.previewUrl);
+      }
     };
   }, []);
 
@@ -856,6 +964,12 @@ export default function MailConsoleSendForm({
     setBodyAudioPreviewUrl("");
     setBodyImageFile(null);
     setBodyImagePreviewUrl("");
+
+    for (const item of bodyInlineMediaItemsRef.current) {
+      revokePreviewUrl(item.previewUrl);
+    }
+
+    setBodyInlineMediaItems([]);
     setFiles([]);
 
     setReadOnlyPreviewOpen(false);
@@ -901,6 +1015,13 @@ export default function MailConsoleSendForm({
 
     for (const attachment of attachments) {
       const signedUrl = attachment.signed_url || "";
+
+      if (
+        attachment.role === "body_inline_audio" ||
+        attachment.role === "body_inline_image"
+      ) {
+        continue;
+      }
 
       if (!signedUrl) {
         failedToReloadCount += 1;
@@ -977,6 +1098,81 @@ export default function MailConsoleSendForm({
         : "Draft opened and saved files restored.",
     );
   }
+
+  function restoreStoredDraftInlineMediaItems(
+    items: StoredDraftInlineMediaItem[],
+  ) {
+    if (!Array.isArray(items) || items.length === 0) return;
+
+    const restored: BodyInlineMediaItem[] = [];
+
+    for (const item of items) {
+      const kind =
+        item.kind === "audio" || item.kind === "image" ? item.kind : null;
+
+      const signedUrl = item.signed_url || item.signedUrl || "";
+
+      if (!kind || !item.id || !signedUrl) {
+        continue;
+      }
+
+      const displayName =
+        item.display_name ||
+        item.displayName ||
+        (kind === "audio" ? "StayKnown Audio" : "StayKnown Image");
+
+      const size =
+        typeof item.size === "number" && Number.isFinite(item.size)
+          ? Math.max(32, Math.min(100, Math.round(item.size)))
+          : kind === "audio"
+            ? 76
+            : 88;
+
+      const placement: BodyMediaPlacement =
+        item.placement === "top" || item.placement === "bottom"
+          ? item.placement
+          : "custom";
+
+      const hint = typeof item.hint === "string" ? item.hint : "";
+
+      const hintColor = item.hint_color || item.hintColor || "#6b7280";
+
+      const hintFontStyle: BodyHintFontStyle =
+        item.hint_font_style === "italic" || item.hintFontStyle === "italic"
+          ? "italic"
+          : "normal";
+
+      const imageShape =
+        kind === "image"
+          ? item.image_shape || item.imageShape || "rectangle"
+          : undefined;
+
+      const restoredItem: BodyInlineMediaItem = {
+        id: item.id,
+        kind,
+        file: null,
+        previewUrl: signedUrl,
+        displayName,
+        size,
+        placement,
+        hint,
+        hintColor,
+        hintFontStyle,
+        imageShape,
+        mimeType:
+          item.mime_type ||
+          item.mimeType ||
+          (kind === "audio" ? "audio/mpeg" : "image/png"),
+        originalName: item.original_name || item.originalName || displayName,
+        storageBucket: item.storage_bucket || item.storageBucket || "",
+        storagePath: item.storage_path || item.storagePath || "",
+      };
+
+      restored.push(restoredItem);
+    }
+
+    setBodyInlineMediaItems(restored);
+  }
   useEffect(() => {
     let cancelled = false;
 
@@ -1025,6 +1221,13 @@ export default function MailConsoleSendForm({
         }
 
         applyOpenedCampaign(data);
+
+        restoreStoredDraftInlineMediaItems(
+          data.body_inline_media_items ||
+            ((data.campaign?.meta?.body_inline_media_items ||
+              []) as StoredDraftInlineMediaItem[]),
+        );
+
         await restoreStoredDraftAttachments(data.attachments || []);
       } catch (err) {
         if (cancelled) return;
@@ -1363,13 +1566,11 @@ export default function MailConsoleSendForm({
     setBodyAudioHint("");
     setBodyAudioHintColor("#6b7280");
     setBodyAudioHintFontStyle("normal");
-    setMessage((prev) =>
-      prev.replaceAll(BODY_AUDIO_TOKEN, "").replace(/\n{3,}/g, "\n\n"),
+
+    setStatus(
+      "Selected body audio removed. Inserted audio markers in the message were not deleted.",
     );
-
-    setStatus("Body audio removed.");
   }
-
   function pickBodyImageFile(file: File | null) {
     if (!file) return;
 
@@ -1401,11 +1602,10 @@ export default function MailConsoleSendForm({
     setBodyImageHint("");
     setBodyImageHintColor("#6b7280");
     setBodyImageHintFontStyle("normal");
-    setMessage((prev) =>
-      prev.replaceAll(BODY_IMAGE_TOKEN, "").replace(/\n{3,}/g, "\n\n"),
-    );
 
-    setStatus("Body image removed.");
+    setStatus(
+      "Selected body image removed. Inserted image markers in the message were not deleted.",
+    );
   }
   function moveBodyBlock(dragged: BodyBlockKind, target: BodyBlockKind) {
     if (dragged === target) return;
@@ -1421,9 +1621,7 @@ export default function MailConsoleSendForm({
     });
   }
 
-  function insertBodyTokenAtCursor(
-    token: typeof BODY_IMAGE_TOKEN | typeof BODY_AUDIO_TOKEN,
-  ) {
+  function insertBodyTokenAtCursor(token: string) {
     const textarea = messageTextareaRef.current;
     const current = message;
 
@@ -1446,15 +1644,83 @@ export default function MailConsoleSendForm({
     const next = `${before}${insert}${after}`;
 
     setMessage(next);
-    setStatus(
-      `${token} inserted. It will render there in preview and delivered email.`,
-    );
+    setStatus("Media inserted at the cursor position.");
 
     window.requestAnimationFrame(() => {
       const nextCursor = start + insert.length;
       textarea.focus();
       textarea.setSelectionRange(nextCursor, nextCursor);
     });
+  }
+
+  function insertCurrentBodyMedia(kind: "audio" | "image") {
+    if (kind === "audio") {
+      if (!bodyAudioPreviewUrl) {
+        setStatus("Choose an audio file first.");
+        return;
+      }
+
+      const id = makeId("body-audio");
+      const previewUrl = bodyAudioFile
+        ? URL.createObjectURL(bodyAudioFile)
+        : bodyAudioPreviewUrl;
+
+      const item: BodyInlineMediaItem = {
+        id,
+        kind: "audio",
+        file: bodyAudioFile,
+        previewUrl,
+        displayName: cleanDisplayFilename(
+          bodyAudioDisplayName,
+          "StayKnown Audio",
+        ),
+        size: bodyAudioSize,
+        placement: "custom",
+        hint: bodyAudioHint,
+        hintColor: bodyAudioHintColor,
+        hintFontStyle: bodyAudioHintFontStyle,
+        mimeType: bodyAudioFile?.type || "audio/mpeg",
+        originalName:
+          bodyAudioFile?.name || bodyAudioDisplayName || "StayKnown Audio",
+      };
+
+      setBodyInlineMediaItems((prev) => [...prev, item]);
+      insertBodyTokenAtCursor(bodyInlineToken("audio", id));
+      return;
+    }
+
+    if (!bodyImagePreviewUrl) {
+      setStatus("Choose an image file first.");
+      return;
+    }
+
+    const id = makeId("body-image");
+    const previewUrl = bodyImageFile
+      ? URL.createObjectURL(bodyImageFile)
+      : bodyImagePreviewUrl;
+
+    const item: BodyInlineMediaItem = {
+      id,
+      kind: "image",
+      file: bodyImageFile,
+      previewUrl,
+      displayName: cleanDisplayFilename(
+        bodyImageDisplayName,
+        "StayKnown Image",
+      ),
+      size: bodyImageSize,
+      placement: "custom",
+      hint: bodyImageHint,
+      hintColor: bodyImageHintColor,
+      hintFontStyle: bodyImageHintFontStyle,
+      imageShape: bodyImageShape,
+      mimeType: bodyImageFile?.type || "image/png",
+      originalName:
+        bodyImageFile?.name || bodyImageDisplayName || "StayKnown Image",
+    };
+
+    setBodyInlineMediaItems((prev) => [...prev, item]);
+    insertBodyTokenAtCursor(bodyInlineToken("image", id));
   }
 
   async function saveDraft() {
@@ -1542,7 +1808,20 @@ export default function MailConsoleSendForm({
       if (bodyImageFile) {
         form.append("body_image_file", bodyImageFile, bodyImageFile.name);
       }
+      form.append(
+        "body_inline_media_items",
+        JSON.stringify(bodyInlineMediaItems.map(bodyInlineFormPayload)),
+      );
 
+      for (const item of bodyInlineMediaItems) {
+        if (item.file) {
+          form.append(
+            `body_inline_media_file_${item.id}`,
+            item.file,
+            item.originalName,
+          );
+        }
+      }
       form.append("body_block_order", JSON.stringify(bodyPreviewOrder));
       form.append(
         "body_media_note",
@@ -1744,6 +2023,20 @@ export default function MailConsoleSendForm({
     form.append("body_image_hint", bodyImageHint);
     form.append("body_image_hint_color", bodyImageHintColor);
     form.append("body_image_hint_font_style", bodyImageHintFontStyle);
+    form.append(
+      "body_inline_media_items",
+      JSON.stringify(bodyInlineMediaItems.map(bodyInlineFormPayload)),
+    );
+
+    for (const item of bodyInlineMediaItems) {
+      if (item.file) {
+        form.append(
+          `body_inline_media_file_${item.id}`,
+          item.file,
+          item.originalName,
+        );
+      }
+    }
     form.append("body_block_order", JSON.stringify(bodyPreviewOrder));
 
     if (bodyAudioFile) {
@@ -2073,9 +2366,11 @@ export default function MailConsoleSendForm({
   const appStoreHref = appStoreEnabled ? publicHttpLink(appStoreUrl) : "";
   const hasAnyStoreBadge = Boolean(googlePlayHref || appStoreHref);
   const hasConfiguredStoreBadge = googlePlayEnabled || appStoreEnabled;
-  const messageHasBodyImageToken = message.includes(BODY_IMAGE_TOKEN);
-  const messageHasBodyAudioToken = message.includes(BODY_AUDIO_TOKEN);
+  const messageHasBodyImageToken =
+    message.includes(BODY_IMAGE_TOKEN) || /\{\{image:[^}]+\}\}/.test(message);
 
+  const messageHasBodyAudioToken =
+    message.includes(BODY_AUDIO_TOKEN) || /\{\{audio:[^}]+\}\}/.test(message);
   const enabledBodyBlocks = new Set<BodyBlockKind>(["message"]);
 
   if (bodyAudioFile || bodyAudioPreviewUrl) enabledBodyBlocks.add("audio");
@@ -2313,11 +2608,133 @@ export default function MailConsoleSendForm({
       </div>
     );
   }
+
+  function renderInsertedBodyMediaItem(
+    item: BodyInlineMediaItem,
+    readOnly = false,
+  ) {
+    if (item.kind === "audio") {
+      return (
+        <div style={embeddedMediaSlotStyle}>
+          <a
+            href={item.previewUrl || "#"}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              ...previewAudioPlayerShellStyle,
+              width: `${item.size}%`,
+            }}
+          >
+            <span style={previewAudioPlayButtonStyle}>▶</span>
+
+            <span style={previewAudioContentStyle}>
+              <span style={previewAudioTitleStyle}>
+                {cleanDisplayFilename(item.displayName, "StayKnown Audio")}
+              </span>
+
+              <span style={previewAudioProgressTrackStyle}>
+                <span style={previewAudioProgressFillStyle} />
+              </span>
+
+              <span style={previewAudioMetaStyle}>Audio message</span>
+            </span>
+
+            <span style={previewAudioListenTextStyle}>Tap to listen</span>
+          </a>
+
+          {item.hint ? (
+            <div
+              style={{
+                ...previewMediaHintStyle,
+                width: `${item.size}%`,
+                color: item.hintColor,
+                fontStyle: item.hintFontStyle,
+              }}
+            >
+              {item.hint}
+            </div>
+          ) : null}
+        </div>
+      );
+    }
+
+    const shape = item.imageShape || "rectangle";
+    const frameStyle = getPreviewBodyImageFrameStyle(shape, item.size);
+
+    const imageNode = (
+      <img
+        src={item.previewUrl}
+        alt={cleanDisplayFilename(item.displayName, "StayKnown Image")}
+        style={getPreviewBodyImageStyle(shape)}
+      />
+    );
+
+    return (
+      <div style={embeddedMediaSlotStyle}>
+        {readOnly ? (
+          <a
+            href={item.previewUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              ...frameStyle,
+              display: "block",
+              textDecoration: "none",
+            }}
+          >
+            {imageNode}
+          </a>
+        ) : (
+          <div style={frameStyle}>{imageNode}</div>
+        )}
+
+        {item.hint ? (
+          <div
+            style={{
+              ...previewMediaHintStyle,
+              width: `${item.size}%`,
+              color: item.hintColor,
+              fontStyle: item.hintFontStyle,
+            }}
+          >
+            {item.hint}
+          </div>
+        ) : null}
+      </div>
+    );
+  }
+
   function renderMessageTextWithInlineMedia(readOnly = false) {
     const content = message || "Your email body preview will appear here.";
-    const parts = content.split(/(\{\{image\}\}|\{\{audio\}\})/g);
+    const parts = content.split(
+      /(\{\{image:[^}]+\}\}|\{\{audio:[^}]+\}\}|\{\{image\}\}|\{\{audio\}\})/g,
+    );
 
     return parts.map((part, index) => {
+      const parsedToken = parseBodyInlineToken(part);
+
+      if (parsedToken) {
+        const item = bodyInlineMediaItems.find(
+          (mediaItem) =>
+            mediaItem.id === parsedToken.id &&
+            mediaItem.kind === parsedToken.kind,
+        );
+
+        if (!item) {
+          return (
+            <span key={`missing-media-${index}`} style={{ color: "#b91c1c" }}>
+              {part}
+            </span>
+          );
+        }
+
+        return (
+          <div key={`message-media-${parsedToken.kind}-${parsedToken.id}`}>
+            {renderInsertedBodyMediaItem(item, readOnly)}
+          </div>
+        );
+      }
+
       if (part === BODY_IMAGE_TOKEN) {
         return (
           <div key={`message-image-${index}`}>
@@ -2949,12 +3366,12 @@ ${BODY_AUDIO_TOKEN} for body audio`}
               <div style={tokenButtonRowStyle}>
                 <button
                   type="button"
-                  onClick={() => insertBodyTokenAtCursor(BODY_IMAGE_TOKEN)}
-                  disabled={!bodyImageFile}
+                  onClick={() => insertCurrentBodyMedia("image")}
+                  disabled={!bodyImagePreviewUrl}
                   style={{
                     ...tinyUtilityButtonStyle,
-                    opacity: bodyImageFile ? 1 : 0.5,
-                    cursor: bodyImageFile ? "pointer" : "not-allowed",
+                    opacity: bodyImagePreviewUrl ? 1 : 0.5,
+                    cursor: bodyImagePreviewUrl ? "pointer" : "not-allowed",
                   }}
                 >
                   Insert image here
@@ -2962,12 +3379,12 @@ ${BODY_AUDIO_TOKEN} for body audio`}
 
                 <button
                   type="button"
-                  onClick={() => insertBodyTokenAtCursor(BODY_AUDIO_TOKEN)}
-                  disabled={!bodyAudioFile}
+                  onClick={() => insertCurrentBodyMedia("audio")}
+                  disabled={!bodyAudioPreviewUrl}
                   style={{
                     ...tinyUtilityButtonStyle,
-                    opacity: bodyAudioFile ? 1 : 0.5,
-                    cursor: bodyAudioFile ? "pointer" : "not-allowed",
+                    opacity: bodyAudioPreviewUrl ? 1 : 0.5,
+                    cursor: bodyAudioPreviewUrl ? "pointer" : "not-allowed",
                   }}
                 >
                   Insert audio here
@@ -3187,12 +3604,12 @@ ${BODY_AUDIO_TOKEN} for body audio`}
                 <div style={tokenButtonRowStyle}>
                   <button
                     type="button"
-                    onClick={() => insertBodyTokenAtCursor(BODY_AUDIO_TOKEN)}
-                    disabled={!bodyAudioFile}
+                    onClick={() => insertCurrentBodyMedia("audio")}
+                    disabled={!bodyAudioPreviewUrl}
                     style={{
                       ...tinyUtilityButtonStyle,
-                      opacity: bodyAudioFile ? 1 : 0.5,
-                      cursor: bodyAudioFile ? "pointer" : "not-allowed",
+                      opacity: bodyAudioPreviewUrl ? 1 : 0.5,
+                      cursor: bodyAudioPreviewUrl ? "pointer" : "not-allowed",
                     }}
                   >
                     Insert audio in message
@@ -3331,12 +3748,12 @@ ${BODY_AUDIO_TOKEN} for body audio`}
                 <div style={tokenButtonRowStyle}>
                   <button
                     type="button"
-                    onClick={() => insertBodyTokenAtCursor(BODY_IMAGE_TOKEN)}
-                    disabled={!bodyImageFile}
+                    onClick={() => insertCurrentBodyMedia("image")}
+                    disabled={!bodyImagePreviewUrl}
                     style={{
                       ...tinyUtilityButtonStyle,
-                      opacity: bodyImageFile ? 1 : 0.5,
-                      cursor: bodyImageFile ? "pointer" : "not-allowed",
+                      opacity: bodyImagePreviewUrl ? 1 : 0.5,
+                      cursor: bodyImagePreviewUrl ? "pointer" : "not-allowed",
                     }}
                   >
                     Insert image in message

@@ -18,6 +18,26 @@ type BodyImageShape = "banner" | "pill" | "rectangle" | "square" | "circle";
 type BodyBlockKind = "audio" | "image" | "message";
 type BodyHintFontStyle = "normal" | "italic";
 type StoreBadgePlacement = "top" | "bottom";
+
+type BodyInlineMediaKind = "audio" | "image";
+
+type BodyInlineMediaItem = {
+  id: string;
+  kind: BodyInlineMediaKind;
+  displayName: string;
+  size: number;
+  placement: BodyMediaPlacement;
+  hint: string;
+  hintColor: string;
+  hintFontStyle: BodyHintFontStyle;
+  imageShape: BodyImageShape;
+  mimeType: string;
+  originalName: string;
+  fileField: string;
+  storageBucket: string;
+  storagePath: string;
+};
+
 type SenderRow = {
   id: string;
   label: string;
@@ -360,6 +380,66 @@ function parseStringArray(raw: string) {
     }
 
     return parsed.map((x) => clean(x)).filter(Boolean);
+  } catch (_) {
+    return [];
+  }
+}
+
+function parseBodyInlineMediaItems(raw: string): BodyInlineMediaItem[] {
+  try {
+    const parsed = JSON.parse(raw || "[]");
+
+    if (!Array.isArray(parsed)) return [];
+
+    const items: BodyInlineMediaItem[] = [];
+
+    for (const item of parsed) {
+      if (!item || typeof item !== "object") continue;
+
+      const row = item as Record<string, unknown>;
+      const id = clean(row.id);
+      const kindRaw = clean(row.kind).toLowerCase();
+
+      if (!id) continue;
+      if (kindRaw !== "audio" && kindRaw !== "image") continue;
+
+      const kind = kindRaw as BodyInlineMediaKind;
+
+      items.push({
+        id,
+        kind,
+        displayName:
+          clean(row.display_name) ||
+          clean(row.displayName) ||
+          (kind === "audio" ? "StayKnown Audio" : "StayKnown Image"),
+        size: safeNumber(row.size, kind === "audio" ? 76 : 88, 32, 100),
+        placement: safeBodyMediaPlacement(row.placement),
+        hint: clean(row.hint).slice(0, 160),
+        hintColor: safeHexColor(row.hint_color || row.hintColor),
+        hintFontStyle: safeBodyHintFontStyle(
+          row.hint_font_style || row.hintFontStyle,
+        ),
+        imageShape:
+          kind === "image"
+            ? safeBodyImageShape(row.image_shape || row.imageShape)
+            : "rectangle",
+        mimeType:
+          clean(row.mime_type || row.mimeType) ||
+          (kind === "audio" ? "audio/mpeg" : "image/png"),
+        originalName:
+          clean(row.original_name || row.originalName) ||
+          (kind === "audio" ? "StayKnown Audio" : "StayKnown Image"),
+        fileField:
+          clean(row.file_field || row.fileField) ||
+          `body_inline_media_file_${id}`,
+        storageBucket:
+          clean(row.storage_bucket || row.storageBucket) ||
+          "mail-console-attachments",
+        storagePath: clean(row.storage_path || row.storagePath),
+      });
+    }
+
+    return items;
   } catch (_) {
     return [];
   }
@@ -1150,14 +1230,15 @@ function renderMessageHtmlWithInlineMedia(params: {
   message: string;
   bodyAudioHtml: string;
   bodyImageHtml: string;
+  bodyInlineMediaHtmlByToken: Record<string, string>;
 }) {
   const source = params.message || "";
 
-  if (!source.trim()) {
-    return "";
-  }
+  if (!source.trim()) return "";
 
-  const parts = source.split(/(\{\{image\}\}|\{\{audio\}\})/g);
+  const parts = source.split(
+    /(\{\{image:[^}]+\}\}|\{\{audio:[^}]+\}\}|\{\{image\}\}|\{\{audio\}\})/g,
+  );
 
   return parts
     .map((part) => {
@@ -1167,6 +1248,10 @@ function renderMessageHtmlWithInlineMedia(params: {
 
       if (part === BODY_AUDIO_TOKEN) {
         return params.bodyAudioHtml || "";
+      }
+
+      if (params.bodyInlineMediaHtmlByToken[part]) {
+        return params.bodyInlineMediaHtmlByToken[part];
       }
 
       return textToHtml(part);
@@ -1212,6 +1297,7 @@ function buildHtml(p: {
   bodyBlockOrder: BodyBlockKind[];
   bodyAudioPlacement: BodyMediaPlacement;
   bodyImagePlacement: BodyMediaPlacement;
+  bodyInlineMediaHtmlByToken: Record<string, string>;
 }) {
   const topBannerContentId = p.bannerTopContentId || p.bannerBottomContentId;
   const bottomBannerContentId = p.bannerBottomContentId || p.bannerTopContentId;
@@ -1275,13 +1361,19 @@ function buildHtml(p: {
       })
     : "";
   const audioAlreadyInsideMessage =
-    Boolean(p.bodyAudioUrl) && p.message.includes(BODY_AUDIO_TOKEN);
+    Boolean(p.bodyAudioUrl) &&
+    (p.message.includes(BODY_AUDIO_TOKEN) ||
+      /\{\{audio:[^}]+\}\}/.test(p.message));
+
   const imageAlreadyInsideMessage =
-    Boolean(p.bodyImageUrl) && p.message.includes(BODY_IMAGE_TOKEN);
+    Boolean(p.bodyImageUrl) &&
+    (p.message.includes(BODY_IMAGE_TOKEN) ||
+      /\{\{image:[^}]+\}\}/.test(p.message));
   const messageHtml = renderMessageHtmlWithInlineMedia({
     message: p.message,
     bodyAudioHtml: tokenBodyAudioHtml,
     bodyImageHtml: tokenBodyImageHtml,
+    bodyInlineMediaHtmlByToken: p.bodyInlineMediaHtmlByToken,
   });
 
   const resolvedBodyOrder = resolveBodyBlockOrder({
@@ -1604,7 +1696,9 @@ export async function POST(req: NextRequest) {
     const bodyBlockOrder = parseBodyBlockOrder(
       clean(form.get("body_block_order")),
     );
-
+    const bodyInlineMediaItems = parseBodyInlineMediaItems(
+      clean(form.get("body_inline_media_items")),
+    );
     const ctaLabel = clean(form.get("cta_label"));
     const ctaUrl = clean(form.get("cta_url"));
 
@@ -1953,8 +2047,28 @@ export async function POST(req: NextRequest) {
           body_image_hint_color: bodyImageHintColor,
           body_image_hint_font_style: bodyImageHintFontStyle,
           body_block_order: bodyBlockOrder,
-          message_has_body_audio_token: message.includes(BODY_AUDIO_TOKEN),
-          message_has_body_image_token: message.includes(BODY_IMAGE_TOKEN),
+          body_inline_media_items: bodyInlineMediaItems.map((item) => ({
+            id: item.id,
+            kind: item.kind,
+            display_name: item.displayName,
+            size: item.size,
+            placement: item.placement,
+            hint: item.hint || null,
+            hint_color: item.hintColor,
+            hint_font_style: item.hintFontStyle,
+            image_shape: item.kind === "image" ? item.imageShape : null,
+            mime_type: item.mimeType,
+            original_name: item.originalName,
+            storage_bucket: item.storageBucket || null,
+            storage_path: item.storagePath || null,
+          })),
+
+          message_has_body_audio_token:
+            message.includes(BODY_AUDIO_TOKEN) ||
+            /\{\{audio:[^}]+\}\}/.test(message),
+          message_has_body_image_token:
+            message.includes(BODY_IMAGE_TOKEN) ||
+            /\{\{image:[^}]+\}\}/.test(message),
           file_modes: normalizedFileModes,
           file_display_names: fileDisplayNames,
         },
@@ -1977,6 +2091,8 @@ export async function POST(req: NextRequest) {
     let bannerBottomContentId = "";
     let bodyImageUrl = "";
     let bodyAudioUrl = "";
+    const bodyInlineMediaHtmlByToken: Record<string, string> = {};
+    const bodyInlineMediaMeta: Array<Record<string, unknown>> = [];
 
     if (bannerTopFile) {
       const buffer = Buffer.from(await bannerTopFile.arrayBuffer());
@@ -2117,6 +2233,140 @@ export async function POST(req: NextRequest) {
         storage_path: storagePath,
         attachment_mode: "link_only",
         created_by: null,
+      });
+    }
+
+    for (const item of bodyInlineMediaItems) {
+      const fileRaw = form.get(item.fileField);
+      const file = fileRaw instanceof File && fileRaw.size > 0 ? fileRaw : null;
+
+      let signedUrl = "";
+      let storagePath = item.storagePath;
+      let mime = item.mimeType;
+
+      if (file) {
+        if (item.kind === "image" && !file.type.startsWith("image/")) {
+          return NextResponse.json(
+            { ok: false, error: "Inserted body image must be an image file." },
+            { status: 400 },
+          );
+        }
+
+        if (item.kind === "audio" && !file.type.startsWith("audio/")) {
+          return NextResponse.json(
+            { ok: false, error: "Inserted body audio must be an audio file." },
+            { status: 400 },
+          );
+        }
+
+        if (item.kind === "image" && file.size > 8 * 1024 * 1024) {
+          return NextResponse.json(
+            { ok: false, error: `${item.displayName} must be under 8MB.` },
+            { status: 400 },
+          );
+        }
+
+        if (item.kind === "audio" && file.size > 20 * 1024 * 1024) {
+          return NextResponse.json(
+            { ok: false, error: `${item.displayName} must be under 20MB.` },
+            { status: 400 },
+          );
+        }
+
+        mime = file.type || item.mimeType;
+
+        const filename = cleanDisplayFilename(
+          item.displayName,
+          item.kind === "audio" ? "StayKnown Audio" : "StayKnown Image",
+          file.name,
+          mime,
+        );
+
+        const buffer = Buffer.from(await file.arrayBuffer());
+
+        storagePath = `${campaignId}/body-inline-${item.kind}-${item.id}-${randomUUID()}-${cleanFilename(
+          filename,
+        )}`;
+
+        const { error: uploadError } = await admin.storage
+          .from("mail-console-attachments")
+          .upload(storagePath, buffer, {
+            contentType: mime,
+            upsert: false,
+          });
+
+        if (uploadError) {
+          throw new Error(
+            `Inserted body ${item.kind} upload failed for ${filename}: ${uploadError.message}`,
+          );
+        }
+
+        await admin.from("mail_console_attachments").insert({
+          campaign_id: campaignId,
+          file_name: filename,
+          mime_type: mime,
+          size_bytes: file.size,
+          storage_bucket: "mail-console-attachments",
+          storage_path: storagePath,
+          attachment_mode: item.kind === "audio" ? "link_only" : "inline_image",
+          created_by: null,
+        });
+      }
+
+      if (storagePath) {
+        const { data: signed, error: signedError } = await admin.storage
+          .from(item.storageBucket || "mail-console-attachments")
+          .createSignedUrl(storagePath, SENT_VIEW_SIGNED_URL_SECONDS);
+
+        if (signedError || !signed?.signedUrl) {
+          throw new Error(
+            `Inserted body ${item.kind} signed URL failed: ${
+              signedError?.message || "unknown error"
+            }`,
+          );
+        }
+
+        signedUrl = signed.signedUrl;
+      }
+
+      if (!signedUrl) continue;
+
+      const token = `{{${item.kind}:${item.id}}}`;
+
+      bodyInlineMediaHtmlByToken[token] =
+        item.kind === "audio"
+          ? bodyAudioPillBlock({
+              url: signedUrl,
+              displayName: item.displayName,
+              size: item.size,
+              hint: item.hint,
+              hintColor: item.hintColor,
+              hintFontStyle: item.hintFontStyle,
+            })
+          : bodyImageBlock({
+              url: signedUrl,
+              alt: item.displayName,
+              size: item.size,
+              shape: item.imageShape,
+              hint: item.hint,
+              hintColor: item.hintColor,
+              hintFontStyle: item.hintFontStyle,
+            });
+
+      bodyInlineMediaMeta.push({
+        id: item.id,
+        kind: item.kind,
+        display_name: item.displayName,
+        size: item.size,
+        placement: item.placement,
+        hint: item.hint || null,
+        hint_color: item.hintColor,
+        hint_font_style: item.hintFontStyle,
+        image_shape: item.kind === "image" ? item.imageShape : null,
+        mime_type: mime,
+        original_name: item.originalName,
+        storage_bucket: item.storageBucket || "mail-console-attachments",
+        storage_path: storagePath,
       });
     }
 
@@ -2278,6 +2528,7 @@ export async function POST(req: NextRequest) {
       bodyBlockOrder,
       bodyAudioPlacement,
       bodyImagePlacement,
+      bodyInlineMediaHtmlByToken,
     });
 
     const sentPreviewHtml = html.replace("<!--SK_UNSUBSCRIBE-->", "");
@@ -2569,11 +2820,21 @@ export async function POST(req: NextRequest) {
           body_image_hint_color: bodyImageHintColor,
           body_image_hint_font_style: bodyImageHintFontStyle,
           body_block_order: bodyBlockOrder,
+
+          body_inline_media_items: bodyInlineMediaMeta,
+          body_inline_media_count: bodyInlineMediaMeta.length,
+
           policy_links: selectedPolicyLinks,
           file_modes: normalizedFileModes,
           file_display_names: fileDisplayNames,
-          message_has_body_audio_token: message.includes(BODY_AUDIO_TOKEN),
-          message_has_body_image_token: message.includes(BODY_IMAGE_TOKEN),
+
+          message_has_body_audio_token:
+            message.includes(BODY_AUDIO_TOKEN) ||
+            /\{\{audio:[^}]+\}\}/.test(message),
+          message_has_body_image_token:
+            message.includes(BODY_IMAGE_TOKEN) ||
+            /\{\{image:[^}]+\}\}/.test(message),
+
           summary,
         },
       })
