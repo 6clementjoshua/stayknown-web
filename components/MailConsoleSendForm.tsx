@@ -200,6 +200,56 @@ type PickedFile = {
   displayName: string;
 };
 
+type CampaignMeta = Record<string, unknown>;
+
+type OpenCampaignRow = {
+  id: string;
+  created_at: string | null;
+  sent_at: string | null;
+  mode: string | null;
+  sender_identity_id: string | null;
+  footer_policy_id: string | null;
+  draft_label: string | null;
+  title: string | null;
+  subject: string | null;
+  body_html: string | null;
+  body_text: string | null;
+  image_url: string | null;
+  image_position: string | null;
+  cta_label: string | null;
+  cta_url: string | null;
+  footer_html: string | null;
+  footer_text: string | null;
+  reply_mode: string | null;
+  status: string | null;
+  meta: CampaignMeta | null;
+};
+
+type StoredDraftAttachment = {
+  id: string;
+  role: "banner_top" | "banner_bottom" | "body_audio" | "body_image" | "file";
+  file_name: string;
+  display_name: string;
+  mime_type: string;
+  size_bytes: number;
+  storage_bucket: string;
+  storage_path: string;
+  attachment_mode: AttachmentMode;
+  signed_url?: string;
+};
+
+type OpenCampaignResponse = {
+  ok?: boolean;
+  error?: string;
+  id?: string;
+  status?: string;
+  open_mode?: "editable" | "readonly";
+  editable?: boolean;
+  readonly?: boolean;
+  campaign?: OpenCampaignRow;
+  attachments?: StoredDraftAttachment[];
+};
+
 type Props = {
   adminEmail: string;
   senders: SenderIdentity[];
@@ -416,6 +466,135 @@ function defaultAttachmentDisplayName(file: File, index: number) {
   return `StayKnown File ${serial}`;
 }
 
+function stringFromMeta(meta: CampaignMeta | null | undefined, key: string) {
+  const value = meta?.[key];
+
+  return typeof value === "string" ? value : "";
+}
+
+function numberFromMeta(
+  meta: CampaignMeta | null | undefined,
+  key: string,
+  fallback: number,
+) {
+  const value = meta?.[key];
+  const n = typeof value === "number" ? value : Number(value);
+
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function booleanFromMeta(
+  meta: CampaignMeta | null | undefined,
+  key: string,
+  fallback = false,
+) {
+  const value = meta?.[key];
+
+  if (typeof value === "boolean") return value;
+  if (typeof value !== "string") return fallback;
+
+  const normalized = value.trim().toLowerCase();
+
+  return (
+    normalized === "true" ||
+    normalized === "1" ||
+    normalized === "yes" ||
+    normalized === "on"
+  );
+}
+
+function stringArrayFromMeta(
+  meta: CampaignMeta | null | undefined,
+  key: string,
+) {
+  const value = meta?.[key];
+
+  if (!Array.isArray(value)) return [];
+
+  return value.filter((item): item is string => typeof item === "string");
+}
+
+function safeMailModeValue(value: unknown): MailMode {
+  const normalized = typeof value === "string" ? value.toLowerCase() : "";
+
+  if (normalized === "newsletter") return "newsletter";
+  if (normalized === "advert") return "advert";
+  if (normalized === "investor") return "investor";
+
+  return "support";
+}
+
+function safeImagePositionValue(value: unknown): ImagePosition {
+  const normalized = typeof value === "string" ? value.toLowerCase() : "";
+
+  if (
+    normalized === "top" ||
+    normalized === "bottom" ||
+    normalized === "both" ||
+    normalized === "none"
+  ) {
+    return normalized;
+  }
+
+  return "none";
+}
+
+function safeBodyPlacementValue(value: unknown): BodyMediaPlacement {
+  const normalized = typeof value === "string" ? value.toLowerCase() : "";
+
+  if (normalized === "top" || normalized === "bottom") {
+    return normalized;
+  }
+
+  return "custom";
+}
+
+function safeBodyImageShapeValue(value: unknown): BodyImageShape {
+  const normalized = typeof value === "string" ? value.toLowerCase() : "";
+
+  if (normalized === "banner") return "banner";
+  if (normalized === "pill") return "pill";
+  if (normalized === "square") return "square";
+  if (normalized === "circle") return "circle";
+
+  return "rectangle";
+}
+
+function safeHintFontStyleValue(value: unknown): BodyHintFontStyle {
+  return value === "italic" ? "italic" : "normal";
+}
+
+function safeStoreBadgePlacementValue(value: unknown): StoreBadgePlacement {
+  return value === "top" ? "top" : "bottom";
+}
+
+function safePolicyLinksValue(value: string[]) {
+  const allowed = new Set(POLICY_LINK_OPTIONS.map((item) => item.key));
+
+  return value.filter((item): item is PolicyLinkKey =>
+    allowed.has(item as PolicyLinkKey),
+  );
+}
+
+function safeBodyBlockOrderValue(value: string[]) {
+  const fallback: BodyBlockKind[] = ["audio", "message", "image"];
+  const allowed = new Set(["audio", "message", "image"]);
+
+  const cleaned = value.filter((item): item is BodyBlockKind =>
+    allowed.has(item),
+  );
+
+  const unique = [...new Set(cleaned)];
+
+  for (const item of fallback) {
+    if (!unique.includes(item)) {
+      unique.push(item);
+    }
+  }
+
+  return unique;
+}
+
 export default function MailConsoleSendForm({
   adminEmail,
   senders,
@@ -427,6 +606,13 @@ export default function MailConsoleSendForm({
 
   const [templateId, setTemplateId] = useState("");
   const [savingDraft, setSavingDraft] = useState(false);
+
+  const [openedCampaignId, setOpenedCampaignId] = useState("");
+  const [openedCampaignStatus, setOpenedCampaignStatus] = useState("");
+  const [openedCampaignMode, setOpenedCampaignMode] = useState<
+    "new" | "editable" | "readonly"
+  >("new");
+  const [openingCampaign, setOpeningCampaign] = useState(false);
 
   const [mode, setMode] = useState<MailMode>("support");
   const [senderId, setSenderId] = useState("");
@@ -551,6 +737,281 @@ export default function MailConsoleSendForm({
     };
   }, []);
 
+  function applyOpenedCampaign(payload: OpenCampaignResponse) {
+    const campaign = payload.campaign;
+
+    if (!payload.ok || !campaign) {
+      setStatus(payload.error || "Could not open draft or campaign.");
+      return;
+    }
+
+    const meta = campaign.meta || {};
+    const nextMode = safeMailModeValue(campaign.mode);
+    const nextOpenMode = payload.readonly ? "readonly" : "editable";
+
+    setOpenedCampaignId(campaign.id);
+    setOpenedCampaignStatus(campaign.status || "");
+    setOpenedCampaignMode(nextOpenMode);
+
+    setTemplateId("");
+    setMode(nextMode);
+    setSenderId(campaign.sender_identity_id || "");
+    setFooterPolicyId(campaign.footer_policy_id || "");
+    setSubject(campaign.subject || "");
+    setTitle(campaign.title || campaign.draft_label || campaign.subject || "");
+    setSubtitle(stringFromMeta(meta, "subtitle"));
+    setBadge(stringFromMeta(meta, "badge") || defaultBadgeForMode(nextMode));
+    setMessage(campaign.body_text || "");
+
+    setImagePosition(
+      safeImagePositionValue(
+        stringFromMeta(meta, "banner_position") || campaign.image_position,
+      ),
+    );
+    setBannerHeight(numberFromMeta(meta, "banner_height", 96));
+
+    setBodyAudioDisplayName(
+      stringFromMeta(meta, "body_audio_display_name") || "StayKnown Audio",
+    );
+    setBodyAudioPlacement(
+      safeBodyPlacementValue(stringFromMeta(meta, "body_audio_placement")),
+    );
+    setBodyAudioSize(numberFromMeta(meta, "body_audio_size", 76));
+    setBodyAudioHint(stringFromMeta(meta, "body_audio_hint"));
+    setBodyAudioHintColor(
+      stringFromMeta(meta, "body_audio_hint_color") || "#6b7280",
+    );
+    setBodyAudioHintFontStyle(
+      safeHintFontStyleValue(
+        stringFromMeta(meta, "body_audio_hint_font_style"),
+      ),
+    );
+
+    setBodyImageDisplayName(
+      stringFromMeta(meta, "body_image_display_name") || "StayKnown Image",
+    );
+    setBodyImagePlacement(
+      safeBodyPlacementValue(stringFromMeta(meta, "body_image_placement")),
+    );
+    setBodyImageShape(
+      safeBodyImageShapeValue(stringFromMeta(meta, "body_image_shape")),
+    );
+    setBodyImageSize(numberFromMeta(meta, "body_image_size", 88));
+    setBodyImageHint(stringFromMeta(meta, "body_image_hint"));
+    setBodyImageHintColor(
+      stringFromMeta(meta, "body_image_hint_color") || "#6b7280",
+    );
+    setBodyImageHintFontStyle(
+      safeHintFontStyleValue(
+        stringFromMeta(meta, "body_image_hint_font_style"),
+      ),
+    );
+
+    setBodyBlockOrder(
+      safeBodyBlockOrderValue(stringArrayFromMeta(meta, "body_block_order")),
+    );
+
+    setCtaLabel(campaign.cta_label || "");
+    setCtaUrl(campaign.cta_url || "");
+
+    setStoreBadgePlacement(
+      safeStoreBadgePlacementValue(
+        stringFromMeta(meta, "store_badge_placement"),
+      ),
+    );
+    setGooglePlayEnabled(booleanFromMeta(meta, "google_play_enabled"));
+    setGooglePlayUrl(stringFromMeta(meta, "google_play_url"));
+    setAppStoreEnabled(booleanFromMeta(meta, "app_store_enabled"));
+    setAppStoreUrl(stringFromMeta(meta, "app_store_url"));
+
+    setCustomFooter(campaign.footer_html || "");
+
+    const nextPolicyLinks = safePolicyLinksValue(
+      stringArrayFromMeta(meta, "policy_links"),
+    );
+
+    setSelectedPolicyLinks(
+      nextPolicyLinks.length > 0 ? nextPolicyLinks : ["privacy", "terms"],
+    );
+
+    const restoredRecipients = stringArrayFromMeta(meta, "recipient_emails")
+      .map((email) => email.trim().toLowerCase())
+      .filter(Boolean)
+      .map((email) => ({
+        id: makeId("recipient"),
+        email,
+        status: "ready" as RecipientStatus,
+      }));
+
+    setRecipients(restoredRecipients);
+    setRecipientInput("");
+    setRecipientIssues([]);
+
+    setBannerTopFile(null);
+    setBannerBottomFile(null);
+    setBannerTopPreviewUrl("");
+    setBannerBottomPreviewUrl("");
+    setBodyAudioFile(null);
+    setBodyAudioPreviewUrl("");
+    setBodyImageFile(null);
+    setBodyImagePreviewUrl("");
+    setFiles([]);
+
+    if (nextOpenMode === "readonly") {
+      setReadOnlyPreviewEmail("");
+      setReadOnlyPreviewOpen(true);
+      setStatus(
+        "This sent campaign was opened in read-only mode. You can view it, but you cannot save or send it again from this view.",
+      );
+    } else {
+      setReadOnlyPreviewOpen(false);
+      setStatus(
+        "Draft opened. Re-select any device files if this draft used banner, body audio, body image, or attachments, then continue sending.",
+      );
+    }
+  }
+
+  async function restoreStoredDraftAttachments(
+    attachments: StoredDraftAttachment[],
+  ) {
+    if (!attachments || attachments.length === 0) return;
+
+    setStatus("Restoring saved draft files...");
+
+    const restoredFiles: PickedFile[] = [];
+
+    for (const attachment of attachments) {
+      if (!attachment.signed_url) continue;
+
+      try {
+        const res = await fetch(attachment.signed_url);
+
+        if (!res.ok) continue;
+
+        const blob = await res.blob();
+        const file = new File([blob], attachment.file_name, {
+          type: attachment.mime_type || blob.type || "application/octet-stream",
+        });
+
+        if (attachment.role === "banner_top") {
+          setBannerTopFile(file);
+          setBannerTopPreviewUrl(attachment.signed_url);
+
+          if (imagePosition === "none") {
+            setImagePosition("top");
+          }
+
+          continue;
+        }
+
+        if (attachment.role === "banner_bottom") {
+          setBannerBottomFile(file);
+          setBannerBottomPreviewUrl(attachment.signed_url);
+
+          if (imagePosition === "none") {
+            setImagePosition("bottom");
+          }
+
+          continue;
+        }
+
+        if (attachment.role === "body_audio") {
+          setBodyAudioFile(file);
+          setBodyAudioPreviewUrl(attachment.signed_url);
+          setBodyAudioDisplayName(attachment.display_name || "StayKnown Audio");
+          continue;
+        }
+
+        if (attachment.role === "body_image") {
+          setBodyImageFile(file);
+          setBodyImagePreviewUrl(attachment.signed_url);
+          setBodyImageDisplayName(attachment.display_name || "StayKnown Image");
+          continue;
+        }
+
+        restoredFiles.push({
+          id: makeId("restored-file"),
+          file,
+          mode:
+            attachment.attachment_mode === "inline_image" ||
+            attachment.attachment_mode === "link_only"
+              ? attachment.attachment_mode
+              : "attach",
+          displayName: attachment.display_name || attachment.file_name,
+        });
+      } catch (_) {
+        // Keep opening the draft even if one stored file fails to restore.
+      }
+    }
+
+    if (restoredFiles.length > 0) {
+      setFiles(restoredFiles);
+    }
+
+    setStatus("Draft opened and saved files restored.");
+  }
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function openCampaignFromUrl() {
+      if (typeof window === "undefined") return;
+
+      const params = new URLSearchParams(window.location.search);
+      const draftId = params.get("draft_id") || "";
+      const campaignId = params.get("campaign_id") || "";
+      const openId = draftId || campaignId;
+
+      if (!openId) return;
+
+      setOpeningCampaign(true);
+      setStatus(
+        draftId ? "Opening saved draft..." : "Opening sent campaign...",
+      );
+
+      try {
+        const res = await fetch(
+          `/api/mail-console/save-draft?id=${encodeURIComponent(openId)}`,
+        );
+
+        const data = (await res
+          .json()
+          .catch(() => ({}))) as OpenCampaignResponse;
+
+        if (cancelled) return;
+
+        if (!res.ok || !data.ok) {
+          setStatus(data.error || "Could not open draft or campaign.");
+          return;
+        }
+
+        applyOpenedCampaign(data);
+
+        if (!data.readonly) {
+          await restoreStoredDraftAttachments(data.attachments || []);
+        }
+      } catch (err) {
+        if (cancelled) return;
+
+        setStatus(
+          err instanceof Error
+            ? err.message
+            : "Could not open draft or campaign.",
+        );
+      } finally {
+        if (!cancelled) {
+          setOpeningCampaign(false);
+        }
+      }
+    }
+
+    openCampaignFromUrl();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   useEffect(() => {
     if (!activeSendEmail) return;
 
@@ -648,7 +1109,17 @@ export default function MailConsoleSendForm({
   const stopSendButtonLabel =
     sendSummary.total <= 1 ? "Stop send" : "Stop & save remaining as draft";
 
+  const isReadOnlyCampaign = openedCampaignMode === "readonly";
+  const isOpenedDraft = openedCampaignMode === "editable";
+  const composerActionDisabled =
+    sending || openingCampaign || isReadOnlyCampaign;
+
   function changeMode(nextMode: MailMode) {
+    if (isReadOnlyCampaign) {
+      setStatus("This sent campaign is read-only.");
+      return;
+    }
+
     setMode(nextMode);
     setSenderId("");
     setFooterPolicyId("");
@@ -659,6 +1130,11 @@ export default function MailConsoleSendForm({
   }
 
   function applyTemplate(nextTemplateId: string) {
+    if (isReadOnlyCampaign) {
+      setStatus("This sent campaign is read-only.");
+      return;
+    }
+
     setTemplateId(nextTemplateId);
 
     const template = templates.find((t) => t.id === nextTemplateId);
@@ -924,60 +1400,144 @@ export default function MailConsoleSendForm({
   }
 
   async function saveDraft() {
+    if (isReadOnlyCampaign) {
+      setStatus(
+        "This sent campaign is read-only and cannot be saved as a draft from this view.",
+      );
+      return;
+    }
+
     if (savingDraft) return;
 
     setSavingDraft(true);
     setStatus("");
 
     try {
+      const form = new FormData();
+
+      form.append("mode", mode);
+      form.append("sender_identity_id", senderId);
+      form.append(
+        "recipient_emails",
+        JSON.stringify(recipients.map((r) => r.email)),
+      );
+      form.append("subject", subject);
+      form.append("title", title);
+      form.append("subtitle", subtitle);
+      form.append("badge", badge);
+      form.append("message", message);
+
+      if (typeof window !== "undefined") {
+        form.append(
+          "brand_logo_url",
+          new URL(brandLogoUrl, window.location.origin).toString(),
+        );
+      }
+
+      form.append("image_position", imagePosition);
+      form.append("banner_position", imagePosition);
+      form.append(
+        "banner_note",
+        bannerTopFile || bannerBottomFile
+          ? "Banner image is stored with this saved draft and will return when opened."
+          : "",
+      );
+      form.append("banner_height", String(bannerHeight));
+
+      if (bannerTopFile) {
+        form.append("banner_top_file", bannerTopFile, bannerTopFile.name);
+      }
+
+      if (bannerBottomFile) {
+        form.append(
+          "banner_bottom_file",
+          bannerBottomFile,
+          bannerBottomFile.name,
+        );
+      }
+
+      form.append("body_audio_placement", bodyAudioPlacement);
+      form.append("body_audio_size", String(bodyAudioSize));
+      form.append(
+        "body_audio_display_name",
+        cleanDisplayFilename(bodyAudioDisplayName, "StayKnown Audio"),
+      );
+      form.append("body_audio_hint", bodyAudioHint);
+      form.append("body_audio_hint_color", bodyAudioHintColor);
+      form.append("body_audio_hint_font_style", bodyAudioHintFontStyle);
+
+      if (bodyAudioFile) {
+        form.append("body_audio_file", bodyAudioFile, bodyAudioFile.name);
+      }
+
+      form.append("body_image_placement", bodyImagePlacement);
+      form.append("body_image_shape", bodyImageShape);
+      form.append("body_image_size", String(bodyImageSize));
+      form.append(
+        "body_image_display_name",
+        cleanDisplayFilename(bodyImageDisplayName, "StayKnown Image"),
+      );
+      form.append("body_image_hint", bodyImageHint);
+      form.append("body_image_hint_color", bodyImageHintColor);
+      form.append("body_image_hint_font_style", bodyImageHintFontStyle);
+
+      if (bodyImageFile) {
+        form.append("body_image_file", bodyImageFile, bodyImageFile.name);
+      }
+
+      form.append("body_block_order", JSON.stringify(bodyPreviewOrder));
+      form.append(
+        "body_media_note",
+        bodyAudioFile || bodyImageFile
+          ? "Body audio/image files are stored with this saved draft and will return when opened."
+          : "",
+      );
+
+      form.append("cta_label", ctaLabel);
+      form.append("cta_url", ctaUrl);
+
+      form.append("store_badge_placement", storeBadgePlacement);
+      form.append("google_play_enabled", googlePlayEnabled ? "true" : "false");
+      form.append("google_play_url", googlePlayUrl);
+      form.append("app_store_enabled", appStoreEnabled ? "true" : "false");
+      form.append("app_store_url", appStoreUrl);
+
+      form.append("footer_policy_id", footerPolicyId);
+      form.append(
+        "footer_html",
+        customFooter || selectedFooter?.footer_html || "",
+      );
+      form.append("policy_links", JSON.stringify(selectedPolicyLinks));
+
+      form.append(
+        "file_modes",
+        JSON.stringify(files.map((picked) => picked.mode)),
+      );
+      form.append(
+        "file_display_names",
+        JSON.stringify(
+          files.map((picked, index) =>
+            cleanDisplayFilename(
+              picked.displayName,
+              defaultAttachmentDisplayName(picked.file, index),
+            ),
+          ),
+        ),
+      );
+
+      for (let i = 0; i < files.length; i += 1) {
+        const picked = files[i];
+        const displayName = cleanDisplayFilename(
+          picked.displayName,
+          defaultAttachmentDisplayName(picked.file, i),
+        );
+
+        form.append("files", picked.file, displayName);
+      }
+
       const res = await fetch("/api/mail-console/save-draft", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          mode,
-          sender_identity_id: senderId,
-          recipient_emails: recipients.map((r) => r.email),
-          subject,
-          title,
-          message,
-          image_position: imagePosition,
-          banner_position: imagePosition,
-          banner_note:
-            bannerTopFile || bannerBottomFile
-              ? "Banner image was selected from device. Device files are included when sending, but not preserved inside saved drafts yet."
-              : "",
-          banner_height: bannerHeight,
-          body_audio_placement: bodyAudioPlacement,
-          body_audio_size: bodyAudioSize,
-          body_audio_display_name: bodyAudioDisplayName,
-          body_audio_hint: bodyAudioHint,
-          body_audio_hint_color: bodyAudioHintColor,
-          body_audio_hint_font_style: bodyAudioHintFontStyle,
-          body_image_placement: bodyImagePlacement,
-          body_image_shape: bodyImageShape,
-          body_image_size: bodyImageSize,
-          body_image_display_name: bodyImageDisplayName,
-          body_image_hint: bodyImageHint,
-          body_image_hint_color: bodyImageHintColor,
-          body_image_hint_font_style: bodyImageHintFontStyle,
-          body_block_order: bodyBlockOrder,
-          body_media_note:
-            bodyAudioFile || bodyImageFile
-              ? "Body audio/image files are selected from device and included when sending, but not preserved inside saved drafts yet."
-              : "",
-          cta_label: ctaLabel,
-          cta_url: ctaUrl,
-          store_badge_placement: storeBadgePlacement,
-          google_play_enabled: googlePlayEnabled,
-          google_play_url: googlePlayUrl,
-          app_store_enabled: appStoreEnabled,
-          app_store_url: appStoreUrl,
-          footer_policy_id: footerPolicyId,
-          footer_html: customFooter || selectedFooter?.footer_html || "",
-          policy_links: selectedPolicyLinks,
-        }),
+        body: form,
       });
 
       const data = await res.json().catch(() => ({}));
@@ -987,14 +1547,21 @@ export default function MailConsoleSendForm({
         return;
       }
 
-      setStatus(`Draft saved. Draft ID: ${data.draft_id}`);
+      setOpenedCampaignId(data.draft_id || "");
+      setOpenedCampaignStatus("draft");
+      setOpenedCampaignMode("editable");
+
+      setStatus(
+        `Draft saved with ${data.attachment_count || 0} stored file(s). Draft ID: ${
+          data.draft_id
+        }`,
+      );
     } catch (err) {
       setStatus(err instanceof Error ? err.message : "Could not save draft.");
     } finally {
       setSavingDraft(false);
     }
   }
-
   function handleFiles(e: ChangeEvent<HTMLInputElement>) {
     const picked = Array.from(e.target.files || []);
     if (picked.length === 0) return;
@@ -1318,6 +1885,13 @@ export default function MailConsoleSendForm({
   }
 
   async function sendEmail() {
+    if (isReadOnlyCampaign) {
+      setStatus(
+        "This sent campaign is read-only and cannot be sent again from this view.",
+      );
+      return;
+    }
+
     if (sending) return;
 
     const merged = recipientInput.trim()
@@ -1589,33 +2163,31 @@ export default function MailConsoleSendForm({
 
     return (
       <div style={embeddedMediaSlotStyle}>
-        <div
+        <a
+          href={bodyAudioPreviewUrl || "#"}
+          target="_blank"
+          rel="noopener noreferrer"
           style={{
-            ...previewAudioPillStyle,
+            ...previewAudioPlayerShellStyle,
             width: `${bodyAudioSize}%`,
-            minWidth: "min(210px, 100%)",
-            maxWidth: "100%",
           }}
         >
-          <div style={previewAudioIconStyle}>🎧</div>
+          <span style={previewAudioPlayButtonStyle}>▶</span>
 
-          <div style={{ minWidth: 0, flex: 1 }}>
-            <div style={previewAudioTitleStyle}>
+          <span style={previewAudioContentStyle}>
+            <span style={previewAudioTitleStyle}>
               {cleanDisplayFilename(bodyAudioDisplayName, "StayKnown Audio")}
-            </div>
-            <div style={previewAudioMetaStyle}>Audio message</div>
-          </div>
+            </span>
 
-          <audio
-            src={bodyAudioPreviewUrl}
-            controls
-            style={{
-              width: 126,
-              height: 30,
-              maxWidth: "44%",
-            }}
-          />
-        </div>
+            <span style={previewAudioProgressTrackStyle}>
+              <span style={previewAudioProgressFillStyle} />
+            </span>
+
+            <span style={previewAudioMetaStyle}>Audio message</span>
+          </span>
+
+          <span style={previewAudioListenTextStyle}>Tap to listen</span>
+        </a>
 
         {bodyAudioHint ? (
           <div
@@ -1710,33 +2282,31 @@ export default function MailConsoleSendForm({
     if (block === "audio" && bodyAudioFile) {
       return (
         <div key="readonly-audio" style={readOnlyBodyBlockStyle}>
-          <div
+          <a
+            href={bodyAudioPreviewUrl || "#"}
+            target="_blank"
+            rel="noopener noreferrer"
             style={{
-              ...previewAudioPillStyle,
+              ...previewAudioPlayerShellStyle,
               width: `${bodyAudioSize}%`,
-              minWidth: "min(210px, 100%)",
-              maxWidth: "100%",
             }}
           >
-            <div style={previewAudioIconStyle}>🎧</div>
+            <span style={previewAudioPlayButtonStyle}>▶</span>
 
-            <div style={{ minWidth: 0, flex: 1 }}>
-              <div style={previewAudioTitleStyle}>StayKnown Audio</div>
-              <div style={previewAudioMetaStyle}>
-                {bodyAudioFile.name || "Audio message"}
-              </div>
-            </div>
+            <span style={previewAudioContentStyle}>
+              <span style={previewAudioTitleStyle}>
+                {cleanDisplayFilename(bodyAudioDisplayName, "StayKnown Audio")}
+              </span>
 
-            <audio
-              src={bodyAudioPreviewUrl}
-              controls
-              style={{
-                width: 126,
-                height: 30,
-                maxWidth: "44%",
-              }}
-            />
-          </div>
+              <span style={previewAudioProgressTrackStyle}>
+                <span style={previewAudioProgressFillStyle} />
+              </span>
+
+              <span style={previewAudioMetaStyle}>Audio message</span>
+            </span>
+
+            <span style={previewAudioListenTextStyle}>Tap to listen</span>
+          </a>
 
           {bodyAudioHint ? (
             <div
@@ -1753,7 +2323,6 @@ export default function MailConsoleSendForm({
         </div>
       );
     }
-
     if (block === "image" && bodyImageFile && bodyImagePreviewUrl) {
       return (
         <div key="readonly-image" style={readOnlyBodyBlockStyle}>
@@ -1817,33 +2386,31 @@ export default function MailConsoleSendForm({
           }}
           style={previewDraggableBlockStyle}
         >
-          <div
+          <a
+            href={bodyAudioPreviewUrl || "#"}
+            target="_blank"
+            rel="noopener noreferrer"
             style={{
-              ...previewAudioPillStyle,
+              ...previewAudioPlayerShellStyle,
               width: `${bodyAudioSize}%`,
-              minWidth: "min(210px, 100%)",
-              maxWidth: "100%",
             }}
           >
-            <div style={previewAudioIconStyle}>🎧</div>
+            <span style={previewAudioPlayButtonStyle}>▶</span>
 
-            <div style={{ minWidth: 0, flex: 1 }}>
-              <div style={previewAudioTitleStyle}>
+            <span style={previewAudioContentStyle}>
+              <span style={previewAudioTitleStyle}>
                 {cleanDisplayFilename(bodyAudioDisplayName, "StayKnown Audio")}
-              </div>
-              <div style={previewAudioMetaStyle}>Audio message</div>
-            </div>
+              </span>
 
-            <audio
-              src={bodyAudioPreviewUrl}
-              controls
-              style={{
-                width: 126,
-                height: 30,
-                maxWidth: "44%",
-              }}
-            />
-          </div>
+              <span style={previewAudioProgressTrackStyle}>
+                <span style={previewAudioProgressFillStyle} />
+              </span>
+
+              <span style={previewAudioMetaStyle}>Audio message</span>
+            </span>
+
+            <span style={previewAudioListenTextStyle}>Tap to listen</span>
+          </a>
 
           {bodyAudioHint ? (
             <div
@@ -1862,7 +2429,6 @@ export default function MailConsoleSendForm({
         </div>
       );
     }
-
     if (block === "image" && bodyImageFile && bodyImagePreviewUrl) {
       return (
         <div
@@ -2065,8 +2631,24 @@ export default function MailConsoleSendForm({
           >
             <div>
               <div style={kickerStyle}>StayKnown Mail Console</div>
-              <h1 style={h1Style}>Compose Email</h1>
-              <p style={subStyle}>Logged in as {adminEmail}</p>
+              <h1 style={h1Style}>
+                {isReadOnlyCampaign
+                  ? "View Sent Email"
+                  : isOpenedDraft
+                    ? "Edit Draft"
+                    : "Compose Email"}
+              </h1>
+
+              <p style={subStyle}>
+                Logged in as {adminEmail}
+                {openedCampaignId ? (
+                  <>
+                    {" "}
+                    · {isReadOnlyCampaign ? "Read-only" : "Draft"}{" "}
+                    {openedCampaignStatus ? `· ${openedCampaignStatus}` : ""}
+                  </>
+                ) : null}
+              </p>
             </div>
 
             <Link href="/mail-console" style={whitePillLinkStyle}>
@@ -2074,6 +2656,28 @@ export default function MailConsoleSendForm({
             </Link>
           </div>
         </header>
+
+        {openedCampaignId ? (
+          <div
+            style={{
+              marginBottom: 18,
+              padding: "12px 14px",
+              borderRadius: 18,
+              border: "1px solid rgba(0,0,0,0.08)",
+              background: isReadOnlyCampaign
+                ? "rgba(254,242,242,0.82)"
+                : "rgba(239,246,255,0.86)",
+              color: isReadOnlyCampaign ? "#991b1b" : "#1e3a8a",
+              fontSize: 13,
+              fontWeight: 850,
+              lineHeight: 1.5,
+            }}
+          >
+            {isReadOnlyCampaign
+              ? "Read-only sent campaign. You can view this email, but Save Draft and Send Email are locked."
+              : "Draft opened into composer. Re-select any device files if this draft used banner, body image, body audio, or attachments before sending."}
+          </div>
+        ) : null}
 
         <div
           style={{
@@ -3055,11 +3659,14 @@ ${BODY_AUDIO_TOKEN} for body audio`}
               <button
                 type="button"
                 onClick={saveDraft}
-                disabled={savingDraft || sending}
+                disabled={savingDraft || composerActionDisabled}
                 style={{
                   ...secondaryButtonStyle,
-                  opacity: savingDraft || sending ? 0.58 : 1,
-                  cursor: savingDraft || sending ? "not-allowed" : "pointer",
+                  opacity: savingDraft || composerActionDisabled ? 0.58 : 1,
+                  cursor:
+                    savingDraft || composerActionDisabled
+                      ? "not-allowed"
+                      : "pointer",
                 }}
               >
                 {savingDraft ? "Saving..." : "Save Draft"}
@@ -3068,14 +3675,22 @@ ${BODY_AUDIO_TOKEN} for body audio`}
               <button
                 type="button"
                 onClick={sendEmail}
-                disabled={sending}
+                disabled={composerActionDisabled}
                 style={{
                   ...primaryButtonStyle,
-                  opacity: sending ? 0.58 : 1,
-                  cursor: sending ? "not-allowed" : "pointer",
+                  opacity: composerActionDisabled ? 0.58 : 1,
+                  cursor: composerActionDisabled ? "not-allowed" : "pointer",
                 }}
               >
-                {sending ? "Sending..." : "Send Email"}
+                {openingCampaign
+                  ? "Opening..."
+                  : sending
+                    ? "Sending..."
+                    : isReadOnlyCampaign
+                      ? "Read Only"
+                      : isOpenedDraft
+                        ? "Send Draft"
+                        : "Send Email"}
               </button>
             </div>
 
@@ -4376,24 +4991,6 @@ const previewAudioIconStyle: React.CSSProperties = {
   flexShrink: 0,
 };
 
-const previewAudioTitleStyle: React.CSSProperties = {
-  fontSize: 13,
-  fontWeight: 950,
-  color: "#050505",
-  whiteSpace: "nowrap",
-  overflow: "hidden",
-  textOverflow: "ellipsis",
-};
-
-const previewAudioMetaStyle: React.CSSProperties = {
-  marginTop: 2,
-  fontSize: 10,
-  color: "rgba(0,0,0,0.52)",
-  whiteSpace: "nowrap",
-  overflow: "hidden",
-  textOverflow: "ellipsis",
-};
-
 const previewMediaHintStyle: React.CSSProperties = {
   margin: "6px auto 0",
   textAlign: "center",
@@ -4603,5 +5200,103 @@ const sendStatusPillStyle: React.CSSProperties = {
   padding: "6px 9px",
   fontSize: 11,
   fontWeight: 950,
+  whiteSpace: "nowrap",
+};
+
+const previewAudioPlayerShellStyle: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  gap: 12,
+  maxWidth: "100%",
+  minWidth: "min(250px, 100%)",
+  margin: "0 auto",
+  boxSizing: "border-box",
+  borderRadius: 999,
+  padding: "10px 14px 10px 12px",
+  background:
+    "linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(245,245,245,0.96) 100%)",
+  border: "1px solid rgba(255,255,255,0.92)",
+  boxShadow:
+    "inset 0 1px 0 rgba(255,255,255,0.96), inset 0 -1px 0 rgba(210,210,210,0.72), 0 16px 42px rgba(0,0,0,0.16)",
+  color: "#111111",
+  textDecoration: "none",
+};
+
+const previewAudioPlayButtonStyle: React.CSSProperties = {
+  width: 42,
+  height: 42,
+  minWidth: 42,
+  borderRadius: 999,
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  background:
+    "radial-gradient(circle at 30% 24%, #ffffff 0%, #f5f5f5 42%, #dcdcdc 100%)",
+  border: "1px solid rgba(210,210,210,0.95)",
+  boxShadow:
+    "inset 0 2px 3px rgba(255,255,255,0.95), inset 0 -3px 7px rgba(0,0,0,0.10), 0 8px 18px rgba(0,0,0,0.12)",
+  color: "#111111",
+  fontSize: 13,
+  fontWeight: 950,
+  lineHeight: 1,
+};
+
+const previewAudioContentStyle: React.CSSProperties = {
+  display: "block",
+  minWidth: 0,
+  flex: 1,
+  textAlign: "left",
+};
+
+const previewAudioTitleStyle: React.CSSProperties = {
+  display: "block",
+  fontSize: 14,
+  lineHeight: 1.2,
+  fontWeight: 950,
+  color: "#111111",
+  whiteSpace: "nowrap",
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+  letterSpacing: -0.1,
+};
+
+const previewAudioProgressTrackStyle: React.CSSProperties = {
+  display: "block",
+  marginTop: 7,
+  height: 6,
+  borderRadius: 999,
+  background: "#e9e9e9",
+  overflow: "hidden",
+  boxShadow: "inset 0 1px 2px rgba(0,0,0,0.08)",
+};
+
+const previewAudioProgressFillStyle: React.CSSProperties = {
+  display: "block",
+  width: "34%",
+  height: "100%",
+  borderRadius: 999,
+  background: "linear-gradient(90deg, #111111 0%, #4b4b4b 100%)",
+};
+
+const previewAudioMetaStyle: React.CSSProperties = {
+  display: "block",
+  marginTop: 5,
+  fontSize: 10,
+  lineHeight: 1.2,
+  color: "rgba(17,17,17,0.55)",
+  whiteSpace: "nowrap",
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+};
+
+const previewAudioListenTextStyle: React.CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "flex-end",
+  minWidth: 78,
+  fontSize: 11,
+  lineHeight: 1.2,
+  fontWeight: 950,
+  color: "rgba(17,17,17,0.72)",
   whiteSpace: "nowrap",
 };

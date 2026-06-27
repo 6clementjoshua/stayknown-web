@@ -679,99 +679,146 @@ function bodyAudioPillBlock(params: {
         target="_blank"
         rel="noopener noreferrer"
         style="
-          display:inline-flex;
-          align-items:center;
-          gap:14px;
+          display:inline-block;
           width:${params.size}%;
           max-width:100%;
-          min-width:240px;
+          min-width:250px;
           box-sizing:border-box;
           border-radius:999px;
-          padding:14px 16px;
           text-decoration:none;
           color:#111111;
-          background:
-            linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(245,245,245,0.95) 100%);
-          border:1px solid rgba(255,255,255,0.88);
-          box-shadow:
-            inset 0 1px 0 rgba(255,255,255,0.98),
-            inset 0 -1px 0 rgba(220,220,220,0.65),
-            0 16px 40px rgba(0,0,0,0.14);
         "
       >
-        <span
+        <table
+          role="presentation"
+          cellpadding="0"
+          cellspacing="0"
+          width="100%"
           style="
-            width:48px;
-            height:48px;
-            min-width:48px;
+            width:100%;
+            border-collapse:separate;
+            border-spacing:0;
             border-radius:999px;
-            display:inline-flex;
-            align-items:center;
-            justify-content:center;
-            background:
-              radial-gradient(circle at 30% 30%, rgba(255,255,255,0.98) 0%, rgba(247,247,247,0.96) 42%, rgba(228,228,228,0.94) 100%);
-            border:1px solid rgba(220,220,220,0.95);
+            overflow:hidden;
+            background:#ffffff;
+            border:1px solid rgba(255,255,255,0.92);
             box-shadow:
-              inset 0 2px 4px rgba(255,255,255,0.95),
-              inset 0 -3px 6px rgba(0,0,0,0.08),
-              0 8px 18px rgba(0,0,0,0.10);
-            font-size:20px;
-            line-height:1;
-            color:#111111;
-            flex-shrink:0;
+              inset 0 1px 0 rgba(255,255,255,0.96),
+              inset 0 -1px 0 rgba(210,210,210,0.72),
+              0 16px 42px rgba(0,0,0,0.16);
           "
-        >🎧</span>
+        >
+          <tr>
+            <td
+              width="58"
+              valign="middle"
+              style="
+                width:58px;
+                padding:10px 0 10px 12px;
+                vertical-align:middle;
+              "
+            >
+              <span
+                style="
+                  width:42px;
+                  height:42px;
+                  border-radius:999px;
+                  display:inline-block;
+                  text-align:center;
+                  line-height:42px;
+                  background:
+                    radial-gradient(circle at 30% 24%, #ffffff 0%, #f5f5f5 42%, #dcdcdc 100%);
+                  border:1px solid rgba(210,210,210,0.95);
+                  box-shadow:
+                    inset 0 2px 3px rgba(255,255,255,0.95),
+                    inset 0 -3px 7px rgba(0,0,0,0.10),
+                    0 8px 18px rgba(0,0,0,0.12);
+                  color:#111111;
+                  font-size:14px;
+                  font-weight:900;
+                "
+              >▶</span>
+            </td>
 
-        <span style="display:block;min-width:0;flex:1;text-align:left;">
-          <span
-            style="
-              display:block;
-              font-size:17px;
-              line-height:1.2;
-              font-weight:900;
-              color:#111111;
-              white-space:nowrap;
-              overflow:hidden;
-              text-overflow:ellipsis;
-              letter-spacing:-0.2px;
-            "
-          >${escapeHtml(displayName)}</span>
+            <td
+              valign="middle"
+              style="
+                padding:10px 10px 10px 4px;
+                vertical-align:middle;
+                text-align:left;
+              "
+            >
+              <div
+                style="
+                  font-size:14px;
+                  line-height:1.2;
+                  font-weight:950;
+                  color:#111111;
+                  white-space:nowrap;
+                  overflow:hidden;
+                  text-overflow:ellipsis;
+                  letter-spacing:-0.1px;
+                "
+              >${escapeHtml(displayName)}</div>
 
-          <span
-            style="
-              display:block;
-              margin-top:4px;
-              font-size:12px;
-              line-height:1.3;
-              color:rgba(17,17,17,0.62);
-              white-space:nowrap;
-              overflow:hidden;
-              text-overflow:ellipsis;
-            "
-          >Audio message</span>
-        </span>
+              <div
+                style="
+                  margin-top:7px;
+                  height:6px;
+                  border-radius:999px;
+                  background:#e9e9e9;
+                  overflow:hidden;
+                  box-shadow:inset 0 1px 2px rgba(0,0,0,0.08);
+                "
+              >
+                <div
+                  style="
+                    width:34%;
+                    height:6px;
+                    border-radius:999px;
+                    background:
+                      linear-gradient(90deg, #111111 0%, #4b4b4b 100%);
+                  "
+                ></div>
+              </div>
 
-        <span
-          style="
-            display:inline-flex;
-            align-items:center;
-            justify-content:center;
-            padding:10px 14px;
-            border-radius:999px;
-            background:
-              linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(236,236,236,0.95) 100%);
-            border:1px solid rgba(220,220,220,0.95);
-            box-shadow:
-              inset 0 1px 0 rgba(255,255,255,0.98),
-              0 4px 10px rgba(0,0,0,0.06);
-            font-size:12px;
-            line-height:1;
-            font-weight:900;
-            color:#111111;
-            white-space:nowrap;
-            flex-shrink:0;
-          "
-        >Tap to listen</span>
+              <div
+                style="
+                  margin-top:5px;
+                  font-size:10px;
+                  line-height:1.2;
+                  color:rgba(17,17,17,0.55);
+                  white-space:nowrap;
+                  overflow:hidden;
+                  text-overflow:ellipsis;
+                "
+              >Audio message</div>
+            </td>
+
+            <td
+              width="88"
+              valign="middle"
+              align="right"
+              style="
+                width:88px;
+                padding:10px 14px 10px 4px;
+                vertical-align:middle;
+                text-align:right;
+              "
+            >
+              <span
+                style="
+                  display:inline-block;
+                  font-size:11px;
+                  line-height:1.2;
+                  font-weight:950;
+                  color:rgba(17,17,17,0.72);
+                  white-space:nowrap;
+                "
+              >Tap to listen</span>
+            </td>
+          </tr>
+        </table>
       </a>
 
       ${
@@ -791,7 +838,6 @@ function bodyAudioPillBlock(params: {
     </div>
   `;
 }
-
 function ctaButton(label: string, url: string) {
   if (!label || !url || !isPublicHttpUrl(url)) return "";
 
@@ -1367,6 +1413,32 @@ function unsubscribeHtml(link: string) {
   `;
 }
 
+function resolveResendApiKeyForSender(fromEmail: string) {
+  const email = clean(fromEmail).toLowerCase();
+
+  if (email.endsWith("@6rides.com")) {
+    return {
+      apiKey: clean(process.env.RESEND_API_KEY_6RIDES),
+      envName: "RESEND_API_KEY_6RIDES",
+      brand: "6Rides",
+    };
+  }
+
+  if (email.endsWith("@6clementjoshuamusics.com")) {
+    return {
+      apiKey: clean(process.env.RESEND_API_KEY_6CLEMENTJOSHUAMUSICS),
+      envName: "RESEND_API_KEY_6CLEMENTJOSHUAMUSICS",
+      brand: "6 Clement Joshua Musics",
+    };
+  }
+
+  return {
+    apiKey: clean(process.env.RESEND_API_KEY),
+    envName: "RESEND_API_KEY",
+    brand: "StayKnown",
+  };
+}
+
 async function sendResend(params: {
   apiKey: string;
   from: string;
@@ -1422,18 +1494,10 @@ export async function POST(req: NextRequest) {
       process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL,
     );
     const serviceRole = clean(process.env.SUPABASE_SERVICE_ROLE_KEY);
-    const resendApiKey = clean(process.env.RESEND_API_KEY);
 
     if (!supabaseUrl || !serviceRole) {
       return NextResponse.json(
         { ok: false, error: "Missing Supabase server config." },
-        { status: 500 },
-      );
-    }
-
-    if (!resendApiKey) {
-      return NextResponse.json(
-        { ok: false, error: "Missing RESEND_API_KEY in Vercel." },
         { status: 500 },
       );
     }
@@ -1725,6 +1789,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { ok: false, error: "This sender is not allowed for this mode." },
         { status: 400 },
+      );
+    }
+
+    const resolvedResend = resolveResendApiKeyForSender(senderRow.from_email);
+    const resendApiKey = resolvedResend.apiKey;
+
+    if (!resendApiKey) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: `Missing ${resolvedResend.envName} in Vercel for ${resolvedResend.brand}.`,
+        },
+        { status: 500 },
       );
     }
 
