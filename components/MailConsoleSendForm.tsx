@@ -745,10 +745,16 @@ export default function MailConsoleSendForm({
       return;
     }
 
+    if (payload.readonly) {
+      setStatus(
+        "Sent campaigns open from the Logs page read-only overlay. Composer was not changed.",
+      );
+      return;
+    }
+
     const meta = campaign.meta || {};
     const nextMode = safeMailModeValue(campaign.mode);
-    const nextOpenMode = payload.readonly ? "readonly" : "editable";
-
+    const nextOpenMode: "editable" = "editable";
     setOpenedCampaignId(campaign.id);
     setOpenedCampaignStatus(campaign.status || "");
     setOpenedCampaignMode(nextOpenMode);
@@ -857,18 +863,11 @@ export default function MailConsoleSendForm({
     setBodyImagePreviewUrl("");
     setFiles([]);
 
-    if (nextOpenMode === "readonly") {
-      setReadOnlyPreviewEmail("");
-      setReadOnlyPreviewOpen(true);
-      setStatus(
-        "This sent campaign was opened in read-only mode. You can view it, but you cannot save or send it again from this view.",
-      );
-    } else {
-      setReadOnlyPreviewOpen(false);
-      setStatus(
-        "Draft opened. Re-select any device files if this draft used banner, body audio, body image, or attachments, then continue sending.",
-      );
-    }
+    setReadOnlyPreviewOpen(false);
+    setReadOnlyPreviewEmail("");
+    setStatus(
+      "Draft opened. Saved banner, body image, body audio, and attachments will be restored if they were stored with the draft.",
+    );
   }
 
   async function restoreStoredDraftAttachments(
@@ -960,15 +959,21 @@ export default function MailConsoleSendForm({
       const params = new URLSearchParams(window.location.search);
       const draftId = params.get("draft_id") || "";
       const campaignId = params.get("campaign_id") || "";
-      const openId = draftId || campaignId;
+
+      if (campaignId && !draftId) {
+        window.history.replaceState(null, "", "/mail-console/send");
+        setStatus(
+          "Sent campaigns must be viewed from the Logs page overlay. Composer was not changed.",
+        );
+        return;
+      }
+
+      const openId = draftId;
 
       if (!openId) return;
 
       setOpeningCampaign(true);
-      setStatus(
-        draftId ? "Opening saved draft..." : "Opening sent campaign...",
-      );
-
+      setStatus("Opening saved draft...");
       try {
         const res = await fetch(
           `/api/mail-console/save-draft?id=${encodeURIComponent(openId)}`,
@@ -985,11 +990,15 @@ export default function MailConsoleSendForm({
           return;
         }
 
-        applyOpenedCampaign(data);
-
-        if (!data.readonly) {
-          await restoreStoredDraftAttachments(data.attachments || []);
+        if (data.readonly) {
+          setStatus(
+            "Sent campaigns must be viewed from the Logs page overlay. Composer was not changed.",
+          );
+          return;
         }
+
+        applyOpenedCampaign(data);
+        await restoreStoredDraftAttachments(data.attachments || []);
       } catch (err) {
         if (cancelled) return;
 
@@ -2632,11 +2641,7 @@ export default function MailConsoleSendForm({
             <div>
               <div style={kickerStyle}>StayKnown Mail Console</div>
               <h1 style={h1Style}>
-                {isReadOnlyCampaign
-                  ? "View Sent Email"
-                  : isOpenedDraft
-                    ? "Edit Draft"
-                    : "Compose Email"}
+                {isOpenedDraft ? "Edit Draft" : "Compose Email"}
               </h1>
 
               <p style={subStyle}>

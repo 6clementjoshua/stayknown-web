@@ -25,6 +25,11 @@ type CampaignRow = {
   subject: string;
   status: string;
   draft_label: string | null;
+  title: string | null;
+  body_html: string | null;
+  body_text: string | null;
+  sender_identity_id: string | null;
+  meta: Record<string, unknown> | null;
 };
 
 function fmtDate(v: string | null) {
@@ -35,6 +40,143 @@ function fmtDate(v: string | null) {
   if (Number.isNaN(d.getTime())) return "—";
 
   return d.toLocaleString();
+}
+
+function safeText(v: unknown) {
+  return typeof v === "string" ? v.trim() : "";
+}
+
+function escapeHtml(s: string) {
+  return String(s)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function textToHtml(text: string) {
+  const cleaned = safeText(text);
+
+  if (!cleaned) {
+    return `
+      <div style="
+        padding:32px;
+        border-radius:24px;
+        background:#f8fafc;
+        border:1px solid rgba(15,23,42,0.08);
+        color:#64748b;
+        font-family:Arial,sans-serif;
+        font-size:14px;
+        line-height:1.6;
+        text-align:center;
+      ">
+        No delivered email body was stored for this record.
+      </div>
+    `;
+  }
+
+  return cleaned
+    .split(/\n{2,}/)
+    .map((para) => {
+      const lines = para
+        .split(/\n/)
+        .map((line) => escapeHtml(line))
+        .join("<br/>");
+
+      return `<p>${lines}</p>`;
+    })
+    .join("");
+}
+
+function buildSentEmailDoc(campaign: CampaignRow) {
+  const storedHtml = safeText(campaign.body_html);
+
+  if (storedHtml) {
+    const hasHtmlDocument = /<html[\s>]/i.test(storedHtml);
+
+    if (hasHtmlDocument) {
+      return storedHtml;
+    }
+
+    return `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <base target="_blank" />
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: #f3f4f6;
+      color: #050505;
+      font-family: Arial, sans-serif;
+    }
+
+    body {
+      padding: 22px;
+    }
+
+    img {
+      max-width: 100%;
+      height: auto;
+    }
+
+    a {
+      color: inherit;
+    }
+  </style>
+</head>
+<body>
+  ${storedHtml}
+</body>
+</html>`;
+  }
+
+  return `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <base target="_blank" />
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: #f3f4f6;
+      color: #050505;
+      font-family: Arial, sans-serif;
+    }
+
+    body {
+      padding: 22px;
+    }
+  </style>
+</head>
+<body>
+  ${textToHtml(campaign.body_text || "")}
+</body>
+</html>`;
+}
+
+function campaignOverlayId(id: string) {
+  return `sent-campaign-${id.replace(/[^a-zA-Z0-9_-]/g, "-")}`;
+}
+
+function isDraftCampaign(campaign: CampaignRow) {
+  return safeText(campaign.status).toLowerCase() === "draft";
+}
+
+function campaignActionLabel(campaign: CampaignRow) {
+  const status = safeText(campaign.status).toLowerCase();
+
+  if (status === "draft") return "Open Draft";
+  if (status === "sent") return "View Sent";
+  if (status === "failed") return "View Failed";
+  if (status === "sending") return "View Sending";
+
+  return "View";
 }
 
 function badge(status: string) {
@@ -72,28 +214,6 @@ function badge(status: string) {
   );
 }
 
-function campaignOpenHref(campaign: CampaignRow) {
-  const id = encodeURIComponent(campaign.id);
-  const status = campaign.status.toLowerCase();
-
-  if (status === "draft") {
-    return `/mail-console/send?draft_id=${id}`;
-  }
-
-  return `/mail-console/send?campaign_id=${id}&view=readonly`;
-}
-
-function campaignOpenLabel(campaign: CampaignRow) {
-  const status = campaign.status.toLowerCase();
-
-  if (status === "draft") return "Open Draft";
-  if (status === "sent") return "View Sent";
-  if (status === "failed") return "View Failed";
-  if (status === "sending") return "View Sending";
-
-  return "View";
-}
-
 export default async function MailConsoleLogsPage() {
   const cookieStore = await cookies();
   const token = cookieStore.get(MAIL_CONSOLE_COOKIE)?.value || "";
@@ -110,7 +230,22 @@ export default async function MailConsoleLogsPage() {
 
   const { data: campaignRows, error: campaignError } = await admin
     .from("mail_console_campaigns")
-    .select("id,created_at,sent_at,mode,subject,status,draft_label")
+    .select(
+      [
+        "id",
+        "created_at",
+        "sent_at",
+        "mode",
+        "subject",
+        "status",
+        "draft_label",
+        "title",
+        "body_html",
+        "body_text",
+        "sender_identity_id",
+        "meta",
+      ].join(","),
+    )
     .order("created_at", { ascending: false })
     .limit(60);
 
@@ -130,8 +265,11 @@ export default async function MailConsoleLogsPage() {
     throw new Error(logError.message);
   }
 
-  const campaigns = (campaignRows || []) as CampaignRow[];
-  const logs = (logRows || []) as LogRow[];
+  const campaigns = (campaignRows || []) as unknown as CampaignRow[];
+  const logs = (logRows || []) as unknown as LogRow[];
+  const sentLikeCampaigns = campaigns.filter(
+    (campaign) => !isDraftCampaign(campaign),
+  );
 
   return (
     <main className="sk-mail-logs" style={mainStyle}>
@@ -280,6 +418,62 @@ export default async function MailConsoleLogsPage() {
           color: rgba(5,5,5,0.92);
         }
 
+        .sk-sent-overlay {
+          position: fixed;
+          inset: 0;
+          z-index: 9999;
+          opacity: 0;
+          pointer-events: none;
+          transition: opacity 190ms ease;
+        }
+
+        .sk-sent-overlay:target {
+          opacity: 1;
+          pointer-events: auto;
+        }
+
+        .sk-sent-overlay-backdrop {
+          position: absolute;
+          inset: 0;
+          background:
+            radial-gradient(circle at top, rgba(255,255,255,0.20), transparent 34%),
+            rgba(0,0,0,0.58);
+          backdrop-filter: blur(16px);
+        }
+
+        .sk-sent-overlay-shell {
+          position: relative;
+          width: min(1040px, calc(100vw - 28px));
+          height: min(900px, calc(100vh - 28px));
+          margin: 14px auto;
+          border-radius: 30px;
+          background: rgba(255,255,255,0.96);
+          border: 1px solid rgba(255,255,255,0.88);
+          box-shadow:
+            inset 0 1px 0 rgba(255,255,255,0.94),
+            0 30px 90px rgba(0,0,0,0.34);
+          overflow: hidden;
+          display: flex;
+          flex-direction: column;
+          transform: translateY(12px) scale(0.98);
+          transition:
+            transform 220ms ease,
+            opacity 220ms ease;
+        }
+
+        .sk-sent-overlay:target .sk-sent-overlay-shell {
+          transform: translateY(0) scale(1);
+        }
+
+        .sk-sent-close:hover {
+          transform: translateY(-1px) scale(1.03);
+          box-shadow: 0 14px 34px rgba(0,0,0,0.16) !important;
+        }
+
+        .sk-sent-close:active {
+          transform: scale(0.98);
+        }
+
         @media (max-width: 720px) {
           .sk-logs-header {
             align-items: stretch !important;
@@ -292,10 +486,17 @@ export default async function MailConsoleLogsPage() {
           .sk-logs-actions a {
             width: 100%;
           }
+
+          .sk-sent-overlay-shell {
+            width: calc(100vw - 14px);
+            height: calc(100vh - 14px);
+            margin: 7px auto;
+            border-radius: 24px;
+          }
         }
       `}</style>
 
-      <section style={containerStyle}>
+      <section id="campaigns" style={containerStyle}>
         <Header title="Email Logs" adminEmail={adminEmail} />
 
         <section className="sk-log-panel" style={panelStyle}>
@@ -322,24 +523,40 @@ export default async function MailConsoleLogsPage() {
               </thead>
 
               <tbody>
-                {campaigns.map((c) => (
-                  <tr key={c.id}>
-                    <td style={td}>{fmtDate(c.created_at)}</td>
-                    <td style={td}>{c.mode}</td>
-                    <td style={td}>{c.draft_label || c.subject}</td>
-                    <td style={td}>{badge(c.status)}</td>
-                    <td style={td}>{fmtDate(c.sent_at)}</td>
-                    <td style={td}>
-                      <Link
-                        href={campaignOpenHref(c)}
-                        className="sk-log-action"
-                        style={actionLinkStyle}
-                      >
-                        {campaignOpenLabel(c)}
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
+                {campaigns.map((c) => {
+                  const draft = isDraftCampaign(c);
+
+                  return (
+                    <tr key={c.id}>
+                      <td style={td}>{fmtDate(c.created_at)}</td>
+                      <td style={td}>{c.mode}</td>
+                      <td style={td}>{c.draft_label || c.subject}</td>
+                      <td style={td}>{badge(c.status)}</td>
+                      <td style={td}>{fmtDate(c.sent_at)}</td>
+                      <td style={td}>
+                        {draft ? (
+                          <Link
+                            href={`/mail-console/send?draft_id=${encodeURIComponent(
+                              c.id,
+                            )}`}
+                            className="sk-log-action"
+                            style={actionLinkStyle}
+                          >
+                            {campaignActionLabel(c)}
+                          </Link>
+                        ) : (
+                          <a
+                            href={`#${campaignOverlayId(c.id)}`}
+                            className="sk-log-action"
+                            style={actionLinkStyle}
+                          >
+                            {campaignActionLabel(c)}
+                          </a>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -389,7 +606,76 @@ export default async function MailConsoleLogsPage() {
           </div>
         </section>
       </section>
+
+      {sentLikeCampaigns.map((campaign) => (
+        <SentCampaignOverlay key={campaign.id} campaign={campaign} />
+      ))}
     </main>
+  );
+}
+
+function SentCampaignOverlay({ campaign }: { campaign: CampaignRow }) {
+  const title = campaign.draft_label || campaign.subject || "Sent email";
+  const iframeDoc = buildSentEmailDoc(campaign);
+
+  return (
+    <section
+      id={campaignOverlayId(campaign.id)}
+      className="sk-sent-overlay"
+      aria-label={`View ${title}`}
+    >
+      <a
+        href="#campaigns"
+        className="sk-sent-overlay-backdrop"
+        aria-label="Close sent email preview"
+      />
+
+      <div className="sk-sent-overlay-shell">
+        <header style={sentOverlayHeaderStyle}>
+          <div style={{ minWidth: 0 }}>
+            <div style={sentOverlayKickerStyle}>Read-only delivered email</div>
+
+            <h2 style={sentOverlayTitleStyle}>{title}</h2>
+
+            <div style={sentOverlayMetaStyle}>
+              <span>{campaign.mode}</span>
+              <span>·</span>
+              <span>{badge(campaign.status)}</span>
+              <span>·</span>
+              <span>Created {fmtDate(campaign.created_at)}</span>
+              {campaign.sent_at ? (
+                <>
+                  <span>·</span>
+                  <span>Sent {fmtDate(campaign.sent_at)}</span>
+                </>
+              ) : null}
+            </div>
+          </div>
+
+          <a
+            href="#campaigns"
+            className="sk-sent-close"
+            style={closeButtonStyle}
+          >
+            ×
+          </a>
+        </header>
+
+        <div style={sentNoticeStyle}>
+          This is rendered from the saved campaign HTML. It does not edit or
+          reload the composer.
+        </div>
+
+        <div style={iframeWrapStyle}>
+          <iframe
+            title={`Delivered email preview: ${title}`}
+            srcDoc={iframeDoc}
+            sandbox="allow-popups allow-popups-to-escape-sandbox"
+            style={iframeStyle}
+          />
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -628,4 +914,95 @@ const statusBadgeStyle: CSSProperties = {
   fontWeight: 950,
   textTransform: "uppercase",
   whiteSpace: "nowrap",
+};
+
+const sentOverlayHeaderStyle: CSSProperties = {
+  padding: "18px 18px 14px",
+  display: "flex",
+  alignItems: "flex-start",
+  justifyContent: "space-between",
+  gap: 14,
+  borderBottom: "1px solid rgba(0,0,0,0.08)",
+  background:
+    "linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(250,250,250,0.92) 100%)",
+};
+
+const sentOverlayKickerStyle: CSSProperties = {
+  fontSize: 10,
+  fontWeight: 950,
+  letterSpacing: 2,
+  textTransform: "uppercase",
+  color: "rgba(0,0,0,0.46)",
+  marginBottom: 6,
+};
+
+const sentOverlayTitleStyle: CSSProperties = {
+  margin: 0,
+  fontSize: 20,
+  lineHeight: 1.18,
+  fontWeight: 950,
+  letterSpacing: -0.4,
+  color: "#050505",
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+  whiteSpace: "nowrap",
+  maxWidth: "min(760px, calc(100vw - 120px))",
+};
+
+const sentOverlayMetaStyle: CSSProperties = {
+  marginTop: 8,
+  display: "flex",
+  alignItems: "center",
+  gap: 8,
+  flexWrap: "wrap",
+  fontSize: 12,
+  lineHeight: 1.4,
+  color: "rgba(0,0,0,0.58)",
+  fontWeight: 800,
+};
+
+const closeButtonStyle: CSSProperties = {
+  width: 40,
+  height: 40,
+  minWidth: 40,
+  borderRadius: 999,
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  textDecoration: "none",
+  color: "#050505",
+  fontSize: 25,
+  lineHeight: 1,
+  fontWeight: 850,
+  background:
+    "linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(245,245,245,0.94) 100%)",
+  border: "1px solid rgba(0,0,0,0.08)",
+  boxShadow:
+    "inset 0 1px 0 rgba(255,255,255,0.96), 0 10px 24px rgba(0,0,0,0.08)",
+};
+
+const sentNoticeStyle: CSSProperties = {
+  padding: "10px 16px",
+  background: "rgba(0,0,0,0.035)",
+  color: "rgba(0,0,0,0.56)",
+  fontSize: 12,
+  lineHeight: 1.45,
+  fontWeight: 800,
+  borderBottom: "1px solid rgba(0,0,0,0.06)",
+};
+
+const iframeWrapStyle: CSSProperties = {
+  flex: 1,
+  minHeight: 0,
+  background: "#e5e7eb",
+  padding: 12,
+};
+
+const iframeStyle: CSSProperties = {
+  width: "100%",
+  height: "100%",
+  border: "0",
+  borderRadius: 22,
+  background: "white",
+  boxShadow: "0 12px 34px rgba(0,0,0,0.10)",
 };
