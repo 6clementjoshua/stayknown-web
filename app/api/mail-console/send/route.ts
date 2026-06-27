@@ -68,6 +68,8 @@ type PolicyLinkKey =
 const BODY_IMAGE_TOKEN = "{{image}}";
 const BODY_AUDIO_TOKEN = "{{audio}}";
 
+const SENT_VIEW_SIGNED_URL_SECONDS = 365 * 24 * 60 * 60;
+
 const POLICY_LINK_OPTIONS: Record<
   PolicyLinkKey,
   {
@@ -2094,7 +2096,7 @@ export async function POST(req: NextRequest) {
 
       const { data: signed, error: signedError } = await admin.storage
         .from("mail-console-attachments")
-        .createSignedUrl(storagePath, 7 * 24 * 60 * 60);
+        .createSignedUrl(storagePath, SENT_VIEW_SIGNED_URL_SECONDS);
 
       if (signedError || !signed?.signedUrl) {
         throw new Error(
@@ -2174,7 +2176,7 @@ export async function POST(req: NextRequest) {
 
         const { data: signed, error: signedError } = await admin.storage
           .from("mail-console-attachments")
-          .createSignedUrl(storagePath, 7 * 24 * 60 * 60);
+          .createSignedUrl(storagePath, SENT_VIEW_SIGNED_URL_SECONDS);
 
         if (signedError || !signed?.signedUrl) {
           throw new Error(
@@ -2278,7 +2280,8 @@ export async function POST(req: NextRequest) {
       bodyImagePlacement,
     });
 
-    const text = htmlToText(html.replace("<!--SK_UNSUBSCRIBE-->", ""));
+    const sentPreviewHtml = html.replace("<!--SK_UNSUBSCRIBE-->", "");
+    const text = htmlToText(sentPreviewHtml);
     const from = `${senderRow.from_name} <${senderRow.from_email}>`;
     const newsletterLike = mode === "newsletter" || mode === "advert";
 
@@ -2388,7 +2391,7 @@ export async function POST(req: NextRequest) {
 
         const perHeaders: Record<string, string> = {};
 
-        let htmlForRecipient = html.replace("<!--SK_UNSUBSCRIBE-->", "");
+        let htmlForRecipient = sentPreviewHtml;
 
         if (newsletterLike) {
           const recipientUnsubscribeLink = unsubscribeLinkFor(recipient);
@@ -2527,6 +2530,12 @@ export async function POST(req: NextRequest) {
       .update({
         status: finalStatus,
         sent_at: summary.sent > 0 ? new Date().toISOString() : null,
+        body_html: sentPreviewHtml,
+        body_text: text,
+        image_url: bodyImageUrl || null,
+        image_position: bannerPosition,
+        footer_html: finalFooterHtml,
+        footer_text: htmlToText(finalFooterHtml),
         meta: {
           created_from: "next_api_mail_console_send",
           admin_email: adminEmail,
@@ -2554,6 +2563,7 @@ export async function POST(req: NextRequest) {
           body_image_file_name: bodyImageFile?.name || null,
           body_image_display_name: bodyImageDisplayName,
           body_image_placement: bodyImagePlacement,
+          body_image_shape: bodyImageShape,
           body_image_size: bodyImageSize,
           body_image_hint: bodyImageHint || null,
           body_image_hint_color: bodyImageHintColor,

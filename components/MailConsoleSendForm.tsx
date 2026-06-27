@@ -428,6 +428,12 @@ function delay(ms: number) {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
+function revokePreviewUrl(url: string) {
+  if (!url.startsWith("blob:")) return;
+
+  URL.revokeObjectURL(url);
+}
+
 function publicHttpLink(value: string) {
   const trimmed = value.trim();
 
@@ -719,21 +725,10 @@ export default function MailConsoleSendForm({
 
   useEffect(() => {
     return () => {
-      if (bannerTopPreviewUrlRef.current) {
-        URL.revokeObjectURL(bannerTopPreviewUrlRef.current);
-      }
-
-      if (bannerBottomPreviewUrlRef.current) {
-        URL.revokeObjectURL(bannerBottomPreviewUrlRef.current);
-      }
-
-      if (bodyAudioPreviewUrlRef.current) {
-        URL.revokeObjectURL(bodyAudioPreviewUrlRef.current);
-      }
-
-      if (bodyImagePreviewUrlRef.current) {
-        URL.revokeObjectURL(bodyImagePreviewUrlRef.current);
-      }
+      revokePreviewUrl(bannerTopPreviewUrlRef.current);
+      revokePreviewUrl(bannerBottomPreviewUrlRef.current);
+      revokePreviewUrl(bodyAudioPreviewUrlRef.current);
+      revokePreviewUrl(bodyImagePreviewUrlRef.current);
     };
   }, []);
 
@@ -878,78 +873,110 @@ export default function MailConsoleSendForm({
     setStatus("Restoring saved draft files...");
 
     const restoredFiles: PickedFile[] = [];
+    let failedToReloadCount = 0;
 
-    for (const attachment of attachments) {
-      if (!attachment.signed_url) continue;
+    async function loadFileFromSignedUrl(attachment: StoredDraftAttachment) {
+      if (!attachment.signed_url) return null;
 
       try {
-        const res = await fetch(attachment.signed_url);
+        const res = await fetch(attachment.signed_url, {
+          cache: "no-store",
+        });
 
-        if (!res.ok) continue;
+        if (!res.ok) {
+          failedToReloadCount += 1;
+          return null;
+        }
 
         const blob = await res.blob();
-        const file = new File([blob], attachment.file_name, {
+
+        return new File([blob], attachment.file_name, {
           type: attachment.mime_type || blob.type || "application/octet-stream",
         });
-
-        if (attachment.role === "banner_top") {
-          setBannerTopFile(file);
-          setBannerTopPreviewUrl(attachment.signed_url);
-
-          if (imagePosition === "none") {
-            setImagePosition("top");
-          }
-
-          continue;
-        }
-
-        if (attachment.role === "banner_bottom") {
-          setBannerBottomFile(file);
-          setBannerBottomPreviewUrl(attachment.signed_url);
-
-          if (imagePosition === "none") {
-            setImagePosition("bottom");
-          }
-
-          continue;
-        }
-
-        if (attachment.role === "body_audio") {
-          setBodyAudioFile(file);
-          setBodyAudioPreviewUrl(attachment.signed_url);
-          setBodyAudioDisplayName(attachment.display_name || "StayKnown Audio");
-          continue;
-        }
-
-        if (attachment.role === "body_image") {
-          setBodyImageFile(file);
-          setBodyImagePreviewUrl(attachment.signed_url);
-          setBodyImageDisplayName(attachment.display_name || "StayKnown Image");
-          continue;
-        }
-
-        restoredFiles.push({
-          id: makeId("restored-file"),
-          file,
-          mode:
-            attachment.attachment_mode === "inline_image" ||
-            attachment.attachment_mode === "link_only"
-              ? attachment.attachment_mode
-              : "attach",
-          displayName: attachment.display_name || attachment.file_name,
-        });
       } catch (_) {
-        // Keep opening the draft even if one stored file fails to restore.
+        failedToReloadCount += 1;
+        return null;
       }
+    }
+
+    for (const attachment of attachments) {
+      const signedUrl = attachment.signed_url || "";
+
+      if (!signedUrl) {
+        failedToReloadCount += 1;
+        continue;
+      }
+
+      if (attachment.role === "banner_top") {
+        setBannerTopPreviewUrl(signedUrl);
+        setImagePosition((prev) => (prev === "none" ? "top" : prev));
+      }
+
+      if (attachment.role === "banner_bottom") {
+        setBannerBottomPreviewUrl(signedUrl);
+        setImagePosition((prev) => (prev === "none" ? "bottom" : prev));
+      }
+
+      if (attachment.role === "body_audio") {
+        setBodyAudioPreviewUrl(signedUrl);
+        setBodyAudioDisplayName(
+          attachment.display_name || attachment.file_name || "StayKnown Audio",
+        );
+      }
+
+      if (attachment.role === "body_image") {
+        setBodyImagePreviewUrl(signedUrl);
+        setBodyImageDisplayName(
+          attachment.display_name || attachment.file_name || "StayKnown Image",
+        );
+      }
+
+      const file = await loadFileFromSignedUrl(attachment);
+
+      if (!file) continue;
+
+      if (attachment.role === "banner_top") {
+        setBannerTopFile(file);
+        continue;
+      }
+
+      if (attachment.role === "banner_bottom") {
+        setBannerBottomFile(file);
+        continue;
+      }
+
+      if (attachment.role === "body_audio") {
+        setBodyAudioFile(file);
+        continue;
+      }
+
+      if (attachment.role === "body_image") {
+        setBodyImageFile(file);
+        continue;
+      }
+
+      restoredFiles.push({
+        id: makeId("restored-file"),
+        file,
+        mode:
+          attachment.attachment_mode === "inline_image" ||
+          attachment.attachment_mode === "link_only"
+            ? attachment.attachment_mode
+            : "attach",
+        displayName: attachment.display_name || attachment.file_name,
+      });
     }
 
     if (restoredFiles.length > 0) {
       setFiles(restoredFiles);
     }
 
-    setStatus("Draft opened and saved files restored.");
+    setStatus(
+      failedToReloadCount > 0
+        ? "Draft preview restored. Some files could not be fully reloaded for sending; reselect any missing file before sending."
+        : "Draft opened and saved files restored.",
+    );
   }
-
   useEffect(() => {
     let cancelled = false;
 
@@ -1045,6 +1072,19 @@ export default function MailConsoleSendForm({
       window.removeEventListener("keydown", closeOnEscape);
     };
   }, [readOnlyPreviewOpen]);
+
+  useEffect(() => {
+    if (!status) return;
+    if (sending || openingCampaign || savingDraft) return;
+
+    const timer = window.setTimeout(() => {
+      setStatus("");
+    }, 1000);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [status, sending, openingCampaign, savingDraft]);
 
   const allowedTemplates = useMemo(
     () => templates.filter((t) => t.mode === mode),
@@ -1255,7 +1295,8 @@ export default function MailConsoleSendForm({
     const previewUrl = URL.createObjectURL(file);
 
     if (placement === "top") {
-      if (bannerTopPreviewUrl) URL.revokeObjectURL(bannerTopPreviewUrl);
+      if (bannerTopPreviewUrl) revokePreviewUrl(bannerTopPreviewUrl);
+
       setBannerTopFile(file);
       setBannerTopPreviewUrl(previewUrl);
 
@@ -1263,7 +1304,8 @@ export default function MailConsoleSendForm({
         setImagePosition("top");
       }
     } else {
-      if (bannerBottomPreviewUrl) URL.revokeObjectURL(bannerBottomPreviewUrl);
+      if (bannerBottomPreviewUrl) revokePreviewUrl(bannerBottomPreviewUrl);
+
       setBannerBottomFile(file);
       setBannerBottomPreviewUrl(previewUrl);
 
@@ -1277,11 +1319,13 @@ export default function MailConsoleSendForm({
 
   function clearBanner(placement: "top" | "bottom") {
     if (placement === "top") {
-      if (bannerTopPreviewUrl) URL.revokeObjectURL(bannerTopPreviewUrl);
+      if (bannerTopPreviewUrl) revokePreviewUrl(bannerTopPreviewUrl);
+
       setBannerTopFile(null);
       setBannerTopPreviewUrl("");
     } else {
-      if (bannerBottomPreviewUrl) URL.revokeObjectURL(bannerBottomPreviewUrl);
+      if (bannerBottomPreviewUrl) revokePreviewUrl(bannerBottomPreviewUrl);
+
       setBannerBottomFile(null);
       setBannerBottomPreviewUrl("");
     }
@@ -1297,19 +1341,21 @@ export default function MailConsoleSendForm({
       return;
     }
 
-    if (bodyAudioPreviewUrl) URL.revokeObjectURL(bodyAudioPreviewUrl);
+    if (bodyAudioPreviewUrl) revokePreviewUrl(bodyAudioPreviewUrl);
 
     const previewUrl = URL.createObjectURL(file);
+
     setBodyAudioFile(file);
     setBodyAudioPreviewUrl(previewUrl);
     setBodyAudioDisplayName((prev) => prev.trim() || "StayKnown Audio");
+
     setStatus(
       "Body audio selected. Tap inside the message and insert {{audio}} where you want it.",
     );
   }
 
   function clearBodyAudio() {
-    if (bodyAudioPreviewUrl) URL.revokeObjectURL(bodyAudioPreviewUrl);
+    if (bodyAudioPreviewUrl) revokePreviewUrl(bodyAudioPreviewUrl);
 
     setBodyAudioFile(null);
     setBodyAudioPreviewUrl("");
@@ -1320,6 +1366,7 @@ export default function MailConsoleSendForm({
     setMessage((prev) =>
       prev.replaceAll(BODY_AUDIO_TOKEN, "").replace(/\n{3,}/g, "\n\n"),
     );
+
     setStatus("Body audio removed.");
   }
 
@@ -1331,19 +1378,21 @@ export default function MailConsoleSendForm({
       return;
     }
 
-    if (bodyImagePreviewUrl) URL.revokeObjectURL(bodyImagePreviewUrl);
+    if (bodyImagePreviewUrl) revokePreviewUrl(bodyImagePreviewUrl);
 
     const previewUrl = URL.createObjectURL(file);
+
     setBodyImageFile(file);
     setBodyImagePreviewUrl(previewUrl);
     setBodyImageDisplayName((prev) => prev.trim() || "StayKnown Image");
+
     setStatus(
       "Body image selected. Tap inside the message and insert {{image}} where you want it.",
     );
   }
 
   function clearBodyImage() {
-    if (bodyImagePreviewUrl) URL.revokeObjectURL(bodyImagePreviewUrl);
+    if (bodyImagePreviewUrl) revokePreviewUrl(bodyImagePreviewUrl);
 
     setBodyImageFile(null);
     setBodyImagePreviewUrl("");
@@ -1355,9 +1404,9 @@ export default function MailConsoleSendForm({
     setMessage((prev) =>
       prev.replaceAll(BODY_IMAGE_TOKEN, "").replace(/\n{3,}/g, "\n\n"),
     );
+
     setStatus("Body image removed.");
   }
-
   function moveBodyBlock(dragged: BodyBlockKind, target: BodyBlockKind) {
     if (dragged === target) return;
 
@@ -2017,7 +2066,7 @@ export default function MailConsoleSendForm({
   }
 
   const footerText = customFooter || selectedFooter?.footer_html || "";
-  const hasAnyBanner = Boolean(bannerTopFile || bannerBottomFile);
+  const hasAnyBanner = Boolean(bannerTopPreviewUrl || bannerBottomPreviewUrl);
   const topBannerPreview = bannerTopPreviewUrl || bannerBottomPreviewUrl;
   const bottomBannerPreview = bannerBottomPreviewUrl || bannerTopPreviewUrl;
   const googlePlayHref = googlePlayEnabled ? publicHttpLink(googlePlayUrl) : "";
@@ -2029,8 +2078,8 @@ export default function MailConsoleSendForm({
 
   const enabledBodyBlocks = new Set<BodyBlockKind>(["message"]);
 
-  if (bodyAudioFile) enabledBodyBlocks.add("audio");
-  if (bodyImageFile) enabledBodyBlocks.add("image");
+  if (bodyAudioFile || bodyAudioPreviewUrl) enabledBodyBlocks.add("audio");
+  if (bodyImageFile || bodyImagePreviewUrl) enabledBodyBlocks.add("image");
 
   const bodyPreviewOrder = (() => {
     const baseOrder = bodyBlockOrder.filter((x) => enabledBodyBlocks.has(x));
@@ -2168,7 +2217,7 @@ export default function MailConsoleSendForm({
   }
 
   function renderInlineBodyAudio() {
-    if (!bodyAudioFile) return null;
+    if (!bodyAudioPreviewUrl) return null;
 
     return (
       <div style={embeddedMediaSlotStyle}>
@@ -2215,7 +2264,7 @@ export default function MailConsoleSendForm({
   }
 
   function renderInlineBodyImage(readOnly = false) {
-    if (!bodyImageFile || !bodyImagePreviewUrl) return null;
+    if (!bodyImagePreviewUrl) return null;
 
     const frameStyle = getPreviewBodyImageFrameStyle(
       bodyImageShape,
@@ -2288,7 +2337,7 @@ export default function MailConsoleSendForm({
   }
 
   function renderReadOnlyBodyBlock(block: BodyBlockKind) {
-    if (block === "audio" && bodyAudioFile) {
+    if (block === "audio" && bodyAudioPreviewUrl) {
       return (
         <div key="readonly-audio" style={readOnlyBodyBlockStyle}>
           <a
@@ -2332,7 +2381,7 @@ export default function MailConsoleSendForm({
         </div>
       );
     }
-    if (block === "image" && bodyImageFile && bodyImagePreviewUrl) {
+    if (block === "image" && bodyImagePreviewUrl) {
       return (
         <div key="readonly-image" style={readOnlyBodyBlockStyle}>
           <a
@@ -2382,7 +2431,7 @@ export default function MailConsoleSendForm({
   }
 
   function renderPreviewBodyBlock(block: BodyBlockKind) {
-    if (block === "audio" && bodyAudioFile) {
+    if (block === "audio" && bodyAudioPreviewUrl) {
       return (
         <div
           key="audio"
@@ -2438,7 +2487,7 @@ export default function MailConsoleSendForm({
         </div>
       );
     }
-    if (block === "image" && bodyImageFile && bodyImagePreviewUrl) {
+    if (block === "image" && bodyImagePreviewUrl) {
       return (
         <div
           key="image"
@@ -3660,6 +3709,12 @@ ${BODY_AUDIO_TOKEN} for body audio`}
               >
                 Preview Setup
               </button>
+
+              {isOpenedDraft ? (
+                <Link href="/mail-console/send" style={secondaryButtonStyle}>
+                  Compose New
+                </Link>
+              ) : null}
 
               <button
                 type="button"
