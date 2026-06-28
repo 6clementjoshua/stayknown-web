@@ -59,7 +59,20 @@ type PolicyLinkKey =
   | "security"
   | "creator_policy"
   | "donor_policy"
-  | "billing_policy";
+  | "billing_policy"
+  | "rides_terms"
+  | "rides_privacy"
+  | "rides_acceptable_use"
+  | "rides_safety"
+  | "rides_refunds"
+  | "rides_subscription_billing"
+  | "rides_partner_terms"
+  | "rides_emergency"
+  | "rides_contact"
+  | "rides_child_student_safety"
+  | "rides_insurance_liability"
+  | "rides_corporate_sla"
+  | "rides_cookies";
 
 const MAX_RECIPIENTS = 50;
 const SEND_BATCH_SIZE = 5;
@@ -72,6 +85,7 @@ const POLICY_LINK_OPTIONS: Array<{
   key: PolicyLinkKey;
   label: string;
   href: string;
+  brand?: "stayknown" | "6rides";
 }> = [
   {
     key: "privacy",
@@ -163,7 +177,115 @@ const POLICY_LINK_OPTIONS: Array<{
     label: "Billing & Refunds",
     href: "https://stay-known.com/billing-policy",
   },
+  {
+    key: "rides_terms",
+    label: "Terms of Service",
+    href: "https://6rides.com/policies/terms",
+    brand: "6rides",
+  },
+  {
+    key: "rides_privacy",
+    label: "Privacy Policy",
+    href: "https://6rides.com/policies/privacy",
+    brand: "6rides",
+  },
+  {
+    key: "rides_acceptable_use",
+    label: "Acceptable Use",
+    href: "https://6rides.com/policies/acceptable-use",
+    brand: "6rides",
+  },
+  {
+    key: "rides_safety",
+    label: "Safety Guidelines",
+    href: "https://6rides.com/policies/safety",
+    brand: "6rides",
+  },
+  {
+    key: "rides_refunds",
+    label: "Refund & Cancellation",
+    href: "https://6rides.com/policies/refunds",
+    brand: "6rides",
+  },
+  {
+    key: "rides_subscription_billing",
+    label: "Subscription & Billing",
+    href: "https://6rides.com/policies/subscription-billing",
+    brand: "6rides",
+  },
+  {
+    key: "rides_partner_terms",
+    label: "Partner Terms",
+    href: "https://6rides.com/policies/partner-terms",
+    brand: "6rides",
+  },
+  {
+    key: "rides_emergency",
+    label: "Emergency Disclaimer",
+    href: "https://6rides.com/policies/emergency",
+    brand: "6rides",
+  },
+  {
+    key: "rides_contact",
+    label: "Contact",
+    href: "https://6rides.com/policies/contact",
+    brand: "6rides",
+  },
+  {
+    key: "rides_child_student_safety",
+    label: "Child & Student Safety",
+    href: "https://6rides.com/policies/child-student-safety",
+    brand: "6rides",
+  },
+  {
+    key: "rides_insurance_liability",
+    label: "Insurance & Liability",
+    href: "https://6rides.com/policies/insurance-liability",
+    brand: "6rides",
+  },
+  {
+    key: "rides_corporate_sla",
+    label: "Corporate SLA",
+    href: "https://6rides.com/policies/corporate-sla",
+    brand: "6rides",
+  },
+  {
+    key: "rides_cookies",
+    label: "Cookies Policy",
+    href: "https://6rides.com/policies/cookies",
+    brand: "6rides",
+  },
 ];
+
+const SIX_RIDES_POLICY_KEYS: PolicyLinkKey[] = [
+  "rides_terms",
+  "rides_privacy",
+  "rides_acceptable_use",
+  "rides_safety",
+  "rides_refunds",
+  "rides_subscription_billing",
+  "rides_partner_terms",
+  "rides_emergency",
+  "rides_contact",
+  "rides_child_student_safety",
+  "rides_insurance_liability",
+  "rides_corporate_sla",
+  "rides_cookies",
+];
+
+const STAYKNOWN_DEFAULT_POLICY_KEYS: PolicyLinkKey[] = ["privacy", "terms"];
+
+function policyBrandForSenderEmail(email: string) {
+  const normalized = email.trim().toLowerCase();
+
+  if (normalized.endsWith("@6rides.com")) return "6rides";
+
+  return "stayknown";
+}
+
+function isSixRidesPolicyKey(key: PolicyLinkKey) {
+  return SIX_RIDES_POLICY_KEYS.includes(key);
+}
 
 type MailTemplate = {
   id: string;
@@ -1366,6 +1488,37 @@ export default function MailConsoleSendForm({
     [allowedSenders, senderId],
   );
 
+  const selectedPolicyBrand = policyBrandForSenderEmail(
+    selectedSender?.from_email || "",
+  );
+
+  const currentPolicyLinkOptions = useMemo(
+    () =>
+      POLICY_LINK_OPTIONS.filter((item) =>
+        selectedPolicyBrand === "6rides"
+          ? item.brand === "6rides"
+          : item.brand !== "6rides",
+      ),
+    [selectedPolicyBrand],
+  );
+
+  useEffect(() => {
+    if (selectedPolicyBrand === "6rides") {
+      setSelectedPolicyLinks((prev) => {
+        const current6Rides = prev.filter(isSixRidesPolicyKey);
+
+        return current6Rides.length > 0 ? current6Rides : SIX_RIDES_POLICY_KEYS;
+      });
+
+      return;
+    }
+
+    setSelectedPolicyLinks((prev) => {
+      const has6RidesPolicy = prev.some(isSixRidesPolicyKey);
+
+      return has6RidesPolicy ? STAYKNOWN_DEFAULT_POLICY_KEYS : prev;
+    });
+  }, [selectedPolicyBrand]);
   const allowedFooters = useMemo(() => {
     const exact = footerPolicies.filter((f) => f.mode === mode);
     const general = footerPolicies.filter((f) => f.mode === "general");
@@ -2700,9 +2853,9 @@ export default function MailConsoleSendForm({
           if (results.length > 0) {
             updateSendResults(results, chunk);
           } else if (!res.ok || !data.ok) {
-           const error =
-  data.error ||
-  "Retry is not available right now because today’s email sending limit may have been reached. Please try again tomorrow.";
+            const error =
+              data.error ||
+              "Retry is not available right now because today’s email sending limit may have been reached. Please try again tomorrow.";
             updateSendRowStatus(chunk, "failed", error);
           } else {
             updateSendResults([], chunk);
@@ -4586,7 +4739,7 @@ ${BODY_AUDIO_TOKEN} for body audio`}
               <label style={labelStyle}>Clickable policy links</label>
 
               <div style={policyBoxStyle}>
-                {POLICY_LINK_OPTIONS.map((item) => {
+                {currentPolicyLinkOptions.map((item) => {
                   const active = selectedPolicyLinks.includes(item.key);
 
                   return (

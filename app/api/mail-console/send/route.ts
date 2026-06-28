@@ -83,7 +83,20 @@ type PolicyLinkKey =
   | "security"
   | "creator_policy"
   | "donor_policy"
-  | "billing_policy";
+  | "billing_policy"
+  | "rides_terms"
+  | "rides_privacy"
+  | "rides_acceptable_use"
+  | "rides_safety"
+  | "rides_refunds"
+  | "rides_subscription_billing"
+  | "rides_partner_terms"
+  | "rides_emergency"
+  | "rides_contact"
+  | "rides_child_student_safety"
+  | "rides_insurance_liability"
+  | "rides_corporate_sla"
+  | "rides_cookies";
 
 const BODY_IMAGE_TOKEN = "{{image}}";
 const BODY_AUDIO_TOKEN = "{{audio}}";
@@ -169,7 +182,79 @@ const POLICY_LINK_OPTIONS: Record<
     label: "Billing & Refunds",
     href: "https://stay-known.com/billing-policy",
   },
+  rides_terms: {
+    label: "Terms of Service",
+    href: "https://6rides.com/policies/terms",
+  },
+  rides_privacy: {
+    label: "Privacy Policy",
+    href: "https://6rides.com/policies/privacy",
+  },
+  rides_acceptable_use: {
+    label: "Acceptable Use",
+    href: "https://6rides.com/policies/acceptable-use",
+  },
+  rides_safety: {
+    label: "Safety Guidelines",
+    href: "https://6rides.com/policies/safety",
+  },
+  rides_refunds: {
+    label: "Refund & Cancellation",
+    href: "https://6rides.com/policies/refunds",
+  },
+  rides_subscription_billing: {
+    label: "Subscription & Billing",
+    href: "https://6rides.com/policies/subscription-billing",
+  },
+  rides_partner_terms: {
+    label: "Partner Terms",
+    href: "https://6rides.com/policies/partner-terms",
+  },
+  rides_emergency: {
+    label: "Emergency Disclaimer",
+    href: "https://6rides.com/policies/emergency",
+  },
+  rides_contact: {
+    label: "Contact",
+    href: "https://6rides.com/policies/contact",
+  },
+  rides_child_student_safety: {
+    label: "Child & Student Safety",
+    href: "https://6rides.com/policies/child-student-safety",
+  },
+  rides_insurance_liability: {
+    label: "Insurance & Liability",
+    href: "https://6rides.com/policies/insurance-liability",
+  },
+  rides_corporate_sla: {
+    label: "Corporate SLA",
+    href: "https://6rides.com/policies/corporate-sla",
+  },
+  rides_cookies: {
+    label: "Cookies Policy",
+    href: "https://6rides.com/policies/cookies",
+  },
 };
+
+const SIX_RIDES_POLICY_KEYS: PolicyLinkKey[] = [
+  "rides_terms",
+  "rides_privacy",
+  "rides_acceptable_use",
+  "rides_safety",
+  "rides_refunds",
+  "rides_subscription_billing",
+  "rides_partner_terms",
+  "rides_emergency",
+  "rides_contact",
+  "rides_child_student_safety",
+  "rides_insurance_liability",
+  "rides_corporate_sla",
+  "rides_cookies",
+];
+
+function isSixRidesPolicyKey(key: PolicyLinkKey) {
+  return SIX_RIDES_POLICY_KEYS.includes(key);
+}
 
 function clean(v: unknown) {
   return typeof v === "string" ? v.trim() : "";
@@ -1911,9 +1996,7 @@ export async function POST(req: NextRequest) {
 
     const footerPolicyId = clean(form.get("footer_policy_id"));
     const footerHtml = clean(form.get("footer_html"));
-    const selectedPolicyLinks = parsePolicyLinks(
-      clean(form.get("policy_links")),
-    );
+    let selectedPolicyLinks = parsePolicyLinks(clean(form.get("policy_links")));
 
     const socialTikTokEnabled = safeBoolean(form.get("social_tiktok_enabled"));
     const socialTikTokUsername = safeSocialUsername(
@@ -2093,6 +2176,16 @@ export async function POST(req: NextRequest) {
     }
 
     const senderRow = sender as SenderRow;
+
+    if (senderRow.from_email.toLowerCase().endsWith("@6rides.com")) {
+      const selected6RidesLinks =
+        selectedPolicyLinks.filter(isSixRidesPolicyKey);
+
+      selectedPolicyLinks =
+        selected6RidesLinks.length > 0
+          ? selected6RidesLinks
+          : SIX_RIDES_POLICY_KEYS;
+    }
 
     const senderAllowed =
       mode === "newsletter" || mode === "advert"
