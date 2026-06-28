@@ -2605,11 +2605,17 @@ export default function MailConsoleSendForm({
 
           const data = await res.json().catch(() => ({}));
 
-          if (!res.ok || !data.ok) {
+          const results = Array.isArray(data?.summary?.results)
+            ? data.summary.results
+            : [];
+
+          if (results.length > 0) {
+            updateSendResults(results, chunk);
+          } else if (!res.ok || !data.ok) {
             const error = data.error || "Email send failed for this batch.";
             updateSendRowStatus(chunk, "failed", error);
           } else {
-            updateSendResults(data.summary?.results || [], chunk);
+            updateSendResults([], chunk);
           }
         } catch (err) {
           if (stopSendRef.current) {
@@ -2683,11 +2689,17 @@ export default function MailConsoleSendForm({
 
           const data = await res.json().catch(() => ({}));
 
-          if (!res.ok || !data.ok) {
+          const results = Array.isArray(data?.summary?.results)
+            ? data.summary.results
+            : [];
+
+          if (results.length > 0) {
+            updateSendResults(results, chunk);
+          } else if (!res.ok || !data.ok) {
             const error = data.error || "Retry failed for this email.";
             updateSendRowStatus(chunk, "failed", error);
           } else {
-            updateSendResults(data.summary?.results || [], chunk);
+            updateSendResults([], chunk);
           }
         } catch (err) {
           updateSendRowStatus(

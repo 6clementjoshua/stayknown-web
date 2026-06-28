@@ -401,20 +401,37 @@ function parseBodyInlineMediaItems(raw: string): BodyInlineMediaItem[] {
       const kindRaw = clean(row.kind).toLowerCase();
 
       if (!id) continue;
-      if (kindRaw !== "audio" && kindRaw !== "image" && kindRaw !== "file")
+      if (kindRaw !== "audio" && kindRaw !== "image" && kindRaw !== "file") {
         continue;
+      }
 
       const kind = kindRaw as BodyInlineMediaKind;
+
+      const fallbackDisplayName =
+        kind === "audio"
+          ? "StayKnown Audio"
+          : kind === "image"
+            ? "StayKnown Image"
+            : "StayKnown File";
+
+      const fallbackMimeType =
+        kind === "audio"
+          ? "audio/mpeg"
+          : kind === "image"
+            ? "image/png"
+            : "application/octet-stream";
+
+      const displayName =
+        clean(row.display_name) ||
+        clean(row.displayName) ||
+        fallbackDisplayName;
+
+      const mimeType = clean(row.mime_type || row.mimeType) || fallbackMimeType;
 
       items.push({
         id,
         kind,
-        displayName:
-          clean(row.display_name) || clean(row.displayName) || kind === "audio"
-            ? "StayKnown Audio"
-            : kind === "image"
-              ? "StayKnown Image"
-              : "StayKnown File",
+        displayName,
         size: safeNumber(row.size, kind === "audio" ? 76 : 100, 32, 100),
         placement: safeBodyMediaPlacement(row.placement),
         hint: clean(row.hint).slice(0, 160),
@@ -426,15 +443,9 @@ function parseBodyInlineMediaItems(raw: string): BodyInlineMediaItem[] {
           kind === "image"
             ? safeBodyImageShape(row.image_shape || row.imageShape)
             : "rectangle",
-        mimeType:
-          clean(row.mime_type || row.mimeType) || kind === "audio"
-            ? "audio/mpeg"
-            : kind === "image"
-              ? "image/png"
-              : "application/octet-stream",
+        mimeType,
         originalName:
-          clean(row.original_name || row.originalName) ||
-          (kind === "audio" ? "StayKnown Audio" : "StayKnown Image"),
+          clean(row.original_name || row.originalName) || displayName,
         fileField:
           clean(row.file_field || row.fileField) ||
           `body_inline_media_file_${id}`,
@@ -2283,7 +2294,7 @@ export async function POST(req: NextRequest) {
           message_has_body_image_token:
             message.includes(BODY_IMAGE_TOKEN) ||
             /\{\{image:[^}]+\}\}/.test(message),
-            message_has_body_file_token: /\{\{file:[^}]+\}\}/.test(message),
+          message_has_body_file_token: /\{\{file:[^}]+\}\}/.test(message),
           file_modes: normalizedFileModes,
           file_display_names: fileDisplayNames,
         },
@@ -3073,9 +3084,19 @@ export async function POST(req: NextRequest) {
         },
       })
       .eq("id", campaignId);
+    const firstFailure = summary.results.find(
+      (item: Record<string, unknown>) =>
+        item.status === "failed" && typeof item.error === "string",
+    );
 
     return NextResponse.json({
-      ok: summary.sent > 0,
+      ok: true,
+      delivery_ok: summary.sent > 0,
+      has_failures: summary.failed > 0,
+      error:
+        summary.sent === 0 && summary.failed > 0
+          ? String(firstFailure?.error || "All emails failed in this batch.")
+          : "",
       campaign_id: campaignId,
       summary,
     });
