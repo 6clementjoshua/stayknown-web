@@ -697,6 +697,30 @@ function safeBodyBlockOrderValue(value: string[]) {
   return unique;
 }
 
+type SocialPlatform = "tiktok" | "twitter" | "facebook";
+
+function cleanSocialUsername(value: string) {
+  return value
+    .trim()
+    .replace(/^@+/, "")
+    .replace(/^https?:\/\/(www\.)?/i, "")
+    .replace(/^(tiktok\.com\/@|twitter\.com\/|x\.com\/|facebook\.com\/)/i, "")
+    .split(/[/?#]/)[0]
+    .replace(/[^a-zA-Z0-9._-]/g, "")
+    .slice(0, 60);
+}
+
+function socialHref(platform: SocialPlatform, username: string) {
+  const cleanName = cleanSocialUsername(username);
+
+  if (!cleanName) return "";
+
+  if (platform === "tiktok") return `https://www.tiktok.com/@${cleanName}`;
+  if (platform === "twitter") return `https://twitter.com/${cleanName}`;
+
+  return `https://www.facebook.com/${cleanName}`;
+}
+
 export default function MailConsoleSendForm({
   adminEmail,
   senders,
@@ -724,6 +748,8 @@ export default function MailConsoleSendForm({
   const [selectedRecipientEmails, setSelectedRecipientEmails] = useState<
     string[]
   >([]);
+  const [editingRecipientEmail, setEditingRecipientEmail] = useState("");
+  const [editingRecipientValue, setEditingRecipientValue] = useState("");
   const [subject, setSubject] = useState("");
   const [title, setTitle] = useState(defaultTitleForMode("support"));
   const [subtitle, setSubtitle] = useState("");
@@ -789,6 +815,15 @@ export default function MailConsoleSendForm({
   const [selectedPolicyLinks, setSelectedPolicyLinks] = useState<
     PolicyLinkKey[]
   >(["privacy", "terms"]);
+
+  const [socialTikTokEnabled, setSocialTikTokEnabled] = useState(false);
+  const [socialTikTokUsername, setSocialTikTokUsername] = useState("");
+
+  const [socialTwitterEnabled, setSocialTwitterEnabled] = useState(false);
+  const [socialTwitterUsername, setSocialTwitterUsername] = useState("");
+
+  const [socialFacebookEnabled, setSocialFacebookEnabled] = useState(false);
+  const [socialFacebookUsername, setSocialFacebookUsername] = useState("");
 
   const [files, setFiles] = useState<PickedFile[]>([]);
   const [status, setStatus] = useState("");
@@ -945,6 +980,15 @@ export default function MailConsoleSendForm({
     setSelectedPolicyLinks(
       nextPolicyLinks.length > 0 ? nextPolicyLinks : ["privacy", "terms"],
     );
+
+    setSocialTikTokEnabled(booleanFromMeta(meta, "social_tiktok_enabled"));
+    setSocialTikTokUsername(stringFromMeta(meta, "social_tiktok_username"));
+
+    setSocialTwitterEnabled(booleanFromMeta(meta, "social_twitter_enabled"));
+    setSocialTwitterUsername(stringFromMeta(meta, "social_twitter_username"));
+
+    setSocialFacebookEnabled(booleanFromMeta(meta, "social_facebook_enabled"));
+    setSocialFacebookUsername(stringFromMeta(meta, "social_facebook_username"));
 
     const restoredRecipients = stringArrayFromMeta(meta, "recipient_emails")
       .map((email) => email.trim().toLowerCase())
@@ -1465,6 +1509,68 @@ export default function MailConsoleSendForm({
     setSelectedRecipientEmails((prev) => prev.filter((item) => item !== email));
   }
 
+  function startRecipientEdit(email: string) {
+    if (sending || openingCampaign || isReadOnlyCampaign) return;
+
+    setEditingRecipientEmail(email);
+    setEditingRecipientValue(email);
+  }
+
+  function cancelRecipientEdit() {
+    setEditingRecipientEmail("");
+    setEditingRecipientValue("");
+  }
+
+  function commitRecipientEdit(oldEmail: string) {
+    const nextEmail = normalizeEmailInput(editingRecipientValue);
+
+    if (!nextEmail) {
+      cancelRecipientEdit();
+      return;
+    }
+
+    if (!isValidEmail(nextEmail)) {
+      setStatus("Enter a valid email address.");
+      return;
+    }
+
+    const duplicate = recipients.some(
+      (recipient) =>
+        recipient.email !== oldEmail &&
+        recipient.email.toLowerCase() === nextEmail,
+    );
+
+    if (duplicate) {
+      setStatus("That email is already added.");
+      return;
+    }
+
+    setRecipients((prev) =>
+      prev.map((recipient) =>
+        recipient.email === oldEmail
+          ? {
+              ...recipient,
+              email: nextEmail,
+              status: "ready",
+              error: "",
+            }
+          : recipient,
+      ),
+    );
+
+    setRecipientIssues((prev) =>
+      prev.filter((issue) => issue.value.toLowerCase() !== oldEmail),
+    );
+
+    setSelectedRecipientEmails((prev) =>
+      prev.map((email) => (email === oldEmail ? nextEmail : email)),
+    );
+
+    setEditingRecipientEmail("");
+    setEditingRecipientValue("");
+    setStatus("Recipient email updated.");
+  }
+
   function toggleRecipientMarked(email: string) {
     setSelectedRecipientEmails((prev) =>
       prev.includes(email)
@@ -1923,6 +2029,33 @@ export default function MailConsoleSendForm({
       form.append("policy_links", JSON.stringify(selectedPolicyLinks));
 
       form.append(
+        "social_tiktok_enabled",
+        socialTikTokEnabled ? "true" : "false",
+      );
+      form.append(
+        "social_tiktok_username",
+        cleanSocialUsername(socialTikTokUsername),
+      );
+
+      form.append(
+        "social_twitter_enabled",
+        socialTwitterEnabled ? "true" : "false",
+      );
+      form.append(
+        "social_twitter_username",
+        cleanSocialUsername(socialTwitterUsername),
+      );
+
+      form.append(
+        "social_facebook_enabled",
+        socialFacebookEnabled ? "true" : "false",
+      );
+      form.append(
+        "social_facebook_username",
+        cleanSocialUsername(socialFacebookUsername),
+      );
+
+      form.append(
         "file_modes",
         JSON.stringify(files.map((picked) => picked.mode)),
       );
@@ -2136,6 +2269,33 @@ export default function MailConsoleSendForm({
       customFooter || selectedFooter?.footer_html || "",
     );
     form.append("policy_links", JSON.stringify(selectedPolicyLinks));
+
+    form.append(
+      "social_tiktok_enabled",
+      socialTikTokEnabled ? "true" : "false",
+    );
+    form.append(
+      "social_tiktok_username",
+      cleanSocialUsername(socialTikTokUsername),
+    );
+
+    form.append(
+      "social_twitter_enabled",
+      socialTwitterEnabled ? "true" : "false",
+    );
+    form.append(
+      "social_twitter_username",
+      cleanSocialUsername(socialTwitterUsername),
+    );
+
+    form.append(
+      "social_facebook_enabled",
+      socialFacebookEnabled ? "true" : "false",
+    );
+    form.append(
+      "social_facebook_username",
+      cleanSocialUsername(socialFacebookUsername),
+    );
 
     form.append(
       "file_modes",
@@ -2430,6 +2590,77 @@ export default function MailConsoleSendForm({
     }
   }
 
+  async function retryFailedEmails() {
+    if (sending) return;
+
+    const failedEmails = sendRows
+      .filter((row) => row.status === "failed")
+      .map((row) => row.email);
+
+    if (failedEmails.length === 0) {
+      setStatus("There are no failed emails to retry.");
+      return;
+    }
+
+    setSending(true);
+    setSendComplete(false);
+    setStatus("");
+    stopSendRef.current = false;
+
+    try {
+      for (let i = 0; i < failedEmails.length; i += SEND_BATCH_SIZE) {
+        if (stopSendRef.current) break;
+
+        const chunk = failedEmails.slice(i, i + SEND_BATCH_SIZE);
+        const startedAt = Date.now();
+
+        setActiveSendEmail(chunk[0] || "");
+        updateSendRowStatus(chunk, "sending", "");
+
+        const controller = new AbortController();
+        sendAbortRef.current = controller;
+
+        try {
+          const res = await fetch("/api/mail-console/send", {
+            method: "POST",
+            body: buildEmailForm(chunk),
+            signal: controller.signal,
+          });
+
+          const data = await res.json().catch(() => ({}));
+
+          if (!res.ok || !data.ok) {
+            const error = data.error || "Retry failed for this email.";
+            updateSendRowStatus(chunk, "failed", error);
+          } else {
+            updateSendResults(data.summary?.results || [], chunk);
+          }
+        } catch (err) {
+          updateSendRowStatus(
+            chunk,
+            "failed",
+            err instanceof Error ? err.message : "Retry failed.",
+          );
+        }
+
+        const elapsed = Date.now() - startedAt;
+        const waitMs = RESEND_SAFE_WINDOW_MS - elapsed;
+        const hasNextBatch = i + SEND_BATCH_SIZE < failedEmails.length;
+
+        if (waitMs > 0 && hasNextBatch && !stopSendRef.current) {
+          await delay(waitMs);
+        }
+      }
+
+      setSendComplete(true);
+      setStatus("Failed email retry completed.");
+    } finally {
+      sendAbortRef.current = null;
+      setSending(false);
+      setActiveSendEmail("");
+    }
+  }
+
   function previewOnly() {
     setStatus("Preview updated.");
   }
@@ -2442,6 +2673,34 @@ export default function MailConsoleSendForm({
   const appStoreHref = appStoreEnabled ? publicHttpLink(appStoreUrl) : "";
   const hasAnyStoreBadge = Boolean(googlePlayHref || appStoreHref);
   const hasConfiguredStoreBadge = googlePlayEnabled || appStoreEnabled;
+  const socialPreviewLinks = [
+    {
+      platform: "tiktok" as SocialPlatform,
+      enabled: socialTikTokEnabled,
+      username: cleanSocialUsername(socialTikTokUsername),
+      href: socialHref("tiktok", socialTikTokUsername),
+      label: "TikTok",
+      icon: "♪",
+    },
+    {
+      platform: "twitter" as SocialPlatform,
+      enabled: socialTwitterEnabled,
+      username: cleanSocialUsername(socialTwitterUsername),
+      href: socialHref("twitter", socialTwitterUsername),
+      label: "Twitter",
+      icon: "𝕏",
+    },
+    {
+      platform: "facebook" as SocialPlatform,
+      enabled: socialFacebookEnabled,
+      username: cleanSocialUsername(socialFacebookUsername),
+      href: socialHref("facebook", socialFacebookUsername),
+      label: "Facebook",
+      icon: "f",
+    },
+  ].filter((item) => item.enabled && item.username && item.href);
+
+  const hasAnySocialLinks = socialPreviewLinks.length > 0;
   const messageHasBodyImageToken =
     message.includes(BODY_IMAGE_TOKEN) || /\{\{image:[^}]+\}\}/.test(message);
 
@@ -2578,6 +2837,28 @@ export default function MailConsoleSendForm({
             </a>
           );
         })}
+      </div>
+    );
+  }
+
+  function renderSocialLinksBlock() {
+    if (!hasAnySocialLinks) return null;
+
+    return (
+      <div style={previewSocialWrapStyle}>
+        {socialPreviewLinks.map((item) => (
+          <a
+            key={item.platform}
+            href={item.href}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={previewSocialLinkStyle}
+            title={item.label}
+          >
+            <span style={previewSocialIconStyle}>{item.icon}</span>
+            <span>@{item.username}</span>
+          </a>
+        ))}
       </div>
     );
   }
@@ -3335,6 +3616,8 @@ export default function MailConsoleSendForm({
                     <div
                       key={recipient.id}
                       className="sk-recipient-chip"
+                      onClick={() => startRecipientEdit(recipient.email)}
+                      title="Click to edit email"
                       style={{
                         ...recipientChipStyle,
                         borderColor:
@@ -3359,12 +3642,37 @@ export default function MailConsoleSendForm({
                         type="checkbox"
                         checked={marked}
                         onChange={() => toggleRecipientMarked(recipient.email)}
+                        onClick={(e) => e.stopPropagation()}
                         style={recipientChipCheckboxStyle}
                         aria-label={`Mark ${recipient.email}`}
                       />
-                      <span style={recipientEmailTextStyle}>
-                        {recipient.email}
-                      </span>
+                      {editingRecipientEmail === recipient.email ? (
+                        <input
+                          value={editingRecipientValue}
+                          autoFocus
+                          onChange={(e) =>
+                            setEditingRecipientValue(e.target.value)
+                          }
+                          onClick={(e) => e.stopPropagation()}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === "Tab") {
+                              e.preventDefault();
+                              commitRecipientEdit(recipient.email);
+                            }
+
+                            if (e.key === "Escape") {
+                              e.preventDefault();
+                              cancelRecipientEdit();
+                            }
+                          }}
+                          onBlur={() => commitRecipientEdit(recipient.email)}
+                          style={recipientEditInputStyle}
+                        />
+                      ) : (
+                        <span style={recipientEmailTextStyle}>
+                          {recipient.email}
+                        </span>
+                      )}
 
                       <span style={recipientStatusDotStyle}>
                         {recipient.status === "sent"
@@ -3383,7 +3691,10 @@ export default function MailConsoleSendForm({
                       <button
                         type="button"
                         className="sk-recipient-chip-remove"
-                        onClick={() => removeRecipient(recipient.email)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removeRecipient(recipient.email);
+                        }}
                         style={recipientRemoveStyle}
                         aria-label={`Remove ${recipient.email}`}
                       >
@@ -4126,6 +4437,118 @@ ${BODY_AUDIO_TOKEN} for body audio`}
                 Selected links will appear centered and clickable in the
                 delivered email footer.
               </div>
+
+              <div style={{ ...compactMediaPanelStyle, marginTop: 12 }}>
+                <div style={compactPanelTitleStyle}>Social media links</div>
+
+                <div style={grid3Style}>
+                  <label style={storeToggleCardStyle}>
+                    <input
+                      type="checkbox"
+                      checked={socialTikTokEnabled}
+                      onChange={(e) => setSocialTikTokEnabled(e.target.checked)}
+                    />
+                    <span>
+                      <b>TikTok</b>
+                      <small>Show TikTok under policy links.</small>
+                    </span>
+                  </label>
+
+                  <label style={storeToggleCardStyle}>
+                    <input
+                      type="checkbox"
+                      checked={socialTwitterEnabled}
+                      onChange={(e) =>
+                        setSocialTwitterEnabled(e.target.checked)
+                      }
+                    />
+                    <span>
+                      <b>Twitter</b>
+                      <small>Show Twitter under policy links.</small>
+                    </span>
+                  </label>
+
+                  <label style={storeToggleCardStyle}>
+                    <input
+                      type="checkbox"
+                      checked={socialFacebookEnabled}
+                      onChange={(e) =>
+                        setSocialFacebookEnabled(e.target.checked)
+                      }
+                    />
+                    <span>
+                      <b>Facebook</b>
+                      <small>Show Facebook under policy links.</small>
+                    </span>
+                  </label>
+                </div>
+
+                <div style={{ ...grid3Style, marginTop: 10 }}>
+                  <div>
+                    <label style={labelStyle}>TikTok username only</label>
+                    <input
+                      value={socialTikTokUsername}
+                      onChange={(e) => setSocialTikTokUsername(e.target.value)}
+                      onBlur={() =>
+                        setSocialTikTokUsername(
+                          cleanSocialUsername(socialTikTokUsername),
+                        )
+                      }
+                      disabled={!socialTikTokEnabled}
+                      placeholder="example: stayknown"
+                      style={{
+                        ...inputStyle,
+                        opacity: socialTikTokEnabled ? 1 : 0.55,
+                      }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={labelStyle}>Twitter username only</label>
+                    <input
+                      value={socialTwitterUsername}
+                      onChange={(e) => setSocialTwitterUsername(e.target.value)}
+                      onBlur={() =>
+                        setSocialTwitterUsername(
+                          cleanSocialUsername(socialTwitterUsername),
+                        )
+                      }
+                      disabled={!socialTwitterEnabled}
+                      placeholder="example: stayknown"
+                      style={{
+                        ...inputStyle,
+                        opacity: socialTwitterEnabled ? 1 : 0.55,
+                      }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={labelStyle}>Facebook username only</label>
+                    <input
+                      value={socialFacebookUsername}
+                      onChange={(e) =>
+                        setSocialFacebookUsername(e.target.value)
+                      }
+                      onBlur={() =>
+                        setSocialFacebookUsername(
+                          cleanSocialUsername(socialFacebookUsername),
+                        )
+                      }
+                      disabled={!socialFacebookEnabled}
+                      placeholder="example: stayknown"
+                      style={{
+                        ...inputStyle,
+                        opacity: socialFacebookEnabled ? 1 : 0.55,
+                      }}
+                    />
+                  </div>
+                </div>
+
+                <div style={helpTextStyle}>
+                  Only active toggles with a username will appear in the
+                  delivered email.
+                </div>
+              </div>
             </div>
 
             <div style={sectionHeaderStyle}>Attachments</div>
@@ -4472,7 +4895,7 @@ ${BODY_AUDIO_TOKEN} for body audio`}
                   })}
                 </div>
               ) : null}
-
+              {renderSocialLinksBlock()}
               <div style={previewLegalStyle}>
                 © {new Date().getFullYear()} StayKnown™ · A 6 Clement Joshua
                 service™
@@ -4493,13 +4916,25 @@ ${BODY_AUDIO_TOKEN} for body audio`}
               </div>
 
               {sendComplete ? (
-                <button
-                  type="button"
-                  onClick={() => setSendOverlayOpen(false)}
-                  style={secondaryButtonStyle}
-                >
-                  Close
-                </button>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  {sendSummary.failed > 0 ? (
+                    <button
+                      type="button"
+                      onClick={retryFailedEmails}
+                      style={dangerButtonStyle}
+                    >
+                      ↻ Retry failed
+                    </button>
+                  ) : null}
+
+                  <button
+                    type="button"
+                    onClick={() => setSendOverlayOpen(false)}
+                    style={secondaryButtonStyle}
+                  >
+                    Close
+                  </button>
+                </div>
               ) : (
                 <button
                   type="button"
@@ -4589,7 +5024,46 @@ ${BODY_AUDIO_TOKEN} for body audio`}
                         <div style={sendRowErrorStyle}>{row.error}</div>
                       ) : null}
                     </div>
+                    {row.status === "failed" ? (
+                      <button
+                        type="button"
+                        title="Retry this failed email"
+                        onClick={(e) => {
+                          e.stopPropagation();
 
+                          setSendRows((prev) =>
+                            prev.map((item) =>
+                              item.email === row.email
+                                ? {
+                                    ...item,
+                                    status: "queued",
+                                    error: "",
+                                  }
+                                : item,
+                            ),
+                          );
+
+                          setRecipients((prev) =>
+                            prev.map((item) =>
+                              item.email === row.email
+                                ? {
+                                    ...item,
+                                    status: "queued",
+                                    error: "",
+                                  }
+                                : item,
+                            ),
+                          );
+
+                          window.setTimeout(() => {
+                            retryFailedEmails();
+                          }, 0);
+                        }}
+                        style={retryIconButtonStyle}
+                      >
+                        ↻
+                      </button>
+                    ) : null}
                     <div
                       style={{
                         ...sendStatusPillStyle,
@@ -4803,7 +5277,7 @@ ${BODY_AUDIO_TOKEN} for body audio`}
                     })}
                   </div>
                 ) : null}
-
+                {renderSocialLinksBlock()}
                 <div style={previewLegalStyle}>
                   © {new Date().getFullYear()} StayKnown™ · A 6 Clement Joshua
                   service™
@@ -5016,6 +5490,19 @@ const recipientEmailTextStyle: React.CSSProperties = {
   overflow: "hidden",
   textOverflow: "ellipsis",
   whiteSpace: "nowrap",
+};
+
+const recipientEditInputStyle: React.CSSProperties = {
+  width: 220,
+  maxWidth: "100%",
+  border: 0,
+  outline: "none",
+  background: "rgba(255,255,255,0.92)",
+  color: "#050505",
+  fontSize: 12,
+  fontWeight: 900,
+  borderRadius: 999,
+  padding: "3px 7px",
 };
 
 const recipientStatusDotStyle: React.CSSProperties = {
@@ -5392,6 +5879,44 @@ const previewCtaStyle: React.CSSProperties = {
     "inset 0 1px 0 rgba(255,255,255,0.92),0 20px 55px rgba(0,0,0,0.08)",
 };
 
+const previewSocialWrapStyle: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: 8,
+  flexWrap: "wrap",
+  marginTop: 10,
+  marginBottom: 8,
+};
+
+const previewSocialLinkStyle: React.CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 6,
+  borderRadius: 999,
+  padding: "7px 10px",
+  background: "rgba(255,255,255,0.88)",
+  color: "#050505",
+  textDecoration: "none",
+  fontSize: 11,
+  fontWeight: 900,
+  boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.10)",
+};
+
+const previewSocialIconStyle: React.CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  width: 20,
+  height: 20,
+  borderRadius: 999,
+  background: "#050505",
+  color: "white",
+  fontSize: 12,
+  fontWeight: 950,
+  lineHeight: 1,
+};
+
 const storeBadgeWrapStyle: React.CSSProperties = {
   display: "flex",
   flexWrap: "wrap",
@@ -5713,6 +6238,21 @@ const readOnlyEmailShellStyle: React.CSSProperties = {
 
 const readOnlyBodyBlockStyle: React.CSSProperties = {
   cursor: "default",
+};
+
+const retryIconButtonStyle: React.CSSProperties = {
+  width: 34,
+  height: 34,
+  borderRadius: 999,
+  border: 0,
+  background: "#7f1d1d",
+  color: "white",
+  fontSize: 16,
+  fontWeight: 950,
+  cursor: "pointer",
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
 };
 
 const sendOverlayStyle: React.CSSProperties = {

@@ -546,6 +546,95 @@ function policyLinksHtml(keys: PolicyLinkKey[]) {
   `;
 }
 
+function safeSocialUsername(v: unknown) {
+  return clean(v)
+    .replace(/^@+/, "")
+    .replace(/^https?:\/\/(www\.)?/i, "")
+    .replace(/^(tiktok\.com\/@|twitter\.com\/|x\.com\/|facebook\.com\/)/i, "")
+    .split(/[/?#]/)[0]
+    .replace(/[^a-zA-Z0-9._-]/g, "")
+    .slice(0, 60);
+}
+
+function socialLinksHtml(params: {
+  tiktokEnabled: boolean;
+  tiktokUsername: string;
+  twitterEnabled: boolean;
+  twitterUsername: string;
+  facebookEnabled: boolean;
+  facebookUsername: string;
+}) {
+  const links = [
+    {
+      enabled: params.tiktokEnabled,
+      username: safeSocialUsername(params.tiktokUsername),
+      href: `https://www.tiktok.com/@${safeSocialUsername(params.tiktokUsername)}`,
+      icon: "♪",
+      label: "TikTok",
+    },
+    {
+      enabled: params.twitterEnabled,
+      username: safeSocialUsername(params.twitterUsername),
+      href: `https://twitter.com/${safeSocialUsername(params.twitterUsername)}`,
+      icon: "𝕏",
+      label: "Twitter",
+    },
+    {
+      enabled: params.facebookEnabled,
+      username: safeSocialUsername(params.facebookUsername),
+      href: `https://www.facebook.com/${safeSocialUsername(params.facebookUsername)}`,
+      icon: "f",
+      label: "Facebook",
+    },
+  ].filter((item) => item.enabled && item.username);
+
+  if (links.length === 0) return "";
+
+  return `
+    <div style="
+      margin:10px auto 0;
+      text-align:center;
+      max-width:500px;
+      font-size:11px;
+      line-height:1.65;
+    ">
+      ${links
+        .map(
+          (item) => `
+            <a href="${escapeHtml(item.href)}" target="_blank" rel="noopener noreferrer" style="
+              display:inline-block;
+              margin:4px;
+              padding:7px 10px;
+              border-radius:999px;
+              background:#ffffff;
+              color:#050505;
+              text-decoration:none;
+              font-size:11px;
+              font-weight:900;
+              border:1px solid rgba(0,0,0,0.10);
+            ">
+              <span style="
+                display:inline-block;
+                width:18px;
+                height:18px;
+                margin-right:5px;
+                border-radius:999px;
+                background:#050505;
+                color:#ffffff;
+                text-align:center;
+                line-height:18px;
+                font-size:11px;
+                font-weight:950;
+              ">${escapeHtml(item.icon)}</span>
+              ${escapeHtml(item.label)}
+            </a>
+          `,
+        )
+        .join("")}
+    </div>
+  `;
+}
+
 function textToHtml(text: string) {
   return text
     .trim()
@@ -1717,6 +1806,25 @@ export async function POST(req: NextRequest) {
       clean(form.get("policy_links")),
     );
 
+    const socialTikTokEnabled = safeBoolean(form.get("social_tiktok_enabled"));
+    const socialTikTokUsername = safeSocialUsername(
+      form.get("social_tiktok_username"),
+    );
+
+    const socialTwitterEnabled = safeBoolean(
+      form.get("social_twitter_enabled"),
+    );
+    const socialTwitterUsername = safeSocialUsername(
+      form.get("social_twitter_username"),
+    );
+
+    const socialFacebookEnabled = safeBoolean(
+      form.get("social_facebook_enabled"),
+    );
+    const socialFacebookUsername = safeSocialUsername(
+      form.get("social_facebook_username"),
+    );
+
     if (!senderIdentityId) {
       return NextResponse.json(
         { ok: false, error: "Select a sender address." },
@@ -1936,8 +2044,15 @@ export async function POST(req: NextRequest) {
 
     const finalFooterHtml =
       centeredFooterTextHtml(finalFooterText) +
-      policyLinksHtml(selectedPolicyLinks);
-
+      policyLinksHtml(selectedPolicyLinks) +
+      socialLinksHtml({
+        tiktokEnabled: socialTikTokEnabled,
+        tiktokUsername: socialTikTokUsername,
+        twitterEnabled: socialTwitterEnabled,
+        twitterUsername: socialTwitterUsername,
+        facebookEnabled: socialFacebookEnabled,
+        facebookUsername: socialFacebookUsername,
+      });
     const replyMode =
       mode === "newsletter" || mode === "advert" ? "no_reply" : "reply_enabled";
 
@@ -2023,6 +2138,12 @@ export async function POST(req: NextRequest) {
           brand_logo_url: brandLogoUrl || null,
           recipient_count: recipients.length,
           policy_links: selectedPolicyLinks,
+          social_tiktok_enabled: socialTikTokEnabled,
+          social_tiktok_username: socialTikTokUsername || null,
+          social_twitter_enabled: socialTwitterEnabled,
+          social_twitter_username: socialTwitterUsername || null,
+          social_facebook_enabled: socialFacebookEnabled,
+          social_facebook_username: socialFacebookUsername || null,
           store_badge_placement: storeBadgePlacement,
           google_play_enabled: googlePlayEnabled,
           google_play_url: googlePlayUrl || null,

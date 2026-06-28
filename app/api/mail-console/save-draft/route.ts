@@ -757,6 +757,16 @@ function validateDraftFiles(params: {
   return "";
 }
 
+function safeSocialUsername(v: unknown) {
+  return clean(v)
+    .replace(/^@+/, "")
+    .replace(/^https?:\/\/(www\.)?/i, "")
+    .replace(/^(tiktok\.com\/@|twitter\.com\/|x\.com\/|facebook\.com\/)/i, "")
+    .split(/[/?#]/)[0]
+    .replace(/[^a-zA-Z0-9._-]/g, "")
+    .slice(0, 60);
+}
+
 export async function GET(req: NextRequest) {
   try {
     const token = req.cookies.get(MAIL_CONSOLE_COOKIE)?.value || "";
@@ -1061,6 +1071,27 @@ export async function POST(req: NextRequest) {
       bodyMediaNote,
     });
 
+    const socialTikTokEnabled = safeBoolean(
+      fieldUnknown("social_tiktok_enabled"),
+    );
+    const socialTikTokUsername = safeSocialUsername(
+      fieldUnknown("social_tiktok_username"),
+    );
+
+    const socialTwitterEnabled = safeBoolean(
+      fieldUnknown("social_twitter_enabled"),
+    );
+    const socialTwitterUsername = safeSocialUsername(
+      fieldUnknown("social_twitter_username"),
+    );
+
+    const socialFacebookEnabled = safeBoolean(
+      fieldUnknown("social_facebook_enabled"),
+    );
+    const socialFacebookUsername = safeSocialUsername(
+      fieldUnknown("social_facebook_username"),
+    );
+
     const baseMeta = {
       created_from: "mail_console_save_draft",
       open_behavior: "draft_opens_editable_sent_opens_readonly",
@@ -1072,7 +1103,12 @@ export async function POST(req: NextRequest) {
       brand_logo_url: brandLogoUrl || null,
 
       policy_links: policyLinks,
-
+      social_tiktok_enabled: socialTikTokEnabled,
+      social_tiktok_username: socialTikTokUsername || null,
+      social_twitter_enabled: socialTwitterEnabled,
+      social_twitter_username: socialTwitterUsername || null,
+      social_facebook_enabled: socialFacebookEnabled,
+      social_facebook_username: socialFacebookUsername || null,
       store_badge_placement: storeBadgePlacement,
       google_play_enabled: googlePlayEnabled,
       google_play_url: googlePlayUrl || null,
