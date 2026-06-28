@@ -721,6 +721,9 @@ export default function MailConsoleSendForm({
   const [recipients, setRecipients] = useState<RecipientChip[]>([]);
   const [recipientInput, setRecipientInput] = useState("");
   const [recipientIssues, setRecipientIssues] = useState<RecipientIssue[]>([]);
+  const [selectedRecipientEmails, setSelectedRecipientEmails] = useState<
+    string[]
+  >([]);
   const [subject, setSubject] = useState("");
   const [title, setTitle] = useState(defaultTitleForMode("support"));
   const [subtitle, setSubtitle] = useState("");
@@ -1366,6 +1369,21 @@ export default function MailConsoleSendForm({
   const composerActionDisabled =
     sending || openingCampaign || isReadOnlyCampaign;
 
+  const selectedRecipientEmailSet = useMemo(
+    () => new Set(selectedRecipientEmails),
+    [selectedRecipientEmails],
+  );
+
+  const allRecipientsMarked =
+    recipients.length > 0 &&
+    recipients.every((recipient) =>
+      selectedRecipientEmailSet.has(recipient.email),
+    );
+
+  const selectedRecipientCount = recipients.filter((recipient) =>
+    selectedRecipientEmailSet.has(recipient.email),
+  ).length;
+
   function changeMode(nextMode: MailMode) {
     if (isReadOnlyCampaign) {
       setStatus("This sent campaign is read-only.");
@@ -1444,6 +1462,52 @@ export default function MailConsoleSendForm({
   function removeRecipient(email: string) {
     setRecipients((prev) => prev.filter((r) => r.email !== email));
     setRecipientIssues((prev) => prev.filter((i) => i.value !== email));
+    setSelectedRecipientEmails((prev) => prev.filter((item) => item !== email));
+  }
+
+  function toggleRecipientMarked(email: string) {
+    setSelectedRecipientEmails((prev) =>
+      prev.includes(email)
+        ? prev.filter((item) => item !== email)
+        : [...prev, email],
+    );
+  }
+
+  function toggleMarkAllRecipients() {
+    if (allRecipientsMarked) {
+      setSelectedRecipientEmails([]);
+      return;
+    }
+
+    setSelectedRecipientEmails(recipients.map((recipient) => recipient.email));
+  }
+
+  function clearMarkedRecipients() {
+    if (selectedRecipientCount === 0) {
+      setStatus("Mark at least one recipient email first.");
+      return;
+    }
+
+    const selected = new Set(selectedRecipientEmails);
+
+    setRecipients((prev) =>
+      prev.filter((recipient) => !selected.has(recipient.email)),
+    );
+
+    setRecipientIssues((prev) =>
+      prev.filter((issue) => !selected.has(issue.value.toLowerCase())),
+    );
+
+    setSelectedRecipientEmails([]);
+    setStatus(`${selectedRecipientCount} marked email(s) removed.`);
+  }
+
+  function clearAllRecipients() {
+    setRecipients([]);
+    setRecipientInput("");
+    setRecipientIssues([]);
+    setSelectedRecipientEmails([]);
+    setStatus("All recipient emails cleared.");
   }
 
   function applyRecipientSuggestion(issue: RecipientIssue) {
@@ -1627,12 +1691,17 @@ export default function MailConsoleSendForm({
 
     if (!textarea) {
       setMessage((prev) => `${prev.trimEnd()}\n\n${token}\n\n`);
-      setStatus(`${token} inserted into the message body.`);
+      setStatus("Media inserted into the message body.");
       return;
     }
 
     const start = textarea.selectionStart ?? current.length;
     const end = textarea.selectionEnd ?? start;
+
+    const textareaScrollTop = textarea.scrollTop;
+    const textareaScrollLeft = textarea.scrollLeft;
+    const windowScrollX = window.scrollX;
+    const windowScrollY = window.scrollY;
 
     const before = current.slice(0, start);
     const after = current.slice(end);
@@ -1648,11 +1717,18 @@ export default function MailConsoleSendForm({
 
     window.requestAnimationFrame(() => {
       const nextCursor = start + insert.length;
-      textarea.focus();
+
+      textarea.focus({
+        preventScroll: true,
+      });
+
       textarea.setSelectionRange(nextCursor, nextCursor);
+      textarea.scrollTop = textareaScrollTop;
+      textarea.scrollLeft = textareaScrollLeft;
+
+      window.scrollTo(windowScrollX, windowScrollY);
     });
   }
-
   function insertCurrentBodyMedia(kind: "audio" | "image") {
     if (kind === "audio") {
       if (!bodyAudioPreviewUrl) {
@@ -3210,62 +3286,112 @@ export default function MailConsoleSendForm({
             </div>
 
             <div style={fieldStyle}>
-              <label style={labelStyle}>Recipient email(s)</label>
+              <div style={recipientHeaderRowStyle}>
+                <label style={labelStyle}>Recipient email(s)</label>
 
-              <div style={recipientBoxStyle}>
-                {recipients.map((recipient) => (
-                  <div
-                    key={recipient.id}
-                    className="sk-recipient-chip"
-                    style={{
-                      ...recipientChipStyle,
-                      borderColor:
-                        recipient.status === "failed"
-                          ? "rgba(220,38,38,0.35)"
-                          : recipient.status === "sent"
-                            ? "rgba(22,163,74,0.34)"
-                            : recipient.status === "sending"
-                              ? "rgba(37,99,235,0.35)"
-                              : "rgba(0,0,0,0.10)",
-                      background:
-                        recipient.status === "failed"
-                          ? "rgba(254,226,226,0.86)"
-                          : recipient.status === "sent"
-                            ? "rgba(220,252,231,0.78)"
-                            : recipient.status === "sending"
-                              ? "rgba(219,234,254,0.82)"
-                              : "white",
-                    }}
-                  >
-                    <span style={recipientEmailTextStyle}>
-                      {recipient.email}
-                    </span>
-
-                    <span style={recipientStatusDotStyle}>
-                      {recipient.status === "sent"
-                        ? "✓"
-                        : recipient.status === "failed"
-                          ? "!"
-                          : recipient.status === "sending"
-                            ? "…"
-                            : recipient.status === "skipped"
-                              ? "↷"
-                              : recipient.status === "draft"
-                                ? "D"
-                                : ""}
-                    </span>
+                {recipients.length > 0 ? (
+                  <div style={recipientBulkActionStyle}>
+                    <label style={recipientMarkAllLabelStyle}>
+                      <input
+                        type="checkbox"
+                        checked={allRecipientsMarked}
+                        onChange={toggleMarkAllRecipients}
+                      />
+                      <span>Mark all</span>
+                    </label>
 
                     <button
                       type="button"
-                      className="sk-recipient-chip-remove"
-                      onClick={() => removeRecipient(recipient.email)}
-                      style={recipientRemoveStyle}
-                      aria-label={`Remove ${recipient.email}`}
+                      onClick={clearMarkedRecipients}
+                      disabled={selectedRecipientCount === 0}
+                      style={{
+                        ...recipientBulkButtonStyle,
+                        opacity: selectedRecipientCount > 0 ? 1 : 0.5,
+                        cursor:
+                          selectedRecipientCount > 0
+                            ? "pointer"
+                            : "not-allowed",
+                      }}
                     >
-                      ×
+                      Clear selected
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={clearAllRecipients}
+                      style={recipientBulkButtonStyle}
+                    >
+                      Clear all
                     </button>
                   </div>
-                ))}
+                ) : null}
+              </div>
+
+              <div style={recipientBoxStyle}>
+                {recipients.map((recipient) => {
+                  const marked = selectedRecipientEmailSet.has(recipient.email);
+
+                  return (
+                    <div
+                      key={recipient.id}
+                      className="sk-recipient-chip"
+                      style={{
+                        ...recipientChipStyle,
+                        borderColor:
+                          recipient.status === "failed"
+                            ? "rgba(220,38,38,0.35)"
+                            : recipient.status === "sent"
+                              ? "rgba(22,163,74,0.34)"
+                              : recipient.status === "sending"
+                                ? "rgba(37,99,235,0.35)"
+                                : "rgba(0,0,0,0.10)",
+                        background:
+                          recipient.status === "failed"
+                            ? "rgba(254,226,226,0.86)"
+                            : recipient.status === "sent"
+                              ? "rgba(220,252,231,0.78)"
+                              : recipient.status === "sending"
+                                ? "rgba(219,234,254,0.82)"
+                                : "white",
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={marked}
+                        onChange={() => toggleRecipientMarked(recipient.email)}
+                        style={recipientChipCheckboxStyle}
+                        aria-label={`Mark ${recipient.email}`}
+                      />
+                      <span style={recipientEmailTextStyle}>
+                        {recipient.email}
+                      </span>
+
+                      <span style={recipientStatusDotStyle}>
+                        {recipient.status === "sent"
+                          ? "✓"
+                          : recipient.status === "failed"
+                            ? "!"
+                            : recipient.status === "sending"
+                              ? "…"
+                              : recipient.status === "skipped"
+                                ? "↷"
+                                : recipient.status === "draft"
+                                  ? "D"
+                                  : ""}
+                      </span>
+
+                      <button
+                        type="button"
+                        className="sk-recipient-chip-remove"
+                        onClick={() => removeRecipient(recipient.email)}
+                        style={recipientRemoveStyle}
+                        aria-label={`Remove ${recipient.email}`}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  );
+                })}
 
                 <input
                   value={recipientInput}
@@ -4932,6 +5058,54 @@ const recipientHelpStyle: React.CSSProperties = {
   fontSize: 11,
   color: "rgba(0,0,0,0.55)",
   lineHeight: 1.45,
+};
+
+const recipientHeaderRowStyle: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  gap: 10,
+  flexWrap: "wrap",
+  marginBottom: 6,
+};
+
+const recipientBulkActionStyle: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "flex-end",
+  gap: 8,
+  flexWrap: "wrap",
+};
+
+const recipientMarkAllLabelStyle: React.CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 6,
+  borderRadius: 999,
+  padding: "7px 10px",
+  background: "rgba(0,0,0,0.045)",
+  color: "#050505",
+  fontSize: 11,
+  fontWeight: 900,
+  cursor: "pointer",
+};
+
+const recipientBulkButtonStyle: React.CSSProperties = {
+  border: 0,
+  borderRadius: 999,
+  padding: "7px 10px",
+  background: "#050505",
+  color: "white",
+  fontSize: 11,
+  fontWeight: 900,
+};
+
+const recipientChipCheckboxStyle: React.CSSProperties = {
+  width: 14,
+  height: 14,
+  margin: 0,
+  accentColor: "#050505",
+  cursor: "pointer",
 };
 
 const recipientIssueBoxStyle: React.CSSProperties = {
