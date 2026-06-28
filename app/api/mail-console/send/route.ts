@@ -19,7 +19,7 @@ type BodyBlockKind = "audio" | "image" | "message";
 type BodyHintFontStyle = "normal" | "italic";
 type StoreBadgePlacement = "top" | "bottom";
 
-type BodyInlineMediaKind = "audio" | "image";
+type BodyInlineMediaKind = "audio" | "image" | "file";
 
 type BodyInlineMediaItem = {
   id: string;
@@ -401,7 +401,8 @@ function parseBodyInlineMediaItems(raw: string): BodyInlineMediaItem[] {
       const kindRaw = clean(row.kind).toLowerCase();
 
       if (!id) continue;
-      if (kindRaw !== "audio" && kindRaw !== "image") continue;
+      if (kindRaw !== "audio" && kindRaw !== "image" && kindRaw !== "file")
+        continue;
 
       const kind = kindRaw as BodyInlineMediaKind;
 
@@ -409,10 +410,12 @@ function parseBodyInlineMediaItems(raw: string): BodyInlineMediaItem[] {
         id,
         kind,
         displayName:
-          clean(row.display_name) ||
-          clean(row.displayName) ||
-          (kind === "audio" ? "StayKnown Audio" : "StayKnown Image"),
-        size: safeNumber(row.size, kind === "audio" ? 76 : 88, 32, 100),
+          clean(row.display_name) || clean(row.displayName) || kind === "audio"
+            ? "StayKnown Audio"
+            : kind === "image"
+              ? "StayKnown Image"
+              : "StayKnown File",
+        size: safeNumber(row.size, kind === "audio" ? 76 : 100, 32, 100),
         placement: safeBodyMediaPlacement(row.placement),
         hint: clean(row.hint).slice(0, 160),
         hintColor: safeHexColor(row.hint_color || row.hintColor),
@@ -424,8 +427,11 @@ function parseBodyInlineMediaItems(raw: string): BodyInlineMediaItem[] {
             ? safeBodyImageShape(row.image_shape || row.imageShape)
             : "rectangle",
         mimeType:
-          clean(row.mime_type || row.mimeType) ||
-          (kind === "audio" ? "audio/mpeg" : "image/png"),
+          clean(row.mime_type || row.mimeType) || kind === "audio"
+            ? "audio/mpeg"
+            : kind === "image"
+              ? "image/png"
+              : "application/octet-stream",
         originalName:
           clean(row.original_name || row.originalName) ||
           (kind === "audio" ? "StayKnown Audio" : "StayKnown Image"),
@@ -812,6 +818,92 @@ function bodyImageBlock(params: {
           background:#ffffff;
         " />
       </div>
+
+      ${
+        hint
+          ? `<div style="
+              width:100%;
+              max-width:100%;
+              margin:7px auto 0;
+              text-align:center;
+              font-size:11px;
+              line-height:1.45;
+              color:${escapeHtml(hintColor)};
+              font-style:${hintFontStyle};
+            ">${escapeHtml(hint)}</div>`
+          : ""
+      }
+    </div>
+  `;
+}
+
+function bodyFileLinkBlock(params: {
+  url: string;
+  displayName: string;
+  hint: string;
+  hintColor: string;
+  hintFontStyle: BodyHintFontStyle;
+}) {
+  const hint = clean(params.hint);
+  const hintColor = safeHexColor(params.hintColor);
+  const hintFontStyle = safeBodyHintFontStyle(params.hintFontStyle);
+  const displayName = clean(params.displayName) || "StayKnown File";
+
+  if (!params.url) return "";
+
+  return `
+    <div style="text-align:center;margin:16px 0;width:100%;">
+      <a href="${escapeHtml(params.url)}" target="_blank" rel="noopener noreferrer" style="
+        display:block;
+        width:100%;
+        box-sizing:border-box;
+        border-radius:22px;
+        padding:14px 16px;
+        background:#ffffff;
+        color:#050505;
+        text-decoration:none;
+        border:1px solid rgba(0,0,0,0.10);
+        box-shadow:0 16px 45px rgba(0,0,0,0.07);
+      ">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;width:100%;">
+          <tr>
+            <td style="text-align:left;vertical-align:middle;">
+              <div style="
+                font-size:14px;
+                line-height:1.35;
+                font-weight:950;
+                color:#050505;
+                overflow:hidden;
+                text-overflow:ellipsis;
+                white-space:nowrap;
+              ">${escapeHtml(displayName)}</div>
+
+              <div style="
+                margin-top:4px;
+                font-size:11px;
+                line-height:1.35;
+                font-weight:800;
+                color:rgba(0,0,0,0.55);
+              ">Tap to open or download</div>
+            </td>
+
+            <td width="44" align="right" style="width:44px;text-align:right;vertical-align:middle;">
+              <span style="
+                display:inline-block;
+                width:38px;
+                height:38px;
+                border-radius:999px;
+                background:#050505;
+                color:#ffffff;
+                text-align:center;
+                line-height:38px;
+                font-size:16px;
+                font-weight:950;
+              ">↗</span>
+            </td>
+          </tr>
+        </table>
+      </a>
 
       ${
         hint
@@ -1327,7 +1419,7 @@ function renderMessageHtmlWithInlineMedia(params: {
   if (!source.trim()) return "";
 
   const parts = source.split(
-    /(\{\{image:[^}]+\}\}|\{\{audio:[^}]+\}\}|\{\{image\}\}|\{\{audio\}\})/g,
+    /(\{\{image:[^}]+\}\}|\{\{audio:[^}]+\}\}|\{\{file:[^}]+\}\}|\{\{image\}\}|\{\{audio\}\})/g,
   );
 
   return parts
@@ -2191,6 +2283,7 @@ export async function POST(req: NextRequest) {
           message_has_body_image_token:
             message.includes(BODY_IMAGE_TOKEN) ||
             /\{\{image:[^}]+\}\}/.test(message),
+            message_has_body_file_token: /\{\{file:[^}]+\}\}/.test(message),
           file_modes: normalizedFileModes,
           file_display_names: fileDisplayNames,
         },
@@ -2381,6 +2474,13 @@ export async function POST(req: NextRequest) {
           );
         }
 
+        if (item.kind === "file" && file.size > 20 * 1024 * 1024) {
+          return NextResponse.json(
+            { ok: false, error: `${item.displayName} must be under 20MB.` },
+            { status: 400 },
+          );
+        }
+
         if (item.kind === "image" && file.size > 8 * 1024 * 1024) {
           return NextResponse.json(
             { ok: false, error: `${item.displayName} must be under 8MB.` },
@@ -2430,7 +2530,10 @@ export async function POST(req: NextRequest) {
           size_bytes: file.size,
           storage_bucket: "mail-console-attachments",
           storage_path: storagePath,
-          attachment_mode: item.kind === "audio" ? "link_only" : "inline_image",
+          attachment_mode:
+            item.kind === "image" || mime.startsWith("image/")
+              ? "inline_image"
+              : "link_only",
           created_by: null,
         });
       }
@@ -2455,26 +2558,34 @@ export async function POST(req: NextRequest) {
 
       const token = `{{${item.kind}:${item.id}}}`;
 
-      bodyInlineMediaHtmlByToken[token] =
-        item.kind === "audio"
-          ? bodyAudioPillBlock({
-              url: signedUrl,
-              displayName: item.displayName,
-              size: item.size,
-              hint: item.hint,
-              hintColor: item.hintColor,
-              hintFontStyle: item.hintFontStyle,
-            })
-          : bodyImageBlock({
-              url: signedUrl,
-              alt: item.displayName,
-              size: item.size,
-              shape: item.imageShape,
-              hint: item.hint,
-              hintColor: item.hintColor,
-              hintFontStyle: item.hintFontStyle,
-            });
-
+      if (item.kind === "audio") {
+        bodyInlineMediaHtmlByToken[token] = bodyAudioPillBlock({
+          url: signedUrl,
+          displayName: item.displayName,
+          size: item.size,
+          hint: item.hint,
+          hintColor: item.hintColor,
+          hintFontStyle: item.hintFontStyle,
+        });
+      } else if (item.kind === "image" || mime.startsWith("image/")) {
+        bodyInlineMediaHtmlByToken[token] = bodyImageBlock({
+          url: signedUrl,
+          alt: item.displayName,
+          size: 100,
+          shape: "rectangle",
+          hint: item.hint || "Tap image to open",
+          hintColor: item.hintColor,
+          hintFontStyle: item.hintFontStyle,
+        });
+      } else {
+        bodyInlineMediaHtmlByToken[token] = bodyFileLinkBlock({
+          url: signedUrl,
+          displayName: item.displayName,
+          hint: item.hint,
+          hintColor: item.hintColor,
+          hintFontStyle: item.hintFontStyle,
+        });
+      }
       bodyInlineMediaMeta.push({
         id: item.id,
         kind: item.kind,
@@ -2956,6 +3067,7 @@ export async function POST(req: NextRequest) {
           message_has_body_image_token:
             message.includes(BODY_IMAGE_TOKEN) ||
             /\{\{image:[^}]+\}\}/.test(message),
+          message_has_body_file_token: /\{\{file:[^}]+\}\}/.test(message),
 
           summary,
         },
