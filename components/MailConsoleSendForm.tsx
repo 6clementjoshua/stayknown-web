@@ -2612,7 +2612,9 @@ export default function MailConsoleSendForm({
           if (results.length > 0) {
             updateSendResults(results, chunk);
           } else if (!res.ok || !data.ok) {
-            const error = data.error || "Email send failed for this batch.";
+            const error =
+              data.error ||
+              "StayKnown email sending is temporarily paused because today’s Resend sending limit has been reached. Please save this message as a draft and try again tomorrow.";
             updateSendRowStatus(chunk, "failed", error);
           } else {
             updateSendResults([], chunk);
@@ -2626,7 +2628,9 @@ export default function MailConsoleSendForm({
           updateSendRowStatus(
             chunk,
             "failed",
-            err instanceof Error ? err.message : "Email send failed.",
+            err instanceof Error
+              ? err.message
+              : "StayKnown email sending is temporarily unavailable. Please save this message as a draft and try again tomorrow.",
           );
         }
 
@@ -2696,7 +2700,9 @@ export default function MailConsoleSendForm({
           if (results.length > 0) {
             updateSendResults(results, chunk);
           } else if (!res.ok || !data.ok) {
-            const error = data.error || "Retry failed for this email.";
+           const error =
+  data.error ||
+  "Retry is not available right now because today’s email sending limit may have been reached. Please try again tomorrow.";
             updateSendRowStatus(chunk, "failed", error);
           } else {
             updateSendResults([], chunk);

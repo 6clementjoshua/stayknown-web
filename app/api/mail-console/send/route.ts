@@ -1761,8 +1761,14 @@ async function sendResend(params: {
   const data = await res.json().catch(() => ({}));
 
   if (!res.ok) {
+    if (res.status === 429) {
+      throw new Error(
+        "StayKnown email sending limit has been reached for today. Please save this message as a draft and try again tomorrow.",
+      );
+    }
+
     throw new Error(
-      `Resend failed: ${res.status} ${res.statusText} ${JSON.stringify(data)}`,
+      `Email provider could not send this message right now. Please try again later. ${res.status} ${res.statusText}`,
     );
   }
 
