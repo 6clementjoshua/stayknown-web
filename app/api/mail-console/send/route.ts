@@ -676,59 +676,60 @@ function bodyImageBlock(params: {
   if (!params.url) return "";
 
   let borderRadius = "18px";
-  let extraWrapperStyle = "";
   let imageHeight = "auto";
-  let maxHeight = "340px";
+  let maxHeight = "none";
+  let objectFit = "contain";
 
   if (params.shape === "banner") {
     borderRadius = "18px";
-    maxHeight = "240px";
+    maxHeight = "260px";
+    objectFit = "cover";
   } else if (params.shape === "pill") {
     borderRadius = "28px";
     maxHeight = "280px";
+    objectFit = "cover";
   } else if (params.shape === "square") {
     borderRadius = "18px";
-    extraWrapperStyle = "aspect-ratio:1 / 1;";
-    imageHeight = "100%";
+    maxHeight = "520px";
+    objectFit = "cover";
   } else if (params.shape === "circle") {
     borderRadius = "999px";
-    extraWrapperStyle = "aspect-ratio:1 / 1;";
-    imageHeight = "100%";
+    maxHeight = "420px";
+    objectFit = "cover";
   }
 
   return `
-    <div style="text-align:center;margin:14px 0;">
+    <div style="text-align:center;margin:16px 0;width:100%;">
       <div style="
-        display:inline-block;
-        width:${params.size}%;
+        display:block;
+        width:100%;
         max-width:100%;
-        min-width:170px;
         border-radius:${borderRadius};
         overflow:hidden;
         border:1px solid rgba(0,0,0,0.10);
-        background:rgba(255,255,255,0.86);
+        background:#ffffff;
         box-shadow:0 16px 45px rgba(0,0,0,0.07);
-        ${extraWrapperStyle}
       ">
         <img src="${escapeHtml(params.url)}" alt="${escapeHtml(
           params.alt,
         )}" style="
           display:block;
           width:100%;
+          max-width:100%;
           height:${imageHeight};
           max-height:${maxHeight};
-          object-fit:contain;
+          object-fit:${objectFit};
           object-position:center;
-          background:rgba(0,0,0,0.04);
+          background:#ffffff;
         " />
       </div>
 
       ${
         hint
           ? `<div style="
-              width:${params.size}%;
+              width:100%;
               max-width:100%;
-              margin:6px auto 0;
+              margin:7px auto 0;
               text-align:center;
               font-size:11px;
               line-height:1.45;
