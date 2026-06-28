@@ -234,6 +234,7 @@ type StoredDraftAttachment = {
     | "body_image"
     | "body_inline_audio"
     | "body_inline_image"
+    | "body_inline_file"
     | "file";
   file_name: string;
   display_name: string;
@@ -245,7 +246,7 @@ type StoredDraftAttachment = {
   signed_url?: string;
 
   inline_media_id?: string;
-  inline_media_kind?: "audio" | "image";
+  inline_media_kind?: "audio" | "image" | "file";
   inline_media_size?: number;
   inline_media_placement?: BodyMediaPlacement;
   inline_media_hint?: string;
@@ -257,7 +258,7 @@ type StoredDraftAttachment = {
 
 type StoredDraftInlineMediaItem = {
   id: string;
-  kind: "audio" | "image";
+  kind: "audio" | "image" | "file";
   display_name?: string;
   displayName?: string;
   size?: number;
@@ -283,7 +284,7 @@ type StoredDraftInlineMediaItem = {
 
 type BodyInlineMediaItem = {
   id: string;
-  kind: "audio" | "image";
+  kind: "audio" | "image" | "file";
   file: File | null;
   previewUrl: string;
   displayName: string;
@@ -496,17 +497,17 @@ function revokePreviewUrl(url: string) {
   URL.revokeObjectURL(url);
 }
 
-function bodyInlineToken(kind: "audio" | "image", id: string) {
+function bodyInlineToken(kind: "audio" | "image" | "file", id: string) {
   return `{{${kind}:${id}}}`;
 }
 
 function parseBodyInlineToken(token: string) {
-  const match = token.match(/^\{\{(audio|image):([^}]+)\}\}$/);
+  const match = token.match(/^\{\{(audio|image|file):([^}]+)\}\}$/);
 
   if (!match) return null;
 
   return {
-    kind: match[1] as "audio" | "image",
+    kind: match[1] as "audio" | "image" | "file",
     id: match[2],
   };
 }
@@ -1065,7 +1066,8 @@ export default function MailConsoleSendForm({
 
       if (
         attachment.role === "body_inline_audio" ||
-        attachment.role === "body_inline_image"
+        attachment.role === "body_inline_image" ||
+        attachment.role === "body_inline_file"
       ) {
         continue;
       }
@@ -1155,7 +1157,9 @@ export default function MailConsoleSendForm({
 
     for (const item of items) {
       const kind =
-        item.kind === "audio" || item.kind === "image" ? item.kind : null;
+        item.kind === "audio" || item.kind === "image" || item.kind === "file"
+          ? item.kind
+          : null;
 
       const signedUrl = item.signed_url || item.signedUrl || "";
 
@@ -1166,14 +1170,20 @@ export default function MailConsoleSendForm({
       const displayName =
         item.display_name ||
         item.displayName ||
-        (kind === "audio" ? "StayKnown Audio" : "StayKnown Image");
+        (kind === "audio"
+          ? "StayKnown Audio"
+          : kind === "image"
+            ? "StayKnown Image"
+            : "StayKnown File");
 
       const size =
         typeof item.size === "number" && Number.isFinite(item.size)
           ? Math.max(32, Math.min(100, Math.round(item.size)))
           : kind === "audio"
             ? 76
-            : 88;
+            : kind === "image"
+              ? 88
+              : 100;
 
       const placement: BodyMediaPlacement =
         item.placement === "top" || item.placement === "bottom"
@@ -1190,7 +1200,7 @@ export default function MailConsoleSendForm({
           : "normal";
 
       const imageShape =
-        kind === "image"
+        kind === "image" || kind === "file"
           ? item.image_shape || item.imageShape || "rectangle"
           : undefined;
 
@@ -1209,7 +1219,11 @@ export default function MailConsoleSendForm({
         mimeType:
           item.mime_type ||
           item.mimeType ||
-          (kind === "audio" ? "audio/mpeg" : "image/png"),
+          (kind === "audio"
+            ? "audio/mpeg"
+            : kind === "image"
+              ? "image/png"
+              : "application/octet-stream"),
         originalName: item.original_name || item.originalName || displayName,
         storageBucket: item.storage_bucket || item.storageBucket || "",
         storagePath: item.storage_path || item.storagePath || "",
@@ -1220,6 +1234,7 @@ export default function MailConsoleSendForm({
 
     setBodyInlineMediaItems(restored);
   }
+
   useEffect(() => {
     let cancelled = false;
 
@@ -1903,6 +1918,45 @@ export default function MailConsoleSendForm({
 
     setBodyInlineMediaItems((prev) => [...prev, item]);
     insertBodyTokenAtCursor(bodyInlineToken("image", id));
+  }
+
+  function insertAttachmentInsideMessage(picked: PickedFile) {
+    if (!picked?.file) {
+      setStatus("Choose an attachment first.");
+      return;
+    }
+
+    const id = makeId("body-file");
+    const previewUrl = URL.createObjectURL(picked.file);
+
+    const item: BodyInlineMediaItem = {
+      id,
+      kind: "file",
+      file: picked.file,
+      previewUrl,
+      displayName: cleanDisplayFilename(
+        picked.displayName,
+        defaultAttachmentDisplayName(picked.file, 0),
+      ),
+      size: 100,
+      placement: "custom",
+      hint: "",
+      hintColor: "#6b7280",
+      hintFontStyle: "normal",
+      imageShape: picked.file.type.startsWith("image/")
+        ? "rectangle"
+        : undefined,
+      mimeType: picked.file.type || "application/octet-stream",
+      originalName: picked.file.name || picked.displayName || "StayKnown File",
+    };
+
+    setBodyInlineMediaItems((prev) => [...prev, item]);
+
+    // Remove from normal attachments so it does not duplicate at the email bottom.
+    setFiles((prev) => prev.filter((fileItem) => fileItem.id !== picked.id));
+
+    insertBodyTokenAtCursor(bodyInlineToken("file", id));
+    setStatus("Attachment inserted inside the message body.");
   }
 
   async function saveDraft() {
@@ -2970,6 +3024,113 @@ export default function MailConsoleSendForm({
     item: BodyInlineMediaItem,
     readOnly = false,
   ) {
+    if (item.kind === "file") {
+      const isImage = item.mimeType.startsWith("image/");
+
+      if (isImage) {
+        return (
+          <div style={embeddedMediaSlotStyle}>
+            <a
+              href={item.previewUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                ...getPreviewBodyImageFrameStyle("rectangle", 100),
+                display: "block",
+                textDecoration: "none",
+              }}
+            >
+              <img
+                src={item.previewUrl}
+                alt={cleanDisplayFilename(item.displayName, "StayKnown Image")}
+                style={getPreviewBodyImageStyle("rectangle")}
+              />
+            </a>
+
+            <div
+              style={{
+                ...previewMediaHintStyle,
+                width: "100%",
+                color: item.hintColor,
+                fontStyle: item.hintFontStyle,
+              }}
+            >
+              Tap image to open
+            </div>
+          </div>
+        );
+      }
+
+      return (
+        <div style={embeddedMediaSlotStyle}>
+          <a
+            href={item.previewUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 12,
+              width: "100%",
+              borderRadius: 22,
+              padding: "14px 16px",
+              background: "#ffffff",
+              color: "#050505",
+              textDecoration: "none",
+              border: "1px solid rgba(0,0,0,0.10)",
+              boxShadow: "0 16px 45px rgba(0,0,0,0.07)",
+            }}
+          >
+            <span style={{ minWidth: 0 }}>
+              <b
+                style={{
+                  display: "block",
+                  fontSize: 13,
+                  fontWeight: 950,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {cleanDisplayFilename(item.displayName, "StayKnown File")}
+              </b>
+
+              <small
+                style={{
+                  display: "block",
+                  marginTop: 4,
+                  color: "rgba(0,0,0,0.55)",
+                  fontSize: 11,
+                  fontWeight: 800,
+                }}
+              >
+                Tap to open or download
+              </small>
+            </span>
+
+            <span
+              style={{
+                width: 38,
+                height: 38,
+                minWidth: 38,
+                borderRadius: 999,
+                background: "#050505",
+                color: "white",
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: 16,
+                fontWeight: 950,
+              }}
+            >
+              ↗
+            </span>
+          </a>
+        </div>
+      );
+    }
+
     if (item.kind === "audio") {
       return (
         <div style={embeddedMediaSlotStyle}>
@@ -3064,7 +3225,7 @@ export default function MailConsoleSendForm({
   function renderMessageTextWithInlineMedia(readOnly = false) {
     const content = message || "Your email body preview will appear here.";
     const parts = content.split(
-      /(\{\{image:[^}]+\}\}|\{\{audio:[^}]+\}\}|\{\{image\}\}|\{\{audio\}\})/g,
+      /(\{\{image:[^}]+\}\}|\{\{audio:[^}]+\}\}|\{\{file:[^}]+\}\}|\{\{image\}\}|\{\{audio\}\})/g,
     );
 
     return parts.map((part, index) => {
@@ -4640,7 +4801,13 @@ ${BODY_AUDIO_TOKEN} for body audio`}
                           Inline image
                         </option>
                       </select>
-
+                      <button
+                        type="button"
+                        onClick={() => insertAttachmentInsideMessage(picked)}
+                        style={smallButtonStyle}
+                      >
+                        Insert in message
+                      </button>
                       <button
                         type="button"
                         onClick={() => removeFile(picked.id)}
@@ -5680,7 +5847,7 @@ const uploadBoxStyle: React.CSSProperties = {
 
 const fileRowStyle: React.CSSProperties = {
   display: "grid",
-  gridTemplateColumns: "minmax(0, 1fr) auto auto",
+  gridTemplateColumns: "minmax(0, 1fr) auto auto auto",
   gap: 10,
   alignItems: "center",
   borderRadius: 18,

@@ -13,7 +13,7 @@ type BodyImageShape = "banner" | "pill" | "rectangle" | "square" | "circle";
 type BodyBlockKind = "audio" | "image" | "message";
 type BodyHintFontStyle = "normal" | "italic";
 type StoreBadgePlacement = "top" | "bottom";
-type BodyInlineMediaKind = "audio" | "image";
+type BodyInlineMediaKind = "audio" | "image" | "file";
 
 type MailConsoleAdminClient = Awaited<
   ReturnType<typeof requireMailConsoleAdmin>
@@ -53,6 +53,7 @@ type DraftAttachmentRole =
   | "body_image"
   | "body_inline_audio"
   | "body_inline_image"
+  | "body_inline_file"
   | "file";
 
 type DraftStoredAttachment = {
@@ -262,16 +263,19 @@ function safeBodyInlineMediaItems(v: unknown): BodyInlineMediaInput[] {
       const id = clean(row.id);
       const kindText = clean(row.kind).toLowerCase();
       const kind: BodyInlineMediaKind | "" =
-        kindText === "audio" || kindText === "image" ? kindText : "";
-
+        kindText === "audio" || kindText === "image" || kindText === "file"
+          ? kindText
+          : "";
       if (!id || !kind) return null;
 
       const displayName =
-        clean(row.display_name) ||
-        clean(row.displayName) ||
-        (kind === "audio" ? "StayKnown Audio" : "StayKnown Image");
+        clean(row.display_name) || clean(row.displayName) || kind === "audio"
+          ? "StayKnown Audio"
+          : kind === "image"
+            ? "StayKnown Image"
+            : "StayKnown File";
 
-      const size = safeNumber(row.size, kind === "audio" ? 76 : 88, 32, 100);
+      const size = safeNumber(row.size, kind === "audio" ? 76 : 100, 32, 100);
       const placement = safeBodyMediaPlacement(row.placement);
       const hint = clean(row.hint).slice(0, 160);
       const hintColor = safeHexColor(row.hint_color || row.hintColor);
@@ -284,7 +288,11 @@ function safeBodyInlineMediaItems(v: unknown): BodyInlineMediaInput[] {
           : null;
       const mimeType =
         clean(row.mime_type || row.mimeType) ||
-        (kind === "audio" ? "audio/mpeg" : "image/png");
+        (kind === "audio"
+          ? "audio/mpeg"
+          : kind === "image"
+            ? "image/png"
+            : "application/octet-stream");
       const originalName =
         clean(row.original_name || row.originalName) || displayName;
       const fileField =
@@ -489,6 +497,7 @@ function isDraftAttachmentRole(role: string): role is DraftAttachmentRole {
     role === "body_image" ||
     role === "body_inline_audio" ||
     role === "body_inline_image" ||
+    role === "body_inline_file" ||
     role === "file"
   );
 }
@@ -533,7 +542,11 @@ function safeDraftAttachments(v: unknown): DraftStoredAttachment[] {
     }
 
     const inlineMediaKindText = clean(row.inline_media_kind).toLowerCase();
-    if (inlineMediaKindText === "audio" || inlineMediaKindText === "image") {
+    if (
+      inlineMediaKindText === "audio" ||
+      inlineMediaKindText === "image" ||
+      inlineMediaKindText === "file"
+    ) {
       attachment.inline_media_kind = inlineMediaKindText;
     }
 
@@ -731,6 +744,11 @@ function validateDraftFiles(params: {
     if (media.item.kind === "audio" && !file.type.startsWith("audio/")) {
       return "Inserted body audio must be an audio file.";
     }
+    if (media.item.kind === "file" && file.size > fileLimit) {
+      return `${
+        media.item.display_name || file.name || "Inserted file"
+      } must be under 20MB.`;
+    }
 
     if (media.item.kind === "image" && file.size > imageLimit) {
       return `${media.item.display_name || file.name || "Inserted image"} must be under 8MB.`;
@@ -847,13 +865,18 @@ export async function GET(req: NextRequest) {
       .filter(
         (attachment) =>
           attachment.role === "body_inline_audio" ||
-          attachment.role === "body_inline_image",
+          attachment.role === "body_inline_image" ||
+          attachment.role === "body_inline_file",
       )
       .map((attachment) => ({
         id: attachment.inline_media_id || attachment.id,
         kind:
           attachment.inline_media_kind ||
-          (attachment.role === "body_inline_audio" ? "audio" : "image"),
+          (attachment.role === "body_inline_audio"
+            ? "audio"
+            : attachment.role === "body_inline_image"
+              ? "image"
+              : "file"),
         display_name: attachment.display_name || attachment.file_name,
         size: attachment.inline_media_size || 76,
         placement: attachment.inline_media_placement || "custom",
@@ -1160,6 +1183,7 @@ export async function POST(req: NextRequest) {
         message.includes("{{audio}}") || /\{\{audio:[^}]+\}\}/.test(message),
       message_has_body_image_token:
         message.includes("{{image}}") || /\{\{image:[^}]+\}\}/.test(message),
+      message_has_body_file_token: /\{\{file:[^}]+\}\}/.test(message),
 
       recipient_emails: recipientEmails,
       recipient_count: recipientEmails.length,
@@ -1273,7 +1297,11 @@ export async function POST(req: NextRequest) {
       if (!media.file) continue;
 
       const role: DraftAttachmentRole =
-        media.item.kind === "audio" ? "body_inline_audio" : "body_inline_image";
+        media.item.kind === "audio"
+          ? "body_inline_audio"
+          : media.item.kind === "image"
+            ? "body_inline_image"
+            : "body_inline_file";
 
       uploadedAttachments.push(
         await uploadDraftAttachment({
@@ -1283,7 +1311,9 @@ export async function POST(req: NextRequest) {
           role,
           displayName: media.item.display_name,
           attachmentMode:
-            media.item.kind === "audio" ? "link_only" : "inline_image",
+            media.item.kind === "image" || media.file.type.startsWith("image/")
+              ? "inline_image"
+              : "link_only",
           inlineMedia: media.item,
         }),
       );
@@ -1315,13 +1345,18 @@ export async function POST(req: NextRequest) {
       .filter(
         (attachment) =>
           attachment.role === "body_inline_audio" ||
-          attachment.role === "body_inline_image",
+          attachment.role === "body_inline_image" ||
+          attachment.role === "body_inline_file",
       )
       .map((attachment) => ({
         id: attachment.inline_media_id || attachment.id,
         kind:
           attachment.inline_media_kind ||
-          (attachment.role === "body_inline_audio" ? "audio" : "image"),
+          (attachment.role === "body_inline_audio"
+            ? "audio"
+            : attachment.role === "body_inline_image"
+              ? "image"
+              : "file"),
         display_name: attachment.display_name || attachment.file_name,
         size: attachment.inline_media_size || 76,
         placement: attachment.inline_media_placement || "custom",
@@ -1386,7 +1421,11 @@ export async function POST(req: NextRequest) {
         id: attachment.inline_media_id || attachment.id,
         kind:
           attachment.inline_media_kind ||
-          (attachment.role === "body_inline_audio" ? "audio" : "image"),
+          (attachment.role === "body_inline_audio"
+            ? "audio"
+            : attachment.role === "body_inline_image"
+              ? "image"
+              : "file"),
         display_name: attachment.display_name || attachment.file_name,
         size: attachment.inline_media_size || 76,
         placement: attachment.inline_media_placement || "custom",
