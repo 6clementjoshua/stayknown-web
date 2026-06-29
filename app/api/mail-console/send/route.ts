@@ -1035,13 +1035,13 @@ function bodyFileLinkBlock(params: {
                 white-space:nowrap;
               ">${escapeHtml(displayName)}</div>
 
-              <div style="
-                margin-top:4px;
-                font-size:11px;
-                line-height:1.35;
-                font-weight:800;
-                color:rgba(0,0,0,0.55);
-              ">Tap to open or download</div>
+             <div style="
+  margin-top:4px;
+  font-size:11px;
+  line-height:1.35;
+  font-weight:800;
+  color:rgba(0,0,0,0.55);
+">File attachment</div>
             </td>
 
             <td width="44" align="right" style="width:44px;text-align:right;vertical-align:middle;">
@@ -1228,15 +1228,15 @@ function bodyAudioPillBlock(params: {
               "
             >
               <span
-                style="
-                  display:inline-block;
-                  font-size:11px;
-                  line-height:1.2;
-                  font-weight:950;
-                  color:rgba(17,17,17,0.72);
-                  white-space:nowrap;
-                "
-              >Tap to listen</span>
+  style="
+    display:inline-block;
+    font-size:11px;
+    line-height:1.2;
+    font-weight:950;
+    color:rgba(17,17,17,0.72);
+    white-space:nowrap;
+  "
+>Audio</span>
             </td>
           </tr>
         </table>
@@ -2766,7 +2766,7 @@ export async function POST(req: NextRequest) {
           alt: item.displayName,
           size: 100,
           shape: "rectangle",
-          hint: item.hint || "Tap image to open",
+          hint: item.hint || "",
           hintColor: item.hintColor,
           hintFontStyle: item.hintFontStyle,
         });
