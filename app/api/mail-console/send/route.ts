@@ -1876,6 +1876,20 @@ function unsubscribeHtml(link: string) {
   `;
 }
 
+function brandNameForSenderEmail(fromEmail: string) {
+  const email = clean(fromEmail).toLowerCase();
+
+  if (email.endsWith("@6rides.com")) return "6Rides";
+  if (email.endsWith("@6clementjoshuamusics.com")) {
+    return "6 Clement Joshua Musics";
+  }
+  if (email.endsWith("@6clementjoshuafoundation.com")) {
+    return "6 Clement Joshua Foundation";
+  }
+
+  return clean(process.env.MAIL_CONSOLE_APP_NAME) || "StayKnown";
+}
+
 function resolveResendApiKeyForSender(fromEmail: string) {
   const email = clean(fromEmail).toLowerCase();
   if (email.endsWith("@6clementjoshuafoundation.com")) {
@@ -2944,7 +2958,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const appName = clean(process.env.MAIL_CONSOLE_APP_NAME) || "StayKnown";
+    const appName = brandNameForSenderEmail(senderRow.from_email);
 
     const html = buildHtml({
       appName,

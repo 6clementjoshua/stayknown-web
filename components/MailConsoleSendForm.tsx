@@ -354,6 +354,20 @@ function isFoundationPolicyKey(key: PolicyLinkKey) {
 
 const STAYKNOWN_DEFAULT_POLICY_KEYS: PolicyLinkKey[] = ["privacy", "terms"];
 
+function brandNameForSenderEmail(email: string) {
+  const normalized = email.trim().toLowerCase();
+
+  if (normalized.endsWith("@6rides.com")) return "6Rides";
+  if (normalized.endsWith("@6clementjoshuamusics.com")) {
+    return "6 Clement Joshua Musics";
+  }
+  if (normalized.endsWith("@6clementjoshuafoundation.com")) {
+    return "6 Clement Joshua Foundation";
+  }
+
+  return "StayKnown";
+}
+
 function policyBrandForSenderEmail(email: string) {
   const normalized = email.trim().toLowerCase();
 
@@ -1596,6 +1610,10 @@ export default function MailConsoleSendForm({
   const selectedSender = useMemo(
     () => allowedSenders.find((s) => s.id === senderId) || null,
     [allowedSenders, senderId],
+  );
+
+  const selectedBrandName = brandNameForSenderEmail(
+    selectedSender?.from_email || "",
   );
 
   const selectedPolicyBrand = policyBrandForSenderEmail(
@@ -5247,7 +5265,7 @@ ${BODY_AUDIO_TOKEN} for body audio`}
 
             <div style={previewOuterStyle}>
               <div style={{ textAlign: "center", marginBottom: 10 }}>
-                <div style={previewBrandTextStyle}>STAYKNOWN™</div>
+                <div style={previewBrandTextStyle}>{selectedBrandName}™</div>
                 <div style={{ height: 6 }} />
                 <div style={previewServiceTextStyle}>
                   A 6 Clement Joshua service™
@@ -5362,8 +5380,8 @@ ${BODY_AUDIO_TOKEN} for body audio`}
               ) : null}
               {renderSocialLinksBlock()}
               <div style={previewLegalStyle}>
-                © {new Date().getFullYear()} StayKnown™ · A 6 Clement Joshua
-                service™
+                © {new Date().getFullYear()} {selectedBrandName}™ · A 6 Clement
+                Joshua service™
               </div>
             </div>
           </aside>
@@ -5744,8 +5762,8 @@ ${BODY_AUDIO_TOKEN} for body audio`}
                 ) : null}
                 {renderSocialLinksBlock()}
                 <div style={previewLegalStyle}>
-                  © {new Date().getFullYear()} StayKnown™ · A 6 Clement Joshua
-                  service™
+                  © {new Date().getFullYear()} {selectedBrandName}™ · A 6
+                  Clement Joshua service™
                 </div>
               </div>
             </div>
