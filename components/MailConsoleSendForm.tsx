@@ -562,11 +562,41 @@ function makeId(prefix: string) {
 }
 
 function normalizeEmailInput(value: string) {
-  return value.trim().toLowerCase();
+  const raw = value.trim().replace(/^mailto:/i, "");
+
+  const angleMatch = raw.match(/<([^<>@\s]+@[^<>\s@]+)>/);
+  const email = angleMatch ? angleMatch[1] : raw;
+
+  return email
+    .trim()
+    .replace(/^<+|>+$/g, "")
+    .replace(/[.,;:]+$/g, "")
+    .toLowerCase();
 }
 
 function isValidEmail(email: string) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  const value = normalizeEmailInput(email);
+
+  if (!value) return false;
+  if (value.length > 254) return false;
+  if (/\s|,|;/.test(value)) return false;
+
+  const atIndex = value.indexOf("@");
+
+  if (atIndex <= 0) return false;
+  if (atIndex !== value.lastIndexOf("@")) return false;
+  if (atIndex >= value.length - 1) return false;
+
+  const local = value.slice(0, atIndex);
+  const domain = value.slice(atIndex + 1);
+
+  if (!local || !domain) return false;
+  if (local.length > 64) return false;
+  if (domain.length > 253) return false;
+  if (domain.startsWith(".") || domain.endsWith(".")) return false;
+  if (domain.includes("..")) return false;
+
+  return true;
 }
 
 function commaDomainSuggestion(value: string) {
