@@ -1880,8 +1880,8 @@ function resolveResendApiKeyForSender(fromEmail: string) {
   const email = clean(fromEmail).toLowerCase();
   if (email.endsWith("@6clementjoshuafoundation.com")) {
     return {
-      apiKey: clean(process.env.RESEND_API_KEY),
-      envName: "RESEND_API_KEY",
+      apiKey: clean(process.env.RESEND_API_KEY_6CLEMENTJOSHUAFOUNDATION),
+      envName: "RESEND_API_KEY_6CLEMENTJOSHUAFOUNDATION",
       brand: "6 Clement Joshua Foundation",
     };
   }
