@@ -72,7 +72,16 @@ type PolicyLinkKey =
   | "rides_child_student_safety"
   | "rides_insurance_liability"
   | "rides_corporate_sla"
-  | "rides_cookies";
+  | "rides_cookies"
+  | "foundation_privacy"
+  | "foundation_terms"
+  | "foundation_donor_privacy"
+  | "foundation_refund"
+  | "foundation_transparency"
+  | "foundation_anti_fraud"
+  | "foundation_child_safeguarding"
+  | "foundation_whistleblowing"
+  | "foundation_cookies";
 
 const MAX_RECIPIENTS = 50;
 const SEND_BATCH_SIZE = 5;
@@ -85,7 +94,7 @@ const POLICY_LINK_OPTIONS: Array<{
   key: PolicyLinkKey;
   label: string;
   href: string;
-  brand?: "stayknown" | "6rides";
+  brand?: "stayknown" | "6rides" | "foundation";
 }> = [
   {
     key: "privacy",
@@ -255,6 +264,60 @@ const POLICY_LINK_OPTIONS: Array<{
     href: "https://6rides.com/policies/cookies",
     brand: "6rides",
   },
+  {
+    key: "foundation_privacy",
+    label: "Privacy",
+    href: "https://www.6clementjoshuafoundation.com/policies/privacy",
+    brand: "foundation",
+  },
+  {
+    key: "foundation_terms",
+    label: "Terms",
+    href: "https://www.6clementjoshuafoundation.com/policies/terms",
+    brand: "foundation",
+  },
+  {
+    key: "foundation_donor_privacy",
+    label: "Donor Privacy",
+    href: "https://www.6clementjoshuafoundation.com/policies/donor-privacy",
+    brand: "foundation",
+  },
+  {
+    key: "foundation_refund",
+    label: "Refunds",
+    href: "https://www.6clementjoshuafoundation.com/policies/refund",
+    brand: "foundation",
+  },
+  {
+    key: "foundation_transparency",
+    label: "Transparency",
+    href: "https://www.6clementjoshuafoundation.com/policies/transparency",
+    brand: "foundation",
+  },
+  {
+    key: "foundation_anti_fraud",
+    label: "Anti-Fraud",
+    href: "https://www.6clementjoshuafoundation.com/policies/anti-fraud",
+    brand: "foundation",
+  },
+  {
+    key: "foundation_child_safeguarding",
+    label: "Child Safety",
+    href: "https://www.6clementjoshuafoundation.com/policies/child-safeguarding",
+    brand: "foundation",
+  },
+  {
+    key: "foundation_whistleblowing",
+    label: "Whistleblowing",
+    href: "https://www.6clementjoshuafoundation.com/policies/whistleblowing",
+    brand: "foundation",
+  },
+  {
+    key: "foundation_cookies",
+    label: "Cookies",
+    href: "https://www.6clementjoshuafoundation.com/policies/cookies",
+    brand: "foundation",
+  },
 ];
 
 const SIX_RIDES_POLICY_KEYS: PolicyLinkKey[] = [
@@ -273,12 +336,29 @@ const SIX_RIDES_POLICY_KEYS: PolicyLinkKey[] = [
   "rides_cookies",
 ];
 
+const FOUNDATION_POLICY_KEYS: PolicyLinkKey[] = [
+  "foundation_privacy",
+  "foundation_terms",
+  "foundation_donor_privacy",
+  "foundation_refund",
+  "foundation_transparency",
+  "foundation_anti_fraud",
+  "foundation_child_safeguarding",
+  "foundation_whistleblowing",
+  "foundation_cookies",
+];
+
+function isFoundationPolicyKey(key: PolicyLinkKey) {
+  return FOUNDATION_POLICY_KEYS.includes(key);
+}
+
 const STAYKNOWN_DEFAULT_POLICY_KEYS: PolicyLinkKey[] = ["privacy", "terms"];
 
 function policyBrandForSenderEmail(email: string) {
   const normalized = email.trim().toLowerCase();
 
   if (normalized.endsWith("@6rides.com")) return "6rides";
+  if (normalized.endsWith("@6clementjoshuafoundation.com")) return "foundation";
 
   return "stayknown";
 }
@@ -1494,11 +1574,14 @@ export default function MailConsoleSendForm({
 
   const currentPolicyLinkOptions = useMemo(
     () =>
-      POLICY_LINK_OPTIONS.filter((item) =>
-        selectedPolicyBrand === "6rides"
-          ? item.brand === "6rides"
-          : item.brand !== "6rides",
-      ),
+      POLICY_LINK_OPTIONS.filter((item) => {
+        if (selectedPolicyBrand === "6rides") return item.brand === "6rides";
+        if (selectedPolicyBrand === "foundation") {
+          return item.brand === "foundation";
+        }
+
+        return item.brand !== "6rides" && item.brand !== "foundation";
+      }),
     [selectedPolicyBrand],
   );
 
@@ -1513,12 +1596,26 @@ export default function MailConsoleSendForm({
       return;
     }
 
-    setSelectedPolicyLinks((prev) => {
-      const has6RidesPolicy = prev.some(isSixRidesPolicyKey);
+    if (selectedPolicyBrand === "foundation") {
+      setSelectedPolicyLinks((prev) => {
+        const currentFoundation = prev.filter(isFoundationPolicyKey);
 
-      return has6RidesPolicy ? STAYKNOWN_DEFAULT_POLICY_KEYS : prev;
+        return currentFoundation.length > 0
+          ? currentFoundation
+          : FOUNDATION_POLICY_KEYS;
+      });
+
+      return;
+    }
+
+    setSelectedPolicyLinks((prev) => {
+      const hasWrongBrandPolicy =
+        prev.some(isSixRidesPolicyKey) || prev.some(isFoundationPolicyKey);
+
+      return hasWrongBrandPolicy ? STAYKNOWN_DEFAULT_POLICY_KEYS : prev;
     });
   }, [selectedPolicyBrand]);
+
   const allowedFooters = useMemo(() => {
     const exact = footerPolicies.filter((f) => f.mode === mode);
     const general = footerPolicies.filter((f) => f.mode === "general");

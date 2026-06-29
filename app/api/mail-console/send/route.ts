@@ -96,7 +96,16 @@ type PolicyLinkKey =
   | "rides_child_student_safety"
   | "rides_insurance_liability"
   | "rides_corporate_sla"
-  | "rides_cookies";
+  | "rides_cookies"
+  | "foundation_privacy"
+  | "foundation_terms"
+  | "foundation_donor_privacy"
+  | "foundation_refund"
+  | "foundation_transparency"
+  | "foundation_anti_fraud"
+  | "foundation_child_safeguarding"
+  | "foundation_whistleblowing"
+  | "foundation_cookies";
 
 const BODY_IMAGE_TOKEN = "{{image}}";
 const BODY_AUDIO_TOKEN = "{{audio}}";
@@ -234,6 +243,42 @@ const POLICY_LINK_OPTIONS: Record<
     label: "Cookies Policy",
     href: "https://6rides.com/policies/cookies",
   },
+  foundation_privacy: {
+    label: "Privacy",
+    href: "https://www.6clementjoshuafoundation.com/policies/privacy",
+  },
+  foundation_terms: {
+    label: "Terms",
+    href: "https://www.6clementjoshuafoundation.com/policies/terms",
+  },
+  foundation_donor_privacy: {
+    label: "Donor Privacy",
+    href: "https://www.6clementjoshuafoundation.com/policies/donor-privacy",
+  },
+  foundation_refund: {
+    label: "Refunds",
+    href: "https://www.6clementjoshuafoundation.com/policies/refund",
+  },
+  foundation_transparency: {
+    label: "Transparency",
+    href: "https://www.6clementjoshuafoundation.com/policies/transparency",
+  },
+  foundation_anti_fraud: {
+    label: "Anti-Fraud",
+    href: "https://www.6clementjoshuafoundation.com/policies/anti-fraud",
+  },
+  foundation_child_safeguarding: {
+    label: "Child Safety",
+    href: "https://www.6clementjoshuafoundation.com/policies/child-safeguarding",
+  },
+  foundation_whistleblowing: {
+    label: "Whistleblowing",
+    href: "https://www.6clementjoshuafoundation.com/policies/whistleblowing",
+  },
+  foundation_cookies: {
+    label: "Cookies",
+    href: "https://www.6clementjoshuafoundation.com/policies/cookies",
+  },
 };
 
 const SIX_RIDES_POLICY_KEYS: PolicyLinkKey[] = [
@@ -251,6 +296,22 @@ const SIX_RIDES_POLICY_KEYS: PolicyLinkKey[] = [
   "rides_corporate_sla",
   "rides_cookies",
 ];
+
+const FOUNDATION_POLICY_KEYS: PolicyLinkKey[] = [
+  "foundation_privacy",
+  "foundation_terms",
+  "foundation_donor_privacy",
+  "foundation_refund",
+  "foundation_transparency",
+  "foundation_anti_fraud",
+  "foundation_child_safeguarding",
+  "foundation_whistleblowing",
+  "foundation_cookies",
+];
+
+function isFoundationPolicyKey(key: PolicyLinkKey) {
+  return FOUNDATION_POLICY_KEYS.includes(key);
+}
 
 function isSixRidesPolicyKey(key: PolicyLinkKey) {
   return SIX_RIDES_POLICY_KEYS.includes(key);
@@ -1787,6 +1848,13 @@ function unsubscribeHtml(link: string) {
 
 function resolveResendApiKeyForSender(fromEmail: string) {
   const email = clean(fromEmail).toLowerCase();
+  if (email.endsWith("@6clementjoshuafoundation.com")) {
+    return {
+      apiKey: clean(process.env.RESEND_API_KEY),
+      envName: "RESEND_API_KEY",
+      brand: "6 Clement Joshua Foundation",
+    };
+  }
 
   if (email.endsWith("@6rides.com")) {
     return {
@@ -2185,6 +2253,21 @@ export async function POST(req: NextRequest) {
         selected6RidesLinks.length > 0
           ? selected6RidesLinks
           : SIX_RIDES_POLICY_KEYS;
+    }
+
+    if (
+      senderRow.from_email
+        .toLowerCase()
+        .endsWith("@6clementjoshuafoundation.com")
+    ) {
+      const selectedFoundationLinks = selectedPolicyLinks.filter(
+        isFoundationPolicyKey,
+      );
+
+      selectedPolicyLinks =
+        selectedFoundationLinks.length > 0
+          ? selectedFoundationLinks
+          : FOUNDATION_POLICY_KEYS;
     }
 
     const senderAllowed =
