@@ -571,6 +571,90 @@ function niceFileSize(size: number) {
   return `${(size / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+const MAIL_CONSOLE_SAFE_UPLOAD_BYTES = 4 * 1024 * 1024;
+
+type MailSendApiResponse = {
+  ok?: boolean;
+  delivery_ok?: boolean;
+  has_failures?: boolean;
+  error?: string;
+  message?: string;
+  campaign_id?: string;
+  summary?: {
+    requested?: number;
+    sent?: number;
+    failed?: number;
+    skipped?: number;
+    results?: Array<Record<string, unknown>>;
+  };
+};
+
+function textBytes(value: string) {
+  return new TextEncoder().encode(value).length;
+}
+
+function safeJsonStringify(value: unknown, fallback = "[]") {
+  try {
+    return JSON.stringify(value) || fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function oversizedPayloadMessage(totalBytes: number, fileCount: number) {
+  return [
+    `Your selected media/files are too large for one Send Email request.`,
+    `Selected upload size: ${niceFileSize(totalBytes)} across ${fileCount} file(s).`,
+    `To preserve quality, StayKnown will not auto-reduce image, audio, video, or PDF quality.`,
+    `Please remove some files, split the email into smaller media sets, or use already-hosted links for large audio/video files.`,
+  ].join(" ");
+}
+
+async function readMailSendApiResponse(
+  res: Response,
+): Promise<MailSendApiResponse> {
+  const contentType = res.headers.get("content-type") || "";
+
+  if (contentType.includes("application/json")) {
+    const data = (await res.json().catch(() => ({}))) as MailSendApiResponse;
+
+    if (
+      !res.ok &&
+      !data.error &&
+      (res.status === 413 || data.message === "FUNCTION_PAYLOAD_TOO_LARGE")
+    ) {
+      return {
+        ok: false,
+        error:
+          "Your selected media/files are too large for one Send Email request. Please split the media into smaller sets or use links for large audio/video files.",
+      };
+    }
+
+    return data;
+  }
+
+  const text = await res.text().catch(() => "");
+
+  if (
+    res.status === 413 ||
+    text.includes("FUNCTION_PAYLOAD_TOO_LARGE") ||
+    text.includes("Request Entity Too Large")
+  ) {
+    return {
+      ok: false,
+      error:
+        "Your selected media/files are too large for one Send Email request. StayKnown did not reduce quality. Please split the files into smaller sets or use links for large audio/video files.",
+    };
+  }
+
+  return {
+    ok: false,
+    error:
+      text ||
+      `Email send failed with status ${res.status}. Please retry in a few minutes.`,
+  };
+}
+
 function makeId(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
@@ -2559,6 +2643,89 @@ export default function MailConsoleSendForm({
     });
   }
 
+  function getSelectedUploadFiles() {
+    const selected: Array<{ label: string; file: File }> = [];
+
+    if (bannerTopFile) {
+      selected.push({ label: "top banner", file: bannerTopFile });
+    }
+
+    if (bannerBottomFile) {
+      selected.push({ label: "bottom banner", file: bannerBottomFile });
+    }
+
+    if (bodyAudioFile) {
+      selected.push({ label: "body audio", file: bodyAudioFile });
+    }
+
+    if (bodyImageFile) {
+      selected.push({ label: "body image", file: bodyImageFile });
+    }
+
+    for (const item of bodyInlineMediaItems) {
+      if (item.file) {
+        selected.push({
+          label: `inserted body ${item.kind}`,
+          file: item.file,
+        });
+      }
+    }
+
+    for (const picked of files) {
+      selected.push({
+        label: picked.mode === "attach" ? "attachment" : picked.mode,
+        file: picked.file,
+      });
+    }
+
+    return selected;
+  }
+
+  function getSendUploadBlockReason() {
+    const selectedFiles = getSelectedUploadFiles();
+
+    if (selectedFiles.length === 0) return "";
+
+    const fileBytes = selectedFiles.reduce(
+      (sum, item) => sum + item.file.size,
+      0,
+    );
+
+    const textEstimate =
+      textBytes(mode) +
+      textBytes(senderId) +
+      textBytes(subject) +
+      textBytes(title) +
+      textBytes(subtitle) +
+      textBytes(badge) +
+      textBytes(message) +
+      textBytes(customFooter || selectedFooter?.footer_html || "") +
+      textBytes(socialTikTokUsername) +
+      textBytes(socialTwitterUsername) +
+      textBytes(socialFacebookUsername) +
+      512 * 1024;
+
+    const estimatedPayloadBytes = fileBytes + textEstimate;
+
+    if (estimatedPayloadBytes <= MAIL_CONSOLE_SAFE_UPLOAD_BYTES) {
+      return "";
+    }
+
+    const biggest = [...selectedFiles]
+      .sort((a, b) => b.file.size - a.file.size)
+      .slice(0, 5)
+      .map(
+        (item) =>
+          `${item.file.name || item.label} (${niceFileSize(item.file.size)})`,
+      )
+      .join(", ");
+
+    return `${oversizedPayloadMessage(
+      estimatedPayloadBytes,
+      selectedFiles.length,
+    )} Biggest files: ${biggest}.`;
+  }
+
   function buildEmailForm(chunkEmails: string[]) {
     const form = new FormData();
 
@@ -2615,7 +2782,7 @@ export default function MailConsoleSendForm({
     form.append("body_image_hint_font_style", bodyImageHintFontStyle);
     form.append(
       "body_inline_media_items",
-      JSON.stringify(bodyInlineMediaItems.map(bodyInlineFormPayload)),
+      safeJsonStringify(bodyInlineMediaItems.map(bodyInlineFormPayload)),
     );
 
     for (const item of bodyInlineMediaItems) {
@@ -2627,7 +2794,7 @@ export default function MailConsoleSendForm({
         );
       }
     }
-    form.append("body_block_order", JSON.stringify(bodyPreviewOrder));
+    form.append("body_block_order", safeJsonStringify(bodyPreviewOrder));
 
     if (bodyAudioFile) {
       form.append("body_audio_file", bodyAudioFile, bodyAudioFile.name);
@@ -2646,7 +2813,7 @@ export default function MailConsoleSendForm({
     form.append("app_store_url", appStoreUrl);
     form.append("footer_policy_id", footerPolicyId);
     form.append("footer_html", footerText);
-    form.append("policy_links", JSON.stringify(selectedPolicyLinks));
+    form.append("policy_links", safeJsonStringify(selectedPolicyLinks));
 
     form.append(
       "social_tiktok_enabled",
@@ -2677,12 +2844,12 @@ export default function MailConsoleSendForm({
 
     form.append(
       "file_modes",
-      JSON.stringify(files.map((picked) => picked.mode)),
+      safeJsonStringify(files.map((picked) => picked.mode)),
     );
 
     form.append(
       "file_display_names",
-      JSON.stringify(
+      safeJsonStringify(
         files.map((picked, index) =>
           cleanDisplayFilename(
             picked.displayName,
@@ -2890,6 +3057,13 @@ export default function MailConsoleSendForm({
       return;
     }
 
+    const uploadBlockReason = getSendUploadBlockReason();
+
+    if (uploadBlockReason) {
+      setStatus(uploadBlockReason);
+      return;
+    }
+
     setSending(true);
     setStatus("");
     setSendComplete(false);
@@ -2927,7 +3101,7 @@ export default function MailConsoleSendForm({
             signal: controller.signal,
           });
 
-          const data = await res.json().catch(() => ({}));
+          const data = await readMailSendApiResponse(res);
 
           const results = Array.isArray(data?.summary?.results)
             ? data.summary.results
@@ -3022,7 +3196,7 @@ export default function MailConsoleSendForm({
             signal: controller.signal,
           });
 
-          const data = await res.json().catch(() => ({}));
+          const data = await readMailSendApiResponse(res);
 
           const results = Array.isArray(data?.summary?.results)
             ? data.summary.results
