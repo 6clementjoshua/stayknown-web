@@ -19,7 +19,7 @@ type BodyBlockKind = "audio" | "image" | "message";
 type BodyHintFontStyle = "normal" | "italic";
 type StoreBadgePlacement = "top" | "bottom";
 
-type BodyInlineMediaKind = "audio" | "image" | "file";
+type BodyInlineMediaKind = "audio" | "image" | "video" | "file";
 
 type BodyInlineMediaItem = {
   id: string;
@@ -578,7 +578,13 @@ function parseBodyInlineMediaItems(raw: string): BodyInlineMediaItem[] {
       const kindRaw = clean(row.kind).toLowerCase();
 
       if (!id) continue;
-      if (kindRaw !== "audio" && kindRaw !== "image" && kindRaw !== "file") {
+
+      if (
+        kindRaw !== "audio" &&
+        kindRaw !== "image" &&
+        kindRaw !== "video" &&
+        kindRaw !== "file"
+      ) {
         continue;
       }
 
@@ -589,14 +595,18 @@ function parseBodyInlineMediaItems(raw: string): BodyInlineMediaItem[] {
           ? "StayKnown Audio"
           : kind === "image"
             ? "StayKnown Image"
-            : "StayKnown File";
+            : kind === "video"
+              ? "StayKnown Video"
+              : "StayKnown File";
 
       const fallbackMimeType =
         kind === "audio"
           ? "audio/mpeg"
           : kind === "image"
             ? "image/png"
-            : "application/octet-stream";
+            : kind === "video"
+              ? "video/mp4"
+              : "application/octet-stream";
 
       const displayName =
         clean(row.display_name) ||
@@ -609,7 +619,16 @@ function parseBodyInlineMediaItems(raw: string): BodyInlineMediaItem[] {
         id,
         kind,
         displayName,
-        size: safeNumber(row.size, kind === "audio" ? 76 : 100, 32, 100),
+        size: safeNumber(
+          row.size,
+          kind === "audio"
+            ? 76
+            : kind === "image" || kind === "video"
+              ? 88
+              : 100,
+          32,
+          100,
+        ),
         placement: safeBodyMediaPlacement(row.placement),
         hint: clean(row.hint).slice(0, 160),
         hintColor: safeHexColor(row.hint_color || row.hintColor),
@@ -617,7 +636,7 @@ function parseBodyInlineMediaItems(raw: string): BodyInlineMediaItem[] {
           row.hint_font_style || row.hintFontStyle,
         ),
         imageShape:
-          kind === "image"
+          kind === "image" || kind === "video"
             ? safeBodyImageShape(row.image_shape || row.imageShape)
             : "rectangle",
         mimeType,
@@ -638,7 +657,6 @@ function parseBodyInlineMediaItems(raw: string): BodyInlineMediaItem[] {
     return [];
   }
 }
-
 function fileExtension(name: string) {
   const safeName = clean(name);
   const match = safeName.match(/(\.[a-z0-9]{1,10})$/i);
@@ -1097,6 +1115,110 @@ function bodyFileLinkBlock(params: {
         hint
           ? `<div style="
               width:100%;
+              max-width:100%;
+              margin:7px auto 0;
+              text-align:center;
+              font-size:11px;
+              line-height:1.45;
+              color:${escapeHtml(hintColor)};
+              font-style:${hintFontStyle};
+            ">${escapeHtml(hint)}</div>`
+          : ""
+      }
+    </div>
+  `;
+}
+
+function bodyVideoLinkBlock(params: {
+  url: string;
+  displayName: string;
+  size: number;
+  hint: string;
+  hintColor: string;
+  hintFontStyle: BodyHintFontStyle;
+}) {
+  const hint = clean(params.hint);
+  const hintColor = safeHexColor(params.hintColor);
+  const hintFontStyle = safeBodyHintFontStyle(params.hintFontStyle);
+  const displayName = clean(params.displayName) || "StayKnown Video";
+
+  if (!params.url) return "";
+
+  return `
+    <div style="text-align:center;margin:16px 0;width:100%;">
+      <a href="${escapeHtml(params.url)}" target="_blank" rel="noopener noreferrer" style="
+        display:inline-block;
+        width:${params.size}%;
+        max-width:100%;
+        min-width:250px;
+        box-sizing:border-box;
+        border-radius:22px;
+        padding:14px 16px;
+        background:#ffffff;
+        color:#050505;
+        text-decoration:none;
+        border:1px solid rgba(0,0,0,0.10);
+        box-shadow:0 16px 45px rgba(0,0,0,0.07);
+      ">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;width:100%;">
+          <tr>
+            <td width="48" style="width:48px;text-align:left;vertical-align:middle;">
+              <span style="
+                display:inline-block;
+                width:42px;
+                height:42px;
+                border-radius:999px;
+                background:#050505;
+                color:#ffffff;
+                text-align:center;
+                line-height:42px;
+                font-size:16px;
+                font-weight:950;
+              ">▶</span>
+            </td>
+
+            <td style="text-align:left;vertical-align:middle;">
+              <div style="
+                font-size:14px;
+                line-height:1.35;
+                font-weight:950;
+                color:#050505;
+                overflow:hidden;
+                text-overflow:ellipsis;
+                white-space:nowrap;
+              ">${escapeHtml(displayName)}</div>
+
+              <div style="
+                margin-top:4px;
+                font-size:11px;
+                line-height:1.35;
+                font-weight:800;
+                color:rgba(0,0,0,0.55);
+              ">Tap to watch video</div>
+            </td>
+
+            <td width="44" align="right" style="width:44px;text-align:right;vertical-align:middle;">
+              <span style="
+                display:inline-block;
+                width:38px;
+                height:38px;
+                border-radius:999px;
+                background:#050505;
+                color:#ffffff;
+                text-align:center;
+                line-height:38px;
+                font-size:16px;
+                font-weight:950;
+              ">↗</span>
+            </td>
+          </tr>
+        </table>
+      </a>
+
+      ${
+        hint
+          ? `<div style="
+              width:${params.size}%;
               max-width:100%;
               margin:7px auto 0;
               text-align:center;
@@ -1607,7 +1729,7 @@ function renderMessageHtmlWithInlineMedia(params: {
   if (!source.trim()) return "";
 
   const parts = source.split(
-    /(\{\{image:[^}]+\}\}|\{\{audio:[^}]+\}\}|\{\{file:[^}]+\}\}|\{\{image\}\}|\{\{audio\}\})/g,
+    /(\{\{image:[^}]+\}\}|\{\{audio:[^}]+\}\}|\{\{video:[^}]+\}\}|\{\{file:[^}]+\}\}|\{\{image\}\}|\{\{audio\}\})/g,
   );
 
   return parts
@@ -1658,6 +1780,7 @@ function buildHtml(p: {
   bodyAudioHintFontStyle: BodyHintFontStyle;
   bodyAudioSize: number;
   bodyImageUrl: string;
+  bodyImageMimeType: string;
   bodyImageDisplayName: string;
   bodyImageShape: BodyImageShape;
   bodyImageHint: string;
@@ -1696,17 +1819,28 @@ function buildHtml(p: {
         })
       : "";
 
+  const bodyImageIsVideo = p.bodyImageMimeType.startsWith("video/");
+
   const standaloneBodyImageHtml =
     p.bodyImageUrl && p.bodyImagePlacement !== "custom"
-      ? bodyImageBlock({
-          url: p.bodyImageUrl,
-          alt: p.bodyImageDisplayName || "StayKnown Image",
-          size: p.bodyImageSize,
-          shape: p.bodyImageShape,
-          hint: p.bodyImageHint,
-          hintColor: p.bodyImageHintColor,
-          hintFontStyle: p.bodyImageHintFontStyle,
-        })
+      ? bodyImageIsVideo
+        ? bodyVideoLinkBlock({
+            url: p.bodyImageUrl,
+            displayName: p.bodyImageDisplayName || "StayKnown Video",
+            size: p.bodyImageSize,
+            hint: p.bodyImageHint,
+            hintColor: p.bodyImageHintColor,
+            hintFontStyle: p.bodyImageHintFontStyle,
+          })
+        : bodyImageBlock({
+            url: p.bodyImageUrl,
+            alt: p.bodyImageDisplayName || "StayKnown Image",
+            size: p.bodyImageSize,
+            shape: p.bodyImageShape,
+            hint: p.bodyImageHint,
+            hintColor: p.bodyImageHintColor,
+            hintFontStyle: p.bodyImageHintFontStyle,
+          })
       : "";
   const tokenBodyAudioHtml = p.bodyAudioUrl
     ? bodyAudioPillBlock({
@@ -1720,15 +1854,24 @@ function buildHtml(p: {
     : "";
 
   const tokenBodyImageHtml = p.bodyImageUrl
-    ? bodyImageBlock({
-        url: p.bodyImageUrl,
-        alt: p.bodyImageDisplayName || "StayKnown Image",
-        size: p.bodyImageSize,
-        shape: p.bodyImageShape,
-        hint: p.bodyImageHint,
-        hintColor: p.bodyImageHintColor,
-        hintFontStyle: p.bodyImageHintFontStyle,
-      })
+    ? bodyImageIsVideo
+      ? bodyVideoLinkBlock({
+          url: p.bodyImageUrl,
+          displayName: p.bodyImageDisplayName || "StayKnown Video",
+          size: p.bodyImageSize,
+          hint: p.bodyImageHint,
+          hintColor: p.bodyImageHintColor,
+          hintFontStyle: p.bodyImageHintFontStyle,
+        })
+      : bodyImageBlock({
+          url: p.bodyImageUrl,
+          alt: p.bodyImageDisplayName || "StayKnown Image",
+          size: p.bodyImageSize,
+          shape: p.bodyImageShape,
+          hint: p.bodyImageHint,
+          hintColor: p.bodyImageHintColor,
+          hintFontStyle: p.bodyImageHintFontStyle,
+        })
     : "";
   const audioAlreadyInsideMessage =
     Boolean(p.bodyAudioUrl) &&
@@ -1738,7 +1881,9 @@ function buildHtml(p: {
   const imageAlreadyInsideMessage =
     Boolean(p.bodyImageUrl) &&
     (p.message.includes(BODY_IMAGE_TOKEN) ||
-      /\{\{image:[^}]+\}\}/.test(p.message));
+      /\{\{image:[^}]+\}\}/.test(p.message) ||
+      /\{\{video:[^}]+\}\}/.test(p.message));
+
   const messageHtml = renderMessageHtmlWithInlineMedia({
     message: p.message,
     bodyAudioHtml: tokenBodyAudioHtml,
@@ -1778,15 +1923,24 @@ function buildHtml(p: {
           return standaloneBodyImageHtml;
         }
 
-        return bodyImageBlock({
-          url: p.bodyImageUrl,
-          alt: p.bodyImageDisplayName || "StayKnown Image",
-          size: p.bodyImageSize,
-          shape: p.bodyImageShape,
-          hint: p.bodyImageHint,
-          hintColor: p.bodyImageHintColor,
-          hintFontStyle: p.bodyImageHintFontStyle,
-        });
+        return bodyImageIsVideo
+          ? bodyVideoLinkBlock({
+              url: p.bodyImageUrl,
+              displayName: p.bodyImageDisplayName || "StayKnown Video",
+              size: p.bodyImageSize,
+              hint: p.bodyImageHint,
+              hintColor: p.bodyImageHintColor,
+              hintFontStyle: p.bodyImageHintFontStyle,
+            })
+          : bodyImageBlock({
+              url: p.bodyImageUrl,
+              alt: p.bodyImageDisplayName || "StayKnown Image",
+              size: p.bodyImageSize,
+              shape: p.bodyImageShape,
+              hint: p.bodyImageHint,
+              hintColor: p.bodyImageHintColor,
+              hintFontStyle: p.bodyImageHintFontStyle,
+            });
       }
 
       if (block === "message") {
@@ -1893,6 +2047,17 @@ function brandNameForSenderEmail(fromEmail: string) {
 
 function resolveResendApiKeyForSender(fromEmail: string) {
   const email = clean(fromEmail).toLowerCase();
+
+  if (email.endsWith("@stay-known.com") || email.endsWith("@stayknown.com")) {
+    return {
+      apiKey:
+        clean(process.env.RESEND_API_KEY_STAYKNOWN) ||
+        clean(process.env.RESEND_API_KEY),
+      envName: "RESEND_API_KEY_STAYKNOWN",
+      brand: "StayKnown",
+    };
+  }
+
   if (email.endsWith("@6clementjoshuafoundation.com")) {
     return {
       apiKey: clean(process.env.RESEND_API_KEY_6CLEMENTJOSHUAFOUNDATION),
@@ -1920,7 +2085,7 @@ function resolveResendApiKeyForSender(fromEmail: string) {
   return {
     apiKey: clean(process.env.RESEND_API_KEY),
     envName: "RESEND_API_KEY",
-    brand: "StayKnown",
+    brand: "Default mail sender",
   };
 }
 
@@ -2122,11 +2287,13 @@ export async function POST(req: NextRequest) {
     );
     const bodyImageShape = safeBodyImageShape(form.get("body_image_shape"));
     const bodyImageSize = safeNumber(form.get("body_image_size"), 88, 32, 100);
+    const bodyImageIsVideo = Boolean(bodyImageFile?.type?.startsWith("video/"));
+
     const bodyImageDisplayName = cleanDisplayFilename(
       clean(form.get("body_image_display_name")),
-      "StayKnown Image",
+      bodyImageIsVideo ? "StayKnown Video" : "StayKnown Image",
       bodyImageFile?.name || "",
-      bodyImageFile?.type || "image/png",
+      bodyImageFile?.type || (bodyImageIsVideo ? "video/mp4" : "image/png"),
     );
     const bodyImageHint = clean(form.get("body_image_hint")).slice(0, 160);
     const bodyImageHintColor = safeHexColor(form.get("body_image_hint_color"));
@@ -2281,9 +2448,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (bodyImageFile && !bodyImageFile.type.startsWith("image/")) {
+    if (
+      bodyImageFile &&
+      !bodyImageFile.type.startsWith("image/") &&
+      !bodyImageFile.type.startsWith("video/")
+    ) {
       return NextResponse.json(
-        { ok: false, error: "Body image must be an image file." },
+        { ok: false, error: "Body media must be an image or video file." },
         { status: 400 },
       );
     }
@@ -2302,9 +2473,24 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (bodyImageFile && bodyImageFile.size > 8 * 1024 * 1024) {
+    if (
+      bodyImageFile &&
+      bodyImageFile.type.startsWith("image/") &&
+      bodyImageFile.size > 8 * 1024 * 1024
+    ) {
       return NextResponse.json(
         { ok: false, error: "Body image must be under 8MB." },
+        { status: 400 },
+      );
+    }
+
+    if (
+      bodyImageFile &&
+      bodyImageFile.type.startsWith("video/") &&
+      bodyImageFile.size > 20 * 1024 * 1024
+    ) {
+      return NextResponse.json(
+        { ok: false, error: "Body video must be under 20MB." },
         { status: 400 },
       );
     }
@@ -2552,7 +2738,10 @@ export async function POST(req: NextRequest) {
             hint: item.hint || null,
             hint_color: item.hintColor,
             hint_font_style: item.hintFontStyle,
-            image_shape: item.kind === "image" ? item.imageShape : null,
+            image_shape:
+              item.kind === "image" || item.kind === "video"
+                ? item.imageShape
+                : null,
             mime_type: item.mimeType,
             original_name: item.originalName,
             storage_bucket: item.storageBucket || null,
@@ -2631,22 +2820,23 @@ export async function POST(req: NextRequest) {
 
     if (bodyImageFile) {
       const filename = bodyImageDisplayName;
+      const mime =
+        bodyImageFile.type || (bodyImageIsVideo ? "video/mp4" : "image/png");
       const buffer = Buffer.from(await bodyImageFile.arrayBuffer());
 
-      const storagePath = `${campaignId}/body-image-${randomUUID()}-${cleanFilename(
-        filename,
-      )}`;
-
+      const storagePath = `${campaignId}/${
+        bodyImageIsVideo ? "body-video" : "body-image"
+      }-${randomUUID()}-${cleanFilename(filename)}`;
       const { error: uploadError } = await admin.storage
         .from("mail-console-attachments")
         .upload(storagePath, buffer, {
-          contentType: bodyImageFile.type || "image/png",
+          contentType: mime,
           upsert: false,
         });
 
       if (uploadError) {
         throw new Error(
-          `Body image upload failed for ${filename}: ${uploadError.message}`,
+          `Body media upload failed for ${filename}: ${uploadError.message}`,
         );
       }
 
@@ -2656,7 +2846,7 @@ export async function POST(req: NextRequest) {
 
       if (signedError || !signed?.signedUrl) {
         throw new Error(
-          `Body image signed URL failed for ${filename}: ${
+          `Body media signed URL failed for ${filename}: ${
             signedError?.message || "unknown error"
           }`,
         );
@@ -2667,11 +2857,11 @@ export async function POST(req: NextRequest) {
       await admin.from("mail_console_attachments").insert({
         campaign_id: campaignId,
         file_name: filename,
-        mime_type: bodyImageFile.type || "image/png",
+        mime_type: mime,
         size_bytes: bodyImageFile.size,
         storage_bucket: "mail-console-attachments",
         storage_path: storagePath,
-        attachment_mode: "inline_image",
+        attachment_mode: bodyImageIsVideo ? "link_only" : "inline_image",
         created_by: null,
       });
     }
@@ -2849,12 +3039,21 @@ export async function POST(req: NextRequest) {
           hintColor: item.hintColor,
           hintFontStyle: item.hintFontStyle,
         });
+      } else if (item.kind === "video" || mime.startsWith("video/")) {
+        bodyInlineMediaHtmlByToken[token] = bodyVideoLinkBlock({
+          url: signedUrl,
+          displayName: item.displayName,
+          size: item.size,
+          hint: item.hint,
+          hintColor: item.hintColor,
+          hintFontStyle: item.hintFontStyle,
+        });
       } else if (item.kind === "image" || mime.startsWith("image/")) {
         bodyInlineMediaHtmlByToken[token] = bodyImageBlock({
           url: signedUrl,
           alt: item.displayName,
-          size: 100,
-          shape: "rectangle",
+          size: item.size,
+          shape: item.imageShape || "rectangle",
           hint: item.hint || "",
           hintColor: item.hintColor,
           hintFontStyle: item.hintFontStyle,
@@ -2868,6 +3067,7 @@ export async function POST(req: NextRequest) {
           hintFontStyle: item.hintFontStyle,
         });
       }
+
       bodyInlineMediaMeta.push({
         id: item.id,
         kind: item.kind,
@@ -2877,7 +3077,10 @@ export async function POST(req: NextRequest) {
         hint: item.hint || null,
         hint_color: item.hintColor,
         hint_font_style: item.hintFontStyle,
-        image_shape: item.kind === "image" ? item.imageShape : null,
+        image_shape:
+          item.kind === "image" || item.kind === "video"
+            ? item.imageShape
+            : null,
         mime_type: mime,
         original_name: item.originalName,
         storage_bucket: item.storageBucket || "mail-console-attachments",
@@ -2887,7 +3090,12 @@ export async function POST(req: NextRequest) {
 
     for (let i = 0; i < files.length; i += 1) {
       const file = files[i];
-      const fileMode = normalizedFileModes[i] || "attach";
+      const mime = file.type || "application/octet-stream";
+      const requestedFileMode = normalizedFileModes[i] || "attach";
+      const fileMode = mime.startsWith("video/")
+        ? "link_only"
+        : requestedFileMode;
+
       const displayName = cleanDisplayFilename(
         fileDisplayNames[i] || "",
         defaultAttachmentDisplayName(file, i),
@@ -2896,7 +3104,6 @@ export async function POST(req: NextRequest) {
       );
       const filename = displayName;
       const storageSafeName = cleanFilename(displayName);
-      const mime = file.type || "application/octet-stream";
       const size = file.size;
 
       if (size > 20 * 1024 * 1024) {
@@ -3034,6 +3241,7 @@ export async function POST(req: NextRequest) {
       bodyAudioHintFontStyle,
       bodyAudioSize,
       bodyImageUrl,
+      bodyImageMimeType: bodyImageFile?.type || "",
       bodyImageDisplayName,
       bodyImageShape,
       bodyImageHint,
@@ -3356,6 +3564,7 @@ export async function POST(req: NextRequest) {
           message_has_body_image_token:
             message.includes(BODY_IMAGE_TOKEN) ||
             /\{\{image:[^}]+\}\}/.test(message),
+          message_has_body_video_token: /\{\{video:[^}]+\}\}/.test(message),
           message_has_body_file_token: /\{\{file:[^}]+\}\}/.test(message),
 
           summary,

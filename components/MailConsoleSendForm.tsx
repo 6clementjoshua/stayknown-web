@@ -84,8 +84,11 @@ type PolicyLinkKey =
   | "foundation_cookies";
 
 const MAX_RECIPIENTS = 50;
-const SEND_BATCH_SIZE = 5;
-const RESEND_SAFE_WINDOW_MS = 3500;
+const DEFAULT_SEND_BATCH_SIZE = 5;
+const STAYKNOWN_SEND_BATCH_SIZE = 1;
+
+const DEFAULT_RESEND_SAFE_WINDOW_MS = 3500;
+const STAYKNOWN_RESEND_SAFE_WINDOW_MS = 4500;
 
 const BODY_IMAGE_TOKEN = "{{image}}";
 const BODY_AUDIO_TOKEN = "{{audio}}";
@@ -450,6 +453,7 @@ type StoredDraftAttachment = {
     | "body_image"
     | "body_inline_audio"
     | "body_inline_image"
+    | "body_inline_video"
     | "body_inline_file"
     | "file";
   file_name: string;
@@ -474,7 +478,7 @@ type StoredDraftAttachment = {
 
 type StoredDraftInlineMediaItem = {
   id: string;
-  kind: "audio" | "image" | "file";
+  kind: "audio" | "image" | "video" | "file";
   display_name?: string;
   displayName?: string;
   size?: number;
@@ -500,7 +504,7 @@ type StoredDraftInlineMediaItem = {
 
 type BodyInlineMediaItem = {
   id: string;
-  kind: "audio" | "image" | "file";
+  kind: "audio" | "image" | "video" | "file";
   file: File | null;
   previewUrl: string;
   displayName: string;
@@ -743,17 +747,20 @@ function revokePreviewUrl(url: string) {
   URL.revokeObjectURL(url);
 }
 
-function bodyInlineToken(kind: "audio" | "image" | "file", id: string) {
+function bodyInlineToken(
+  kind: "audio" | "image" | "video" | "file",
+  id: string,
+) {
   return `{{${kind}:${id}}}`;
 }
 
 function parseBodyInlineToken(token: string) {
-  const match = token.match(/^\{\{(audio|image|file):([^}]+)\}\}$/);
+  const match = token.match(/^\{\{(audio|image|video|file):([^}]+)\}\}$/);
 
   if (!match) return null;
 
   return {
-    kind: match[1] as "audio" | "image" | "file",
+    kind: match[1] as "audio" | "image" | "video" | "file",
     id: match[2],
   };
 }
@@ -1313,6 +1320,7 @@ export default function MailConsoleSendForm({
       if (
         attachment.role === "body_inline_audio" ||
         attachment.role === "body_inline_image" ||
+        attachment.role === "body_inline_video" ||
         attachment.role === "body_inline_file"
       ) {
         continue;
@@ -1403,7 +1411,10 @@ export default function MailConsoleSendForm({
 
     for (const item of items) {
       const kind =
-        item.kind === "audio" || item.kind === "image" || item.kind === "file"
+        item.kind === "audio" ||
+        item.kind === "image" ||
+        item.kind === "video" ||
+        item.kind === "file"
           ? item.kind
           : null;
 
@@ -1420,17 +1431,18 @@ export default function MailConsoleSendForm({
           ? "StayKnown Audio"
           : kind === "image"
             ? "StayKnown Image"
-            : "StayKnown File");
+            : kind === "video"
+              ? "StayKnown Video"
+              : "StayKnown File");
 
       const size =
         typeof item.size === "number" && Number.isFinite(item.size)
           ? Math.max(32, Math.min(100, Math.round(item.size)))
           : kind === "audio"
             ? 76
-            : kind === "image"
+            : kind === "image" || kind === "video"
               ? 88
               : 100;
-
       const placement: BodyMediaPlacement =
         item.placement === "top" || item.placement === "bottom"
           ? item.placement
@@ -1446,10 +1458,9 @@ export default function MailConsoleSendForm({
           : "normal";
 
       const imageShape =
-        kind === "image" || kind === "file"
+        kind === "image" || kind === "video" || kind === "file"
           ? item.image_shape || item.imageShape || "rectangle"
           : undefined;
-
       const restoredItem: BodyInlineMediaItem = {
         id: item.id,
         kind,
@@ -1469,7 +1480,9 @@ export default function MailConsoleSendForm({
             ? "audio/mpeg"
             : kind === "image"
               ? "image/png"
-              : "application/octet-stream"),
+              : kind === "video"
+                ? "video/mp4"
+                : "application/octet-stream"),
         originalName: item.original_name || item.originalName || displayName,
         storageBucket: item.storage_bucket || item.storageBucket || "",
         storagePath: item.storage_path || item.storagePath || "",
@@ -1612,6 +1625,22 @@ export default function MailConsoleSendForm({
     [allowedSenders, senderId],
   );
 
+  const selectedSenderIsStayKnown = useMemo(() => {
+    const email = selectedSender?.from_email?.trim().toLowerCase() || "";
+
+    return (
+      email.endsWith("@stay-known.com") || email.endsWith("@stayknown.com")
+    );
+  }, [selectedSender]);
+
+  const activeSendBatchSize = selectedSenderIsStayKnown
+    ? STAYKNOWN_SEND_BATCH_SIZE
+    : DEFAULT_SEND_BATCH_SIZE;
+
+  const activeResendSafeWindowMs = selectedSenderIsStayKnown
+    ? STAYKNOWN_RESEND_SAFE_WINDOW_MS
+    : DEFAULT_RESEND_SAFE_WINDOW_MS;
+
   const selectedBrandName = brandNameForSenderEmail(
     selectedSender?.from_email || "",
   );
@@ -1699,7 +1728,7 @@ export default function MailConsoleSendForm({
   const sendOverlayKicker =
     sendSummary.total <= 1
       ? "Single Email Delivery"
-      : sendSummary.total <= SEND_BATCH_SIZE
+      : sendSummary.total <= activeSendBatchSize
         ? "Direct Email Delivery"
         : "Sending Queue";
 
@@ -1714,9 +1743,9 @@ export default function MailConsoleSendForm({
   const sendOverlayDescription =
     sendSummary.total <= 1
       ? "This email is being delivered now. No batch waiting is used for a single recipient."
-      : sendSummary.total <= SEND_BATCH_SIZE
-        ? `Sending ${sendSummary.total} emails in one direct batch. No extra waiting step is needed because this is under the ${SEND_BATCH_SIZE}-recipient batch limit.`
-        : `Sending ${sendSummary.total} emails in batches of ${SEND_BATCH_SIZE}. Already sent emails cannot be cancelled. Stopping now keeps remaining queued emails in draft status.`;
+      : sendSummary.total <= activeSendBatchSize
+        ? `Sending ${sendSummary.total} emails in one direct batch. No extra waiting step is needed because this is under the ${activeSendBatchSize}-recipient batch limit.`
+        : `Sending ${sendSummary.total} emails in batches of ${activeSendBatchSize}. Already sent emails cannot be cancelled. Stopping now keeps remaining queued emails in draft status.`;
 
   const stopSendButtonLabel =
     sendSummary.total <= 1 ? "Stop send" : "Stop & save remaining as draft";
@@ -2057,8 +2086,11 @@ export default function MailConsoleSendForm({
   function pickBodyImageFile(file: File | null) {
     if (!file) return;
 
-    if (!file.type.startsWith("image/")) {
-      setStatus("Body image must be an image file.");
+    const isImage = file.type.startsWith("image/");
+    const isVideo = file.type.startsWith("video/");
+
+    if (!isImage && !isVideo) {
+      setStatus("Body media must be an image or video file.");
       return;
     }
 
@@ -2068,10 +2100,15 @@ export default function MailConsoleSendForm({
 
     setBodyImageFile(file);
     setBodyImagePreviewUrl(previewUrl);
-    setBodyImageDisplayName((prev) => prev.trim() || "StayKnown Image");
+    setBodyImageDisplayName(
+      (prev) =>
+        prev.trim() || (isVideo ? "StayKnown Video" : "StayKnown Image"),
+    );
 
     setStatus(
-      "Body image selected. Tap inside the message and insert {{image}} where you want it.",
+      isVideo
+        ? "Body video selected. Tap inside the message and insert it where you want it."
+        : "Body image selected. Tap inside the message and insert it where you want it.",
     );
   }
 
@@ -2087,7 +2124,7 @@ export default function MailConsoleSendForm({
     setBodyImageHintFontStyle("normal");
 
     setStatus(
-      "Selected body image removed. Inserted image markers in the message were not deleted.",
+      "Selected body image/video removed. Inserted image or video markers in the message were not deleted.",
     );
   }
   function moveBodyBlock(dragged: BodyBlockKind, target: BodyBlockKind) {
@@ -2185,23 +2222,26 @@ export default function MailConsoleSendForm({
     }
 
     if (!bodyImagePreviewUrl) {
-      setStatus("Choose an image file first.");
+      setStatus("Choose an image or video file first.");
       return;
     }
 
-    const id = makeId("body-image");
+    const isVideo = bodyImageFile?.type.startsWith("video/") || false;
+    const mediaKind: "image" | "video" = isVideo ? "video" : "image";
+
+    const id = makeId(isVideo ? "body-video" : "body-image");
     const previewUrl = bodyImageFile
       ? URL.createObjectURL(bodyImageFile)
       : bodyImagePreviewUrl;
 
     const item: BodyInlineMediaItem = {
       id,
-      kind: "image",
+      kind: mediaKind,
       file: bodyImageFile,
       previewUrl,
       displayName: cleanDisplayFilename(
         bodyImageDisplayName,
-        "StayKnown Image",
+        isVideo ? "StayKnown Video" : "StayKnown Image",
       ),
       size: bodyImageSize,
       placement: "custom",
@@ -2209,15 +2249,16 @@ export default function MailConsoleSendForm({
       hintColor: bodyImageHintColor,
       hintFontStyle: bodyImageHintFontStyle,
       imageShape: bodyImageShape,
-      mimeType: bodyImageFile?.type || "image/png",
+      mimeType: bodyImageFile?.type || (isVideo ? "video/mp4" : "image/png"),
       originalName:
-        bodyImageFile?.name || bodyImageDisplayName || "StayKnown Image",
+        bodyImageFile?.name ||
+        bodyImageDisplayName ||
+        (isVideo ? "StayKnown Video" : "StayKnown Image"),
     };
 
     setBodyInlineMediaItems((prev) => [...prev, item]);
-    insertBodyTokenAtCursor(bodyInlineToken("image", id));
+    insertBodyTokenAtCursor(bodyInlineToken(mediaKind, id));
   }
-
   function insertAttachmentInsideMessage(picked: PickedFile) {
     if (!picked?.file) {
       setStatus("Choose an attachment first.");
@@ -2227,25 +2268,38 @@ export default function MailConsoleSendForm({
     const id = makeId("body-file");
     const previewUrl = URL.createObjectURL(picked.file);
 
+    const isImage = picked.file.type.startsWith("image/");
+    const isVideo = picked.file.type.startsWith("video/");
+    const inlineKind: "image" | "video" | "file" = isImage
+      ? "image"
+      : isVideo
+        ? "video"
+        : "file";
+
     const item: BodyInlineMediaItem = {
       id,
-      kind: "file",
+      kind: inlineKind,
       file: picked.file,
       previewUrl,
       displayName: cleanDisplayFilename(
         picked.displayName,
-        defaultAttachmentDisplayName(picked.file, 0),
+        isVideo
+          ? "StayKnown Video"
+          : isImage
+            ? "StayKnown Image"
+            : defaultAttachmentDisplayName(picked.file, 0),
       ),
       size: 100,
       placement: "custom",
       hint: "",
       hintColor: "#6b7280",
       hintFontStyle: "normal",
-      imageShape: picked.file.type.startsWith("image/")
-        ? "rectangle"
-        : undefined,
+      imageShape: isImage || isVideo ? "rectangle" : undefined,
       mimeType: picked.file.type || "application/octet-stream",
-      originalName: picked.file.name || picked.displayName || "StayKnown File",
+      originalName:
+        picked.file.name ||
+        picked.displayName ||
+        (isVideo ? "StayKnown Video" : "StayKnown File"),
     };
 
     setBodyInlineMediaItems((prev) => [...prev, item]);
@@ -2253,7 +2307,7 @@ export default function MailConsoleSendForm({
     // Remove from normal attachments so it does not duplicate at the email bottom.
     setFiles((prev) => prev.filter((fileItem) => fileItem.id !== picked.id));
 
-    insertBodyTokenAtCursor(bodyInlineToken("file", id));
+    insertBodyTokenAtCursor(bodyInlineToken(inlineKind, id));
     setStatus("Attachment inserted inside the message body.");
   }
 
@@ -2882,10 +2936,10 @@ export default function MailConsoleSendForm({
     try {
       const emailList = finalRecipients.map((r) => r.email);
 
-      for (let i = 0; i < emailList.length; i += SEND_BATCH_SIZE) {
+      for (let i = 0; i < emailList.length; i += activeSendBatchSize) {
         if (stopSendRef.current) break;
 
-        const chunk = emailList.slice(i, i + SEND_BATCH_SIZE);
+        const chunk = emailList.slice(i, i + activeSendBatchSize);
         const startedAt = Date.now();
 
         setActiveSendEmail(chunk[0] || "");
@@ -2935,8 +2989,8 @@ export default function MailConsoleSendForm({
         }
 
         const elapsed = Date.now() - startedAt;
-        const waitMs = RESEND_SAFE_WINDOW_MS - elapsed;
-        const hasNextBatch = i + SEND_BATCH_SIZE < emailList.length;
+        const waitMs = activeResendSafeWindowMs - elapsed;
+        const hasNextBatch = i + activeSendBatchSize < emailList.length;
 
         if (waitMs > 0 && hasNextBatch && !stopSendRef.current) {
           await delay(waitMs);
@@ -2945,7 +2999,12 @@ export default function MailConsoleSendForm({
 
       if (!stopSendRef.current) {
         setSendComplete(true);
-        setStatus("Email sending process completed.");
+
+        setTimeout(() => {
+          setStatus(
+            "Sending finished. Check the delivery panel: sent emails are marked ✓, failed emails can be retried.",
+          );
+        }, 0);
       }
     } finally {
       sendAbortRef.current = null;
@@ -2972,10 +3031,10 @@ export default function MailConsoleSendForm({
     stopSendRef.current = false;
 
     try {
-      for (let i = 0; i < failedEmails.length; i += SEND_BATCH_SIZE) {
+      for (let i = 0; i < failedEmails.length; i += activeSendBatchSize) {
         if (stopSendRef.current) break;
 
-        const chunk = failedEmails.slice(i, i + SEND_BATCH_SIZE);
+        const chunk = failedEmails.slice(i, i + activeSendBatchSize);
         const startedAt = Date.now();
 
         setActiveSendEmail(chunk[0] || "");
@@ -3016,8 +3075,8 @@ export default function MailConsoleSendForm({
         }
 
         const elapsed = Date.now() - startedAt;
-        const waitMs = RESEND_SAFE_WINDOW_MS - elapsed;
-        const hasNextBatch = i + SEND_BATCH_SIZE < failedEmails.length;
+        const waitMs = activeResendSafeWindowMs - elapsed;
+        const hasNextBatch = i + activeSendBatchSize < failedEmails.length;
 
         if (waitMs > 0 && hasNextBatch && !stopSendRef.current) {
           await delay(waitMs);
@@ -3493,7 +3552,63 @@ export default function MailConsoleSendForm({
         </div>
       );
     }
+    if (item.kind === "video") {
+      const shape = item.imageShape || "rectangle";
+      const frameStyle = getPreviewBodyImageFrameStyle(shape, item.size);
 
+      return (
+        <div style={embeddedMediaSlotStyle}>
+          <div
+            style={{
+              ...frameStyle,
+              background: "#000",
+            }}
+          >
+            <video
+              src={item.previewUrl}
+              controls
+              style={{
+                display: "block",
+                width: "100%",
+                maxHeight: 340,
+                background: "#000",
+              }}
+            />
+
+            <a
+              href={item.previewUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: "block",
+                padding: "9px 11px",
+                background: "#ffffff",
+                color: "#050505",
+                fontSize: 12,
+                fontWeight: 900,
+                textAlign: "center",
+                textDecoration: "none",
+              }}
+            >
+              Tap to open video
+            </a>
+          </div>
+
+          {item.hint ? (
+            <div
+              style={{
+                ...previewMediaHintStyle,
+                width: `${item.size}%`,
+                color: item.hintColor,
+                fontStyle: item.hintFontStyle,
+              }}
+            >
+              {item.hint}
+            </div>
+          ) : null}
+        </div>
+      );
+    }
     const shape = item.imageShape || "rectangle";
     const frameStyle = getPreviewBodyImageFrameStyle(shape, item.size);
 
@@ -3543,7 +3658,7 @@ export default function MailConsoleSendForm({
   function renderMessageTextWithInlineMedia(readOnly = false) {
     const content = message || "Your email body preview will appear here.";
     const parts = content.split(
-      /(\{\{image:[^}]+\}\}|\{\{audio:[^}]+\}\}|\{\{file:[^}]+\}\}|\{\{image\}\}|\{\{audio\}\})/g,
+      /(\{\{image:[^}]+\}\}|\{\{audio:[^}]+\}\}|\{\{video:[^}]+\}\}|\{\{file:[^}]+\}\}|\{\{image\}\}|\{\{audio\}\})/g,
     );
 
     return parts.map((part, index) => {
@@ -4317,8 +4432,9 @@ ${BODY_AUDIO_TOKEN} for body audio`}
               bodyImagePlacement === "custom" &&
               !messageHasBodyImageToken ? (
                 <div style={storeWarningStyle}>
-                  Body image is selected, but it will not show until you place
-                  your cursor in the message and click “Insert image here”.
+                  Body image/video is selected, but it will not show until you
+                  place your cursor in the message and click “Insert image/video
+                  here”.
                 </div>
               ) : null}
 
@@ -4624,10 +4740,10 @@ ${BODY_AUDIO_TOKEN} for body audio`}
 
                 <div style={bannerPickerStyle}>
                   <label data-button="true" style={filePickButtonStyle}>
-                    Choose image
+                    Choose image/video
                     <input
                       type="file"
-                      accept="image/*"
+                      accept="image/*,video/*"
                       style={{ display: "none" }}
                       onChange={(e) => {
                         pickBodyImageFile(e.target.files?.[0] || null);
@@ -4652,11 +4768,11 @@ ${BODY_AUDIO_TOKEN} for body audio`}
                 ) : null}
 
                 <div style={{ marginTop: 10 }}>
-                  <label style={labelStyle}>Image display name</label>
+                  <label style={labelStyle}>Image / video display name</label>
                   <input
                     value={bodyImageDisplayName}
                     onChange={(e) => setBodyImageDisplayName(e.target.value)}
-                    placeholder="StayKnown Image"
+                    placeholder="StayKnown Image or Video"
                     style={inputStyle}
                   />
                 </div>
@@ -4672,7 +4788,7 @@ ${BODY_AUDIO_TOKEN} for body audio`}
                       cursor: bodyImagePreviewUrl ? "pointer" : "not-allowed",
                     }}
                   >
-                    Insert image in message
+                    Insert image/video in message
                   </button>
                 </div>
 
@@ -5610,7 +5726,8 @@ ${BODY_AUDIO_TOKEN} for body audio`}
                   {readOnlyPreviewEmail
                     ? `Previewing email for ${readOnlyPreviewEmail}.`
                     : "Previewing the composed email."}{" "}
-                  Audio can be played and images can be opened from this view.
+                  Audio can be played, images can be opened, and videos can be
+                  previewed from this view.
                 </p>
               </div>
 
