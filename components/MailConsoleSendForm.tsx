@@ -84,12 +84,8 @@ type PolicyLinkKey =
   | "foundation_cookies";
 
 const MAX_RECIPIENTS = 50;
-const DEFAULT_SEND_BATCH_SIZE = 5;
-const STAYKNOWN_SEND_BATCH_SIZE = 1;
-
-const DEFAULT_RESEND_SAFE_WINDOW_MS = 3500;
-const STAYKNOWN_RESEND_SAFE_WINDOW_MS = 4500;
-
+const SEND_BATCH_SIZE = 5;
+const RESEND_SAFE_WINDOW_MS = 3500;
 const BODY_IMAGE_TOKEN = "{{image}}";
 const BODY_AUDIO_TOKEN = "{{audio}}";
 
@@ -1625,22 +1621,6 @@ export default function MailConsoleSendForm({
     [allowedSenders, senderId],
   );
 
-  const selectedSenderIsStayKnown = useMemo(() => {
-    const email = selectedSender?.from_email?.trim().toLowerCase() || "";
-
-    return (
-      email.endsWith("@stay-known.com") || email.endsWith("@stayknown.com")
-    );
-  }, [selectedSender]);
-
-  const activeSendBatchSize = selectedSenderIsStayKnown
-    ? STAYKNOWN_SEND_BATCH_SIZE
-    : DEFAULT_SEND_BATCH_SIZE;
-
-  const activeResendSafeWindowMs = selectedSenderIsStayKnown
-    ? STAYKNOWN_RESEND_SAFE_WINDOW_MS
-    : DEFAULT_RESEND_SAFE_WINDOW_MS;
-
   const selectedBrandName = brandNameForSenderEmail(
     selectedSender?.from_email || "",
   );
@@ -1728,10 +1708,9 @@ export default function MailConsoleSendForm({
   const sendOverlayKicker =
     sendSummary.total <= 1
       ? "Single Email Delivery"
-      : sendSummary.total <= activeSendBatchSize
+      : sendSummary.total <= SEND_BATCH_SIZE
         ? "Direct Email Delivery"
         : "Sending Queue";
-
   const sendOverlayTitle = sendComplete
     ? sendSummary.total <= 1
       ? "Email sent"
@@ -1743,10 +1722,9 @@ export default function MailConsoleSendForm({
   const sendOverlayDescription =
     sendSummary.total <= 1
       ? "This email is being delivered now. No batch waiting is used for a single recipient."
-      : sendSummary.total <= activeSendBatchSize
-        ? `Sending ${sendSummary.total} emails in one direct batch. No extra waiting step is needed because this is under the ${activeSendBatchSize}-recipient batch limit.`
-        : `Sending ${sendSummary.total} emails in batches of ${activeSendBatchSize}. Already sent emails cannot be cancelled. Stopping now keeps remaining queued emails in draft status.`;
-
+      : sendSummary.total <= SEND_BATCH_SIZE
+        ? `Sending ${sendSummary.total} emails in one direct batch. No extra waiting step is needed because this is under the ${SEND_BATCH_SIZE}-recipient batch limit.`
+        : `Sending ${sendSummary.total} emails in batches of ${SEND_BATCH_SIZE}. Already sent emails cannot be cancelled. Stopping now keeps remaining queued emails in draft status.`;
   const stopSendButtonLabel =
     sendSummary.total <= 1 ? "Stop send" : "Stop & save remaining as draft";
 
@@ -2936,10 +2914,10 @@ export default function MailConsoleSendForm({
     try {
       const emailList = finalRecipients.map((r) => r.email);
 
-      for (let i = 0; i < emailList.length; i += activeSendBatchSize) {
+      for (let i = 0; i < emailList.length; i += SEND_BATCH_SIZE) {
         if (stopSendRef.current) break;
 
-        const chunk = emailList.slice(i, i + activeSendBatchSize);
+        const chunk = emailList.slice(i, i + SEND_BATCH_SIZE);
         const startedAt = Date.now();
 
         setActiveSendEmail(chunk[0] || "");
@@ -2989,8 +2967,8 @@ export default function MailConsoleSendForm({
         }
 
         const elapsed = Date.now() - startedAt;
-        const waitMs = activeResendSafeWindowMs - elapsed;
-        const hasNextBatch = i + activeSendBatchSize < emailList.length;
+        const waitMs = RESEND_SAFE_WINDOW_MS - elapsed;
+        const hasNextBatch = i + SEND_BATCH_SIZE < emailList.length;
 
         if (waitMs > 0 && hasNextBatch && !stopSendRef.current) {
           await delay(waitMs);
@@ -3031,10 +3009,10 @@ export default function MailConsoleSendForm({
     stopSendRef.current = false;
 
     try {
-      for (let i = 0; i < failedEmails.length; i += activeSendBatchSize) {
+      for (let i = 0; i < failedEmails.length; i += SEND_BATCH_SIZE) {
         if (stopSendRef.current) break;
 
-        const chunk = failedEmails.slice(i, i + activeSendBatchSize);
+        const chunk = failedEmails.slice(i, i + SEND_BATCH_SIZE);
         const startedAt = Date.now();
 
         setActiveSendEmail(chunk[0] || "");
@@ -3075,9 +3053,8 @@ export default function MailConsoleSendForm({
         }
 
         const elapsed = Date.now() - startedAt;
-        const waitMs = activeResendSafeWindowMs - elapsed;
-        const hasNextBatch = i + activeSendBatchSize < failedEmails.length;
-
+        const waitMs = RESEND_SAFE_WINDOW_MS - elapsed;
+        const hasNextBatch = i + SEND_BATCH_SIZE < failedEmails.length;
         if (waitMs > 0 && hasNextBatch && !stopSendRef.current) {
           await delay(waitMs);
         }
