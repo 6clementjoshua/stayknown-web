@@ -111,6 +111,7 @@ const BODY_IMAGE_TOKEN = "{{image}}";
 const BODY_AUDIO_TOKEN = "{{audio}}";
 
 const SENT_VIEW_SIGNED_URL_SECONDS = 365 * 24 * 60 * 60;
+const RESEND_PER_RECIPIENT_WAIT_MS = 2200;
 
 const POLICY_LINK_OPTIONS: Record<
   PolicyLinkKey,
@@ -1949,6 +1950,10 @@ function resendRetryAfterMs(res: Response) {
   return 2500;
 }
 
+function delayMs(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 async function sendResend(params: {
   apiKey: string;
   from: string;
@@ -1991,9 +1996,7 @@ async function sendResend(params: {
     const providerText = resendErrorText(data);
 
     if (res.status === 429 && attempt === 0) {
-      await new Promise((resolve) =>
-        setTimeout(resolve, resendRetryAfterMs(res)),
-      );
+      await delayMs(resendRetryAfterMs(res));
       continue;
     }
 
@@ -3278,6 +3281,13 @@ export async function POST(req: NextRequest) {
             error: errText,
           });
         }
+      }
+
+      const hasMoreRecipients =
+        recipients.indexOf(recipient) < recipients.length - 1;
+
+      if (hasMoreRecipients) {
+        await delayMs(RESEND_PER_RECIPIENT_WAIT_MS);
       }
     }
 

@@ -85,7 +85,7 @@ type PolicyLinkKey =
 
 const MAX_RECIPIENTS = 50;
 const SEND_BATCH_SIZE = 5;
-const RESEND_SAFE_WINDOW_MS = 1050;
+const RESEND_SAFE_WINDOW_MS = 3500;
 
 const BODY_IMAGE_TOKEN = "{{image}}";
 const BODY_AUDIO_TOKEN = "{{audio}}";
@@ -2911,11 +2911,13 @@ export default function MailConsoleSendForm({
             updateSendResults(results, chunk);
           } else if (!res.ok || !data.ok) {
             const error =
-              data.error ||
-              "StayKnown email sending is temporarily paused because today’s Resend sending limit has been reached. Please save this message as a draft and try again tomorrow.";
+              data?.error ||
+              data?.message ||
+              "Email send failed for this batch. Please retry in a few minutes.";
+
             updateSendRowStatus(chunk, "failed", error);
           } else {
-            updateSendResults([], chunk);
+            updateSendRowStatus(chunk, "sent", "");
           }
         } catch (err) {
           if (stopSendRef.current) {
@@ -2928,7 +2930,7 @@ export default function MailConsoleSendForm({
             "failed",
             err instanceof Error
               ? err.message
-              : "StayKnown email sending is temporarily unavailable. Please save this message as a draft and try again tomorrow.",
+              : "Email send failed for this batch. Please retry in a few minutes.",
           );
         }
 
