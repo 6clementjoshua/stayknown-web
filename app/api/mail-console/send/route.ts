@@ -2166,6 +2166,17 @@ async function sendResend(params: {
     }
 
     if (res.status === 429) {
+      const lowerProviderText = providerText.toLowerCase();
+
+      if (
+        lowerProviderText.includes("daily_quota_exceeded") ||
+        lowerProviderText.includes("daily email sending quota")
+      ) {
+        throw new Error(
+          "StayKnown email sending limit has been reached for today. Please save this message as a draft and try again after the Resend daily quota resets.",
+        );
+      }
+
       throw new Error(
         providerText
           ? `Email provider temporarily rate-limited this send. ${providerText}`
@@ -2559,6 +2570,16 @@ export async function POST(req: NextRequest) {
 
     const resolvedResend = resolveResendApiKeyForSender(senderRow.from_email);
     const resendApiKey = resolvedResend.apiKey;
+
+    console.log("[mail-console-send] resend route", {
+      senderEmail: senderRow.from_email,
+      senderId: senderRow.id,
+      mode,
+      resendEnvName: resolvedResend.envName,
+      resendBrand: resolvedResend.brand,
+      hasResendKey: Boolean(resendApiKey),
+      recipientCount: recipients.length,
+    });
 
     if (!resendApiKey) {
       return NextResponse.json(
@@ -3274,8 +3295,19 @@ export async function POST(req: NextRequest) {
       skipped: 0,
       results: [] as Array<Record<string, unknown>>,
     };
-
+    let providerQuotaReached = false;
     for (const recipient of recipients) {
+      if (providerQuotaReached) {
+        summary.skipped += 1;
+        summary.results.push({
+          email: recipient,
+          status: "skipped",
+          error:
+            "Email provider daily quota has been reached. This recipient was not attempted.",
+        });
+
+        continue;
+      }
       let logId: string | null = null;
       let campaignRecipientId: string | null = null;
 
@@ -3452,6 +3484,14 @@ export async function POST(req: NextRequest) {
       } catch (sendErr) {
         const errText =
           sendErr instanceof Error ? sendErr.message : String(sendErr);
+        const quotaReached =
+          errText.toLowerCase().includes("daily_quota_exceeded") ||
+          errText.toLowerCase().includes("daily email sending quota") ||
+          errText.toLowerCase().includes("sending quota");
+
+        if (quotaReached) {
+          providerQuotaReached = true;
+        }
 
         summary.failed += 1;
         summary.results.push({
