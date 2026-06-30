@@ -1923,6 +1923,32 @@ function resolveResendApiKeyForSender(fromEmail: string) {
   };
 }
 
+function resendErrorText(data: unknown) {
+  if (!data || typeof data !== "object") return "";
+
+  const row = data as Record<string, unknown>;
+
+  const name = typeof row.name === "string" ? row.name : "";
+  const message = typeof row.message === "string" ? row.message : "";
+  const error = typeof row.error === "string" ? row.error : "";
+
+  return [name, message, error].filter(Boolean).join(": ");
+}
+
+function resendRetryAfterMs(res: Response) {
+  const retryAfter = res.headers.get("retry-after");
+
+  if (!retryAfter) return 2500;
+
+  const seconds = Number(retryAfter);
+
+  if (Number.isFinite(seconds) && seconds > 0) {
+    return Math.min(seconds * 1000, 10000);
+  }
+
+  return 2500;
+}
+
 async function sendResend(params: {
   apiKey: string;
   from: string;
@@ -1946,32 +1972,48 @@ async function sendResend(params: {
   if (params.attachments.length > 0) payload.attachments = params.attachments;
   if (Object.keys(params.headers).length > 0) payload.headers = params.headers;
 
-  const res = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${params.apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(payload),
-  });
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${params.apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
 
-  const data = await res.json().catch(() => ({}));
+    const data = await res.json().catch(() => ({}));
 
-  if (!res.ok) {
+    if (res.ok) {
+      return data;
+    }
+
+    const providerText = resendErrorText(data);
+
+    if (res.status === 429 && attempt === 0) {
+      await new Promise((resolve) =>
+        setTimeout(resolve, resendRetryAfterMs(res)),
+      );
+      continue;
+    }
+
     if (res.status === 429) {
       throw new Error(
-        "StayKnown email sending limit has been reached for today. Please save this message as a draft and try again tomorrow.",
+        providerText
+          ? `Email provider temporarily rate-limited this send. ${providerText}`
+          : "Email provider temporarily rate-limited this send. Please retry in a few minutes.",
       );
     }
 
     throw new Error(
-      `Email provider could not send this message right now. Please try again later. ${res.status} ${res.statusText}`,
+      providerText
+        ? `Email provider rejected this message. ${res.status} ${res.statusText}: ${providerText}`
+        : `Email provider rejected this message. ${res.status} ${res.statusText}`,
     );
   }
 
-  return data;
+  throw new Error("Email provider could not send this message right now.");
 }
-
 export async function POST(req: NextRequest) {
   let campaignId: string | null = null;
 
