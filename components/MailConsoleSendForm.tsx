@@ -2406,10 +2406,7 @@ export default function MailConsoleSendForm({
       form.append("app_store_url", appStoreUrl);
 
       form.append("footer_policy_id", footerPolicyId);
-      form.append(
-        "footer_html",
-        customFooter || selectedFooter?.footer_html || "",
-      );
+      form.append("footer_html", footerText);
       form.append("policy_links", JSON.stringify(selectedPolicyLinks));
 
       form.append(
@@ -2648,10 +2645,7 @@ export default function MailConsoleSendForm({
     form.append("app_store_enabled", appStoreEnabled ? "true" : "false");
     form.append("app_store_url", appStoreUrl);
     form.append("footer_policy_id", footerPolicyId);
-    form.append(
-      "footer_html",
-      customFooter || selectedFooter?.footer_html || "",
-    );
+    form.append("footer_html", footerText);
     form.append("policy_links", JSON.stringify(selectedPolicyLinks));
 
     form.append(
@@ -3073,7 +3067,11 @@ export default function MailConsoleSendForm({
     setStatus("Preview updated.");
   }
 
-  const footerText = customFooter || selectedFooter?.footer_html || "";
+  const defaultMailFooterHtml =
+    "StayKnown — You are receiving this message from StayKnown. Please contact support if you received this in error.";
+
+  const footerText =
+    customFooter || selectedFooter?.footer_html || defaultMailFooterHtml;
   const hasAnyBanner = Boolean(bannerTopPreviewUrl || bannerBottomPreviewUrl);
   const topBannerPreview = bannerTopPreviewUrl || bannerBottomPreviewUrl;
   const bottomBannerPreview = bannerBottomPreviewUrl || bannerTopPreviewUrl;
