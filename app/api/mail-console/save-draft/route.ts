@@ -269,12 +269,13 @@ function safeBodyInlineMediaItems(v: unknown): BodyInlineMediaInput[] {
       if (!id || !kind) return null;
 
       const displayName =
-        clean(row.display_name) || clean(row.displayName) || kind === "audio"
+        clean(row.display_name) ||
+        clean(row.displayName) ||
+        (kind === "audio"
           ? "StayKnown Audio"
           : kind === "image"
             ? "StayKnown Image"
-            : "StayKnown File";
-
+            : "StayKnown File");
       const size = safeNumber(row.size, kind === "audio" ? 76 : 100, 32, 100);
       const placement = safeBodyMediaPlacement(row.placement);
       const hint = clean(row.hint).slice(0, 160);
@@ -1415,7 +1416,8 @@ export async function POST(req: NextRequest) {
       .filter(
         (attachment) =>
           attachment.role === "body_inline_audio" ||
-          attachment.role === "body_inline_image",
+          attachment.role === "body_inline_image" ||
+          attachment.role === "body_inline_file",
       )
       .map((attachment) => ({
         id: attachment.inline_media_id || attachment.id,
@@ -1453,10 +1455,15 @@ export async function POST(req: NextRequest) {
       )}&view=readonly`,
     });
   } catch (err) {
+    const errorMessage =
+      err instanceof Error ? err.message : "Could not save draft.";
+
+    console.error("[mail-console/save-draft] failed", err);
+
     return NextResponse.json(
       {
         ok: false,
-        error: err instanceof Error ? err.message : "Could not save draft.",
+        error: errorMessage,
       },
       { status: 500 },
     );
