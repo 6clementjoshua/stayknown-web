@@ -2383,6 +2383,21 @@ export default function MailConsoleSendForm({
 
     if (savingDraft) return;
 
+    const activeBodyInlineMediaItems = getActiveBodyInlineMediaItems();
+
+    const normalizedMessage = normalizeLegacyBodyFileTokens(
+      message,
+      activeBodyInlineMediaItems,
+    );
+
+    const standaloneBodyAudioFile = shouldSendStandaloneBodyAudioFile()
+      ? bodyAudioFile
+      : null;
+
+    const standaloneBodyImageFile = shouldSendStandaloneBodyImageFile()
+      ? bodyImageFile
+      : null;
+
     setSavingDraft(true);
     setStatus("");
 
@@ -2393,13 +2408,13 @@ export default function MailConsoleSendForm({
       form.append("sender_identity_id", senderId);
       form.append(
         "recipient_emails",
-        JSON.stringify(recipients.map((r) => r.email)),
+        safeJsonStringify(recipients.map((r) => r.email)),
       );
       form.append("subject", subject);
       form.append("title", title);
       form.append("subtitle", subtitle);
       form.append("badge", badge);
-      form.append("message", message);
+      form.append("message", normalizedMessage);
 
       if (typeof window !== "undefined") {
         form.append(
@@ -2440,8 +2455,12 @@ export default function MailConsoleSendForm({
       form.append("body_audio_hint_color", bodyAudioHintColor);
       form.append("body_audio_hint_font_style", bodyAudioHintFontStyle);
 
-      if (bodyAudioFile) {
-        form.append("body_audio_file", bodyAudioFile, bodyAudioFile.name);
+      if (standaloneBodyAudioFile) {
+        form.append(
+          "body_audio_file",
+          standaloneBodyAudioFile,
+          standaloneBodyAudioFile.name,
+        );
       }
 
       form.append("body_image_placement", bodyImagePlacement);
@@ -2455,15 +2474,22 @@ export default function MailConsoleSendForm({
       form.append("body_image_hint_color", bodyImageHintColor);
       form.append("body_image_hint_font_style", bodyImageHintFontStyle);
 
-      if (bodyImageFile) {
-        form.append("body_image_file", bodyImageFile, bodyImageFile.name);
+      if (standaloneBodyImageFile) {
+        form.append(
+          "body_image_file",
+          standaloneBodyImageFile,
+          standaloneBodyImageFile.name,
+        );
       }
+
       form.append(
         "body_inline_media_items",
-        JSON.stringify(bodyInlineMediaItems.map(bodyInlineFormPayload)),
+        safeJsonStringify(
+          activeBodyInlineMediaItems.map(bodyInlineFormPayload),
+        ),
       );
 
-      for (const item of bodyInlineMediaItems) {
+      for (const item of activeBodyInlineMediaItems) {
         if (item.file) {
           form.append(
             `body_inline_media_file_${item.id}`,
@@ -2472,10 +2498,14 @@ export default function MailConsoleSendForm({
           );
         }
       }
-      form.append("body_block_order", JSON.stringify(bodyPreviewOrder));
+
+      form.append("body_block_order", safeJsonStringify(bodyPreviewOrder));
+
       form.append(
         "body_media_note",
-        bodyAudioFile || bodyImageFile
+        standaloneBodyAudioFile ||
+          standaloneBodyImageFile ||
+          activeBodyInlineMediaItems.some((item) => item.file)
           ? "Body audio/image files are stored with this saved draft and will return when opened."
           : "",
       );
@@ -2491,7 +2521,7 @@ export default function MailConsoleSendForm({
 
       form.append("footer_policy_id", footerPolicyId);
       form.append("footer_html", footerText);
-      form.append("policy_links", JSON.stringify(selectedPolicyLinks));
+      form.append("policy_links", safeJsonStringify(selectedPolicyLinks));
 
       form.append(
         "social_tiktok_enabled",
@@ -2522,11 +2552,12 @@ export default function MailConsoleSendForm({
 
       form.append(
         "file_modes",
-        JSON.stringify(files.map((picked) => picked.mode)),
+        safeJsonStringify(files.map((picked) => picked.mode)),
       );
+
       form.append(
         "file_display_names",
-        JSON.stringify(
+        safeJsonStringify(
           files.map((picked, index) =>
             cleanDisplayFilename(
               picked.displayName,
@@ -2551,9 +2582,29 @@ export default function MailConsoleSendForm({
         body: form,
       });
 
-      const data = await res.json().catch(() => ({}));
+      const contentType = res.headers.get("content-type") || "";
+
+      const data = contentType.includes("application/json")
+        ? await res.json().catch(() => ({}))
+        : {
+            ok: false,
+            error: await res.text().catch(() => ""),
+          };
 
       if (!res.ok || !data.ok) {
+        const errorText = String(data.error || "");
+
+        if (
+          res.status === 413 ||
+          errorText.includes("FUNCTION_PAYLOAD_TOO_LARGE") ||
+          errorText.includes("Request Entity Too Large")
+        ) {
+          setStatus(
+            "Could not save draft because the selected media/files are too large for one request. StayKnown did not reduce quality. Please remove unused media, split files into smaller groups, or use temporary hosted links for large files.",
+          );
+          return;
+        }
+
         setStatus(data.error || "Could not save draft.");
         return;
       }
@@ -2573,6 +2624,7 @@ export default function MailConsoleSendForm({
       setSavingDraft(false);
     }
   }
+
   function handleFiles(e: ChangeEvent<HTMLInputElement>) {
     const picked = Array.from(e.target.files || []);
     if (picked.length === 0) return;
@@ -2726,8 +2778,83 @@ export default function MailConsoleSendForm({
     )} Biggest files: ${biggest}.`;
   }
 
+  function bodyInlineTokenExistsInMessage(item: BodyInlineMediaItem) {
+    const normalToken = `{{${item.kind}:${item.id}}}`;
+
+    // Legacy support: old inserted files were sometimes saved as {{image:body-file-...}}
+    const legacyFileImageToken =
+      item.kind === "file" ? `{{image:${item.id}}}` : "";
+
+    return (
+      message.includes(normalToken) ||
+      Boolean(legacyFileImageToken && message.includes(legacyFileImageToken))
+    );
+  }
+
+  function getActiveBodyInlineMediaItems() {
+    return bodyInlineMediaItems.filter(bodyInlineTokenExistsInMessage);
+  }
+
+  function normalizeLegacyBodyFileTokens(
+    value: string,
+    activeItems: BodyInlineMediaItem[],
+  ) {
+    let next = value;
+
+    for (const item of activeItems) {
+      if (item.kind !== "file") continue;
+
+      next = next.replaceAll(`{{image:${item.id}}}`, `{{file:${item.id}}}`);
+    }
+
+    return next;
+  }
+
+  function hasInsertedAudioToken() {
+    return /\{\{audio:[^}]+\}\}/.test(message);
+  }
+
+  function hasInsertedImageOrVideoToken() {
+    return (
+      /\{\{image:[^}]+\}\}/.test(message) || /\{\{video:[^}]+\}\}/.test(message)
+    );
+  }
+
+  function shouldSendStandaloneBodyAudioFile() {
+    if (!bodyAudioFile) return false;
+
+    // If audio was inserted inside the message, do not also send it as a separate body block.
+    if (hasInsertedAudioToken()) return false;
+
+    return bodyPreviewOrder.includes("audio") || message.includes("{{audio}}");
+  }
+
+  function shouldSendStandaloneBodyImageFile() {
+    if (!bodyImageFile) return false;
+
+    // If image/video was inserted inside the message, do not also send it as a separate body block.
+    if (hasInsertedImageOrVideoToken()) return false;
+
+    return bodyPreviewOrder.includes("image") || message.includes("{{image}}");
+  }
+
   function buildEmailForm(chunkEmails: string[]) {
     const form = new FormData();
+
+    const activeBodyInlineMediaItems = getActiveBodyInlineMediaItems();
+
+    const normalizedMessage = normalizeLegacyBodyFileTokens(
+      message,
+      activeBodyInlineMediaItems,
+    );
+
+    const standaloneBodyAudioFile = shouldSendStandaloneBodyAudioFile()
+      ? bodyAudioFile
+      : null;
+
+    const standaloneBodyImageFile = shouldSendStandaloneBodyImageFile()
+      ? bodyImageFile
+      : null;
 
     form.append("mode", mode);
     form.append("sender_identity_id", senderId);
@@ -2736,7 +2863,7 @@ export default function MailConsoleSendForm({
     form.append("title", title);
     form.append("subtitle", subtitle);
     form.append("badge", badge);
-    form.append("message", message);
+    form.append("message", normalizedMessage);
 
     if (typeof window !== "undefined") {
       form.append(
@@ -2770,6 +2897,7 @@ export default function MailConsoleSendForm({
     form.append("body_audio_hint", bodyAudioHint);
     form.append("body_audio_hint_color", bodyAudioHintColor);
     form.append("body_audio_hint_font_style", bodyAudioHintFontStyle);
+
     form.append("body_image_placement", bodyImagePlacement);
     form.append("body_image_shape", bodyImageShape);
     form.append("body_image_size", String(bodyImageSize));
@@ -2780,12 +2908,13 @@ export default function MailConsoleSendForm({
     form.append("body_image_hint", bodyImageHint);
     form.append("body_image_hint_color", bodyImageHintColor);
     form.append("body_image_hint_font_style", bodyImageHintFontStyle);
+
     form.append(
       "body_inline_media_items",
-      safeJsonStringify(bodyInlineMediaItems.map(bodyInlineFormPayload)),
+      safeJsonStringify(activeBodyInlineMediaItems.map(bodyInlineFormPayload)),
     );
 
-    for (const item of bodyInlineMediaItems) {
+    for (const item of activeBodyInlineMediaItems) {
       if (item.file) {
         form.append(
           `body_inline_media_file_${item.id}`,
@@ -2794,23 +2923,34 @@ export default function MailConsoleSendForm({
         );
       }
     }
+
     form.append("body_block_order", safeJsonStringify(bodyPreviewOrder));
 
-    if (bodyAudioFile) {
-      form.append("body_audio_file", bodyAudioFile, bodyAudioFile.name);
+    if (standaloneBodyAudioFile) {
+      form.append(
+        "body_audio_file",
+        standaloneBodyAudioFile,
+        standaloneBodyAudioFile.name,
+      );
     }
 
-    if (bodyImageFile) {
-      form.append("body_image_file", bodyImageFile, bodyImageFile.name);
+    if (standaloneBodyImageFile) {
+      form.append(
+        "body_image_file",
+        standaloneBodyImageFile,
+        standaloneBodyImageFile.name,
+      );
     }
 
     form.append("cta_label", ctaLabel);
     form.append("cta_url", ctaUrl);
+
     form.append("store_badge_placement", storeBadgePlacement);
     form.append("google_play_enabled", googlePlayEnabled ? "true" : "false");
     form.append("google_play_url", googlePlayUrl);
     form.append("app_store_enabled", appStoreEnabled ? "true" : "false");
     form.append("app_store_url", appStoreUrl);
+
     form.append("footer_policy_id", footerPolicyId);
     form.append("footer_html", footerText);
     form.append("policy_links", safeJsonStringify(selectedPolicyLinks));
@@ -2871,7 +3011,6 @@ export default function MailConsoleSendForm({
 
     return form;
   }
-
   function updateSendRowStatus(
     chunkEmails: string[],
     status: RecipientStatus,
@@ -3057,12 +3196,15 @@ export default function MailConsoleSendForm({
       return;
     }
 
-    const uploadBlockReason = getSendUploadBlockReason();
+    const activeInlineItems = getActiveBodyInlineMediaItems();
 
-    if (uploadBlockReason) {
-      setStatus(uploadBlockReason);
-      return;
+    if (activeInlineItems.length !== bodyInlineMediaItems.length) {
+      setBodyInlineMediaItems(activeInlineItems);
     }
+
+    setMessage((prev) =>
+      normalizeLegacyBodyFileTokens(prev, activeInlineItems),
+    );
 
     setSending(true);
     setStatus("");
