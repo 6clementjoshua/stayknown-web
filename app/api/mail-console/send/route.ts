@@ -113,6 +113,9 @@ const BODY_AUDIO_TOKEN = "{{audio}}";
 const SENT_VIEW_SIGNED_URL_SECONDS = 365 * 24 * 60 * 60;
 const RESEND_PER_RECIPIENT_WAIT_MS = 2200;
 
+// Direct Send Email should not store normal sent attachments in Supabase.
+// Draft saving can still store files through /api/mail-console/save-draft.
+const STORE_SENT_MAIL_FILES = false;
 const POLICY_LINK_OPTIONS: Record<
   PolicyLinkKey,
   {
@@ -657,6 +660,7 @@ function parseBodyInlineMediaItems(raw: string): BodyInlineMediaItem[] {
     return [];
   }
 }
+
 function fileExtension(name: string) {
   const safeName = clean(name);
   const match = safeName.match(/(\.[a-z0-9]{1,10})$/i);
@@ -3113,9 +3117,15 @@ export async function POST(req: NextRequest) {
       const file = files[i];
       const mime = file.type || "application/octet-stream";
       const requestedFileMode = normalizedFileModes[i] || "attach";
-      const fileMode = mime.startsWith("video/")
-        ? "link_only"
-        : requestedFileMode;
+
+      // Direct send mode:
+      // We do not save normal sent files into Supabase.
+      // We also do not force videos into link_only here, because link_only needs storage.
+      const fileMode: AttachmentMode = STORE_SENT_MAIL_FILES
+        ? mime.startsWith("video/")
+          ? "link_only"
+          : requestedFileMode
+        : "attach";
 
       const displayName = cleanDisplayFilename(
         fileDisplayNames[i] || "",
@@ -3123,6 +3133,7 @@ export async function POST(req: NextRequest) {
         file.name,
         file.type,
       );
+
       const filename = displayName;
       const storageSafeName = cleanFilename(displayName);
       const size = file.size;
@@ -3131,7 +3142,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json(
           {
             ok: false,
-            error: `${filename} is too large. Use link-only for very large files or keep each file under 20MB.`,
+            error: `${filename} is too large. Keep each direct attachment under 20MB.`,
           },
           { status: 400 },
         );
@@ -3140,18 +3151,20 @@ export async function POST(req: NextRequest) {
       const arrayBuffer = await file.arrayBuffer();
       const buffer = Buffer.from(arrayBuffer);
 
-      await admin.from("mail_console_attachments").insert({
-        campaign_id: campaignId,
-        file_name: filename,
-        mime_type: mime,
-        size_bytes: size,
-        storage_bucket: "mail-console-attachments",
-        storage_path: `pending/${campaignId}/${storageSafeName}`,
-        attachment_mode: fileMode,
-        created_by: null,
-      });
+      if (STORE_SENT_MAIL_FILES) {
+        await admin.from("mail_console_attachments").insert({
+          campaign_id: campaignId,
+          file_name: filename,
+          mime_type: mime,
+          size_bytes: size,
+          storage_bucket: "mail-console-attachments",
+          storage_path: `pending/${campaignId}/${storageSafeName}`,
+          attachment_mode: fileMode,
+          created_by: null,
+        });
+      }
 
-      if (fileMode === "link_only") {
+      if (STORE_SENT_MAIL_FILES && fileMode === "link_only") {
         const storagePath = `${campaignId}/${randomUUID()}-${storageSafeName}`;
 
         const { error: uploadError } = await admin.storage
@@ -3203,7 +3216,7 @@ export async function POST(req: NextRequest) {
           {
             ok: false,
             error:
-              "Attached files are too large for one email. Use link-only for videos/large documents.",
+              "Attached files are too large for one email. Please split the files into smaller batches.",
           },
           { status: 400 },
         );
@@ -3230,7 +3243,6 @@ export async function POST(req: NextRequest) {
         });
       }
     }
-
     const appName = brandNameForSenderEmail(senderRow.from_email);
 
     const html = buildHtml({

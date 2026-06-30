@@ -786,6 +786,47 @@ function safeSocialUsername(v: unknown) {
     .slice(0, 60);
 }
 
+function bodyInlineTokenExistsInMessage(
+  message: string,
+  item: BodyInlineMediaInput,
+) {
+  const normalToken = `{{${item.kind}:${item.id}}}`;
+
+  // Legacy support: old inserted files sometimes exist as {{image:body-file-...}}
+  const legacyFileImageToken =
+    item.kind === "file" ? `{{image:${item.id}}}` : "";
+
+  return (
+    message.includes(normalToken) ||
+    Boolean(legacyFileImageToken && message.includes(legacyFileImageToken))
+  );
+}
+
+function normalizeLegacyBodyFileTokens(
+  message: string,
+  activeItems: BodyInlineMediaInput[],
+) {
+  let next = message;
+
+  for (const item of activeItems) {
+    if (item.kind !== "file") continue;
+
+    next = next.replaceAll(`{{image:${item.id}}}`, `{{file:${item.id}}}`);
+  }
+
+  return next;
+}
+
+function hasInsertedAudioToken(message: string) {
+  return /\{\{audio:[^}]+\}\}/.test(message);
+}
+
+function hasInsertedImageOrVideoToken(message: string) {
+  return (
+    /\{\{image:[^}]+\}\}/.test(message) || /\{\{video:[^}]+\}\}/.test(message)
+  );
+}
+
 export async function GET(req: NextRequest) {
   try {
     const token = req.cookies.get(MAIL_CONSOLE_COOKIE)?.value || "";
@@ -968,7 +1009,7 @@ export async function POST(req: NextRequest) {
     const title = field("title") || subject;
     const subtitle = field("subtitle");
     const badge = field("badge");
-    const message = field("message");
+    const rawMessage = field("message");
 
     const brandLogoUrl = safePublicHttpUrl(fieldUnknown("brand_logo_url"));
 
@@ -1022,8 +1063,17 @@ export async function POST(req: NextRequest) {
     const bodyBlockOrder = safeBodyBlockOrder(fieldUnknown("body_block_order"));
     const bodyMediaNote = field("body_media_note");
 
-    const bodyInlineMediaItems = safeBodyInlineMediaItems(
+    const rawBodyInlineMediaItems = safeBodyInlineMediaItems(
       fieldUnknown("body_inline_media_items"),
+    );
+
+    const bodyInlineMediaItems = rawBodyInlineMediaItems.filter((item) =>
+      bodyInlineTokenExistsInMessage(rawMessage, item),
+    );
+
+    const message = normalizeLegacyBodyFileTokens(
+      rawMessage,
+      bodyInlineMediaItems,
     );
 
     const ctaLabel = field("cta_label");
@@ -1053,8 +1103,16 @@ export async function POST(req: NextRequest) {
 
     const bannerTopFile = getOptionalFile(form, "banner_top_file");
     const bannerBottomFile = getOptionalFile(form, "banner_bottom_file");
-    const bodyAudioFile = getOptionalFile(form, "body_audio_file");
-    const bodyImageFile = getOptionalFile(form, "body_image_file");
+    const rawBodyAudioFile = getOptionalFile(form, "body_audio_file");
+    const rawBodyImageFile = getOptionalFile(form, "body_image_file");
+
+    const bodyAudioFile = hasInsertedAudioToken(message)
+      ? null
+      : rawBodyAudioFile;
+
+    const bodyImageFile = hasInsertedImageOrVideoToken(message)
+      ? null
+      : rawBodyImageFile;
     const files = getFiles(form, "files");
 
     const bodyInlineMediaFiles = bodyInlineMediaItems.map((item) => ({

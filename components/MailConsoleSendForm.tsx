@@ -571,7 +571,7 @@ function niceFileSize(size: number) {
   return `${(size / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-const MAIL_CONSOLE_SAFE_UPLOAD_BYTES = 4 * 1024 * 1024;
+const MAIL_CONSOLE_SAFE_UPLOAD_BYTES = 15 * 1024 * 1024;
 
 type MailSendApiResponse = {
   ok?: boolean;
@@ -2735,7 +2735,16 @@ export default function MailConsoleSendForm({
 
   function getSendUploadBlockReason() {
     const selectedFiles = getSelectedUploadFiles();
-
+    console.log(
+      "MAIL CONSOLE SELECTED UPLOAD FILES:",
+      selectedFiles.map((item) => ({
+        label: item.label,
+        name: item.file.name,
+        type: item.file.type,
+        size: item.file.size,
+        size_mb: Number((item.file.size / 1024 / 1024).toFixed(3)),
+      })),
+    );
     if (selectedFiles.length === 0) return "";
 
     const fileBytes = selectedFiles.reduce(
