@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.108.2",
+    "dotenv": "^17.4.2",
     "framer-motion": "^12.34.3",
     "lucide-react": "^0.575.0",
     "mapbox-gl": "^3.21.0",

@@ -1047,9 +1047,9 @@ function bodyImageBlock(params: {
   `;
 }
 
-function bodyFileLinkBlock(params: {
-  url: string;
+function bodyAttachedFileNoticeBlock(params: {
   displayName: string;
+  kind: "audio" | "video" | "file";
   hint: string;
   hintColor: string;
   hintFontStyle: BodyHintFontStyle;
@@ -1059,11 +1059,19 @@ function bodyFileLinkBlock(params: {
   const hintFontStyle = safeBodyHintFontStyle(params.hintFontStyle);
   const displayName = clean(params.displayName) || "StayKnown File";
 
-  if (!params.url) return "";
+  const label =
+    params.kind === "audio"
+      ? "Audio attached"
+      : params.kind === "video"
+        ? "Video attached"
+        : "File attached";
+
+  const icon =
+    params.kind === "audio" ? "▶" : params.kind === "video" ? "▶" : "↗";
 
   return `
     <div style="text-align:center;margin:16px 0;width:100%;">
-      <a href="${escapeHtml(params.url)}" target="_blank" rel="noopener noreferrer" style="
+      <div style="
         display:block;
         width:100%;
         box-sizing:border-box;
@@ -1077,6 +1085,21 @@ function bodyFileLinkBlock(params: {
       ">
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;width:100%;">
           <tr>
+            <td width="48" style="width:48px;text-align:left;vertical-align:middle;">
+              <span style="
+                display:inline-block;
+                width:42px;
+                height:42px;
+                border-radius:999px;
+                background:#050505;
+                color:#ffffff;
+                text-align:center;
+                line-height:42px;
+                font-size:16px;
+                font-weight:950;
+              ">${escapeHtml(icon)}</span>
+            </td>
+
             <td style="text-align:left;vertical-align:middle;">
               <div style="
                 font-size:14px;
@@ -1088,32 +1111,17 @@ function bodyFileLinkBlock(params: {
                 white-space:nowrap;
               ">${escapeHtml(displayName)}</div>
 
-             <div style="
-  margin-top:4px;
-  font-size:11px;
-  line-height:1.35;
-  font-weight:800;
-  color:rgba(0,0,0,0.55);
-">File attachment</div>
-            </td>
-
-            <td width="44" align="right" style="width:44px;text-align:right;vertical-align:middle;">
-              <span style="
-                display:inline-block;
-                width:38px;
-                height:38px;
-                border-radius:999px;
-                background:#050505;
-                color:#ffffff;
-                text-align:center;
-                line-height:38px;
-                font-size:16px;
-                font-weight:950;
-              ">↗</span>
+              <div style="
+                margin-top:4px;
+                font-size:11px;
+                line-height:1.35;
+                font-weight:800;
+                color:rgba(0,0,0,0.55);
+              ">${escapeHtml(label)} below this email</div>
             </td>
           </tr>
         </table>
-      </a>
+      </div>
 
       ${
         hint
@@ -1132,7 +1140,6 @@ function bodyFileLinkBlock(params: {
     </div>
   `;
 }
-
 function bodyVideoLinkBlock(params: {
   url: string;
   displayName: string;
@@ -2948,134 +2955,84 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    const inlineAttachmentKeys = new Set<string>();
+
+    function fileDedupeKey(file: File) {
+      return `${file.name || ""}::${file.size}::${file.type || ""}`;
+    }
+
     for (const item of bodyInlineMediaItems) {
       const fileRaw = form.get(item.fileField);
       const file = fileRaw instanceof File && fileRaw.size > 0 ? fileRaw : null;
 
-      let signedUrl = "";
-      let storagePath = item.storagePath;
-      let mime = item.mimeType;
+      if (!file) continue;
 
-      if (file) {
-        if (item.kind === "image" && !file.type.startsWith("image/")) {
-          return NextResponse.json(
-            { ok: false, error: "Inserted body image must be an image file." },
-            { status: 400 },
-          );
-        }
+      const mime = file.type || item.mimeType || "application/octet-stream";
 
-        if (item.kind === "audio" && !file.type.startsWith("audio/")) {
-          return NextResponse.json(
-            { ok: false, error: "Inserted body audio must be an audio file." },
-            { status: 400 },
-          );
-        }
-
-        if (item.kind === "file" && file.size > 20 * 1024 * 1024) {
-          return NextResponse.json(
-            { ok: false, error: `${item.displayName} must be under 20MB.` },
-            { status: 400 },
-          );
-        }
-
-        if (item.kind === "image" && file.size > 8 * 1024 * 1024) {
-          return NextResponse.json(
-            { ok: false, error: `${item.displayName} must be under 8MB.` },
-            { status: 400 },
-          );
-        }
-
-        if (item.kind === "audio" && file.size > 20 * 1024 * 1024) {
-          return NextResponse.json(
-            { ok: false, error: `${item.displayName} must be under 20MB.` },
-            { status: 400 },
-          );
-        }
-
-        mime = file.type || item.mimeType;
-
-        const filename = cleanDisplayFilename(
-          item.displayName,
-          item.kind === "audio" ? "StayKnown Audio" : "StayKnown Image",
-          file.name,
-          mime,
+      if (item.kind === "image" && !mime.startsWith("image/")) {
+        return NextResponse.json(
+          { ok: false, error: "Inserted body image must be an image file." },
+          { status: 400 },
         );
-
-        const buffer = Buffer.from(await file.arrayBuffer());
-
-        storagePath = `${campaignId}/body-inline-${item.kind}-${item.id}-${randomUUID()}-${cleanFilename(
-          filename,
-        )}`;
-
-        const { error: uploadError } = await admin.storage
-          .from("mail-console-attachments")
-          .upload(storagePath, buffer, {
-            contentType: mime,
-            upsert: false,
-          });
-
-        if (uploadError) {
-          throw new Error(
-            `Inserted body ${item.kind} upload failed for ${filename}: ${uploadError.message}`,
-          );
-        }
-
-        await admin.from("mail_console_attachments").insert({
-          campaign_id: campaignId,
-          file_name: filename,
-          mime_type: mime,
-          size_bytes: file.size,
-          storage_bucket: "mail-console-attachments",
-          storage_path: storagePath,
-          attachment_mode:
-            item.kind === "image" || mime.startsWith("image/")
-              ? "inline_image"
-              : "link_only",
-          created_by: null,
-        });
       }
 
-      if (storagePath) {
-        const { data: signed, error: signedError } = await admin.storage
-          .from(item.storageBucket || "mail-console-attachments")
-          .createSignedUrl(storagePath, SENT_VIEW_SIGNED_URL_SECONDS);
-
-        if (signedError || !signed?.signedUrl) {
-          throw new Error(
-            `Inserted body ${item.kind} signed URL failed: ${
-              signedError?.message || "unknown error"
-            }`,
-          );
-        }
-
-        signedUrl = signed.signedUrl;
+      if (item.kind === "audio" && !mime.startsWith("audio/")) {
+        return NextResponse.json(
+          { ok: false, error: "Inserted body audio must be an audio file." },
+          { status: 400 },
+        );
       }
 
-      if (!signedUrl) continue;
+      if (file.size > 20 * 1024 * 1024) {
+        return NextResponse.json(
+          { ok: false, error: `${item.displayName} must be under 20MB.` },
+          { status: 400 },
+        );
+      }
 
+      const filename = cleanDisplayFilename(
+        item.displayName,
+        item.kind === "audio"
+          ? "StayKnown Audio"
+          : item.kind === "image"
+            ? "StayKnown Image"
+            : item.kind === "video"
+              ? "StayKnown Video"
+              : "StayKnown File",
+        file.name,
+        mime,
+      );
+
+      const buffer = Buffer.from(await file.arrayBuffer());
       const token = `{{${item.kind}:${item.id}}}`;
 
-      if (item.kind === "audio") {
-        bodyInlineMediaHtmlByToken[token] = bodyAudioPillBlock({
-          url: signedUrl,
-          displayName: item.displayName,
-          size: item.size,
-          hint: item.hint,
-          hintColor: item.hintColor,
-          hintFontStyle: item.hintFontStyle,
+      inlineAttachmentKeys.add(fileDedupeKey(file));
+
+      if (item.kind === "image" || mime.startsWith("image/")) {
+        totalAttachmentRawBytes += buffer.length;
+
+        if (totalAttachmentRawBytes > 25 * 1024 * 1024) {
+          return NextResponse.json(
+            {
+              ok: false,
+              error:
+                "Inline images and attachments are too large for one email. Please split the media into smaller batches.",
+            },
+            { status: 400 },
+          );
+        }
+
+        const contentId = `sk-body-inline-${item.id}-${randomUUID()}`;
+
+        attachments.push({
+          filename,
+          content: buffer.toString("base64"),
+          content_id: contentId,
+          content_type: mime,
         });
-      } else if (item.kind === "video" || mime.startsWith("video/")) {
-        bodyInlineMediaHtmlByToken[token] = bodyVideoLinkBlock({
-          url: signedUrl,
-          displayName: item.displayName,
-          size: item.size,
-          hint: item.hint,
-          hintColor: item.hintColor,
-          hintFontStyle: item.hintFontStyle,
-        });
-      } else if (item.kind === "image" || mime.startsWith("image/")) {
+
         bodyInlineMediaHtmlByToken[token] = bodyImageBlock({
-          url: signedUrl,
+          url: `cid:${contentId}`,
           alt: item.displayName,
           size: item.size,
           shape: item.imageShape || "rectangle",
@@ -3084,9 +3041,33 @@ export async function POST(req: NextRequest) {
           hintFontStyle: item.hintFontStyle,
         });
       } else {
-        bodyInlineMediaHtmlByToken[token] = bodyFileLinkBlock({
-          url: signedUrl,
+        totalAttachmentRawBytes += buffer.length;
+
+        if (totalAttachmentRawBytes > 25 * 1024 * 1024) {
+          return NextResponse.json(
+            {
+              ok: false,
+              error:
+                "Inserted files and attachments are too large for one email. Please split the media into smaller batches.",
+            },
+            { status: 400 },
+          );
+        }
+
+        attachments.push({
+          filename,
+          content: buffer.toString("base64"),
+          content_type: mime,
+        });
+
+        bodyInlineMediaHtmlByToken[token] = bodyAttachedFileNoticeBlock({
           displayName: item.displayName,
+          kind:
+            item.kind === "audio"
+              ? "audio"
+              : item.kind === "video" || mime.startsWith("video/")
+                ? "video"
+                : "file",
           hint: item.hint,
           hintColor: item.hintColor,
           hintFontStyle: item.hintFontStyle,
@@ -3108,24 +3089,33 @@ export async function POST(req: NextRequest) {
             : null,
         mime_type: mime,
         original_name: item.originalName,
-        storage_bucket: item.storageBucket || "mail-console-attachments",
-        storage_path: storagePath,
+        storage_bucket: null,
+        storage_path: null,
+        delivery_mode:
+          item.kind === "image" || mime.startsWith("image/")
+            ? "cid_inline_attachment"
+            : "normal_attachment_with_body_marker",
       });
     }
 
     for (let i = 0; i < files.length; i += 1) {
       const file = files[i];
       const mime = file.type || "application/octet-stream";
+
+      // If this exact file was already used as inserted body media,
+      // do not add it again and double the payload.
+      if (inlineAttachmentKeys.has(fileDedupeKey(file))) {
+        continue;
+      }
+
       const requestedFileMode = normalizedFileModes[i] || "attach";
 
-      // Direct send mode:
-      // We do not save normal sent files into Supabase.
-      // We also do not force videos into link_only here, because link_only needs storage.
-      const fileMode: AttachmentMode = STORE_SENT_MAIL_FILES
-        ? mime.startsWith("video/")
-          ? "link_only"
-          : requestedFileMode
-        : "attach";
+      // No Supabase storage on direct Send Email.
+      // link_only cannot work without hosting, so convert it to attach.
+      const fileMode: AttachmentMode =
+        requestedFileMode === "inline_image" && mime.startsWith("image/")
+          ? "inline_image"
+          : "attach";
 
       const displayName = cleanDisplayFilename(
         fileDisplayNames[i] || "",
@@ -3135,7 +3125,6 @@ export async function POST(req: NextRequest) {
       );
 
       const filename = displayName;
-      const storageSafeName = cleanFilename(displayName);
       const size = file.size;
 
       if (size > 20 * 1024 * 1024) {
@@ -3148,68 +3137,9 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      const arrayBuffer = await file.arrayBuffer();
-      const buffer = Buffer.from(arrayBuffer);
+      const buffer = Buffer.from(await file.arrayBuffer());
 
-      if (STORE_SENT_MAIL_FILES) {
-        await admin.from("mail_console_attachments").insert({
-          campaign_id: campaignId,
-          file_name: filename,
-          mime_type: mime,
-          size_bytes: size,
-          storage_bucket: "mail-console-attachments",
-          storage_path: `pending/${campaignId}/${storageSafeName}`,
-          attachment_mode: fileMode,
-          created_by: null,
-        });
-      }
-
-      if (STORE_SENT_MAIL_FILES && fileMode === "link_only") {
-        const storagePath = `${campaignId}/${randomUUID()}-${storageSafeName}`;
-
-        const { error: uploadError } = await admin.storage
-          .from("mail-console-attachments")
-          .upload(storagePath, buffer, {
-            contentType: mime,
-            upsert: false,
-          });
-
-        if (uploadError) {
-          throw new Error(
-            `Storage upload failed for ${filename}: ${uploadError.message}`,
-          );
-        }
-
-        const { data: signed, error: signedError } = await admin.storage
-          .from("mail-console-attachments")
-          .createSignedUrl(storagePath, SENT_VIEW_SIGNED_URL_SECONDS);
-
-        if (signedError || !signed?.signedUrl) {
-          throw new Error(
-            `Signed URL failed for ${filename}: ${
-              signedError?.message || "unknown error"
-            }`,
-          );
-        }
-
-        linkOnlyFiles.push({
-          filename,
-          url: signed.signedUrl,
-        });
-
-        await admin
-          .from("mail_console_attachments")
-          .update({
-            storage_path: storagePath,
-            file_name: filename,
-          })
-          .eq("campaign_id", campaignId)
-          .eq("file_name", filename);
-
-        continue;
-      }
-
-      totalAttachmentRawBytes += size;
+      totalAttachmentRawBytes += buffer.length;
 
       if (totalAttachmentRawBytes > 25 * 1024 * 1024) {
         return NextResponse.json(

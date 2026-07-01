@@ -2322,57 +2322,86 @@ export default function MailConsoleSendForm({
     insertBodyTokenAtCursor(bodyInlineToken(mediaKind, id));
   }
   function insertAttachmentInsideMessage(picked: PickedFile) {
-    if (!picked?.file) {
-      setStatus("Choose an attachment first.");
-      return;
+    try {
+      if (!picked?.file) {
+        setStatus("Choose an attachment first.");
+        return;
+      }
+
+      const file = picked.file;
+      const isImage = file.type.startsWith("image/");
+      const isVideo = file.type.startsWith("video/");
+      const inlineKind: "image" | "video" | "file" = isImage
+        ? "image"
+        : isVideo
+          ? "video"
+          : "file";
+
+      const id = makeId(
+        inlineKind === "image"
+          ? "body-image"
+          : inlineKind === "video"
+            ? "body-video"
+            : "body-file",
+      );
+
+      const previewUrl = URL.createObjectURL(file);
+
+      const item: BodyInlineMediaItem = {
+        id,
+        kind: inlineKind,
+        file,
+        previewUrl,
+        displayName: cleanDisplayFilename(
+          picked.displayName,
+          isVideo
+            ? "StayKnown Video"
+            : isImage
+              ? "StayKnown Image"
+              : defaultAttachmentDisplayName(file, 0),
+        ),
+        size: 100,
+        placement: "custom",
+        hint: "",
+        hintColor: "#6b7280",
+        hintFontStyle: "normal",
+        imageShape: "rectangle",
+        mimeType: file.type || "application/octet-stream",
+        originalName:
+          file.name ||
+          picked.displayName ||
+          (isVideo
+            ? "StayKnown Video"
+            : isImage
+              ? "StayKnown Image"
+              : "StayKnown File"),
+      };
+
+      setBodyInlineMediaItems((prev) => [...prev, item]);
+
+      // Keep the original file in the attachment list.
+      // The backend will dedupe it so it does not double the payload.
+      insertBodyTokenAtCursor(bodyInlineToken(inlineKind, id));
+
+      setStatus(
+        isImage
+          ? "Image inserted inside the message body. It can still remain available as an attachment."
+          : isVideo
+            ? "Video marker inserted inside the message body. The file will be attached for delivery."
+            : "File marker inserted inside the message body. The file will be attached for delivery.",
+      );
+    } catch (err) {
+      console.error(
+        "[MailConsole] insert attachment inside message failed",
+        err,
+      );
+      setStatus(
+        err instanceof Error
+          ? `Could not insert attachment inside message: ${err.message}`
+          : "Could not insert attachment inside message.",
+      );
     }
-
-    const id = makeId("body-file");
-    const previewUrl = URL.createObjectURL(picked.file);
-
-    const isImage = picked.file.type.startsWith("image/");
-    const isVideo = picked.file.type.startsWith("video/");
-    const inlineKind: "image" | "video" | "file" = isImage
-      ? "image"
-      : isVideo
-        ? "video"
-        : "file";
-
-    const item: BodyInlineMediaItem = {
-      id,
-      kind: inlineKind,
-      file: picked.file,
-      previewUrl,
-      displayName: cleanDisplayFilename(
-        picked.displayName,
-        isVideo
-          ? "StayKnown Video"
-          : isImage
-            ? "StayKnown Image"
-            : defaultAttachmentDisplayName(picked.file, 0),
-      ),
-      size: 100,
-      placement: "custom",
-      hint: "",
-      hintColor: "#6b7280",
-      hintFontStyle: "normal",
-      imageShape: isImage || isVideo ? "rectangle" : undefined,
-      mimeType: picked.file.type || "application/octet-stream",
-      originalName:
-        picked.file.name ||
-        picked.displayName ||
-        (isVideo ? "StayKnown Video" : "StayKnown File"),
-    };
-
-    setBodyInlineMediaItems((prev) => [...prev, item]);
-
-    // Remove from normal attachments so it does not duplicate at the email bottom.
-    setFiles((prev) => prev.filter((fileItem) => fileItem.id !== picked.id));
-
-    insertBodyTokenAtCursor(bodyInlineToken(inlineKind, id));
-    setStatus("Attachment inserted inside the message body.");
   }
-
   async function saveDraft() {
     if (isReadOnlyCampaign) {
       setStatus(
