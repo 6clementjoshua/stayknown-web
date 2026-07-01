@@ -2763,59 +2763,10 @@ export default function MailConsoleSendForm({
   }
 
   function getSendUploadBlockReason() {
-    const selectedFiles = getSelectedUploadFiles();
-    console.log(
-      "MAIL CONSOLE SELECTED UPLOAD FILES:",
-      selectedFiles.map((item) => ({
-        label: item.label,
-        name: item.file.name,
-        type: item.file.type,
-        size: item.file.size,
-        size_mb: Number((item.file.size / 1024 / 1024).toFixed(3)),
-      })),
-    );
-    if (selectedFiles.length === 0) return "";
-
-    const fileBytes = selectedFiles.reduce(
-      (sum, item) => sum + item.file.size,
-      0,
-    );
-
-    const textEstimate =
-      textBytes(mode) +
-      textBytes(senderId) +
-      textBytes(subject) +
-      textBytes(title) +
-      textBytes(subtitle) +
-      textBytes(badge) +
-      textBytes(message) +
-      textBytes(customFooter || selectedFooter?.footer_html || "") +
-      textBytes(socialTikTokUsername) +
-      textBytes(socialTwitterUsername) +
-      textBytes(socialFacebookUsername) +
-      512 * 1024;
-
-    const estimatedPayloadBytes = fileBytes + textEstimate;
-
-    if (estimatedPayloadBytes <= MAIL_CONSOLE_SAFE_UPLOAD_BYTES) {
-      return "";
-    }
-
-    const biggest = [...selectedFiles]
-      .sort((a, b) => b.file.size - a.file.size)
-      .slice(0, 5)
-      .map(
-        (item) =>
-          `${item.file.name || item.label} (${niceFileSize(item.file.size)})`,
-      )
-      .join(", ");
-
-    return `${oversizedPayloadMessage(
-      estimatedPayloadBytes,
-      selectedFiles.length,
-    )} Biggest files: ${biggest}.`;
+    // Do not block Send Email from the frontend because of selected media size.
+    // Backend/provider limits will handle real hard failures.
+    return "";
   }
-
   function bodyInlineTokenExistsInMessage(item: BodyInlineMediaItem) {
     const normalToken = `{{${item.kind}:${item.id}}}`;
 
@@ -3244,12 +3195,11 @@ export default function MailConsoleSendForm({
       normalizeLegacyBodyFileTokens(prev, activeInlineItems),
     );
 
-    const uploadWarning = getSendUploadBlockReason();
+    const uploadBlockReason = getSendUploadBlockReason();
 
-    if (uploadWarning) {
-      console.warn("[MailConsole] Large upload warning only:", uploadWarning);
-    }
-
+if (uploadBlockReason) {
+  console.warn("[MailConsole] Upload warning ignored:", uploadBlockReason);
+}
     setSending(true);
     setStatus("");
     setSendComplete(false);

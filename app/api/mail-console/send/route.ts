@@ -2678,20 +2678,6 @@ export async function POST(req: NextRequest) {
     const normalizedFileModes = files.map(
       (_, index) => fileModes[index] || "attach",
     );
-    const specialAttachmentCount = normalizedFileModes.filter(
-      (modeValue) => modeValue !== "attach",
-    ).length;
-
-    if (specialAttachmentCount > 1) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error:
-            "Only one attachment can be inline image or link-only. Keep the rest as normal attachments.",
-        },
-        { status: 400 },
-      );
-    }
 
     for (let i = 0; i < files.length; i += 1) {
       const file = files[i];
@@ -3013,7 +2999,7 @@ export async function POST(req: NextRequest) {
       if (item.kind === "image" || mime.startsWith("image/")) {
         totalAttachmentRawBytes += buffer.length;
 
-        if (totalAttachmentRawBytes > 25 * 1024 * 1024) {
+        if (totalAttachmentRawBytes > MAX_DIRECT_ATTACHMENT_TOTAL_RAW_BYTES) {
           return NextResponse.json(
             {
               ok: false,
@@ -3045,7 +3031,7 @@ export async function POST(req: NextRequest) {
       } else {
         totalAttachmentRawBytes += buffer.length;
 
-        if (totalAttachmentRawBytes > 25 * 1024 * 1024) {
+        if (totalAttachmentRawBytes > MAX_DIRECT_ATTACHMENT_TOTAL_RAW_BYTES) {
           return NextResponse.json(
             {
               ok: false,
@@ -3142,7 +3128,7 @@ export async function POST(req: NextRequest) {
 
       totalAttachmentRawBytes += buffer.length;
 
-      if (totalAttachmentRawBytes > 25 * 1024 * 1024) {
+      if (totalAttachmentRawBytes > MAX_DIRECT_ATTACHMENT_TOTAL_RAW_BYTES) {
         return NextResponse.json(
           {
             ok: false,
