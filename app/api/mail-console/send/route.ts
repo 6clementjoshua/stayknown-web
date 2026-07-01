@@ -113,6 +113,9 @@ const BODY_AUDIO_TOKEN = "{{audio}}";
 const SENT_VIEW_SIGNED_URL_SECONDS = 365 * 24 * 60 * 60;
 const RESEND_PER_RECIPIENT_WAIT_MS = 2200;
 
+const MAX_DIRECT_ATTACHMENT_FILE_BYTES = 25 * 1024 * 1024;
+const MAX_DIRECT_ATTACHMENT_TOTAL_RAW_BYTES = 40 * 1024 * 1024;
+
 // Direct Send Email should not store normal sent attachments in Supabase.
 // Draft saving can still store files through /api/mail-console/save-draft.
 const STORE_SENT_MAIL_FILES = false;
@@ -2898,17 +2901,16 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    if (totalAttachmentRawBytes > 25 * 1024 * 1024) {
+    if (totalAttachmentRawBytes > MAX_DIRECT_ATTACHMENT_TOTAL_RAW_BYTES) {
       return NextResponse.json(
         {
           ok: false,
           error:
-            "Inline images are too large for one email. Please reduce banner/body image size.",
+            "Inline images and attachments are too large for one email. Please split the media into smaller batches.",
         },
         { status: 400 },
       );
     }
-
     if (bodyAudioFile) {
       const filename = bodyAudioDisplayName;
       const buffer = Buffer.from(await bodyAudioFile.arrayBuffer());
@@ -3127,16 +3129,15 @@ export async function POST(req: NextRequest) {
       const filename = displayName;
       const size = file.size;
 
-      if (size > 20 * 1024 * 1024) {
+      if (size > MAX_DIRECT_ATTACHMENT_FILE_BYTES) {
         return NextResponse.json(
           {
             ok: false,
-            error: `${filename} is too large. Keep each direct attachment under 20MB.`,
+            error: `${filename} is too large. Keep each direct attachment under 25MB.`,
           },
           { status: 400 },
         );
       }
-
       const buffer = Buffer.from(await file.arrayBuffer());
 
       totalAttachmentRawBytes += buffer.length;

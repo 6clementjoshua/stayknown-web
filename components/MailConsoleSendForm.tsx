@@ -3244,6 +3244,12 @@ export default function MailConsoleSendForm({
       normalizeLegacyBodyFileTokens(prev, activeInlineItems),
     );
 
+    const uploadWarning = getSendUploadBlockReason();
+
+    if (uploadWarning) {
+      console.warn("[MailConsole] Large upload warning only:", uploadWarning);
+    }
+
     setSending(true);
     setStatus("");
     setSendComplete(false);
@@ -3305,13 +3311,16 @@ export default function MailConsoleSendForm({
             break;
           }
 
-          updateSendRowStatus(
-            chunk,
-            "failed",
+          const error =
             err instanceof Error
               ? err.message
-              : "Email send failed for this batch. Please retry in a few minutes.",
-          );
+              : "Email send failed for this batch. Please retry in a few minutes.";
+
+          updateSendRowStatus(chunk, "failed", error);
+        } finally {
+          if (sendAbortRef.current === controller) {
+            sendAbortRef.current = null;
+          }
         }
 
         const elapsed = Date.now() - startedAt;
@@ -3338,7 +3347,6 @@ export default function MailConsoleSendForm({
       setActiveSendEmail("");
     }
   }
-
   async function retryFailedEmails() {
     if (sending) return;
 

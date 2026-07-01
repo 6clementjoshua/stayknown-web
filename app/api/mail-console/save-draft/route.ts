@@ -13,7 +13,7 @@ type BodyImageShape = "banner" | "pill" | "rectangle" | "square" | "circle";
 type BodyBlockKind = "audio" | "image" | "message";
 type BodyHintFontStyle = "normal" | "italic";
 type StoreBadgePlacement = "top" | "bottom";
-type BodyInlineMediaKind = "audio" | "image" | "file";
+type BodyInlineMediaKind = "audio" | "image" | "video" | "file";
 
 type MailConsoleAdminClient = Awaited<
   ReturnType<typeof requireMailConsoleAdmin>
@@ -263,7 +263,10 @@ function safeBodyInlineMediaItems(v: unknown): BodyInlineMediaInput[] {
       const id = clean(row.id);
       const kindText = clean(row.kind).toLowerCase();
       const kind: BodyInlineMediaKind | "" =
-        kindText === "audio" || kindText === "image" || kindText === "file"
+        kindText === "audio" ||
+        kindText === "image" ||
+        kindText === "video" ||
+        kindText === "file"
           ? kindText
           : "";
       if (!id || !kind) return null;
@@ -284,7 +287,7 @@ function safeBodyInlineMediaItems(v: unknown): BodyInlineMediaInput[] {
         row.hint_font_style || row.hintFontStyle,
       );
       const imageShape =
-        kind === "image"
+        kind === "image" || kind === "video"
           ? safeBodyImageShape(row.image_shape || row.imageShape)
           : null;
       const mimeType =
@@ -293,7 +296,9 @@ function safeBodyInlineMediaItems(v: unknown): BodyInlineMediaInput[] {
           ? "audio/mpeg"
           : kind === "image"
             ? "image/png"
-            : "application/octet-stream");
+            : kind === "video"
+              ? "video/mp4"
+              : "application/octet-stream");
       const originalName =
         clean(row.original_name || row.originalName) || displayName;
       const fileField =
@@ -546,6 +551,7 @@ function safeDraftAttachments(v: unknown): DraftStoredAttachment[] {
     if (
       inlineMediaKindText === "audio" ||
       inlineMediaKindText === "image" ||
+      inlineMediaKindText === "video" ||
       inlineMediaKindText === "file"
     ) {
       attachment.inline_media_kind = inlineMediaKindText;
@@ -745,6 +751,10 @@ function validateDraftFiles(params: {
     if (media.item.kind === "audio" && !file.type.startsWith("audio/")) {
       return "Inserted body audio must be an audio file.";
     }
+    if (media.item.kind === "video" && !file.type.startsWith("video/")) {
+      return "Inserted body video must be a video file.";
+    }
+
     if (media.item.kind === "file" && file.size > fileLimit) {
       return `${
         media.item.display_name || file.name || "Inserted file"
@@ -757,6 +767,10 @@ function validateDraftFiles(params: {
 
     if (media.item.kind === "audio" && file.size > audioLimit) {
       return `${media.item.display_name || file.name || "Inserted audio"} must be under 20MB.`;
+    }
+
+    if (media.item.kind === "video" && file.size > fileLimit) {
+      return `${media.item.display_name || file.name || "Inserted video"} must be under 20MB.`;
     }
   }
 
