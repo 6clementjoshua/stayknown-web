@@ -4,6 +4,26 @@ import { createMailConsoleLoginToken } from "@/lib/mailConsoleServerAuth";
 
 const OWNER_EMAIL = "6clementjoshua@gmail.com";
 
+type LoginMailProviderKey = "stayknown" | "sixrides" | "foundation" | "music";
+
+type LoginMailProviderConfig = {
+  key: LoginMailProviderKey;
+  label: string;
+  envName: string;
+  apiKey: string;
+  from: string;
+};
+
+// TEMP LOGIN ORDER.
+// Because StayKnown is limited right now, this starts with 6Rides.
+// Later, to switch back, move "stayknown" to the first position.
+const LOGIN_MAIL_PROVIDER_ORDER: LoginMailProviderKey[] = [
+  "sixrides",
+  "foundation",
+  "music",
+  "stayknown",
+];
+
 function clean(v: string | undefined | null) {
   return (v || "").trim();
 }
@@ -15,6 +35,84 @@ function escapeHtml(s: string) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
+}
+
+function safeJsonText(data: unknown) {
+  try {
+    return JSON.stringify(data);
+  } catch (_) {
+    return String(data);
+  }
+}
+
+function resendErrorText(data: unknown) {
+  if (!data || typeof data !== "object") return "";
+
+  const row = data as Record<string, unknown>;
+
+  const name = typeof row.name === "string" ? row.name : "";
+  const message = typeof row.message === "string" ? row.message : "";
+  const error = typeof row.error === "string" ? row.error : "";
+
+  return [name, message, error].filter(Boolean).join(": ");
+}
+
+function getLoginMailProviderConfig(
+  provider: LoginMailProviderKey,
+): LoginMailProviderConfig {
+  if (provider === "sixrides") {
+    return {
+      key: "sixrides",
+      label: "6Rides",
+      envName: "RESEND_API_KEY_6RIDES",
+      apiKey: clean(process.env.RESEND_API_KEY_6RIDES),
+      from:
+        clean(process.env.MAIL_CONSOLE_LOGIN_FROM_6RIDES) ||
+        "6Rides Admin <admin@6rides.com>",
+    };
+  }
+
+  if (provider === "foundation") {
+    return {
+      key: "foundation",
+      label: "6 Clement Joshua Foundation",
+      envName: "RESEND_API_KEY_6CLEMENTJOSHUAFOUNDATION",
+      apiKey: clean(process.env.RESEND_API_KEY_6CLEMENTJOSHUAFOUNDATION),
+      from:
+        clean(process.env.MAIL_CONSOLE_LOGIN_FROM_FOUNDATION) ||
+        "6 Clement Joshua Foundation Admin <admin@6clementjoshuafoundation.com>",
+    };
+  }
+
+  if (provider === "music") {
+    return {
+      key: "music",
+      label: "6 Clement Joshua Musics",
+      envName: "RESEND_API_KEY_6CLEMENTJOSHUAMUSICS",
+      apiKey: clean(process.env.RESEND_API_KEY_6CLEMENTJOSHUAMUSICS),
+      from:
+        clean(process.env.MAIL_CONSOLE_LOGIN_FROM_MUSIC) ||
+        "6 Clement Joshua Musics Admin <admin@6clementjoshuamusics.com>",
+    };
+  }
+
+  return {
+    key: "stayknown",
+    label: "StayKnown",
+    envName: "RESEND_API_KEY_STAYKNOWN or RESEND_API_KEY",
+    apiKey:
+      clean(process.env.RESEND_API_KEY_STAYKNOWN) ||
+      clean(process.env.RESEND_API_KEY),
+    from:
+      clean(process.env.MAIL_CONSOLE_LOGIN_FROM_STAYKNOWN) ||
+      clean(process.env.MAIL_CONSOLE_LOGIN_FROM) ||
+      clean(process.env.RESEND_FROM) ||
+      "StayKnown Admin <admin@stay-known.com>",
+  };
+}
+
+function getLoginMailProviders() {
+  return LOGIN_MAIL_PROVIDER_ORDER.map(getLoginMailProviderConfig);
 }
 
 function buildAdminLoginEmailHtml(params: {
@@ -114,6 +212,7 @@ async function sendResendEmail(params: {
   to: string;
   subject: string;
   html: string;
+  providerLabel: string;
 }) {
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
@@ -126,18 +225,113 @@ async function sendResendEmail(params: {
       to: [params.to],
       subject: params.subject,
       html: params.html,
+      headers: {
+        "X-StayKnown-Login-Provider": params.providerLabel,
+      },
     }),
   });
 
   const data = await res.json().catch(() => ({}));
 
   if (!res.ok) {
-    throw new Error(
-      `Resend failed: ${res.status} ${res.statusText} ${JSON.stringify(data)}`,
-    );
+    const providerText = resendErrorText(data) || safeJsonText(data);
+
+    return {
+      ok: false as const,
+      status: res.status,
+      statusText: res.statusText,
+      error: `Resend failed on ${params.providerLabel}: ${res.status} ${res.statusText} ${providerText}`,
+      data,
+    };
   }
 
-  return data;
+  return {
+    ok: true as const,
+    status: res.status,
+    statusText: res.statusText,
+    data,
+  };
+}
+
+async function sendLoginEmailWithFallback(params: {
+  to: string;
+  subject: string;
+  html: string;
+}) {
+  const providers = getLoginMailProviders();
+
+  const attempts: Array<{
+    provider: string;
+    envName: string;
+    from: string;
+    status: "sent" | "skipped" | "failed";
+    error?: string;
+    httpStatus?: number;
+  }> = [];
+
+  for (const provider of providers) {
+    if (!provider.apiKey) {
+      attempts.push({
+        provider: provider.label,
+        envName: provider.envName,
+        from: provider.from,
+        status: "skipped",
+        error: `Missing ${provider.envName} in Vercel.`,
+      });
+
+      continue;
+    }
+
+    const result = await sendResendEmail({
+      apiKey: provider.apiKey,
+      from: provider.from,
+      to: params.to,
+      subject: params.subject,
+      html: params.html,
+      providerLabel: provider.label,
+    });
+
+    if (result.ok) {
+      attempts.push({
+        provider: provider.label,
+        envName: provider.envName,
+        from: provider.from,
+        status: "sent",
+        httpStatus: result.status,
+      });
+
+      return {
+        ok: true,
+        provider,
+        data: result.data,
+        attempts,
+      };
+    }
+
+    attempts.push({
+      provider: provider.label,
+      envName: provider.envName,
+      from: provider.from,
+      status: "failed",
+      httpStatus: result.status,
+      error: result.error,
+    });
+
+    console.warn("[mail-console/login] provider failed, trying next", {
+      provider: provider.label,
+      status: result.status,
+      error: result.error,
+    });
+  }
+
+  throw new Error(
+    `All login email providers failed. Attempts: ${attempts
+      .map((item) => {
+        const base = `${item.provider}=${item.status}`;
+        return item.error ? `${base} (${item.error})` : base;
+      })
+      .join(" | ")}`,
+  );
 }
 
 export async function POST(req: NextRequest) {
@@ -166,7 +360,6 @@ export async function POST(req: NextRequest) {
       process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL,
     );
     const supabaseServiceRoleKey = clean(process.env.SUPABASE_SERVICE_ROLE_KEY);
-    const resendApiKey = clean(process.env.RESEND_API_KEY);
 
     if (!supabaseUrl) {
       return NextResponse.json(
@@ -178,13 +371,6 @@ export async function POST(req: NextRequest) {
     if (!supabaseServiceRoleKey) {
       return NextResponse.json(
         { ok: false, error: "Missing SUPABASE_SERVICE_ROLE_KEY in Vercel." },
-        { status: 500 },
-      );
-    }
-
-    if (!resendApiKey) {
-      return NextResponse.json(
-        { ok: false, error: "Missing RESEND_API_KEY in Vercel." },
         { status: 500 },
       );
     }
@@ -224,16 +410,11 @@ export async function POST(req: NextRequest) {
     }
 
     const token = createMailConsoleLoginToken(email);
-    const loginLink = `${siteUrl.replace(/\/+$/g, "")}/mail-auth/callback?token=${encodeURIComponent(token)}`;
+    const loginLink = `${siteUrl.replace(/\/+$/g, "")}/mail-auth/callback?token=${encodeURIComponent(
+      token,
+    )}`;
 
-    const from =
-      clean(process.env.MAIL_CONSOLE_LOGIN_FROM) ||
-      clean(process.env.RESEND_FROM) ||
-      "StayKnown Admin <admin@stay-known.com>";
-
-    await sendResendEmail({
-      apiKey: resendApiKey,
-      from,
+    const sendResult = await sendLoginEmailWithFallback({
       to: email,
       subject: "StayKnown Mail Console Admin Login",
       html: buildAdminLoginEmailHtml({
@@ -244,8 +425,9 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       ok: true,
-      message:
-        "Admin login link sent. Open your email and tap the StayKnown Mail Console link.",
+      message: `Admin login link sent using ${sendResult.provider.label}. Open your email and tap the StayKnown Mail Console link.`,
+      provider_used: sendResult.provider.label,
+      attempts: sendResult.attempts,
     });
   } catch (err) {
     return NextResponse.json(
