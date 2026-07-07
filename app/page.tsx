@@ -335,7 +335,7 @@ function CinematicHeroSection({ slides }: { slides: CinematicHeroSlide[] }) {
 
             <div className="mt-6 flex flex-col gap-3 sm:flex-row">
               <a
-                href="#stayknown-intro"
+                href="/learn/safe-journey"
                 className="
                   inline-flex h-12 items-center justify-center rounded-full
                   bg-white px-6 text-[13px] font-black tracking-[-0.01em]
@@ -349,7 +349,7 @@ function CinematicHeroSection({ slides }: { slides: CinematicHeroSlide[] }) {
               </a>
 
               <a
-                href="#app-preview"
+                href="/learn/app-preview"
                 className="
                   inline-flex h-12 items-center justify-center rounded-full
                   border border-white/16 bg-white/[0.08] px-6
