@@ -14,6 +14,7 @@ type CinematicHeroSlide = {
   eyebrow: string;
   title: string;
   body: string;
+  href: string;
   objectPosition?: string;
 };
 
@@ -335,15 +336,15 @@ function CinematicHeroSection({ slides }: { slides: CinematicHeroSlide[] }) {
 
             <div className="mt-6 flex flex-col gap-3 sm:flex-row">
               <a
-                href="/learn/safe-journey"
+                href={activeSlide.href}
                 className="
-                  inline-flex h-12 items-center justify-center rounded-full
-                  bg-white px-6 text-[13px] font-black tracking-[-0.01em]
-                  !text-black shadow-[0_18px_50px_rgba(0,0,0,0.3)]
-                  transition hover:bg-white/88 active:scale-[0.99]
-                  visited:!text-black focus:!text-black
-                  focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/35
-                "
+    inline-flex h-12 items-center justify-center rounded-full
+    bg-white px-6 text-[13px] font-black tracking-[-0.01em]
+    !text-black shadow-[0_18px_50px_rgba(0,0,0,0.3)]
+    transition hover:bg-white/88 active:scale-[0.99]
+    visited:!text-black focus:!text-black
+    focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/35
+  "
               >
                 Learn More
               </a>
@@ -449,6 +450,7 @@ export default function Page() {
         eyebrow: "StayKnown Safety",
         title: "Stay safer wherever life takes you.",
         body: "StayKnown helps people stay connected to trusted loved ones while moving, traveling, visiting, entering vehicles, or facing uncertain situations.",
+        href: "/learn/safe-journey",
         objectPosition: "center center",
       },
       {
@@ -458,12 +460,12 @@ export default function Page() {
         eyebrow: "Trusted People",
         title: "When someone leaves, care should not stop.",
         body: "From family send-offs to everyday movement, StayKnown helps make awareness, safety proof, and emergency readiness part of real life.",
+        href: "/learn/family-safety",
         objectPosition: "center center",
       },
     ],
     [],
   );
-
   const slides: HeroSlide[] = useMemo(
     () => [
       {
