@@ -347,20 +347,6 @@ function CinematicHeroSection({ slides }: { slides: CinematicHeroSlide[] }) {
               >
                 Learn More
               </a>
-
-              <a
-                href="/learn/app-preview"
-                className="
-                  inline-flex h-12 items-center justify-center rounded-full
-                  border border-white/16 bg-white/[0.08] px-6
-                  text-[13px] font-black tracking-[-0.01em] !text-white
-                  backdrop-blur-xl transition hover:bg-white/[0.14]
-                  active:scale-[0.99] visited:!text-white focus:!text-white
-                  focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20
-                "
-              >
-                See App Screens
-              </a>
             </div>
 
             <div className="mt-6 flex items-center gap-2">
