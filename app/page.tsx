@@ -753,12 +753,6 @@ export default function Page() {
             <h2 className="mt-3 text-[30px] font-black leading-[1] tracking-[-0.06em] text-white sm:text-[42px] md:text-[52px]">
               Built for movement, trust, SOS, visits, and approved contacts.
             </h2>
-
-            <p className="mt-4 text-[13.5px] font-semibold leading-relaxed text-white/52 sm:text-[15px]">
-              After people understand the story, show them the product. These
-              screens explain how StayKnown turns safety into a daily,
-              consent-based experience.
-            </p>
           </div>
 
           <HeroSlider slides={slides} intervalMs={6000} />
