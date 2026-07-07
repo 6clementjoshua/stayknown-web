@@ -1,11 +1,21 @@
 "use client";
 
 import Image from "next/image";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import HeroSlider, { type HeroSlide } from "../components/HeroSlider";
 import StayKnownActionMenu from "@/components/StayKnownActionMenu";
 
 type StoreKind = "google" | "apple";
+
+type CinematicHeroSlide = {
+  id: string;
+  src: string;
+  alt: string;
+  eyebrow: string;
+  title: string;
+  body: string;
+  objectPosition?: string;
+};
 
 function GooglePlayMark() {
   return (
@@ -221,7 +231,253 @@ function DownloadStoreButtons() {
   );
 }
 
+function CinematicHeroSection({ slides }: { slides: CinematicHeroSlide[] }) {
+  const [activeIndex, setActiveIndex] = useState(0);
+
+  useEffect(() => {
+    if (slides.length <= 1) return;
+
+    const timer = window.setInterval(() => {
+      setActiveIndex((current) => (current + 1) % slides.length);
+    }, 6500);
+
+    return () => window.clearInterval(timer);
+  }, [slides.length]);
+
+  const activeSlide = slides[activeIndex] ?? slides[0];
+
+  return (
+    <section
+      className="
+        relative isolate w-full overflow-hidden bg-black
+        min-h-[650px] h-[calc(100svh-94px)]
+        sm:min-h-[690px] md:min-h-[720px] lg:min-h-[760px]
+      "
+      aria-label="StayKnown story introduction"
+    >
+      <div className="absolute inset-0">
+        {slides.map((slide, index) => (
+          <div
+            key={slide.id}
+            className={`
+              absolute inset-0 transition-opacity duration-[1100ms] ease-out
+              ${index === activeIndex ? "opacity-100" : "opacity-0"}
+            `}
+            aria-hidden={index !== activeIndex}
+          >
+            <Image
+              src={slide.src}
+              alt={slide.alt}
+              fill
+              priority={index === 0}
+              sizes="100vw"
+              className="object-cover"
+              style={{
+                objectPosition: slide.objectPosition ?? "center center",
+              }}
+            />
+          </div>
+        ))}
+      </div>
+
+      <div className="absolute inset-0 bg-black/30" />
+      <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.62)_0%,rgba(0,0,0,0.18)_34%,rgba(0,0,0,0.52)_100%)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_70%,rgba(0,0,0,0.72),transparent_52%)]" />
+      <div className="absolute inset-y-0 left-0 hidden w-[58%] bg-[linear-gradient(90deg,rgba(0,0,0,0.75),rgba(0,0,0,0.28),transparent)] md:block" />
+
+      <div
+        className="
+          relative z-10 mx-auto flex h-full max-w-6xl items-end px-4 pb-7
+          sm:px-5 sm:pb-9 md:items-center md:pb-0 lg:px-6
+        "
+      >
+        <div
+          className="
+            sk-cinematic-card
+            w-full max-w-[560px] overflow-hidden rounded-[30px]
+            border border-white/18 bg-black/42 p-5 text-white
+            shadow-[0_28px_90px_rgba(0,0,0,0.55)]
+            backdrop-blur-2xl
+            sm:p-6 md:rounded-[36px] md:p-7
+          "
+        >
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_0%,rgba(255,255,255,0.16),transparent_48%)]" />
+
+          <div className="relative">
+            <div
+              className="
+                inline-flex h-8 items-center rounded-full border border-white/14
+                bg-white/[0.08] px-3 text-[10px] font-black uppercase
+                tracking-[0.24em] text-white/72
+              "
+            >
+              {activeSlide.eyebrow}
+            </div>
+
+            <h1
+              className="
+                mt-4 max-w-[12ch] text-[42px] font-black leading-[0.92]
+                tracking-[-0.075em] text-white
+                sm:text-[56px] md:text-[64px] lg:text-[70px]
+              "
+            >
+              {activeSlide.title}
+            </h1>
+
+            <p
+              className="
+                mt-4 max-w-[48ch] text-[14px] font-semibold leading-relaxed
+                text-white/76 sm:text-[15px] md:text-[16px]
+              "
+            >
+              {activeSlide.body}
+            </p>
+
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+              <a
+                href="#stayknown-intro"
+                className="
+                  inline-flex h-12 items-center justify-center rounded-full
+                  bg-white px-6 text-[13px] font-black tracking-[-0.01em]
+                  !text-black shadow-[0_18px_50px_rgba(0,0,0,0.3)]
+                  transition hover:bg-white/88 active:scale-[0.99]
+                  visited:!text-black focus:!text-black
+                  focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/35
+                "
+              >
+                Learn More
+              </a>
+
+              <a
+                href="#app-preview"
+                className="
+                  inline-flex h-12 items-center justify-center rounded-full
+                  border border-white/16 bg-white/[0.08] px-6
+                  text-[13px] font-black tracking-[-0.01em] !text-white
+                  backdrop-blur-xl transition hover:bg-white/[0.14]
+                  active:scale-[0.99] visited:!text-white focus:!text-white
+                  focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20
+                "
+              >
+                See App Screens
+              </a>
+            </div>
+
+            <div className="mt-6 flex items-center gap-2">
+              {slides.map((slide, index) => (
+                <button
+                  key={slide.id}
+                  type="button"
+                  onClick={() => setActiveIndex(index)}
+                  className={`
+                    h-2.5 rounded-full transition-all duration-300
+                    ${
+                      index === activeIndex
+                        ? "w-9 bg-white"
+                        : "w-2.5 bg-white/35 hover:bg-white/60"
+                    }
+                  `}
+                  aria-label={`Show StayKnown hero slide ${index + 1}`}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function StayKnownIntroSection() {
+  return (
+    <section id="stayknown-intro" className="relative z-10 bg-black">
+      <div className="mx-auto max-w-6xl px-4 py-14 sm:px-5 sm:py-16 lg:px-6 lg:py-20">
+        <div className="mx-auto max-w-3xl text-center">
+          <div className="text-[10px] font-black uppercase tracking-[0.28em] text-white/38">
+            Why StayKnown exists
+          </div>
+
+          <h2 className="mt-4 text-[34px] font-black leading-[0.98] tracking-[-0.065em] text-white sm:text-[46px] md:text-[56px]">
+            Safety should begin before danger becomes a headline.
+          </h2>
+
+          <p className="mt-5 text-[14px] font-semibold leading-relaxed text-white/58 sm:text-[15px] md:text-[16px]">
+            StayKnown is built for real life: travel, school, family movement,
+            visits, night outings, ride-hailing, emergencies, and moments where
+            trusted people need to know that someone is safe.
+          </p>
+        </div>
+
+        <div className="mt-9 grid gap-4 md:grid-cols-3">
+          <div className="rounded-[28px] border border-white/[0.09] bg-white/[0.045] p-5 shadow-[0_18px_60px_rgba(0,0,0,0.32)]">
+            <div className="text-[12px] font-black uppercase tracking-[0.2em] text-white/40">
+              Consent First
+            </div>
+            <h3 className="mt-3 text-[22px] font-black tracking-[-0.045em] text-white">
+              Not a spying app.
+            </h3>
+            <p className="mt-3 text-[13px] font-semibold leading-relaxed text-white/55">
+              StayKnown is built around approved contacts, intentional safety
+              sharing, privacy notices, and trusted access.
+            </p>
+          </div>
+
+          <div className="rounded-[28px] border border-white/[0.09] bg-white/[0.045] p-5 shadow-[0_18px_60px_rgba(0,0,0,0.32)]">
+            <div className="text-[12px] font-black uppercase tracking-[0.2em] text-white/40">
+              Real Movement
+            </div>
+            <h3 className="mt-3 text-[22px] font-black tracking-[-0.045em] text-white">
+              Visits, trips, and daily life.
+            </h3>
+            <p className="mt-3 text-[13px] font-semibold leading-relaxed text-white/55">
+              From school runs to travel and visits, StayKnown helps trusted
+              people understand safety context when it matters.
+            </p>
+          </div>
+
+          <div className="rounded-[28px] border border-white/[0.09] bg-white/[0.045] p-5 shadow-[0_18px_60px_rgba(0,0,0,0.32)]">
+            <div className="text-[12px] font-black uppercase tracking-[0.2em] text-white/40">
+              Emergency Ready
+            </div>
+            <h3 className="mt-3 text-[22px] font-black tracking-[-0.045em] text-white">
+              Help should not wait.
+            </h3>
+            <p className="mt-3 text-[13px] font-semibold leading-relaxed text-white/55">
+              SOS, I’m Safe, safety evidence, and emergency contacts make
+              response clearer when someone may need help.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export default function Page() {
+  const storySlides: CinematicHeroSlide[] = useMemo(
+    () => [
+      {
+        id: "safe-journey-bus",
+        src: "/hero/stayknown-safe-journey-bus.png",
+        alt: "A Nigerian journey scene viewed from inside a bus",
+        eyebrow: "StayKnown Safety",
+        title: "Stay safer wherever life takes you.",
+        body: "StayKnown helps people stay connected to trusted loved ones while moving, traveling, visiting, entering vehicles, or facing uncertain situations.",
+        objectPosition: "center center",
+      },
+      {
+        id: "family-farewell",
+        src: "/hero/stayknown-family-farewell.png",
+        alt: "A family saying goodbye to a loved one before a journey",
+        eyebrow: "Trusted People",
+        title: "When someone leaves, care should not stop.",
+        body: "From family send-offs to everyday movement, StayKnown helps make awareness, safety proof, and emergency readiness part of real life.",
+        objectPosition: "center center",
+      },
+    ],
+    [],
+  );
+
   const slides: HeroSlide[] = useMemo(
     () => [
       {
@@ -380,6 +636,12 @@ export default function Page() {
           background: #000;
           color-scheme: dark;
           overflow-x: hidden;
+          scroll-behavior: smooth;
+        }
+
+        #stayknown-intro,
+        #app-preview {
+          scroll-margin-top: 92px;
         }
 
         .sk-menu-wrap > button,
@@ -404,6 +666,10 @@ export default function Page() {
           outline: none !important;
           border-color: rgba(255, 255, 255, 0.16) !important;
           box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.05) !important;
+        }
+
+        .sk-cinematic-card {
+          position: relative;
         }
 
         .sk-download-feedback {
@@ -447,8 +713,8 @@ export default function Page() {
       `}</style>
 
       {/* Brand */}
-      <header className="relative z-50 pt-5 sm:pt-6">
-        <div className="relative mx-auto flex max-w-6xl items-center justify-center px-2">
+      <header className="relative z-50 bg-black/92 pt-5 sm:pt-6">
+        <div className="relative mx-auto flex max-w-6xl items-center justify-center px-2 pb-4">
           <div className="flex flex-col items-center gap-2">
             <Image
               src="/6logo.png"
@@ -470,9 +736,31 @@ export default function Page() {
         </div>
       </header>
 
-      {/* Hero */}
-      <section className="w-full flex-1">
-        <div className="mx-auto max-w-6xl px-5 pt-7 sm:px-4 sm:pt-7 md:pt-8">
+      {/* Cinematic Story Hero */}
+      <CinematicHeroSection slides={storySlides} />
+
+      {/* Emotional Explanation */}
+      <StayKnownIntroSection />
+
+      {/* App Preview */}
+      <section id="app-preview" className="w-full bg-black">
+        <div className="mx-auto max-w-6xl px-5 pb-10 pt-4 sm:px-4 sm:pb-12 sm:pt-6 md:pt-8">
+          <div className="mx-auto mb-6 max-w-3xl text-center">
+            <div className="text-[10px] font-black uppercase tracking-[0.28em] text-white/38">
+              Inside the app
+            </div>
+
+            <h2 className="mt-3 text-[30px] font-black leading-[1] tracking-[-0.06em] text-white sm:text-[42px] md:text-[52px]">
+              Built for movement, trust, SOS, visits, and approved contacts.
+            </h2>
+
+            <p className="mt-4 text-[13.5px] font-semibold leading-relaxed text-white/52 sm:text-[15px]">
+              After people understand the story, show them the product. These
+              screens explain how StayKnown turns safety into a daily,
+              consent-based experience.
+            </p>
+          </div>
+
           <HeroSlider slides={slides} intervalMs={6000} />
 
           <div className="mt-4 sm:mt-5">
@@ -482,7 +770,7 @@ export default function Page() {
       </section>
 
       {/* Footer */}
-      <footer className="relative z-20 w-full">
+      <footer className="relative z-20 w-full bg-black">
         <div className="mx-auto max-w-6xl px-4 pb-8 pt-4 sm:pb-10 sm:pt-6">
           <div className="h-px bg-white/[0.08]" />
 
