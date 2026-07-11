@@ -78,20 +78,21 @@ function DownloadStoreButtons() {
   return (
     <div className="relative z-30 mx-auto flex w-full flex-col items-center">
       <div className="flex items-center justify-center gap-2.5">
-        <button
-          type="button"
-          onClick={() => openFeedback("google")}
+        <a
+          href="https://play.google.com/store/apps/details?id=com.stayknown.app"
+          target="_blank"
+          rel="noopener noreferrer"
           className="
-            group relative flex h-[54px] w-[86px] flex-col items-center justify-center gap-1
-            overflow-hidden rounded-2xl border border-white/12 bg-white/[0.045]
-            text-white shadow-[0_18px_50px_rgba(0,0,0,0.45)]
-            transition duration-200
-            hover:bg-white hover:text-black hover:border-white/30
-            active:scale-[0.98]
-            focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/25
-            sm:h-[56px] sm:w-[92px]
-          "
-          aria-label="Google Play launch notice"
+    group relative flex h-[54px] w-[86px] flex-col items-center justify-center gap-1
+    overflow-hidden rounded-2xl border border-white/12 bg-white/[0.045]
+    text-white shadow-[0_18px_50px_rgba(0,0,0,0.45)]
+    transition duration-200
+    hover:bg-white hover:text-black hover:border-white/30
+    active:scale-[0.98]
+    focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/25
+    sm:h-[56px] sm:w-[92px]
+  "
+          aria-label="Download StayKnown on Google Play"
         >
           <span className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_35%_18%,rgba(255,255,255,0.2),transparent_58%)] opacity-80" />
           <span className="relative">
@@ -100,8 +101,7 @@ function DownloadStoreButtons() {
           <span className="relative text-[9.5px] font-black tracking-[-0.01em] leading-none">
             Google Play
           </span>
-        </button>
-
+        </a>
         <button
           type="button"
           onClick={() => openFeedback("apple")}
