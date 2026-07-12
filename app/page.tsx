@@ -1,11 +1,12 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useMemo, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import HeroSlider, { type HeroSlide } from "../components/HeroSlider";
 import StayKnownActionMenu from "@/components/StayKnownActionMenu";
 
-type StoreKind = "google" | "apple";
+const GOOGLE_PLAY_URL =
+  "https://play.google.com/store/apps/details?id=com.stayknown.app";
 
 type CinematicHeroSlide = {
   id: string;
@@ -42,192 +43,108 @@ function GooglePlayMark() {
   );
 }
 
-function AppStoreMark() {
+function GooglePlayDownloadButton({ className = "" }: { className?: string }) {
   return (
-    <svg
-      viewBox="0 0 384 512"
-      aria-hidden="true"
-      className="h-[18px] w-[18px] shrink-0"
+    <a
+      href={GOOGLE_PLAY_URL}
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label="Download StayKnown on Google Play"
+      className={`
+        sk-google-play-button group inline-flex h-[52px] min-w-[184px]
+        items-center justify-center gap-3 rounded-[18px]
+        border border-white/85 bg-white px-5
+        !text-black shadow-[0_18px_50px_rgba(0,0,0,0.34)]
+        transition duration-200
+        hover:border-white hover:bg-white/92 hover:!text-black
+        active:scale-[0.985] active:bg-white active:!text-black
+        visited:!text-black focus:!text-black
+        focus-visible:outline-none focus-visible:ring-2
+        focus-visible:ring-white/35 ${className}
+      `}
     >
-      <path
-        fill="currentColor"
-        d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.3-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.5-19.2-39.4.6-75.7 22.9-96 58.2-41 71.1-10.5 176.5 29.5 234.3 19.5 28.2 42.8 59.9 73.4 58.8 29.4-1.2 40.5-19 76-19s45.5 19 76.5 18.4c31.6-.6 51.6-28.8 71-57.2 22.4-32.7 31.6-64.4 32.1-66-.7-.3-61.8-23.7-62.2-94.6zM261.1 103.2c16.2-19.7 27.2-47.1 24.2-74.4-23.4.9-51.8 15.6-68.6 35.3-15.1 17.4-28.3 45.3-24.7 72 26.1 2 52.8-13.3 69.1-32.9z"
-      />
-    </svg>
+      <span
+        className="
+          flex h-8 w-8 shrink-0 items-center justify-center
+          rounded-[10px] bg-black/[0.045]
+        "
+      >
+        <GooglePlayMark />
+      </span>
+
+      <span className="flex flex-col items-start leading-none">
+        <span
+          className="
+            sk-google-play-kicker text-[8px] font-black uppercase
+            tracking-[0.16em]
+          "
+        >
+          Get it on
+        </span>
+
+        <span
+          className="
+            sk-google-play-label mt-1 text-[14px] font-black
+            tracking-[-0.035em]
+          "
+        >
+          Google Play
+        </span>
+      </span>
+    </a>
   );
 }
 
-function DownloadStoreButtons() {
-  const [activeStore, setActiveStore] = useState<StoreKind | null>(null);
+function RevealOnScroll({
+  children,
+  className = "",
+  delay = 0,
+}: {
+  children: ReactNode;
+  className?: string;
+  delay?: number;
+}) {
+  const elementRef = useRef<HTMLDivElement | null>(null);
+  const [visible, setVisible] = useState(false);
 
-  const openFeedback = (store: StoreKind) => {
-    setActiveStore(store);
-  };
+  useEffect(() => {
+    const element = elementRef.current;
+    if (!element) return;
 
-  const closeFeedback = () => {
-    setActiveStore(null);
-  };
+    const reduceMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
 
-  const storeLabel =
-    activeStore === "google"
-      ? "Google Play"
-      : activeStore === "apple"
-        ? "App Store"
-        : "Store";
+    if (reduceMotion || !("IntersectionObserver" in window)) {
+      setVisible(true);
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry?.isIntersecting) return;
+
+        setVisible(true);
+        observer.unobserve(entry.target);
+      },
+      {
+        threshold: 0.14,
+        rootMargin: "0px 0px -8% 0px",
+      },
+    );
+
+    observer.observe(element);
+
+    return () => observer.disconnect();
+  }, []);
 
   return (
-    <div className="relative z-30 mx-auto flex w-full flex-col items-center">
-      <div className="flex items-center justify-center gap-2.5">
-        <a
-          href="https://play.google.com/store/apps/details?id=com.stayknown.app"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="
-    group relative flex h-[54px] w-[86px] flex-col items-center justify-center gap-1
-    overflow-hidden rounded-2xl border border-white/12 bg-white/[0.045]
-    text-white shadow-[0_18px_50px_rgba(0,0,0,0.45)]
-    transition duration-200
-    hover:bg-white hover:text-black hover:border-white/30
-    active:scale-[0.98]
-    focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/25
-    sm:h-[56px] sm:w-[92px]
-  "
-          aria-label="Download StayKnown on Google Play"
-        >
-          <span className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_35%_18%,rgba(255,255,255,0.2),transparent_58%)] opacity-80" />
-          <span className="relative">
-            <GooglePlayMark />
-          </span>
-          <span className="relative text-[9.5px] font-black tracking-[-0.01em] leading-none">
-            Google Play
-          </span>
-        </a>
-        <button
-          type="button"
-          onClick={() => openFeedback("apple")}
-          className="
-            group relative flex h-[54px] w-[86px] flex-col items-center justify-center gap-1
-            overflow-hidden rounded-2xl border border-white/12 bg-white/[0.045]
-            text-white shadow-[0_18px_50px_rgba(0,0,0,0.45)]
-            transition duration-200
-            hover:bg-white hover:text-black hover:border-white/30
-            active:scale-[0.98]
-            focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/25
-            sm:h-[56px] sm:w-[92px]
-          "
-          aria-label="App Store launch notice"
-        >
-          <span className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_35%_18%,rgba(255,255,255,0.2),transparent_58%)] opacity-80" />
-          <span className="relative">
-            <AppStoreMark />
-          </span>
-          <span className="relative text-[9.5px] font-black tracking-[-0.01em] leading-none">
-            App Store
-          </span>
-        </button>
-      </div>
-
-      {activeStore ? (
-        <>
-          <button
-            type="button"
-            aria-label="Dismiss launch notice"
-            className="fixed inset-0 z-[60] cursor-default bg-transparent"
-            onPointerDown={closeFeedback}
-          />
-
-          <div
-            className="
-              sk-download-feedback sk-launch-feedback
-              relative z-[70] mt-3 w-[min(92vw,430px)] overflow-hidden rounded-[24px]
-              border border-white/70 bg-white text-black
-              shadow-[0_24px_80px_rgba(0,0,0,0.55)]
-            "
-          >
-            <div className="relative p-4 sm:p-5">
-              <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_0%,rgba(0,0,0,0.06),transparent_52%)]" />
-              <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-white" />
-
-              <button
-                type="button"
-                onPointerDown={(event) => {
-                  event.preventDefault();
-                  event.stopPropagation();
-                  closeFeedback();
-                }}
-                onClick={(event) => {
-                  event.preventDefault();
-                  event.stopPropagation();
-                  closeFeedback();
-                }}
-                className="
-                  absolute right-3 top-3 z-[5] flex h-9 w-9 items-center justify-center rounded-full
-                  bg-black/[0.055] text-[18px] font-black !text-black/55
-                  transition hover:bg-black/10 hover:!text-black
-                  active:scale-[0.96] active:bg-black/15
-                  focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/15
-                "
-                aria-label="Close launch notice"
-              >
-                ×
-              </button>
-
-              <div className="relative pr-8">
-                <div className="text-[10px] font-black uppercase tracking-[0.22em] text-black/42">
-                  {storeLabel}
-                </div>
-
-                <div className="mt-1 text-[15px] sm:text-[16px] font-black tracking-[-0.035em] text-black">
-                  StayKnown will launch soon.
-                </div>
-
-                <p className="mt-2 text-[12.3px] sm:text-[12.8px] font-semibold leading-relaxed text-black/62">
-                  The app is not live on the stores yet. Please check back from
-                  time to time, or follow the official brand on TikTok{" "}
-                  <a
-                    href="https://www.tiktok.com/@6clementjoshua"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="
-                      sk-tiktok-launch-link
-                      font-black !text-black underline decoration-black/25 underline-offset-4
-                      transition hover:decoration-black
-                      visited:!text-black active:!text-black focus:!text-black
-                    "
-                  >
-                    @6clementjoshua
-                  </a>{" "}
-                  for the launch date.
-                </p>
-
-                <div className="mt-3 rounded-2xl border border-black/10 bg-black/[0.035] p-3">
-                  <p className="text-[11.8px] sm:text-[12.2px] font-semibold leading-relaxed text-black/58">
-                    Anyone who would like to support the project can do so
-                    respectfully through the support page.
-                  </p>
-
-                  <a
-                    href="/donate"
-                    className="
-                      sk-launch-support
-                      mt-3 inline-flex h-9 min-w-[176px] items-center justify-center rounded-full
-                      bg-black px-5 text-[11px] font-black tracking-[-0.01em] !text-white
-                      shadow-[0_12px_28px_rgba(0,0,0,0.18)]
-                      transition duration-200
-                      hover:bg-black/85 hover:!text-white
-                      active:bg-white active:!text-black active:scale-[0.99]
-                      visited:!text-white focus:!text-white
-                      focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/20
-                    "
-                  >
-                    Support StayKnown
-                  </a>
-                </div>
-              </div>
-            </div>
-          </div>
-        </>
-      ) : null}
+    <div
+      ref={elementRef}
+      className={`sk-scroll-reveal ${visible ? "is-visible" : ""} ${className}`}
+      style={{ transitionDelay: `${delay}ms` }}
+    >
+      {children}
     </div>
   );
 }
@@ -334,20 +251,30 @@ function CinematicHeroSection({ slides }: { slides: CinematicHeroSlide[] }) {
               {activeSlide.body}
             </p>
 
-            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+            <div
+              className="
+                mt-6 flex flex-col gap-3
+                sm:flex-row sm:items-center sm:justify-between
+              "
+            >
               <a
                 href={activeSlide.href}
                 className="
-    inline-flex h-12 items-center justify-center rounded-full
-    bg-white px-6 text-[13px] font-black tracking-[-0.01em]
-    !text-black shadow-[0_18px_50px_rgba(0,0,0,0.3)]
-    transition hover:bg-white/88 active:scale-[0.99]
-    visited:!text-black focus:!text-black
-    focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/35
-  "
+                  inline-flex h-12 items-center justify-center rounded-full
+                  bg-white px-6 text-[13px] font-black tracking-[-0.01em]
+                  !text-black shadow-[0_18px_50px_rgba(0,0,0,0.30)]
+                  transition duration-200
+                  hover:bg-white/90 hover:!text-black
+                  active:scale-[0.99] active:!text-black
+                  visited:!text-black focus:!text-black
+                  focus-visible:outline-none
+                  focus-visible:ring-2 focus-visible:ring-white/35
+                "
               >
                 Learn More
               </a>
+
+              <GooglePlayDownloadButton className="w-full sm:w-auto" />
             </div>
 
             <div className="mt-6 flex items-center gap-2">
@@ -379,7 +306,7 @@ function StayKnownIntroSection() {
   return (
     <section id="stayknown-intro" className="relative z-10 bg-black">
       <div className="mx-auto max-w-6xl px-4 py-14 sm:px-5 sm:py-16 lg:px-6 lg:py-20">
-        <div className="mx-auto max-w-3xl text-center">
+        <RevealOnScroll className="mx-auto max-w-3xl text-center">
           <div className="text-[10px] font-black uppercase tracking-[0.28em] text-white/38">
             Why StayKnown exists
           </div>
@@ -393,47 +320,53 @@ function StayKnownIntroSection() {
             visits, night outings, ride-hailing, emergencies, and moments where
             trusted people need to know that someone is safe.
           </p>
-        </div>
+        </RevealOnScroll>
 
         <div className="mt-9 grid gap-4 md:grid-cols-3">
-          <div className="rounded-[28px] border border-white/[0.09] bg-white/[0.045] p-5 shadow-[0_18px_60px_rgba(0,0,0,0.32)]">
-            <div className="text-[12px] font-black uppercase tracking-[0.2em] text-white/40">
-              Consent First
+          <RevealOnScroll delay={40} className="h-full">
+            <div className="h-full rounded-[28px] border border-white/[0.09] bg-white/[0.045] p-5 shadow-[0_18px_60px_rgba(0,0,0,0.32)]">
+              <div className="text-[12px] font-black uppercase tracking-[0.2em] text-white/40">
+                Consent First
+              </div>
+              <h3 className="mt-3 text-[22px] font-black tracking-[-0.045em] text-white">
+                Not a spying app.
+              </h3>
+              <p className="mt-3 text-[13px] font-semibold leading-relaxed text-white/55">
+                StayKnown is built around approved contacts, intentional safety
+                sharing, privacy notices, and trusted access.
+              </p>
             </div>
-            <h3 className="mt-3 text-[22px] font-black tracking-[-0.045em] text-white">
-              Not a spying app.
-            </h3>
-            <p className="mt-3 text-[13px] font-semibold leading-relaxed text-white/55">
-              StayKnown is built around approved contacts, intentional safety
-              sharing, privacy notices, and trusted access.
-            </p>
-          </div>
+          </RevealOnScroll>
 
-          <div className="rounded-[28px] border border-white/[0.09] bg-white/[0.045] p-5 shadow-[0_18px_60px_rgba(0,0,0,0.32)]">
-            <div className="text-[12px] font-black uppercase tracking-[0.2em] text-white/40">
-              Real Movement
+          <RevealOnScroll delay={120} className="h-full">
+            <div className="h-full rounded-[28px] border border-white/[0.09] bg-white/[0.045] p-5 shadow-[0_18px_60px_rgba(0,0,0,0.32)]">
+              <div className="text-[12px] font-black uppercase tracking-[0.2em] text-white/40">
+                Real Movement
+              </div>
+              <h3 className="mt-3 text-[22px] font-black tracking-[-0.045em] text-white">
+                Visits, trips, and daily life.
+              </h3>
+              <p className="mt-3 text-[13px] font-semibold leading-relaxed text-white/55">
+                From school runs to travel and visits, StayKnown helps trusted
+                people understand safety context when it matters.
+              </p>
             </div>
-            <h3 className="mt-3 text-[22px] font-black tracking-[-0.045em] text-white">
-              Visits, trips, and daily life.
-            </h3>
-            <p className="mt-3 text-[13px] font-semibold leading-relaxed text-white/55">
-              From school runs to travel and visits, StayKnown helps trusted
-              people understand safety context when it matters.
-            </p>
-          </div>
+          </RevealOnScroll>
 
-          <div className="rounded-[28px] border border-white/[0.09] bg-white/[0.045] p-5 shadow-[0_18px_60px_rgba(0,0,0,0.32)]">
-            <div className="text-[12px] font-black uppercase tracking-[0.2em] text-white/40">
-              Emergency Ready
+          <RevealOnScroll delay={200} className="h-full">
+            <div className="h-full rounded-[28px] border border-white/[0.09] bg-white/[0.045] p-5 shadow-[0_18px_60px_rgba(0,0,0,0.32)]">
+              <div className="text-[12px] font-black uppercase tracking-[0.2em] text-white/40">
+                Emergency Ready
+              </div>
+              <h3 className="mt-3 text-[22px] font-black tracking-[-0.045em] text-white">
+                Help should not wait.
+              </h3>
+              <p className="mt-3 text-[13px] font-semibold leading-relaxed text-white/55">
+                SOS, I’m Safe, safety evidence, and emergency contacts make
+                response clearer when someone may need help.
+              </p>
             </div>
-            <h3 className="mt-3 text-[22px] font-black tracking-[-0.045em] text-white">
-              Help should not wait.
-            </h3>
-            <p className="mt-3 text-[13px] font-semibold leading-relaxed text-white/55">
-              SOS, I’m Safe, safety evidence, and emergency contacts make
-              response clearer when someone may need help.
-            </p>
-          </div>
+          </RevealOnScroll>
         </div>
       </div>
     </section>
@@ -660,42 +593,63 @@ export default function Page() {
           position: relative;
         }
 
-        .sk-download-feedback {
-          animation: skDownloadFeedbackIn 240ms cubic-bezier(0.2, 0.8, 0.2, 1)
-            both;
-        }
-
-        .sk-launch-feedback a,
-        .sk-launch-feedback a:link,
-        .sk-launch-feedback a:visited,
-        .sk-launch-feedback a:hover,
-        .sk-launch-feedback a:focus {
+        .sk-google-play-button,
+        .sk-google-play-button:link,
+        .sk-google-play-button:visited,
+        .sk-google-play-button:hover,
+        .sk-google-play-button:focus,
+        .sk-google-play-button:active {
           color: #000000 !important;
           -webkit-text-fill-color: #000000 !important;
         }
 
-        .sk-launch-feedback .sk-launch-support,
-        .sk-launch-feedback .sk-launch-support:link,
-        .sk-launch-feedback .sk-launch-support:visited,
-        .sk-launch-feedback .sk-launch-support:hover,
-        .sk-launch-feedback .sk-launch-support:focus {
-          color: #ffffff !important;
-          -webkit-text-fill-color: #ffffff !important;
+        .sk-google-play-button .sk-google-play-kicker {
+          color: rgba(0, 0, 0, 0.56) !important;
+          -webkit-text-fill-color: rgba(0, 0, 0, 0.56) !important;
         }
 
-        .sk-launch-feedback .sk-launch-support:active {
+        .sk-google-play-button:hover .sk-google-play-kicker,
+        .sk-google-play-button:focus .sk-google-play-kicker {
+          color: rgba(0, 0, 0, 0.68) !important;
+          -webkit-text-fill-color: rgba(0, 0, 0, 0.68) !important;
+        }
+
+        .sk-google-play-button .sk-google-play-label,
+        .sk-google-play-button:hover .sk-google-play-label,
+        .sk-google-play-button:focus .sk-google-play-label {
           color: #000000 !important;
           -webkit-text-fill-color: #000000 !important;
         }
 
-        @keyframes skDownloadFeedbackIn {
-          from {
-            opacity: 0;
-            transform: translateY(14px) scale(0.985);
+        .sk-scroll-reveal {
+          opacity: 0;
+          filter: blur(7px);
+          transform: translate3d(0, 30px, 0) scale(0.988);
+          transition:
+            opacity 780ms cubic-bezier(0.2, 0.8, 0.2, 1),
+            transform 900ms cubic-bezier(0.2, 0.8, 0.2, 1),
+            filter 900ms cubic-bezier(0.2, 0.8, 0.2, 1);
+          will-change: opacity, transform, filter;
+        }
+
+        .sk-scroll-reveal.is-visible {
+          opacity: 1;
+          filter: blur(0);
+          transform: translate3d(0, 0, 0) scale(1);
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          html,
+          body {
+            scroll-behavior: auto;
           }
-          to {
+
+          .sk-scroll-reveal,
+          .sk-scroll-reveal.is-visible {
             opacity: 1;
-            transform: translateY(0) scale(1);
+            filter: none;
+            transform: none;
+            transition: none;
           }
         }
       `}</style>
@@ -733,7 +687,7 @@ export default function Page() {
       {/* App Preview */}
       <section id="app-preview" className="w-full bg-black">
         <div className="mx-auto max-w-6xl px-5 pb-10 pt-4 sm:px-4 sm:pb-12 sm:pt-6 md:pt-8">
-          <div className="mx-auto mb-6 max-w-3xl text-center">
+          <RevealOnScroll className="mx-auto mb-6 max-w-3xl text-center">
             <div className="text-[10px] font-black uppercase tracking-[0.28em] text-white/38">
               Inside the app
             </div>
@@ -741,22 +695,27 @@ export default function Page() {
             <h2 className="mt-3 text-[30px] font-black leading-[1] tracking-[-0.06em] text-white sm:text-[42px] md:text-[52px]">
               Built for movement, trust, SOS, visits, and approved contacts.
             </h2>
-          </div>
+          </RevealOnScroll>
 
-          <HeroSlider slides={slides} intervalMs={6000} />
+          <RevealOnScroll delay={80}>
+            <HeroSlider slides={slides} intervalMs={6000} />
+          </RevealOnScroll>
 
-          <div className="mt-4 sm:mt-5">
-            <DownloadStoreButtons />
-          </div>
+          <RevealOnScroll
+            delay={160}
+            className="mt-5 flex justify-center sm:mt-6"
+          >
+            <GooglePlayDownloadButton className="w-full max-w-[230px] sm:w-auto" />
+          </RevealOnScroll>
         </div>
       </section>
 
       {/* Footer */}
       <footer className="relative z-20 w-full bg-black">
-        <div className="mx-auto max-w-6xl px-4 pb-8 pt-4 sm:pb-10 sm:pt-6">
+        <RevealOnScroll className="mx-auto max-w-6xl px-4 pb-8 pt-4 sm:pb-10 sm:pt-6">
           <div className="h-px bg-white/[0.08]" />
 
-          <div className="mt-6 sm:mt-8 flex flex-col items-center gap-3 text-center">
+          <div className="mt-6 flex flex-col items-center gap-3 text-center sm:mt-8">
             <div className="flex flex-wrap justify-center gap-x-4 gap-y-2 text-[11px] sm:text-[12px] font-semibold text-white/42 leading-relaxed">
               <a
                 href="/privacy"
@@ -949,7 +908,7 @@ export default function Page() {
               {new Date().getFullYear()} • stay-known.com
             </div>
           </div>
-        </div>
+        </RevealOnScroll>
       </footer>
     </main>
   );
