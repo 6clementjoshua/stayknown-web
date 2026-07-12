@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import HeroSlider, { type HeroSlide } from "../components/HeroSlider";
 import StayKnownActionMenu from "@/components/StayKnownActionMenu";
 
@@ -92,60 +92,6 @@ function GooglePlayDownloadButton({ className = "" }: { className?: string }) {
         </span>
       </span>
     </a>
-  );
-}
-
-function RevealOnScroll({
-  children,
-  className = "",
-  delay = 0,
-}: {
-  children: ReactNode;
-  className?: string;
-  delay?: number;
-}) {
-  const elementRef = useRef<HTMLDivElement | null>(null);
-  const [visible, setVisible] = useState(false);
-
-  useEffect(() => {
-    const element = elementRef.current;
-    if (!element) return;
-
-    const reduceMotion = window.matchMedia(
-      "(prefers-reduced-motion: reduce)",
-    ).matches;
-
-    if (reduceMotion || !("IntersectionObserver" in window)) {
-      setVisible(true);
-      return;
-    }
-
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (!entry?.isIntersecting) return;
-
-        setVisible(true);
-        observer.unobserve(entry.target);
-      },
-      {
-        threshold: 0.14,
-        rootMargin: "0px 0px -8% 0px",
-      },
-    );
-
-    observer.observe(element);
-
-    return () => observer.disconnect();
-  }, []);
-
-  return (
-    <div
-      ref={elementRef}
-      className={`sk-scroll-reveal ${visible ? "is-visible" : ""} ${className}`}
-      style={{ transitionDelay: `${delay}ms` }}
-    >
-      {children}
-    </div>
   );
 }
 
@@ -306,7 +252,7 @@ function StayKnownIntroSection() {
   return (
     <section id="stayknown-intro" className="relative z-10 bg-black">
       <div className="mx-auto max-w-6xl px-4 py-14 sm:px-5 sm:py-16 lg:px-6 lg:py-20">
-        <RevealOnScroll className="mx-auto max-w-3xl text-center">
+        <div data-sk-reveal className="sk-reveal mx-auto max-w-3xl text-center">
           <div className="text-[10px] font-black uppercase tracking-[0.28em] text-white/38">
             Why StayKnown exists
           </div>
@@ -320,10 +266,10 @@ function StayKnownIntroSection() {
             visits, night outings, ride-hailing, emergencies, and moments where
             trusted people need to know that someone is safe.
           </p>
-        </RevealOnScroll>
+        </div>
 
         <div className="mt-9 grid gap-4 md:grid-cols-3">
-          <RevealOnScroll delay={40} className="h-full">
+          <div data-sk-reveal className="sk-reveal h-full">
             <div className="h-full rounded-[28px] border border-white/[0.09] bg-white/[0.045] p-5 shadow-[0_18px_60px_rgba(0,0,0,0.32)]">
               <div className="text-[12px] font-black uppercase tracking-[0.2em] text-white/40">
                 Consent First
@@ -336,9 +282,9 @@ function StayKnownIntroSection() {
                 sharing, privacy notices, and trusted access.
               </p>
             </div>
-          </RevealOnScroll>
+          </div>
 
-          <RevealOnScroll delay={120} className="h-full">
+          <div data-sk-reveal className="sk-reveal h-full">
             <div className="h-full rounded-[28px] border border-white/[0.09] bg-white/[0.045] p-5 shadow-[0_18px_60px_rgba(0,0,0,0.32)]">
               <div className="text-[12px] font-black uppercase tracking-[0.2em] text-white/40">
                 Real Movement
@@ -351,9 +297,9 @@ function StayKnownIntroSection() {
                 people understand safety context when it matters.
               </p>
             </div>
-          </RevealOnScroll>
+          </div>
 
-          <RevealOnScroll delay={200} className="h-full">
+          <div data-sk-reveal className="sk-reveal h-full">
             <div className="h-full rounded-[28px] border border-white/[0.09] bg-white/[0.045] p-5 shadow-[0_18px_60px_rgba(0,0,0,0.32)]">
               <div className="text-[12px] font-black uppercase tracking-[0.2em] text-white/40">
                 Emergency Ready
@@ -366,7 +312,7 @@ function StayKnownIntroSection() {
                 response clearer when someone may need help.
               </p>
             </div>
-          </RevealOnScroll>
+          </div>
         </div>
       </div>
     </section>
@@ -549,15 +495,61 @@ export default function Page() {
     [],
   );
 
+  useEffect(() => {
+    const elements = Array.from(
+      document.querySelectorAll<HTMLElement>("[data-sk-reveal]"),
+    );
+
+    if (elements.length === 0) return;
+
+    const prefersReducedMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+
+    if (prefersReducedMotion || !("IntersectionObserver" in window)) {
+      elements.forEach((element) => element.classList.add("is-visible"));
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue;
+
+          entry.target.classList.add("is-visible");
+          observer.unobserve(entry.target);
+        }
+      },
+      {
+        threshold: 0.06,
+        rootMargin: "0px 0px -5% 0px",
+      },
+    );
+
+    elements.forEach((element) => observer.observe(element));
+
+    return () => observer.disconnect();
+  }, []);
+
   return (
-    <main className="min-h-screen bg-black flex flex-col overflow-x-hidden">
+    <main className="min-h-screen w-full max-w-full bg-black flex flex-col overflow-x-clip">
       <style jsx global>{`
         html,
         body {
+          width: 100%;
+          max-width: 100%;
+          margin: 0;
           background: #000;
           color-scheme: dark;
           overflow-x: hidden;
-          scroll-behavior: smooth;
+          overscroll-behavior-x: none;
+        }
+
+        @supports (overflow: clip) {
+          html,
+          body {
+            overflow-x: clip;
+          }
         }
 
         #stayknown-intro,
@@ -621,33 +613,23 @@ export default function Page() {
           -webkit-text-fill-color: #000000 !important;
         }
 
-        .sk-scroll-reveal {
+        .sk-reveal {
           opacity: 0;
-          filter: blur(7px);
-          transform: translate3d(0, 30px, 0) scale(0.988);
+          transform: translateY(12px);
           transition:
-            opacity 780ms cubic-bezier(0.2, 0.8, 0.2, 1),
-            transform 900ms cubic-bezier(0.2, 0.8, 0.2, 1),
-            filter 900ms cubic-bezier(0.2, 0.8, 0.2, 1);
-          will-change: opacity, transform, filter;
+            opacity 320ms ease-out,
+            transform 380ms cubic-bezier(0.22, 1, 0.36, 1);
         }
 
-        .sk-scroll-reveal.is-visible {
+        .sk-reveal.is-visible {
           opacity: 1;
-          filter: blur(0);
-          transform: translate3d(0, 0, 0) scale(1);
+          transform: translateY(0);
         }
 
         @media (prefers-reduced-motion: reduce) {
-          html,
-          body {
-            scroll-behavior: auto;
-          }
-
-          .sk-scroll-reveal,
-          .sk-scroll-reveal.is-visible {
+          .sk-reveal,
+          .sk-reveal.is-visible {
             opacity: 1;
-            filter: none;
             transform: none;
             transition: none;
           }
@@ -687,7 +669,10 @@ export default function Page() {
       {/* App Preview */}
       <section id="app-preview" className="w-full bg-black">
         <div className="mx-auto max-w-6xl px-5 pb-10 pt-4 sm:px-4 sm:pb-12 sm:pt-6 md:pt-8">
-          <RevealOnScroll className="mx-auto mb-6 max-w-3xl text-center">
+          <div
+            data-sk-reveal
+            className="sk-reveal mx-auto mb-6 max-w-3xl text-center"
+          >
             <div className="text-[10px] font-black uppercase tracking-[0.28em] text-white/38">
               Inside the app
             </div>
@@ -695,24 +680,25 @@ export default function Page() {
             <h2 className="mt-3 text-[30px] font-black leading-[1] tracking-[-0.06em] text-white sm:text-[42px] md:text-[52px]">
               Built for movement, trust, SOS, visits, and approved contacts.
             </h2>
-          </RevealOnScroll>
+          </div>
 
-          <RevealOnScroll delay={80}>
-            <HeroSlider slides={slides} intervalMs={6000} />
-          </RevealOnScroll>
+          <HeroSlider slides={slides} intervalMs={6000} />
 
-          <RevealOnScroll
-            delay={160}
-            className="mt-5 flex justify-center sm:mt-6"
+          <div
+            data-sk-reveal
+            className="sk-reveal mt-5 flex justify-center sm:mt-6"
           >
             <GooglePlayDownloadButton className="w-full max-w-[230px] sm:w-auto" />
-          </RevealOnScroll>
+          </div>
         </div>
       </section>
 
       {/* Footer */}
       <footer className="relative z-20 w-full bg-black">
-        <RevealOnScroll className="mx-auto max-w-6xl px-4 pb-8 pt-4 sm:pb-10 sm:pt-6">
+        <div
+          data-sk-reveal
+          className="sk-reveal mx-auto max-w-6xl px-4 pb-8 pt-4 sm:pb-10 sm:pt-6"
+        >
           <div className="h-px bg-white/[0.08]" />
 
           <div className="mt-6 flex flex-col items-center gap-3 text-center sm:mt-8">
@@ -908,7 +894,7 @@ export default function Page() {
               {new Date().getFullYear()} • stay-known.com
             </div>
           </div>
-        </RevealOnScroll>
+        </div>
       </footer>
     </main>
   );
