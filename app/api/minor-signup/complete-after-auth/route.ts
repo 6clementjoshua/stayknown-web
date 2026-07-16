@@ -271,6 +271,30 @@ async function upsertApprovedMinorProfile(params: {
 
   if (profileErr) throw profileErr;
 }
+
+async function reconcileUniversalProfile(params: {
+  sb: ReturnType<typeof admin>;
+  uid: string;
+}) {
+  const { sb, uid } = params;
+
+  const { data, error } = await sb.rpc("reconcile_profile_identity", {
+    p_user_id: uid,
+  });
+
+  if (error) {
+    throw error;
+  }
+
+  if (!data || typeof data !== "object") {
+    throw new Error(
+      "Universal profile reconciliation returned an invalid response.",
+    );
+  }
+
+  return data;
+}
+
 async function syncGuardianEmergencyContact(params: {
   sb: ReturnType<typeof admin>;
   uid: string;
@@ -455,6 +479,17 @@ export async function POST(req: Request) {
       row.auth_user_id &&
       clean(row.auth_user_id) === user.id
     ) {
+      /*
+    The guardian-specific synchronization was already completed.
+
+    Still run the universal reconciler so older approved minor accounts
+    receive the same profile-readiness repair used by every StayKnown user.
+  */
+      await reconcileUniversalProfile({
+        sb,
+        uid: user.id,
+      });
+
       return NextResponse.json({
         ok: true,
         state: "already_completed",
@@ -475,6 +510,17 @@ export async function POST(req: Request) {
         sb,
         uid: user.id,
         row,
+      });
+
+      /*
+  Guardian consent and guardian contact are specific to minors.
+
+  After those writes finish, use the same universal evaluator used for
+  adults, returning users and legacy accounts.
+*/
+      await reconcileUniversalProfile({
+        sb,
+        uid: user.id,
       });
 
       const now = toIsoNow();
