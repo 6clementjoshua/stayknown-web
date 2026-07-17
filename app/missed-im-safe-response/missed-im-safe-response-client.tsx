@@ -179,31 +179,52 @@ function NameWithBadge({
   );
 }
 
+function ChevronIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      fill="none"
+      aria-hidden="true"
+      className={className}
+    >
+      <path
+        d="m7.5 5 5 5-5 5"
+        stroke="currentColor"
+        strokeWidth="1.65"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 function GlassSpinner() {
   return (
-    <div className="relative h-9 w-9 shrink-0">
+    <div className="relative h-11 w-11 shrink-0" aria-label="Loading">
+      <div className="absolute inset-0 rounded-full bg-white/70 shadow-[0_14px_34px_rgba(0,0,0,0.14),inset_0_1px_0_rgba(255,255,255,0.96)]" />
       <div
-        className="absolute inset-0 rounded-full border border-black/12 border-t-black/70 animate-spin"
-        style={{ animationDuration: "900ms" }}
+        className="absolute inset-[3px] animate-spin rounded-full border border-black/10 border-t-black/75"
+        style={{ animationDuration: "880ms" }}
       />
       <div
-        className="absolute inset-[6px] rounded-full border border-black/8 border-b-black/45 animate-spin"
-        style={{ animationDuration: "1300ms", animationDirection: "reverse" }}
+        className="absolute inset-[10px] animate-spin rounded-full border border-black/[0.07] border-b-black/40"
+        style={{ animationDuration: "1260ms", animationDirection: "reverse" }}
       />
-      <div className="absolute inset-[13px] rounded-full bg-black/70 shadow-[0_0_20px_rgba(0,0,0,0.16)]" />
+      <div className="absolute inset-[17px] rounded-full bg-black/80 shadow-[0_0_18px_rgba(0,0,0,0.22)]" />
     </div>
   );
 }
 
 function AnimatedCheck() {
   return (
-    <div className="relative flex h-[74px] w-[74px] items-center justify-center">
-      <div className="absolute inset-0 rounded-full bg-black/[0.055] animate-[skApprovePulse_2.4s_ease-in-out_infinite]" />
-      <div className="absolute inset-[7px] rounded-full border border-black/10 bg-white/94 shadow-[0_18px_44px_rgba(0,0,0,0.12)] backdrop-blur-xl" />
-      <svg viewBox="0 0 52 52" className="relative z-[2] h-7 w-7" fill="none">
+    <div className="relative flex h-[86px] w-[86px] items-center justify-center">
+      <div className="absolute inset-0 animate-[skApprovePulse_2.6s_ease-in-out_infinite] rounded-full bg-black/[0.055]" />
+      <div className="absolute inset-[7px] rounded-full border border-white/90 bg-[linear-gradient(145deg,rgba(255,255,255,0.98),rgba(230,232,235,0.86))] shadow-[0_20px_50px_rgba(0,0,0,0.14),inset_0_1px_0_rgba(255,255,255,1),inset_0_-8px_18px_rgba(0,0,0,0.045)]" />
+      <div className="absolute inset-[14px] rounded-full border border-black/[0.07] bg-white/72 backdrop-blur-xl" />
+      <svg viewBox="0 0 52 52" className="relative z-[2] h-8 w-8" fill="none">
         <path
           d="M14 27.5 22.2 35.5 38.5 18.5"
-          stroke="rgba(0,0,0,0.88)"
+          stroke="rgba(0,0,0,0.9)"
           strokeWidth="4.2"
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -220,10 +241,11 @@ function AnimatedCheck() {
 
 function AnimatedDecline() {
   return (
-    <div className="relative flex h-[74px] w-[74px] items-center justify-center">
-      <div className="absolute inset-0 rounded-full bg-black/[0.055] animate-[skDeclinePulse_2.4s_ease-in-out_infinite]" />
-      <div className="absolute inset-[7px] rounded-full border border-black/10 bg-white/94 shadow-[0_18px_44px_rgba(0,0,0,0.12)] backdrop-blur-xl" />
-      <div className="relative z-[2] text-[28px] font-black leading-none text-black/78">
+    <div className="relative flex h-[86px] w-[86px] items-center justify-center">
+      <div className="absolute inset-0 animate-[skDeclinePulse_2.6s_ease-in-out_infinite] rounded-full bg-black/[0.055]" />
+      <div className="absolute inset-[7px] rounded-full border border-white/90 bg-[linear-gradient(145deg,rgba(255,255,255,0.98),rgba(230,232,235,0.86))] shadow-[0_20px_50px_rgba(0,0,0,0.14),inset_0_1px_0_rgba(255,255,255,1),inset_0_-8px_18px_rgba(0,0,0,0.045)]" />
+      <div className="absolute inset-[14px] rounded-full border border-black/[0.07] bg-white/72 backdrop-blur-xl" />
+      <div className="relative z-[2] text-[30px] font-black leading-none text-black/80">
         ×
       </div>
     </div>
@@ -243,33 +265,110 @@ function SweepButton({
 }) {
   const cls =
     tone === "light"
-      ? "bg-white/74 text-black/72 border-black/10 hover:bg-white/92"
-      : "bg-black text-white border-black hover:shadow-[0_18px_44px_rgba(0,0,0,0.18)]";
+      ? "border-white/90 bg-[linear-gradient(145deg,rgba(255,255,255,0.96),rgba(225,228,232,0.78))] text-black/72 shadow-[0_10px_24px_rgba(0,0,0,0.08),inset_0_1px_0_rgba(255,255,255,1),inset_0_-5px_12px_rgba(0,0,0,0.04)] hover:border-black/10 hover:text-black"
+      : "border-black/90 bg-[linear-gradient(145deg,#1c1c1e,#050506)] text-white shadow-[0_16px_36px_rgba(0,0,0,0.25),inset_0_1px_0_rgba(255,255,255,0.16),inset_0_-7px_14px_rgba(0,0,0,0.55)] hover:shadow-[0_20px_44px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.2),inset_0_-7px_14px_rgba(0,0,0,0.55)]";
 
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className={`group relative overflow-hidden rounded-full border px-5 py-[13px] text-[12px] font-black tracking-[-0.01em] transition-all duration-200 ease-out active:scale-[0.985] ${
-        disabled ? "cursor-not-allowed opacity-55" : "hover:-translate-y-[1px]"
+      className={`group relative min-h-[48px] min-w-0 overflow-hidden rounded-[18px] border px-5 py-[13px] text-[12px] font-black tracking-[-0.01em] outline-none transition duration-300 ease-out focus-visible:ring-2 focus-visible:ring-black/30 focus-visible:ring-offset-2 active:translate-y-[1px] active:scale-[0.99] ${
+        disabled ? "cursor-not-allowed opacity-45" : "hover:-translate-y-0.5"
       } ${cls}`}
     >
-      <span className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-200 group-hover:opacity-100 bg-[linear-gradient(115deg,transparent_18%,rgba(255,255,255,0.24)_42%,transparent_64%)] bg-[length:220%_100%] animate-[skButtonSweep_1.8s_linear_infinite]" />
-      <span className="relative z-[1]">{children}</span>
+      <span className="pointer-events-none absolute inset-x-3 top-px h-px bg-white/70 opacity-80" />
+      <span className="pointer-events-none absolute inset-0 translate-x-[-140%] bg-[linear-gradient(112deg,transparent_24%,rgba(255,255,255,0.34)_47%,transparent_69%)] transition-transform duration-700 group-hover:translate-x-[140%]" />
+      <span className="relative z-[1] flex items-center justify-center gap-2">
+        <span className="min-w-0 break-words">{children}</span>
+        <ChevronIcon className="h-3.5 w-3.5 shrink-0 opacity-55 transition-transform duration-300 group-hover:translate-x-0.5" />
+      </span>
     </button>
   );
 }
 
 function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <div className="rounded-[18px] border border-black/[0.06] bg-white/52 px-4 py-3 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.82)]">
+    <div className="group relative min-w-0 overflow-hidden rounded-[20px] border border-white/80 bg-[linear-gradient(145deg,rgba(255,255,255,0.84),rgba(226,229,233,0.64))] px-4 py-3.5 text-center shadow-[0_12px_30px_rgba(0,0,0,0.075),inset_0_1px_0_rgba(255,255,255,1),inset_0_-7px_14px_rgba(0,0,0,0.035)] transition duration-300 hover:-translate-y-0.5 hover:border-white hover:shadow-[0_16px_36px_rgba(0,0,0,0.1),inset_0_1px_0_rgba(255,255,255,1),inset_0_-7px_14px_rgba(0,0,0,0.04)]">
+      <span className="pointer-events-none absolute inset-x-4 top-px h-px bg-white" />
       <div className="text-[9px] font-black uppercase tracking-[0.24em] text-black/34">
         {label}
       </div>
-      <div className="mt-1 text-[12px] font-extrabold leading-5 text-black/72">
+      <div className="mt-1 min-w-0 break-words text-[12px] font-extrabold leading-5 text-black/74">
         {value}
       </div>
+    </div>
+  );
+}
+
+function PersonCard({
+  eyebrow,
+  person,
+  supporting,
+}: {
+  eyebrow: string;
+  person: PublicPerson;
+  supporting?: string;
+}) {
+  return (
+    <div className="group relative min-w-0 overflow-hidden rounded-[24px] border border-white/80 bg-[linear-gradient(145deg,rgba(255,255,255,0.9),rgba(222,225,229,0.66))] p-4 shadow-[0_18px_42px_rgba(0,0,0,0.09),inset_0_1px_0_rgba(255,255,255,1),inset_0_-10px_22px_rgba(0,0,0,0.04)] transition duration-300 hover:-translate-y-0.5 hover:shadow-[0_22px_50px_rgba(0,0,0,0.12),inset_0_1px_0_rgba(255,255,255,1),inset_0_-10px_22px_rgba(0,0,0,0.045)]">
+      <span className="pointer-events-none absolute inset-x-5 top-px h-px bg-white" />
+      <div className="flex min-w-0 items-center gap-3">
+        <div className="grid h-11 w-11 shrink-0 place-items-center rounded-[16px] border border-white/90 bg-[linear-gradient(145deg,#ffffff,#dfe2e6)] text-[15px] font-black text-black/78 shadow-[0_10px_22px_rgba(0,0,0,0.1),inset_0_1px_0_rgba(255,255,255,1),inset_0_-5px_10px_rgba(0,0,0,0.05)]">
+          {cleanName(person.name).slice(0, 1).toUpperCase()}
+        </div>
+
+        <div className="min-w-0 text-left">
+          <div className="text-[9px] font-black uppercase tracking-[0.22em] text-black/35">
+            {eyebrow}
+          </div>
+          <div className="mt-1 min-w-0 text-[14px] font-black text-black/84">
+            <NameWithBadge name={person.name} verified={person.verified} />
+          </div>
+          {supporting ? (
+            <div className="mt-1 truncate text-[11px] font-semibold text-black/45">
+              {supporting}
+            </div>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StatusRail({ uiState }: { uiState: UiState }) {
+  const final =
+    uiState === "recorded" ||
+    uiState === "already_recorded" ||
+    uiState === "vpn_blocked" ||
+    uiState === "expired" ||
+    uiState === "invalid" ||
+    uiState === "error";
+
+  const steps = [
+    { label: "Review", active: uiState === "gate" },
+    { label: "Confirm", active: uiState === "working" },
+    { label: "Recorded", active: final },
+  ];
+
+  return (
+    <div className="mx-auto mt-5 flex max-w-[420px] items-center justify-center gap-1.5 overflow-hidden rounded-full border border-white/80 bg-white/54 px-2 py-2 shadow-[0_10px_28px_rgba(0,0,0,0.07),inset_0_1px_0_rgba(255,255,255,1)] backdrop-blur-xl">
+      {steps.map((step, index) => (
+        <React.Fragment key={step.label}>
+          <div
+            className={`min-w-0 rounded-full px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.16em] transition duration-300 ${
+              step.active
+                ? "bg-black text-white shadow-[0_8px_18px_rgba(0,0,0,0.2),inset_0_1px_0_rgba(255,255,255,0.17)]"
+                : "text-black/34"
+            }`}
+          >
+            {step.label}
+          </div>
+          {index < steps.length - 1 ? (
+            <ChevronIcon className="h-3 w-3 shrink-0 text-black/24" />
+          ) : null}
+        </React.Fragment>
+      ))}
     </div>
   );
 }
@@ -288,10 +387,12 @@ function StatusTitle({ uiState }: { uiState: UiState }) {
               ? "Invalid response link"
               : uiState === "working"
                 ? "Recording your response"
-                : "Confirm your safety response";
+                : uiState === "error"
+                  ? "Response unavailable"
+                  : "Confirm your safety response";
 
   return (
-    <h1 className="mx-auto max-w-[520px] text-center text-[23px] font-black tracking-[-0.045em] text-black/90 md:text-[28px]">
+    <h1 className="mx-auto max-w-[560px] break-words text-center text-[24px] font-black tracking-[-0.045em] text-black/90 sm:text-[27px] md:text-[31px]">
       {title}
     </h1>
   );
@@ -506,40 +607,79 @@ export default function MissedImSafeResponseClient({
     uiState === "error";
 
   return (
-    <div className="min-h-screen overflow-hidden bg-[#f3f4f6] px-4 py-7 text-black md:py-12">
+    <div className="relative min-h-[100dvh] overflow-x-clip bg-[#eef0f3] px-3 py-5 text-black sm:px-4 sm:py-8 md:py-12">
       <style>{`
         @keyframes skApprovePulse {
-          0%,100% { transform: scale(1); opacity: .92; }
-          50% { transform: scale(1.08); opacity: .66; }
+          0%,100% { transform: scale(1); opacity: .8; }
+          50% { transform: scale(1.1); opacity: .42; }
         }
         @keyframes skDeclinePulse {
-          0%,100% { transform: scale(1); opacity: .92; }
-          50% { transform: scale(1.08); opacity: .66; }
+          0%,100% { transform: scale(1); opacity: .8; }
+          50% { transform: scale(1.1); opacity: .42; }
         }
         @keyframes skCheckDraw {
           to { stroke-dashoffset: 0; }
         }
-        @keyframes skButtonSweep {
-          0% { background-position: 220% 0; }
-          100% { background-position: -20% 0; }
-        }
         @keyframes skFloat {
-          0%,100% { transform: translate3d(0,0,0) scale(1); opacity:.48; }
-          50% { transform: translate3d(0,-10px,0) scale(1.04); opacity:.74; }
+          0%,100% { transform: translate3d(0,0,0) scale(1); opacity:.38; }
+          50% { transform: translate3d(0,-14px,0) scale(1.05); opacity:.68; }
+        }
+        @keyframes skSheen {
+          0% { transform: translateX(-145%) skewX(-16deg); opacity: 0; }
+          18% { opacity: .5; }
+          56% { opacity: .22; }
+          100% { transform: translateX(170%) skewX(-16deg); opacity: 0; }
+        }
+
+        html {
+          background: #eef0f3;
+          scroll-behavior: smooth;
+        }
+
+        body {
+          min-width: 320px;
+          background: #eef0f3;
+        }
+
+        @media (hover: none) {
+          .sk-hover-only {
+            display: none;
+          }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          *,
+          *::before,
+          *::after {
+            animation-duration: 0.001ms !important;
+            animation-iteration-count: 1 !important;
+            scroll-behavior: auto !important;
+            transition-duration: 0.001ms !important;
+          }
         }
       `}</style>
 
-      <div className="pointer-events-none fixed inset-0">
-        <div className="absolute left-1/2 top-[-120px] h-[280px] w-[280px] -translate-x-1/2 rounded-full bg-white/78 blur-3xl animate-[skFloat_6s_ease-in-out_infinite]" />
-        <div className="absolute bottom-[-160px] left-[-80px] h-[300px] w-[300px] rounded-full bg-black/[0.045] blur-3xl animate-[skFloat_7s_ease-in-out_infinite]" />
-        <div className="absolute right-[-110px] top-[220px] h-[260px] w-[260px] rounded-full bg-white/72 blur-3xl animate-[skFloat_8s_ease-in-out_infinite]" />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none fixed inset-0 overflow-hidden"
+      >
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_-10%,rgba(255,255,255,0.96),transparent_38%),radial-gradient(circle_at_8%_34%,rgba(255,255,255,0.72),transparent_30%),radial-gradient(circle_at_92%_56%,rgba(255,255,255,0.7),transparent_30%),linear-gradient(180deg,#f4f5f7_0%,#e9ebee_100%)]" />
+        <div className="absolute left-1/2 top-[-150px] h-[340px] w-[340px] -translate-x-1/2 animate-[skFloat_7s_ease-in-out_infinite] rounded-full border border-white/60 bg-white/45 blur-3xl" />
+        <div className="absolute bottom-[-180px] left-[-100px] h-[340px] w-[340px] animate-[skFloat_9s_ease-in-out_infinite_reverse] rounded-full bg-black/[0.045] blur-3xl" />
+        <div className="absolute right-[-140px] top-[28%] h-[320px] w-[320px] animate-[skFloat_8s_ease-in-out_infinite] rounded-full border border-white/50 bg-white/42 blur-3xl" />
+        <div className="absolute inset-0 opacity-[0.22] [background-image:linear-gradient(rgba(0,0,0,0.025)_1px,transparent_1px),linear-gradient(90deg,rgba(0,0,0,0.025)_1px,transparent_1px)] [background-size:28px_28px]" />
       </div>
 
-      <main className="relative z-[1] mx-auto flex min-h-[calc(100vh-56px)] w-full max-w-[690px] items-center">
-        <section className="w-full overflow-hidden rounded-[34px] border border-white/70 bg-white/72 shadow-[0_34px_110px_rgba(0,0,0,0.13)] backdrop-blur-2xl">
-          <div className="border-b border-black/[0.06] bg-white/48 px-5 pb-5 pt-6 text-center md:px-8">
+      <main className="relative z-[1] mx-auto flex min-h-[calc(100dvh-40px)] w-full max-w-[760px] items-center pb-[max(0px,env(safe-area-inset-bottom))] sm:min-h-[calc(100dvh-64px)] md:min-h-[calc(100dvh-96px)]">
+        <section className="relative w-full min-w-0 overflow-hidden rounded-[30px] border border-white/85 bg-[linear-gradient(145deg,rgba(255,255,255,0.88),rgba(215,219,224,0.7))] shadow-[0_38px_120px_rgba(0,0,0,0.16),0_12px_34px_rgba(0,0,0,0.08),inset_0_1px_0_rgba(255,255,255,1),inset_0_-16px_34px_rgba(0,0,0,0.045)] backdrop-blur-3xl sm:rounded-[38px]">
+          <div className="pointer-events-none absolute inset-[1px] rounded-[29px] border border-white/55 sm:rounded-[37px]" />
+          <div className="pointer-events-none absolute inset-x-10 top-px h-px bg-white" />
+          <div className="sk-hover-only pointer-events-none absolute -left-1/3 top-0 h-full w-1/3 animate-[skSheen_8s_ease-in-out_infinite] bg-[linear-gradient(90deg,transparent,rgba(255,255,255,0.5),transparent)] blur-xl" />
+
+          <header className="relative border-b border-black/[0.065] bg-white/38 px-4 pb-6 pt-5 text-center backdrop-blur-2xl sm:px-6 sm:pt-7 md:px-9 md:pb-7">
             <div className="flex justify-center">
-              <div className="rounded-[23px] border border-white/90 bg-white/90 px-4 py-3 shadow-[0_14px_38px_rgba(0,0,0,0.12)] backdrop-blur-xl">
+              <div className="relative rounded-[22px] border border-white/95 bg-[linear-gradient(145deg,#ffffff,#dfe2e6)] p-3 shadow-[0_16px_38px_rgba(0,0,0,0.14),inset_0_1px_0_rgba(255,255,255,1),inset_0_-7px_14px_rgba(0,0,0,0.05)]">
+                <span className="pointer-events-none absolute inset-x-2 top-px h-px bg-white" />
                 <img
                   src="/6logo.png"
                   alt="StayKnown"
@@ -548,20 +688,21 @@ export default function MissedImSafeResponseClient({
               </div>
             </div>
 
-            <div className="mt-4 text-[10px] font-black uppercase tracking-[0.36em] text-black/42">
+            <div className="mt-4 text-[10px] font-black uppercase tracking-[0.36em] text-black/45">
               StayKnown
             </div>
-
-            <div className="mt-2 text-[9px] font-black uppercase tracking-[0.26em] text-black/32">
+            <div className="mt-2 text-[9px] font-black uppercase tracking-[0.25em] text-black/30">
               Missed I’M SAFE response
             </div>
 
-            <div className="mx-auto mt-4 h-px max-w-[210px] bg-gradient-to-r from-transparent via-black/12 to-transparent" />
+            <StatusRail uiState={uiState} />
+
+            <div className="mx-auto mt-5 h-px max-w-[260px] bg-gradient-to-r from-transparent via-black/12 to-transparent" />
 
             <div className="mt-5">
               <StatusTitle uiState={uiState} />
 
-              <div className="mx-auto mt-3 max-w-[530px] text-center text-[12px] font-semibold leading-6 text-black/58 md:text-[13px]">
+              <div className="mx-auto mt-3 max-w-[570px] break-words text-center text-[12px] font-semibold leading-6 text-black/60 sm:text-[13px]">
                 {uiState === "gate" ? (
                   <p>{context.title}</p>
                 ) : uiState === "working" ? (
@@ -578,74 +719,94 @@ export default function MissedImSafeResponseClient({
                 )}
               </div>
             </div>
-          </div>
+          </header>
 
-          <div className="px-5 py-5 md:px-8 md:py-6">
-            <div className="rounded-[28px] border border-white/76 bg-white/58 p-4 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.92),0_18px_60px_rgba(0,0,0,0.06)] backdrop-blur-xl md:p-5">
-              <div className="text-[9px] font-black uppercase tracking-[0.26em] text-black/34">
-                Response overview
+          <div className="relative px-4 py-5 sm:px-6 sm:py-6 md:px-9 md:py-7">
+            <div className="grid min-w-0 gap-3 sm:grid-cols-2">
+              <PersonCard
+                eyebrow="Contact responding"
+                person={contactPerson}
+                supporting={contactPerson.username || contact}
+              />
+              <PersonCard
+                eyebrow="Person to check"
+                person={subjectPerson}
+                supporting={subjectPerson.username || "StayKnown member"}
+              />
+            </div>
+
+            <section className="relative mt-4 min-w-0 overflow-hidden rounded-[27px] border border-white/80 bg-[linear-gradient(145deg,rgba(255,255,255,0.82),rgba(221,224,228,0.62))] p-4 shadow-[0_18px_52px_rgba(0,0,0,0.08),inset_0_1px_0_rgba(255,255,255,1),inset_0_-10px_24px_rgba(0,0,0,0.035)] backdrop-blur-2xl sm:p-5">
+              <span className="pointer-events-none absolute inset-x-6 top-px h-px bg-white" />
+
+              <div className="flex min-w-0 items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="text-[9px] font-black uppercase tracking-[0.25em] text-black/35">
+                    Response overview
+                  </div>
+                  <div className="mt-1 break-words text-[13px] font-black text-black/78">
+                    {label}
+                  </div>
+                </div>
+
+                <div className="shrink-0 rounded-full border border-white/90 bg-white/74 px-3 py-1.5 text-[10px] font-black text-black/55 shadow-[0_8px_18px_rgba(0,0,0,0.07),inset_0_1px_0_rgba(255,255,255,1)]">
+                  {remaining}
+                </div>
               </div>
 
-              <div className="mt-4 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-                <InfoRow
-                  label="Contact"
-                  value={
-                    <NameWithBadge
-                      name={displayContactName}
-                      verified={contactPerson.verified}
-                    />
-                  }
-                />
-
-                <InfoRow
-                  label="Person to check"
-                  value={
-                    <NameWithBadge
-                      name={displaySubjectName}
-                      verified={subjectPerson.verified}
-                    />
-                  }
-                />
-
+              <div className="mt-4 grid min-w-0 grid-cols-1 gap-2.5 sm:grid-cols-2">
                 <InfoRow label="Response" value={label} />
                 <InfoRow label="Security timer" value={remaining} />
-
                 <InfoRow
                   label="Expected check-in"
                   value={fmtDateTime(expected)}
                 />
-
                 <InfoRow label="Due after" value={fmtDateTime(due)} />
               </div>
-            </div>
+            </section>
 
             {uiState === "gate" && (
-              <div className="mt-4 rounded-[28px] border border-white/76 bg-white/54 p-4 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.92),0_18px_60px_rgba(0,0,0,0.05)] backdrop-blur-xl md:p-5">
-                <div className="text-[9px] font-black uppercase tracking-[0.26em] text-black/34">
+              <section className="relative mt-4 min-w-0 overflow-hidden rounded-[27px] border border-white/80 bg-[linear-gradient(145deg,rgba(255,255,255,0.8),rgba(218,222,226,0.6))] p-4 text-center shadow-[0_18px_52px_rgba(0,0,0,0.075),inset_0_1px_0_rgba(255,255,255,1),inset_0_-10px_24px_rgba(0,0,0,0.035)] backdrop-blur-2xl sm:p-5">
+                <span className="pointer-events-none absolute inset-x-6 top-px h-px bg-white" />
+
+                <div className="text-[9px] font-black uppercase tracking-[0.25em] text-black/35">
                   StayKnown safety confirmation
                 </div>
 
-                <p className="mx-auto mt-3 max-w-[560px] text-center text-[12px] font-semibold leading-6 text-black/62">
+                <p className="mx-auto mt-3 max-w-[580px] break-words text-[12px] font-semibold leading-6 text-black/64">
                   {context.body}
                 </p>
 
-                <p className="mx-auto mt-3 max-w-[560px] text-center text-[12px] font-semibold leading-6 text-black/62">
-                  Do not submit false, misleading, abusive, or pressure-based
-                  responses. If you believe {displaySubjectName} may be in
-                  immediate danger, contact them directly and follow local
-                  emergency procedures.
-                </p>
+                <div className="mx-auto mt-4 flex max-w-[610px] items-start gap-2.5 rounded-[20px] border border-white/85 bg-white/58 px-3.5 py-3 text-left shadow-[0_10px_24px_rgba(0,0,0,0.055),inset_0_1px_0_rgba(255,255,255,0.95)] sm:px-4">
+                  <div className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-[9px] border border-white bg-[linear-gradient(145deg,#fff,#dfe2e6)] text-[11px] font-black text-black/70 shadow-[0_6px_14px_rgba(0,0,0,0.08)]">
+                    !
+                  </div>
+                  <p className="min-w-0 break-words text-[11px] font-semibold leading-5 text-black/56">
+                    Do not submit false, misleading, abusive, or pressure-based
+                    responses. If you believe {displaySubjectName} may be in
+                    immediate danger, contact them directly and follow local
+                    emergency procedures.
+                  </p>
+                </div>
 
-                <p className="mx-auto mt-4 max-w-[560px] rounded-[22px] border border-black/[0.06] bg-white/58 px-4 py-3 text-center text-[10.5px] font-bold leading-5 text-black/46 shadow-[inset_0_1px_0_rgba(255,255,255,0.88)]">
-                  For safety proof history, StayKnown may record your response
-                  choice, response time, browser/device details, and approximate
-                  IP-based location. VPN, proxy, or masked-network connections
-                  may be blocked to prevent misleading safety records.
-                </p>
-              </div>
+                <details className="group mx-auto mt-3 max-w-[610px] overflow-hidden rounded-[20px] border border-white/80 bg-white/48 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.95)]">
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 outline-none transition hover:bg-white/46 focus-visible:ring-2 focus-visible:ring-black/20">
+                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-black/42">
+                      Safety proof details
+                    </span>
+                    <ChevronIcon className="h-3.5 w-3.5 shrink-0 text-black/35 transition-transform duration-300 group-open:rotate-90" />
+                  </summary>
+                  <div className="border-t border-black/[0.055] px-4 py-3 text-[10.5px] font-semibold leading-5 text-black/48">
+                    For safety proof history, StayKnown may record your response
+                    choice, response time, browser/device details, and
+                    approximate IP-based location. VPN, proxy, or masked-network
+                    connections may be blocked to prevent misleading safety
+                    records.
+                  </div>
+                </details>
+              </section>
             )}
 
-            <div className="mt-6 flex min-h-[88px] items-center justify-center">
+            <div className="mt-6 flex min-h-[94px] items-center justify-center">
               {uiState === "working" ? (
                 <div className="flex flex-col items-center justify-center gap-3">
                   <GlassSpinner />
@@ -661,7 +822,7 @@ export default function MissedImSafeResponseClient({
             </div>
 
             {uiState === "gate" && (
-              <div className="mt-2 flex flex-col items-stretch justify-center gap-3 sm:flex-row">
+              <div className="mt-1 grid min-w-0 gap-3 sm:grid-cols-2">
                 <SweepButton
                   tone="light"
                   onClick={() => {
@@ -685,7 +846,7 @@ export default function MissedImSafeResponseClient({
             )}
 
             {isFinal && (
-              <div className="mt-2 flex flex-col items-stretch justify-center gap-3 sm:flex-row">
+              <div className="mt-1 grid min-w-0 gap-3 sm:grid-cols-2">
                 {(uiState === "error" || uiState === "vpn_blocked") && (
                   <SweepButton
                     tone="dark"
@@ -712,32 +873,53 @@ export default function MissedImSafeResponseClient({
               </div>
             )}
 
-            <footer className="mt-6 border-t border-black/[0.07] pt-4 text-center text-[10px] font-semibold leading-5 text-black/42">
-              This page is part of StayKnown safety awareness and internal proof
-              history.
+            <footer className="mt-7 min-w-0 border-t border-black/[0.065] pt-5 text-center text-[10px] font-semibold leading-5 text-black/42">
+              <div>
+                This page is part of StayKnown safety awareness and internal
+                proof history.
+              </div>
               <div className="mt-2">
                 StayKnown does not replace emergency services. For urgent
                 danger, contact local emergency services immediately.
               </div>
-              <div className="mt-2">
-                Safety proof history may be kept only as long as needed for
-                safety, audit, support, investigation, legal, or
-                abuse-prevention reasons.
-              </div>
-              <div className="mt-2">
-                For safety proof history, StayKnown may record your response
-                choice, response time, browser/device details, and approximate
-                IP-based location. VPN, proxy, or masked-network connections may
-                be blocked to prevent misleading safety records.
-              </div>
-              <div className="mt-2">Support: {SUPPORT_EMAIL}</div>
+
+              <details className="group mx-auto mt-3 max-w-[610px] rounded-[18px] border border-white/80 bg-white/42 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]">
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 outline-none transition hover:bg-white/44 focus-visible:ring-2 focus-visible:ring-black/20">
+                  <span className="text-[9px] font-black uppercase tracking-[0.2em] text-black/38">
+                    Privacy and retention
+                  </span>
+                  <ChevronIcon className="h-3.5 w-3.5 shrink-0 text-black/32 transition-transform duration-300 group-open:rotate-90" />
+                </summary>
+                <div className="space-y-2 border-t border-black/[0.055] px-4 py-3 text-[10px] leading-5 text-black/42">
+                  <p>
+                    Safety proof history may be kept only as long as needed for
+                    safety, audit, support, investigation, legal, or
+                    abuse-prevention reasons.
+                  </p>
+                  <p>
+                    For safety proof history, StayKnown may record your response
+                    choice, response time, browser/device details, and
+                    approximate IP-based location. VPN, proxy, or masked-network
+                    connections may be blocked to prevent misleading safety
+                    records.
+                  </p>
+                </div>
+              </details>
+
+              <div className="mt-3 break-words">Support: {SUPPORT_EMAIL}</div>
               <div className="mt-2">
                 Privacy:{" "}
-                <a href="/privacy" className="font-black underline">
+                <a
+                  href="/privacy"
+                  className="font-black underline decoration-black/30 underline-offset-2 transition hover:text-black"
+                >
                   Privacy Policy
                 </a>{" "}
                 · Terms:{" "}
-                <a href="/terms" className="font-black underline">
+                <a
+                  href="/terms"
+                  className="font-black underline decoration-black/30 underline-offset-2 transition hover:text-black"
+                >
                   Terms
                 </a>
               </div>

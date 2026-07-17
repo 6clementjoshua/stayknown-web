@@ -1,21 +1,16 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import {
+  accessFromSearchParams,
+  clean,
+  createAdminClient,
+  resolveStayKnownUserByEmail,
+  validateVisitAccess,
+  verifyLiveAccess,
+} from "../../../live/live-access";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
-
-function admin() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceRole = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-  if (!url || !serviceRole) {
-    throw new Error("Live tracking is not fully configured yet.");
-  }
-
-  return createClient(url, serviceRole, {
-    auth: { persistSession: false },
-  });
-}
 
 type VisitLocationRow = {
   lat?: number | null;
@@ -26,7 +21,6 @@ type VisitLocationRow = {
 };
 
 type VisitPayload = {
-  session_id?: string | null;
   purpose?: string | null;
   person_to_meet?: string | null;
   expected_duration_minutes?: number | null;
@@ -34,44 +28,16 @@ type VisitPayload = {
   [key: string]: unknown;
 };
 
-type VisitRow = {
-  id?: string | null;
-  user_id?: string | null;
-  started_at?: string | null;
-  ended_at?: string | null;
-  destination_name?: string | null;
-  destination_address?: string | null;
-  start_lat?: number | null;
-  start_lng?: number | null;
-  end_lat?: number | null;
-  end_lng?: number | null;
-  payload?: VisitPayload | null;
-};
-
-type SosSessionRow = {
-  ended_at?: string | null;
-  started_at?: string | null;
-  payload?: {
-    session_id?: string | null;
-    [key: string]: unknown;
-  } | null;
-};
-
-type UserProfileRow = {
-  display_name?: string | null;
-  first_name?: string | null;
-  last_name?: string | null;
+type VerificationInfo = {
+  verified: boolean;
+  badgeType: string;
+  badgeStatus: string;
 };
 
 function locationQuality(accuracy?: number | null, createdAt?: string | null) {
   const acc =
     typeof accuracy === "number" && Number.isFinite(accuracy) ? accuracy : null;
-
-  const created =
-    typeof createdAt === "string" && createdAt.trim()
-      ? new Date(createdAt)
-      : null;
-
+  const created = createdAt && clean(createdAt) ? new Date(createdAt) : null;
   const ageSeconds =
     created && !Number.isNaN(created.getTime())
       ? Math.max(0, Math.floor((Date.now() - created.getTime()) / 1000))
@@ -116,85 +82,103 @@ function locationQuality(accuracy?: number | null, createdAt?: string | null) {
   };
 }
 
-function payloadSessionId(payload: unknown): string {
-  if (!payload || typeof payload !== "object") return "";
-  const raw = (payload as { session_id?: unknown }).session_id;
-  return typeof raw === "string" ? raw.trim() : "";
+async function loadVerification(
+  admin: SupabaseClient,
+  userId: string,
+): Promise<VerificationInfo> {
+  let profileVerified = false;
+
+  try {
+    const profile = await admin
+      .from("profiles")
+      .select("verified")
+      .eq("id", userId)
+      .maybeSingle();
+    profileVerified = profile.data?.verified === true;
+  } catch {}
+
+  try {
+    const badge = await admin
+      .from("user_verification_badges")
+      .select("badge_type,status,awarded_at,created_at")
+      .eq("user_id", userId)
+      .eq("status", "active")
+      .is("removed_at", null)
+      .order("awarded_at", { ascending: false })
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    return {
+      verified: profileVerified || Boolean(badge.data),
+      badgeType: clean(badge.data?.badge_type),
+      badgeStatus: clean(badge.data?.status),
+    };
+  } catch {
+    return { verified: profileVerified, badgeType: "", badgeStatus: "" };
+  }
 }
 
-function cleanString(v: unknown): string | null {
-  if (typeof v !== "string") return null;
-  const s = v.trim();
-  return s ? s : null;
-}
+async function signedAvatar(
+  admin: SupabaseClient,
+  rawPath: string,
+): Promise<string> {
+  const raw = clean(rawPath);
+  if (!raw) return "";
+  if (/^https?:\/\//i.test(raw)) return raw;
 
-function displayNameFromProfile(profile: UserProfileRow | null): string | null {
-  if (!profile) return null;
+  const normalized = raw.replace(/^\/+/, "");
+  const candidates = normalized.startsWith("avatars/")
+    ? [{ bucket: "avatars", path: normalized.slice(8) }]
+    : normalized.startsWith("safety-gallery/")
+      ? [
+          {
+            bucket: "safety-gallery",
+            path: normalized.slice("safety-gallery/".length),
+          },
+        ]
+      : [
+          { bucket: "avatars", path: normalized },
+          { bucket: "safety-gallery", path: normalized },
+        ];
 
-  const display = cleanString(profile.display_name);
-  if (display) return display;
+  for (const candidate of candidates) {
+    try {
+      const result = await admin.storage
+        .from(candidate.bucket)
+        .createSignedUrl(candidate.path, 60 * 60);
+      const url = clean(result.data?.signedUrl);
+      if (!result.error && url) return url;
+    } catch {}
+  }
 
-  const first = cleanString(profile.first_name);
-  const last = cleanString(profile.last_name);
-  const joined = [first, last].filter(Boolean).join(" ").trim();
-
-  return joined || null;
-}
-
-function payloadString(payload: unknown, key: string): string | null {
-  if (!payload || typeof payload !== "object") return null;
-  return cleanString((payload as Record<string, unknown>)[key]);
+  return "";
 }
 
 export async function GET(req: Request) {
   try {
-    const url = new URL(req.url);
-    const sid = (url.searchParams.get("sid") || "").trim();
+    const requestUrl = new URL(req.url);
+    const access = accessFromSearchParams(requestUrl.searchParams);
+    const verified = verifyLiveAccess(access);
 
-    if (!sid) {
+    if (!verified.ok) {
       return NextResponse.json(
         {
           ok: false,
-          error: "This live tracking link is missing its session details.",
+          error: "This signed live-map access is invalid or expired.",
+          reason: verified.reason,
         },
-        { status: 400 },
+        { status: 401 },
       );
     }
 
-    const sb = admin();
+    const admin = createAdminClient();
+    const accessContext = await validateVisitAccess(admin, verified);
+    const visit = accessContext.visit;
+    const sid = verified.sid;
+    const ownerUserId = clean(visit.user_id) || verified.uid;
 
-    const visitRes = await sb
-      .from("visits")
-      .select(
-        "id,user_id,started_at,ended_at,destination_name,destination_address,start_lat,start_lng,end_lat,end_lng,payload",
-      )
-      .eq("id", sid)
-      .maybeSingle();
-
-    if (visitRes.error) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: "We could not load the visit status right now.",
-          detail: visitRes.error.message,
-        },
-        { status: 500 },
-      );
-    }
-
-    const visit = (visitRes.data as VisitRow | null) ?? null;
-
-    if (!visit?.id) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: "This live tracking session could not be found.",
-        },
-        { status: 404 },
-      );
-    }
-
-    const latestRes = await sb
+    const latestResult = await admin
       .from("visit_locations")
       .select("lat,lng,accuracy,place,created_at")
       .eq("session_id", sid)
@@ -202,64 +186,63 @@ export async function GET(req: Request) {
       .limit(1)
       .maybeSingle();
 
-    if (latestRes.error) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: "We could not load the latest live location right now.",
-          detail: latestRes.error.message,
-        },
-        { status: 500 },
-      );
+    if (latestResult.error) {
+      throw new Error(`latest_location_failed:${latestResult.error.message}`);
     }
 
-    const latest = (latestRes.data as VisitLocationRow | null) ?? null;
+    const latest = (latestResult.data as VisitLocationRow | null) ?? null;
     const ended = Boolean(visit.ended_at);
 
-    let sos: SosSessionRow | null = null;
-
-    if (!ended && visit.user_id) {
-      const sosRes = await sb
+    let sosActive = false;
+    if (!ended) {
+      const sosResult = await admin
         .from("sos_sessions")
         .select("ended_at,started_at,payload")
-        .eq("user_id", visit.user_id)
+        .eq("user_id", ownerUserId)
         .order("started_at", { ascending: false })
         .limit(20);
 
-      if (sosRes.error) {
-        return NextResponse.json(
-          {
-            ok: false,
-            error: "We could not load the SOS status right now.",
-            detail: sosRes.error.message,
-          },
-          { status: 500 },
-        );
+      if (!sosResult.error) {
+        sosActive = (sosResult.data ?? []).some((row) => {
+          const payload =
+            row.payload && typeof row.payload === "object"
+              ? (row.payload as Record<string, unknown>)
+              : {};
+          return clean(payload.session_id) === sid && !row.ended_at;
+        });
       }
-
-      const rows = (sosRes.data ?? []) as SosSessionRow[];
-      sos = rows.find((row) => payloadSessionId(row.payload) === sid) ?? null;
     }
 
-    let visitorName: string | null = null;
+    const profileResult = await admin
+      .from("user_profile")
+      .select("display_name,first_name,last_name,profile_photo_url")
+      .eq("user_id", ownerUserId)
+      .maybeSingle();
 
-    if (visit.user_id) {
-      try {
-        const profileRes = await sb
-          .from("user_profile")
-          .select("display_name,first_name,last_name")
-          .eq("user_id", visit.user_id)
-          .maybeSingle();
+    const profileFallback = await admin
+      .from("profiles")
+      .select("avatar_url")
+      .eq("id", ownerUserId)
+      .maybeSingle();
 
-        if (!profileRes.error) {
-          visitorName = displayNameFromProfile(
-            (profileRes.data as UserProfileRow | null) ?? null,
-          );
-        }
-      } catch {}
-    }
+    const profile = profileResult.data as Record<string, unknown> | null;
+    const first = clean(profile?.first_name);
+    const last = clean(profile?.last_name);
+    const visitorName =
+      clean(profile?.display_name) ||
+      [first, last].filter(Boolean).join(" ") ||
+      "StayKnown user";
+    const verification = await loadVerification(admin, ownerUserId);
+    const avatarUrl = await signedAvatar(
+      admin,
+      clean(profile?.profile_photo_url) ||
+        clean(profileFallback.data?.avatar_url),
+    );
 
-    const sos_active = ended ? false : sos ? !Boolean(sos.ended_at) : false;
+    const payload =
+      visit.payload && typeof visit.payload === "object"
+        ? (visit.payload as VisitPayload)
+        : {};
 
     const latestPoint =
       latest && typeof latest.lat === "number" && typeof latest.lng === "number"
@@ -285,7 +268,7 @@ export async function GET(req: Request) {
               created_at: visit.ended_at ?? latest?.created_at ?? null,
               ...locationQuality(
                 null,
-                visit.ended_at ?? latest?.created_at ?? null,
+                clean(visit.ended_at) || latest?.created_at || null,
               ),
             }
           : !ended &&
@@ -303,49 +286,87 @@ export async function GET(req: Request) {
                 created_at: visit.started_at ?? latest?.created_at ?? null,
                 ...locationQuality(
                   null,
-                  visit.started_at ?? latest?.created_at ?? null,
+                  clean(visit.started_at) || latest?.created_at || null,
                 ),
               }
             : null;
 
-    const payload = (visit.payload ?? {}) as VisitPayload;
+    const recipient = accessContext.recipient;
+    const viewerUserId = recipient
+      ? await resolveStayKnownUserByEmail(admin, recipient.email)
+      : verified.aud === "self"
+        ? ownerUserId
+        : "";
 
-    const destinationName =
-      cleanString(visit.destination_name) ??
-      payloadString(visit.payload, "destination_name");
+    let activeAdvisory: Record<string, unknown> | null = null;
+    if (recipient) {
+      const advisoryResult = await admin
+        .from("visit_safety_advisories")
+        .select(
+          "id,message_kind,message_text,status,response_kind,created_at,updated_at,leaving_at,safe_at",
+        )
+        .eq("visit_id", sid)
+        .eq("sender_contact_id", recipient.id)
+        .in("status", ["active", "leaving"])
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
-    const destinationAddress =
-      cleanString(visit.destination_address) ??
-      payloadString(visit.payload, "destination_address");
+      if (!advisoryResult.error && advisoryResult.data) {
+        activeAdvisory = advisoryResult.data as Record<string, unknown>;
+      }
+    }
 
     return NextResponse.json({
       ok: true,
       session_id: sid,
       latest: latestPoint,
       ended,
-      sos_active,
+      sos_active: ended ? false : sosActive,
       started_at: visit.started_at ?? null,
-      destination_name: destinationName,
-      destination_address: destinationAddress,
-      purpose: cleanString((visit.payload ?? {}).purpose),
-      person_to_meet: cleanString((visit.payload ?? {}).person_to_meet),
+      destination_name:
+        clean(visit.destination_name) ||
+        clean(payload.destination_name) ||
+        null,
+      destination_address:
+        clean(visit.destination_address) ||
+        clean(payload.destination_address) ||
+        null,
+      purpose: clean(payload.purpose) || null,
+      person_to_meet: clean(payload.person_to_meet) || null,
       expected_duration_minutes:
-        typeof (visit.payload ?? {}).expected_duration_minutes === "number"
-          ? (visit.payload ?? {}).expected_duration_minutes
+        typeof payload.expected_duration_minutes === "number"
+          ? payload.expected_duration_minutes
           : null,
-      extra_note: cleanString((visit.payload ?? {}).extra_note),
+      extra_note: clean(payload.extra_note) || null,
       visitor_name: visitorName,
+      visitor_avatar_url: avatarUrl || null,
+      visitor_verified: verification.verified,
+      visitor_badge_type: verification.badgeType || null,
+      visitor_badge_status: verification.badgeStatus || null,
+      viewer_name: recipient?.name ?? "",
+      viewer_user_id: viewerUserId || null,
+      viewer_is_stayknown: Boolean(viewerUserId),
+      recipient_contact_id: recipient?.id ?? null,
+      signed_access_version: verified.version,
+      legacy_read_only: accessContext.legacyReadOnly,
+      can_send_advisory:
+        verified.aud === "contacts" &&
+        Boolean(recipient) &&
+        !accessContext.legacyReadOnly &&
+        !ended,
+      active_advisory: activeAdvisory,
     });
-  } catch (e) {
-    return NextResponse.json(
-      {
-        ok: false,
-        error:
-          e instanceof Error
-            ? e.message
-            : "Live tracking could not be loaded right now.",
-      },
-      { status: 500 },
-    );
+  } catch (error) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : "Live tracking could not be loaded right now.";
+    const status = message.includes("not_found")
+      ? 404
+      : message.includes("not_authorized")
+        ? 403
+        : 500;
+    return NextResponse.json({ ok: false, error: message }, { status });
   }
 }

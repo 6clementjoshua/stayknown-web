@@ -1,89 +1,40 @@
-import crypto from "crypto";
 import LiveClient from "./live-client";
+import { accessFromSearchParams, verifyLiveAccess } from "./live-access";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-function verifySignature(params: URLSearchParams) {
-  const sid = (params.get("sid") || "").trim();
-  const exp = (params.get("exp") || "").trim();
-  const uid = (params.get("uid") || "").trim();
-  const aud = (params.get("aud") || "").trim();
-  const sig = (params.get("sig") || "").trim();
-  const secret = (process.env.TRACKING_SIGNING_SECRET || "").trim();
-
-  if (!sid) return { ok: false, reason: "missing_sid" as const };
-  if (!exp) return { ok: false, reason: "missing_exp" as const };
-  if (!sig) return { ok: false, reason: "missing_sig" as const };
-  if (!secret) return { ok: false, reason: "missing_secret" as const };
-
-  const now = Math.floor(Date.now() / 1000);
-  const expNum = Number(exp);
-
-  if (!Number.isFinite(expNum)) {
-    return { ok: false, reason: "bad_exp" as const };
-  }
-
-  if (expNum < now) {
-    return { ok: false, reason: "expired" as const };
-  }
-
-  const message = `sid=${sid}&exp=${expNum}&uid=${uid}&aud=${aud}`;
-
-  const expected = crypto
-    .createHmac("sha256", secret)
-    .update(message)
-    .digest("base64")
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=+$/g, "");
-
-  const ok = expected === sig;
-
-  console.log("[live-verify]", {
-    ok,
-    reason: ok ? "ok" : "bad_signature",
-    sid_present: Boolean(sid),
-    uid_present: Boolean(uid),
-    aud,
-    exp,
-    now,
-    sig_prefix: sig.slice(0, 12),
-    expected_prefix: expected.slice(0, 12),
-    secret_present: Boolean(secret),
-  });
-
-  return { ok, reason: ok ? "ok" : ("bad_signature" as const) };
-}
-
 function InvalidState({ reason }: { reason?: string }) {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-black text-white">
-      <div className="text-center px-6 max-w-md">
-        <div className="mx-auto mb-5 flex items-center justify-center">
+    <main className="min-h-screen bg-[radial-gradient(circle_at_top,#222_0%,#080808_52%,#000_100%)] text-white grid place-items-center px-5 py-10">
+      <section className="relative w-full max-w-[520px] overflow-hidden rounded-[34px] border border-white/12 bg-white/[0.055] p-7 text-center shadow-[0_32px_110px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.14)] backdrop-blur-2xl md:p-9">
+        <div className="pointer-events-none absolute inset-x-7 top-0 h-px bg-gradient-to-r from-transparent via-white/50 to-transparent" />
+        <div className="mx-auto grid h-16 w-16 place-items-center rounded-[22px] border border-white/14 bg-white/[0.07] shadow-[inset_0_1px_0_rgba(255,255,255,0.18),inset_0_-12px_26px_rgba(0,0,0,0.22),0_18px_40px_rgba(0,0,0,0.32)]">
           <img
             src="/6logo.png"
             alt="StayKnown"
-            className="h-10 w-10 object-contain"
+            className="h-7 w-7 object-contain"
           />
         </div>
 
-        <h1 className="text-xl font-bold tracking-tight">
-          Invalid or Expired Link
+        <div className="mt-5 text-[10px] font-black uppercase tracking-[0.34em] text-white/46">
+          StayKnown secure map
+        </div>
+        <h1 className="mt-3 text-[26px] font-black tracking-[-0.035em] md:text-[30px]">
+          Invalid or expired link
         </h1>
-
-        <p className="opacity-60 mt-2 text-sm leading-6">
-          This live tracking session is no longer available. Please ask the user
-          for a fresh link - if tracking is still active.
+        <p className="mx-auto mt-3 max-w-[420px] text-[13px] font-medium leading-6 text-white/62">
+          This signed live Visit link is no longer available. Ask the visitor
+          for a fresh link when the Visit is still active.
         </p>
 
         {reason ? (
-          <p className="opacity-40 mt-3 text-[11px] uppercase tracking-[0.18em]">
-            Reason: {reason}
-          </p>
+          <div className="mx-auto mt-5 inline-flex rounded-full border border-white/10 bg-white/[0.045] px-3 py-2 text-[9px] font-extrabold uppercase tracking-[0.17em] text-white/38">
+            Reference: {reason}
+          </div>
         ) : null}
-      </div>
-    </div>
+      </section>
+    </main>
   );
 }
 
@@ -94,37 +45,32 @@ export default async function LivePage({
     | Promise<Record<string, string | string[] | undefined>>
     | Record<string, string | string[] | undefined>;
 }) {
-  const resolvedSearchParams = await searchParams;
+  const resolved = await searchParams;
   const params = new URLSearchParams();
 
-  for (const [k, v] of Object.entries(resolvedSearchParams ?? {})) {
-    if (typeof v === "string") {
-      params.set(k, v);
-    } else if (Array.isArray(v) && typeof v[0] === "string") {
-      params.set(k, v[0]);
+  for (const [key, value] of Object.entries(resolved ?? {})) {
+    if (typeof value === "string") params.set(key, value);
+    else if (Array.isArray(value) && typeof value[0] === "string") {
+      params.set(key, value[0]);
     }
   }
 
-  console.log("[live-page.searchParams]", {
-    entries: Array.from(params.entries()),
-    sid: params.get("sid"),
-    exp: params.get("exp"),
-    uid: params.get("uid"),
-    aud: params.get("aud"),
-    sig_present: Boolean(params.get("sig")),
-  });
+  const access = accessFromSearchParams(params);
+  const verified = verifyLiveAccess(access);
 
-  const verified = verifySignature(params);
+  if (!verified.ok) return <InvalidState reason={verified.reason} />;
 
-  if (!verified.ok) {
-    return <InvalidState reason={verified.reason} />;
-  }
-
-  const sid = (params.get("sid") || "").trim();
-
-  if (!sid) {
-    return <InvalidState reason="missing_sid_after_verify" />;
-  }
-
-  return <LiveClient sessionId={sid} />;
+  return (
+    <LiveClient
+      access={{
+        sid: verified.sid,
+        exp: verified.exp,
+        uid: verified.uid,
+        aud: verified.signedAud,
+        sig: verified.sig,
+        rid: verified.rid,
+        version: verified.version,
+      }}
+    />
+  );
 }

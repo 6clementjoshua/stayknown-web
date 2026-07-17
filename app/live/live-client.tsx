@@ -29,12 +29,52 @@ type SeedResp = {
   expected_duration_minutes?: number | null;
   extra_note?: string | null;
   visitor_name?: string | null;
+  visitor_avatar_url?: string | null;
+  visitor_verified?: boolean;
+  visitor_badge_type?: string | null;
+  visitor_badge_status?: string | null;
+  viewer_name?: string | null;
+  viewer_user_id?: string | null;
+  viewer_is_stayknown?: boolean;
+  recipient_contact_id?: string | null;
+  signed_access_version?: "v1" | "v2";
+  legacy_read_only?: boolean;
+  can_send_advisory?: boolean;
+  active_advisory?: AdvisorySnapshot | null;
   error?: string;
   detail?: string;
 };
 
 type LiveStatus = "loading" | "live" | "ended" | "error";
 type RenderMode = "map" | "fallback";
+type PanelMode = "info" | "guidance" | "custom" | "confirm" | "sent";
+type AdvisoryKind =
+  | "leave_area"
+  | "check_route"
+  | "location_mismatch"
+  | "custom";
+
+type LiveAccessProps = {
+  sid: string;
+  exp: string;
+  uid: string;
+  aud: string;
+  sig: string;
+  rid: string;
+  version: "v1" | "v2";
+};
+
+type AdvisorySnapshot = {
+  id: string;
+  message_kind?: string;
+  message_text?: string;
+  status?: string;
+  response_kind?: string | null;
+  created_at?: string;
+  updated_at?: string;
+  leaving_at?: string | null;
+  safe_at?: string | null;
+};
 
 const INITIAL_VIEW_ZOOM = 14.1;
 const FALLBACK_CENTER: [number, number] = [8.3349, 4.5736];
@@ -454,7 +494,127 @@ function getTomTomStyleUrl() {
   return (process.env.NEXT_PUBLIC_TOMTOM_STYLE_URL || "").trim();
 }
 
-export default function LiveClient({ sessionId }: { sessionId: string }) {
+function VerifiedBadge({
+  verified,
+  badgeType,
+  compact = false,
+}: {
+  verified: boolean;
+  badgeType?: string | null;
+  compact?: boolean;
+}) {
+  if (!verified) return null;
+
+  const normalized = String(badgeType || "")
+    .trim()
+    .toLowerCase();
+  const official =
+    normalized.includes("official") ||
+    normalized.includes("public") ||
+    normalized.includes("government") ||
+    normalized.includes("organisation") ||
+    normalized.includes("organization");
+
+  return (
+    <span
+      title={
+        official ? "Verified official or public body" : "Verified individual"
+      }
+      className={`inline-flex shrink-0 items-center justify-center rounded-full border font-black leading-none shadow-[inset_0_1px_0_rgba(255,255,255,0.30)] ${
+        compact
+          ? "h-[15px] w-[15px] text-[8px]"
+          : "h-[18px] w-[18px] text-[10px]"
+      } ${
+        official
+          ? "border-white/55 bg-[#73777d] text-white"
+          : "border-white/20 bg-black text-white"
+      }`}
+    >
+      ✓
+    </span>
+  );
+}
+
+function Glyph({
+  name,
+  className = "h-4 w-4",
+}: {
+  name: string;
+  className?: string;
+}) {
+  const paths: Record<string, React.ReactNode> = {
+    shield: (
+      <path d="M12 3 5.5 5.7v5.1c0 4.2 2.8 7.9 6.5 9.2 3.7-1.3 6.5-5 6.5-9.2V5.7L12 3Zm0 4.1v9.1m-3.7-4.5h7.4" />
+    ),
+    route: (
+      <path d="M6 18.5c-2.4 0-3.5-1.2-3.5-2.8 0-1.7 1.4-2.8 3.2-2.8h4.6c1.8 0 3.2-1 3.2-2.6 0-1.5-1.2-2.5-3-2.5H8m-2-2 2-2 2 2m8 12 2 2 2-2m-2 2v-5" />
+    ),
+    leave: <path d="M10 5H5v14h5m4-3 4-4-4-4m4 4H8" />,
+    pin: (
+      <path d="M12 21s6-5.2 6-11a6 6 0 1 0-12 0c0 5.8 6 11 6 11Zm0-8.3A2.7 2.7 0 1 0 12 7a2.7 2.7 0 0 0 0 5.7Z" />
+    ),
+    message: <path d="M4 5.5h16v11H9l-5 3v-14Zm4 4h8M8 13h5" />,
+    check: <path d="m5 12 4 4L19 6" />,
+    close: <path d="m6 6 12 12M18 6 6 18" />,
+    arrow: <path d="m9 5 7 7-7 7" />,
+  };
+
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.9"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      {paths[name] ?? paths.shield}
+    </svg>
+  );
+}
+
+const ADVISORY_OPTIONS: Array<{
+  id: AdvisoryKind;
+  title: string;
+  body: string;
+  icon: string;
+}> = [
+  {
+    id: "leave_area",
+    title: "Leave this area",
+    body: "I’m concerned about your current area. Please leave carefully and contact me.",
+    icon: "leave",
+  },
+  {
+    id: "check_route",
+    title: "Check your route",
+    body: "I know this route. You may be heading toward an unsafe area. Please check your route now.",
+    icon: "route",
+  },
+  {
+    id: "location_mismatch",
+    title: "Location does not match",
+    body: "Your current location does not match where I expected you to be. Please confirm your location.",
+    icon: "pin",
+  },
+];
+
+function accessQuery(access: LiveAccessProps) {
+  const params = new URLSearchParams({
+    sid: access.sid,
+    exp: access.exp,
+    uid: access.uid,
+    aud: access.aud,
+    sig: access.sig,
+  });
+  if (access.rid) params.set("rid", access.rid);
+  return params.toString();
+}
+
+export default function LiveClient({ access }: { access: LiveAccessProps }) {
+  const sessionId = access.sid;
   const mapDivRef = React.useRef<HTMLDivElement | null>(null);
   const mapRef = React.useRef<maplibregl.Map | null>(null);
   const markerRef = React.useRef<maplibregl.Marker | null>(null);
@@ -509,6 +669,26 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
   const [expectedDurationLabel, setExpectedDurationLabel] = React.useState("—");
   const [extraNoteLabel, setExtraNoteLabel] = React.useState("—");
 
+  const [visitorAvatarUrl, setVisitorAvatarUrl] = React.useState("");
+  const [visitorVerified, setVisitorVerified] = React.useState(false);
+  const [visitorBadgeType, setVisitorBadgeType] = React.useState("");
+  const [viewerName, setViewerName] = React.useState("");
+  const [canSendAdvisory, setCanSendAdvisory] = React.useState(false);
+  const [consentId, setConsentId] = React.useState("");
+  const [consentChecked, setConsentChecked] = React.useState(false);
+  const [consentRecording, setConsentRecording] = React.useState(false);
+  const [consentError, setConsentError] = React.useState("");
+  const [panelMode, setPanelMode] = React.useState<PanelMode>("info");
+  const [selectedAdvisoryKind, setSelectedAdvisoryKind] =
+    React.useState<AdvisoryKind>("leave_area");
+  const [customAdvisoryMessage, setCustomAdvisoryMessage] = React.useState("");
+  const [advisorySending, setAdvisorySending] = React.useState(false);
+  const [advisoryError, setAdvisoryError] = React.useState("");
+  const [activeAdvisory, setActiveAdvisory] =
+    React.useState<AdvisorySnapshot | null>(null);
+
+  const signedQuery = React.useMemo(() => accessQuery(access), [access]);
+
   const stopPolling = React.useCallback(() => {
     if (pollTimerRef.current) {
       clearInterval(pollTimerRef.current);
@@ -529,6 +709,120 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
     } catch {}
     eventSourceRef.current = null;
   }, []);
+
+  const recordAccessDecision = React.useCallback(
+    async (decision: "accepted" | "declined") => {
+      if (consentRecording) return false;
+      setConsentRecording(true);
+      setConsentError("");
+
+      try {
+        const response = await fetch("/api/live/consent", {
+          method: "POST",
+          cache: "no-store",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ...access,
+            decision,
+          }),
+        });
+
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok || result?.ok !== true) {
+          throw new Error(
+            String(
+              result?.error || "StayKnown could not record this decision.",
+            ),
+          );
+        }
+
+        if (decision === "accepted") {
+          setConsentId(String(result.consent_id || ""));
+          setAccessAccepted(true);
+          setAccessGateOpen(false);
+        }
+
+        return true;
+      } catch (error) {
+        setConsentError(
+          error instanceof Error
+            ? error.message
+            : "StayKnown could not record this decision.",
+        );
+        return false;
+      } finally {
+        setConsentRecording(false);
+      }
+    },
+    [access, consentRecording],
+  );
+
+  const declineAccess = React.useCallback(async () => {
+    const recorded = await recordAccessDecision("declined");
+    if (!recorded) return;
+
+    setAccessGateOpen(false);
+
+    if (typeof window !== "undefined") {
+      window.location.replace("about:blank");
+      window.close();
+    }
+  }, [recordAccessDecision]);
+
+  const sendSafetyAdvisory = React.useCallback(async () => {
+    if (!canSendAdvisory || advisorySending || status === "ended") return;
+    if (!consentId) {
+      setAdvisoryError(
+        "Your recorded safety-use consent is missing. Reopen the signed map link.",
+      );
+      return;
+    }
+
+    setAdvisorySending(true);
+    setAdvisoryError("");
+
+    try {
+      const response = await fetch("/api/live/advisory/send", {
+        method: "POST",
+        cache: "no-store",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...access,
+          consent_id: consentId,
+          message_kind: selectedAdvisoryKind,
+          custom_message:
+            selectedAdvisoryKind === "custom" ? customAdvisoryMessage : "",
+        }),
+      });
+
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || result?.ok !== true) {
+        throw new Error(
+          String(result?.error || "StayKnown could not send this guidance."),
+        );
+      }
+
+      const advisory = result.advisory as AdvisorySnapshot;
+      setActiveAdvisory(advisory);
+      setPanelMode("sent");
+    } catch (error) {
+      setAdvisoryError(
+        error instanceof Error
+          ? error.message
+          : "StayKnown could not send this guidance.",
+      );
+    } finally {
+      setAdvisorySending(false);
+    }
+  }, [
+    access,
+    advisorySending,
+    canSendAdvisory,
+    consentId,
+    customAdvisoryMessage,
+    selectedAdvisoryKind,
+    status,
+  ]);
 
   function isPhoneViewport() {
     if (typeof window === "undefined") return false;
@@ -720,6 +1014,13 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
         formatDurationMins(seed.expected_duration_minutes),
       );
       setExtraNoteLabel(cleanLabel(seed.extra_note));
+      setVisitorAvatarUrl(cleanLabel(seed.visitor_avatar_url, ""));
+      setVisitorVerified(seed.visitor_verified === true);
+      setVisitorBadgeType(cleanLabel(seed.visitor_badge_type, ""));
+      setViewerName(cleanLabel(seed.viewer_name, ""));
+      setCanSendAdvisory(seed.can_send_advisory === true);
+      setActiveAdvisory(seed.active_advisory ?? null);
+      if (seed.active_advisory) setPanelMode("sent");
 
       setSosActive(seed.ended ? false : Boolean(seed.sos_active));
       setStatus(seed.ended ? "ended" : "live");
@@ -859,13 +1160,10 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
       const ac = new AbortController();
       const timeout = setTimeout(() => ac.abort(), 7000);
 
-      const seedRes = await fetch(
-        `/api/live/seed?sid=${encodeURIComponent(sessionId)}`,
-        {
-          cache: "no-store",
-          signal: ac.signal,
-        },
-      );
+      const seedRes = await fetch(`/api/live/seed?${signedQuery}`, {
+        cache: "no-store",
+        signal: ac.signal,
+      });
 
       const seed = (await seedRes.json()) as SeedResp;
       clearTimeout(timeout);
@@ -895,9 +1193,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
 
       closeStream();
 
-      const ev = new EventSource(
-        `/api/live/stream?sid=${encodeURIComponent(sessionId)}`,
-      );
+      const ev = new EventSource(`/api/live/stream?${signedQuery}`);
       eventSourceRef.current = ev;
 
       ev.onmessage = async (msg) => {
@@ -929,6 +1225,15 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
 
           if (data.type === "sos") {
             setSosActive(Boolean(data.active));
+            return;
+          }
+
+          if (data.type === "advisory") {
+            const advisory = data.advisory as AdvisorySnapshot | undefined;
+            if (advisory?.id) {
+              setActiveAdvisory(advisory);
+              setPanelMode("sent");
+            }
             return;
           }
 
@@ -1185,6 +1490,7 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
     };
   }, [
     sessionId,
+    signedQuery,
     darkTheme,
     accessAccepted,
     applyPoint,
@@ -1195,79 +1501,527 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
     clearPoiMarkers,
   ]);
 
-  const locationHeading = status === "ended" ? "Last session" : "Current area";
-
-  const mobileHeaderEyebrow =
-    status === "ended"
-      ? "Last session"
-      : sosActive
-        ? "SOS live session"
-        : "Live session";
-
-  const cardBg = darkTheme ? "bg-black/78" : "bg-white/92";
-  const cardBorder = darkTheme ? "border-white/10" : "border-black/10";
-  const cardText = darkTheme ? "text-white" : "text-black";
-  const mutedText = darkTheme ? "text-white/45" : "text-black/45";
-  const innerBg = darkTheme ? "bg-white/5" : "bg-[#f6f7f8]";
-  const coordText = darkTheme ? "!text-white" : "!text-black";
-
-  const showSpinner = status === "loading";
-  const showFallbackHint =
-    renderMode === "fallback" && !isDesktop() && status !== "ended";
-
+  const locationHeading =
+    status === "ended" ? "Last known area" : "Current area";
+  const cardText = darkTheme ? "text-white" : "text-[#111318]";
+  const mutedText = darkTheme ? "text-white/58" : "text-black/54";
+  const glassBorder = darkTheme ? "border-white/13" : "border-white/70";
+  const glassSurface = darkTheme
+    ? "bg-[linear-gradient(145deg,rgba(20,20,22,.86),rgba(4,4,5,.72))]"
+    : "bg-[linear-gradient(145deg,rgba(255,255,255,.94),rgba(232,235,239,.82))]";
+  const insetSurface = darkTheme
+    ? "bg-white/[0.055] border-white/10"
+    : "bg-white/66 border-black/[0.065]";
   const sessionMeta = sessionMetaRows(status, sosActive);
-  const infoRows = [
-    {
-      label: "Started date",
-      value: startedDateLabel,
-      show: startedDateLabel !== "—",
-    },
-    {
-      label: "Started time",
-      value: startedTimeLabel,
-      show: startedTimeLabel !== "—",
-    },
-    {
-      label: "Accuracy",
-      value: accuracyLabel,
-      show: accuracyLabel !== "—",
-    },
-    {
-      label: "Address / landmark",
-      value: destinationAddressLabel,
-      show: destinationAddressLabel !== "—",
-    },
-    {
-      label: "Purpose",
-      value: purposeLabel,
-      show: purposeLabel !== "—",
-    },
-    {
-      label: "Meeting",
-      value: personToMeetLabel,
-      show: personToMeetLabel !== "—",
-    },
-    {
-      label: "Expected stay",
-      value: expectedDurationLabel,
-      show: expectedDurationLabel !== "—",
-    },
-    {
-      label: "Extra note",
-      value: extraNoteLabel,
-      show: extraNoteLabel !== "—",
-    },
-  ].filter((item) => item.show);
-
+  const showSpinner = status === "loading";
   const isPhone = isPhoneViewport();
   const showMobileSheet = isPhone && renderMode === "map" && mapReady;
   const showZoomControls = renderMode === "map" && mapReady;
-  const mobileSheetBottom = "bottom-[18px]";
-  const mobileZoomBottom = "bottom-[248px]";
+  const mobileZoomBottom = "bottom-[216px]";
+
+  const activeResponse = String(activeAdvisory?.response_kind || "").trim();
+  const activeStatus = String(activeAdvisory?.status || "").trim();
+  const advisoryClosed = ["safe", "cancelled", "expired", "failed"].includes(
+    activeStatus,
+  );
+  const hasOpenAdvisory = Boolean(activeAdvisory) && !advisoryClosed;
+  const draftAdvisoryMessage =
+    selectedAdvisoryKind === "custom"
+      ? customAdvisoryMessage.trim()
+      : ADVISORY_OPTIONS.find((item) => item.id === selectedAdvisoryKind)
+          ?.body || "";
+
+  const advisoryMessage =
+    String(activeAdvisory?.message_text || "").trim() || draftAdvisoryMessage;
+
+  const responseCopy =
+    activeResponse === "safe" || activeStatus === "safe"
+      ? `${visitorName} reported that they are safe.`
+      : activeResponse === "leaving_now" || activeStatus === "leaving"
+        ? `${visitorName} received the guidance and says they are leaving now.`
+        : "The guidance was delivered. StayKnown will show the visitor’s response here.";
+
+  const compactInfoRows = [
+    { label: "Updated", value: lastUpdatedLabel },
+    { label: "Accuracy", value: accuracyLabel },
+    { label: "Destination", value: destinationLabel },
+    { label: "Expected stay", value: expectedDurationLabel },
+  ].filter((item) => item.value && item.value !== "—");
+
+  const VisitorIdentity = ({ compact = false }: { compact?: boolean }) => (
+    <div className="flex min-w-0 items-center gap-2.5">
+      <div
+        className={`relative shrink-0 overflow-hidden border shadow-[inset_0_1px_0_rgba(255,255,255,.35),inset_0_-8px_18px_rgba(0,0,0,.12)] ${
+          compact ? "h-8 w-8 rounded-[12px]" : "h-10 w-10 rounded-[15px]"
+        } ${darkTheme ? "border-white/14 bg-white/8" : "border-white/80 bg-white"}`}
+      >
+        {visitorAvatarUrl ? (
+          <img
+            src={visitorAvatarUrl}
+            alt={visitorName}
+            className="h-full w-full object-cover"
+          />
+        ) : (
+          <div
+            className={`grid h-full w-full place-items-center font-black ${cardText}`}
+          >
+            {visitorName.trim().slice(0, 1).toUpperCase() || "S"}
+          </div>
+        )}
+      </div>
+      <div className="min-w-0">
+        <div className="flex min-w-0 items-center gap-1.5">
+          <div
+            className={`truncate font-black tracking-[-0.02em] ${compact ? "text-[11px]" : "text-[13px]"} ${cardText}`}
+          >
+            {visitorName}
+          </div>
+          <VerifiedBadge
+            verified={visitorVerified}
+            badgeType={visitorBadgeType}
+            compact={compact}
+          />
+        </div>
+        <div
+          className={`mt-0.5 truncate text-[8px] font-extrabold uppercase tracking-[0.18em] ${mutedText}`}
+        >
+          {sosActive
+            ? "SOS live Visit"
+            : status === "ended"
+              ? "Visit ended"
+              : "Live Visit"}
+        </div>
+      </div>
+    </div>
+  );
+
+  const GuidanceChoices = () => (
+    <div className="space-y-2">
+      {ADVISORY_OPTIONS.map((option) => {
+        const selected = selectedAdvisoryKind === option.id;
+        return (
+          <button
+            key={option.id}
+            type="button"
+            onClick={() => setSelectedAdvisoryKind(option.id)}
+            className={`group flex w-full items-start gap-2.5 rounded-[17px] border p-2.5 text-left transition active:scale-[0.992] ${
+              selected
+                ? darkTheme
+                  ? "border-white/28 bg-white/12"
+                  : "border-black/18 bg-white shadow-[inset_0_1px_0_#fff,0_8px_20px_rgba(0,0,0,.07)]"
+                : darkTheme
+                  ? "border-white/9 bg-white/[0.035] hover:bg-white/[0.07]"
+                  : "border-black/[0.065] bg-white/45 hover:bg-white/75"
+            }`}
+          >
+            <span
+              className={`grid h-8 w-8 shrink-0 place-items-center rounded-[12px] border ${selected ? "bg-black text-white border-black" : `${insetSurface} ${cardText}`}`}
+            >
+              <Glyph name={option.icon} className="h-4 w-4" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className={`block text-[10px] font-black ${cardText}`}>
+                {option.title}
+              </span>
+              <span
+                className={`mt-0.5 block text-[8.5px] font-semibold leading-[1.45] ${mutedText}`}
+              >
+                {option.body}
+              </span>
+            </span>
+            {selected ? (
+              <Glyph
+                name="check"
+                className={`mt-1 h-4 w-4 shrink-0 ${cardText}`}
+              />
+            ) : null}
+          </button>
+        );
+      })}
+
+      <button
+        type="button"
+        onClick={() => {
+          setSelectedAdvisoryKind("custom");
+          setPanelMode("custom");
+        }}
+        className={`flex w-full items-center gap-2.5 rounded-[17px] border p-2.5 text-left transition active:scale-[0.992] ${
+          selectedAdvisoryKind === "custom"
+            ? darkTheme
+              ? "border-white/28 bg-white/12"
+              : "border-black/18 bg-white"
+            : `${insetSurface}`
+        }`}
+      >
+        <span
+          className={`grid h-8 w-8 shrink-0 place-items-center rounded-[12px] border ${insetSurface} ${cardText}`}
+        >
+          <Glyph name="message" className="h-4 w-4" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className={`block text-[10px] font-black ${cardText}`}>
+            Write a short custom message
+          </span>
+          <span
+            className={`mt-0.5 block text-[8.5px] font-semibold ${mutedText}`}
+          >
+            Plain text only • maximum 160 characters • no links
+          </span>
+        </span>
+        <Glyph name="arrow" className={`h-4 w-4 shrink-0 ${mutedText}`} />
+      </button>
+    </div>
+  );
+
+  const PanelBody = () => {
+    if (panelMode === "confirm") {
+      return (
+        <div className="flex h-full flex-col">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <div
+                className={`text-[8px] font-black uppercase tracking-[0.22em] ${mutedText}`}
+              >
+                Confirm safety guidance
+              </div>
+              <div
+                className={`mt-1 text-[12px] font-black tracking-[-0.02em] ${cardText}`}
+              >
+                Send this message to {visitorName}?
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() =>
+                setPanelMode(
+                  selectedAdvisoryKind === "custom" ? "custom" : "guidance",
+                )
+              }
+              className={`grid h-7 w-7 place-items-center rounded-full border ${insetSurface} ${cardText}`}
+            >
+              <Glyph name="close" className="h-3.5 w-3.5" />
+            </button>
+          </div>
+
+          <div
+            className={`mt-2 min-h-0 flex-1 overflow-y-auto rounded-[17px] border p-3 sk-scroll-hidden ${insetSurface}`}
+          >
+            <div
+              className={`text-[10px] font-extrabold leading-[1.55] ${cardText}`}
+            >
+              {draftAdvisoryMessage}
+            </div>
+            <div
+              className={`mt-2 rounded-[14px] border p-2.5 text-[8px] font-semibold leading-[1.5] ${insetSurface} ${mutedText}`}
+            >
+              Confirm only for a genuine safety concern. Do not use this feature
+              to control movement, frighten, punish, lure, test, manipulate,
+              stalk, harass, or falsely describe an area or route. This action
+              and its signed access context are recorded.
+            </div>
+          </div>
+
+          <div className="mt-2 grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              disabled={advisorySending}
+              onClick={() =>
+                setPanelMode(
+                  selectedAdvisoryKind === "custom" ? "custom" : "guidance",
+                )
+              }
+              className={`h-9 rounded-full border text-[9px] font-black ${insetSurface} ${cardText}`}
+            >
+              Go back
+            </button>
+            <button
+              type="button"
+              disabled={!draftAdvisoryMessage || advisorySending}
+              onClick={() => void sendSafetyAdvisory()}
+              className="h-9 rounded-full border border-black bg-black text-[9px] font-black text-white shadow-[inset_0_1px_0_rgba(255,255,255,.20),inset_0_-8px_18px_rgba(0,0,0,.35)] disabled:opacity-40"
+            >
+              {advisorySending ? "Sending…" : "Confirm and send"}
+            </button>
+          </div>
+          {advisoryError ? (
+            <div className="mt-1 text-center text-[8px] font-bold text-red-500">
+              {advisoryError}
+            </div>
+          ) : null}
+        </div>
+      );
+    }
+
+    if (panelMode === "sent" && activeAdvisory) {
+      return (
+        <div className="flex h-full flex-col">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div
+                className={`text-[8px] font-black uppercase tracking-[0.22em] ${mutedText}`}
+              >
+                Advisory status
+              </div>
+              <div
+                className={`mt-1 text-[13px] font-black tracking-[-0.02em] ${cardText}`}
+              >
+                {advisoryClosed
+                  ? "Advisory completed"
+                  : activeStatus === "leaving"
+                    ? "Visitor is leaving"
+                    : "Guidance sent"}
+              </div>
+            </div>
+            <div
+              className={`rounded-full border px-2.5 py-1.5 text-[7px] font-black uppercase tracking-[0.16em] ${sessionMeta.statusClass}`}
+            >
+              {activeStatus || "Active"}
+            </div>
+          </div>
+
+          <div
+            className={`mt-2.5 min-h-0 flex-1 overflow-y-auto rounded-[17px] border p-3 sk-scroll-hidden ${insetSurface}`}
+          >
+            <div
+              className={`text-[10px] font-extrabold leading-[1.5] ${cardText}`}
+            >
+              {advisoryMessage}
+            </div>
+            <div
+              className={`mt-2 text-[9px] font-semibold leading-[1.5] ${mutedText}`}
+            >
+              {responseCopy}
+            </div>
+            <div
+              className={`mt-2 rounded-[13px] border p-2 text-[8px] font-semibold leading-[1.45] ${insetSurface} ${mutedText}`}
+            >
+              “I’m leaving now” is not a declaration of safety. “I’m safe” is a
+              user declaration, not independent proof of safety.
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              if (advisoryClosed) {
+                setActiveAdvisory(null);
+                setAdvisoryError("");
+                setPanelMode("guidance");
+              } else {
+                setPanelMode("info");
+              }
+            }}
+            className={`mt-2 h-9 rounded-full border text-[9px] font-black ${insetSurface} ${cardText}`}
+          >
+            {advisoryClosed
+              ? "Prepare another safety guidance"
+              : "Return to Visit information"}
+          </button>
+        </div>
+      );
+    }
+
+    if (panelMode === "custom") {
+      return (
+        <div className="flex h-full flex-col">
+          <div className="flex items-center justify-between">
+            <button
+              type="button"
+              onClick={() => setPanelMode("guidance")}
+              className={`text-[9px] font-black ${mutedText}`}
+            >
+              ← Guidance options
+            </button>
+            <span className={`text-[8px] font-extrabold ${mutedText}`}>
+              {customAdvisoryMessage.length}/160
+            </span>
+          </div>
+          <textarea
+            autoFocus
+            value={customAdvisoryMessage}
+            maxLength={160}
+            onChange={(event) => setCustomAdvisoryMessage(event.target.value)}
+            placeholder="Write clear safety guidance without threats, links, control, or false claims…"
+            className={`mt-2 min-h-0 flex-1 resize-none rounded-[18px] border px-3 py-3 text-[11px] font-semibold leading-[1.55] outline-none focus:ring-2 focus:ring-black/15 ${
+              darkTheme
+                ? "border-white/12 bg-black/30 text-white placeholder:text-white/30"
+                : "border-black/10 bg-white/75 text-black placeholder:text-black/30"
+            }`}
+          />
+          <div className="mt-2 grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => setPanelMode("guidance")}
+              className={`h-9 rounded-full border text-[9px] font-black ${insetSurface} ${cardText}`}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              disabled={!customAdvisoryMessage.trim() || advisorySending}
+              onClick={() => {
+                setAdvisoryError("");
+                setPanelMode("confirm");
+              }}
+              className="h-9 rounded-full border border-black bg-black text-[9px] font-black text-white disabled:cursor-not-allowed disabled:opacity-35"
+            >
+              {advisorySending ? "Sending…" : "Review and send"}
+            </button>
+          </div>
+          {advisoryError ? (
+            <div className="mt-1 text-center text-[8px] font-bold text-red-500">
+              {advisoryError}
+            </div>
+          ) : null}
+        </div>
+      );
+    }
+
+    if (panelMode === "guidance") {
+      return (
+        <div className="flex h-full flex-col">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <div
+                className={`text-[8px] font-black uppercase tracking-[0.22em] ${mutedText}`}
+              >
+                Visit Safety Advisory
+              </div>
+              <div
+                className={`mt-1 text-[12px] font-black tracking-[-0.02em] ${cardText}`}
+              >
+                Choose accurate, responsible guidance
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setPanelMode("info")}
+              className={`grid h-7 w-7 place-items-center rounded-full border ${insetSurface} ${cardText}`}
+            >
+              <Glyph name="close" className="h-3.5 w-3.5" />
+            </button>
+          </div>
+          <div className="mt-2 min-h-0 flex-1 overflow-y-auto pr-0.5 sk-scroll-hidden">
+            <GuidanceChoices />
+            <div
+              className={`mt-2 rounded-[16px] border p-2.5 text-[8.2px] font-semibold leading-[1.5] ${insetSurface} ${mutedText}`}
+            >
+              Send only for a genuine safety concern. Do not stalk, frighten,
+              lure, punish, control movement, or falsely describe an area or
+              route. Your consent and actions are recorded and may be reviewed
+              under StayKnown policy and applicable law.
+            </div>
+          </div>
+          <button
+            type="button"
+            disabled={advisorySending}
+            onClick={() => {
+              setAdvisoryError("");
+              setPanelMode("confirm");
+            }}
+            className="mt-2 h-9 rounded-full border border-black bg-black text-[9px] font-black text-white shadow-[inset_0_1px_0_rgba(255,255,255,.20),inset_0_-8px_18px_rgba(0,0,0,.35)] disabled:opacity-40"
+          >
+            {`Review message for ${visitorName}`}
+          </button>
+          {advisoryError ? (
+            <div className="mt-1 text-center text-[8px] font-bold text-red-500">
+              {advisoryError}
+            </div>
+          ) : null}
+        </div>
+      );
+    }
+
+    return (
+      <div className="flex h-full flex-col">
+        <div className="flex items-center justify-between gap-3">
+          <VisitorIdentity />
+          <div
+            className={`rounded-full border px-2.5 py-1.5 text-[7px] font-black uppercase tracking-[0.16em] ${sessionMeta.statusClass}`}
+          >
+            {sessionMeta.statusText}
+          </div>
+        </div>
+
+        <div
+          className={`mt-2.5 min-h-0 flex-1 overflow-y-auto rounded-[18px] border p-3 sk-scroll-hidden ${insetSurface}`}
+        >
+          <div
+            className={`text-[8px] font-black uppercase tracking-[0.20em] ${mutedText}`}
+          >
+            {locationHeading}
+          </div>
+          <div
+            className={`mt-1 text-[12px] font-black leading-[1.35] tracking-[-0.02em] ${cardText}`}
+          >
+            {placeLabel}
+          </div>
+          <div
+            className={`mt-1 text-[9px] font-semibold leading-[1.4] ${mutedText}`}
+          >
+            Heading to {destinationLabel}
+          </div>
+
+          <div className="mt-2 grid grid-cols-2 gap-1.5">
+            {compactInfoRows.map((item) => (
+              <div
+                key={item.label}
+                className={`min-w-0 rounded-[13px] border px-2 py-1.5 ${insetSurface}`}
+              >
+                <div
+                  className={`text-[6.5px] font-black uppercase tracking-[0.16em] ${mutedText}`}
+                >
+                  {item.label}
+                </div>
+                <div
+                  className={`mt-0.5 truncate text-[8.5px] font-extrabold ${cardText}`}
+                >
+                  {item.value}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {canSendAdvisory && status !== "ended" ? (
+          <button
+            type="button"
+            onClick={() => {
+              setAdvisoryError("");
+              setPanelMode(hasOpenAdvisory ? "sent" : "guidance");
+            }}
+            className="mt-2 flex h-9 items-center justify-center gap-2 rounded-full border border-black bg-black text-[9px] font-black text-white shadow-[inset_0_1px_0_rgba(255,255,255,.22),inset_0_-10px_20px_rgba(0,0,0,.42),0_10px_24px_rgba(0,0,0,.16)] active:scale-[0.99]"
+          >
+            <Glyph name="shield" className="h-3.5 w-3.5" />
+            {hasOpenAdvisory
+              ? "Review safety guidance"
+              : "Send safety guidance"}
+          </button>
+        ) : (
+          <div
+            className={`mt-2 text-center text-[7.5px] font-semibold leading-[1.4] ${mutedText}`}
+          >
+            {access.version === "v1" && access.aud === "contacts"
+              ? "This older map link remains view-only. Use a fresh Visit email link to send safety guidance."
+              : status === "ended"
+                ? "Safety guidance closes when the Visit ends."
+                : "Live map access is view-only for this signed audience."}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div
-      className="fixed inset-0 w-screen overflow-hidden bg-transparent"
-      style={{ height: "100dvh", minHeight: "100dvh" }}
+      className="fixed inset-0 w-screen overflow-hidden bg-[#e9edf1] text-rendering-optimizeLegibility"
+      style={{
+        height: "100dvh",
+        minHeight: "100dvh",
+        fontFamily:
+          "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+        fontFeatureSettings: "'cv02','cv03','cv04','cv11'",
+      }}
     >
       {renderMode === "map" ? (
         <div
@@ -1280,448 +2034,248 @@ export default function LiveClient({ sessionId }: { sessionId: string }) {
             style={{
               height: "100dvh",
               minHeight: "100dvh",
-              background: darkTheme ? "#111111" : "#eef1f4",
+              background: darkTheme ? "#111214" : "#e9edf1",
             }}
           />
 
-          {showMobileSheet && isPhone ? (
-            <div
-              className={`absolute inset-x-0 z-30 px-3 pointer-events-none ${mobileSheetBottom}`}
-            >
-              <div
+          {showMobileSheet ? (
+            <div className="pointer-events-none absolute inset-x-0 bottom-[14px] z-30 px-3">
+              <section
                 data-sk-mobile-sheet="1"
-                className="mx-auto w-[calc(100%-10px)] max-w-[640px] pointer-events-auto"
+                className={`pointer-events-auto mx-auto h-[190px] w-full max-w-[640px] overflow-hidden rounded-[30px] border p-3.5 shadow-[0_26px_70px_rgba(0,0,0,.24),inset_0_1px_0_rgba(255,255,255,.30)] backdrop-blur-[26px] ${glassBorder} ${glassSurface}`}
               >
-                <div
-                  className={`rounded-[30px] border shadow-[0_24px_60px_rgba(0,0,0,0.18)] overflow-hidden backdrop-blur-2xl ${
-                    darkTheme
-                      ? "bg-black/68 border-white/14"
-                      : "bg-black/34 border-white/12"
-                  }`}
-                >
-                  <div className="px-4 pt-1.5 pb-[2px]">
-                    <div
-                      className={`mb-1 text-center text-[6px] font-bold uppercase tracking-[0.22em] ${
-                        darkTheme ? "text-white/34" : "text-black/34"
-                      }`}
-                    >
-                      Scroll to see more info
-                    </div>
-
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0 flex-1">
-                        <div
-                          className={`flex items-center gap-1 text-[6px] uppercase tracking-[0.2em] font-extrabold ${mutedText}`}
-                        >
-                          <span>Last session</span>
-                          <span>•</span>
-                          <span
-                            className={`rounded-full border px-1 py-[2px] text-[5px] leading-none ${
-                              darkTheme
-                                ? "border-white/10 text-white/44"
-                                : "border-black/10 text-black/42"
-                            }`}
-                          >
-                            {sessionMeta.statusText}
-                          </span>
-                        </div>
-
-                        <div
-                          className={`mt-1 text-[12px] font-black leading-[1.25] ${cardText}`}
-                        >
-                          {placeLabel}
-                        </div>
-
-                        <div
-                          className={`mt-1 text-[9px] leading-4 ${
-                            darkTheme ? "text-white/58" : "text-black/56"
-                          }`}
-                        >
-                          Heading to {destinationLabel}
-                        </div>
-                      </div>
-
-                      <div
-                        className={`shrink-0 rounded-full border px-1.5 py-[4px] text-[5px] font-extrabold uppercase tracking-[0.16em] ${sessionMeta.statusClass}`}
-                      >
-                        {sessionMeta.statusText}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="px-4 pb-0">
-                    <div
-                      className={`rounded-[18px] border ${cardBorder} ${innerBg} px-3 py-2`}
-                    >
-                      <div
-                        className={`max-h-[92px] overflow-y-auto sk-scroll-hidden overscroll-contain pr-[2px] text-center`}
-                        style={{ WebkitOverflowScrolling: "touch" }}
-                      >
-                        <div className="space-y-2">
-                          <div>
-                            <div
-                              className={`text-[7px] uppercase tracking-[0.22em] font-extrabold ${
-                                darkTheme ? "text-white/38" : "text-black/40"
-                              }`}
-                            >
-                              Last update
-                            </div>
-                            <div
-                              className={`mt-1 text-[10px] font-bold leading-4 ${cardText}`}
-                            >
-                              {lastUpdatedLabel}
-                            </div>
-                          </div>
-
-                          <div>
-                            <div
-                              className={`text-[7px] uppercase tracking-[0.22em] font-extrabold ${
-                                darkTheme ? "text-white/38" : "text-black/40"
-                              }`}
-                            >
-                              Started
-                            </div>
-                            <div
-                              className={`mt-1 text-[10px] font-bold leading-4 ${cardText}`}
-                            >
-                              {startedTimeLabel}
-                            </div>
-                          </div>
-
-                          {infoRows.map((item) => (
-                            <div key={item.label}>
-                              <div
-                                className={`text-[7px] uppercase tracking-[0.22em] font-extrabold ${
-                                  darkTheme ? "text-white/38" : "text-black/40"
-                                }`}
-                              >
-                                {item.label}
-                              </div>
-                              <div
-                                className={`mt-1 text-[10px] font-bold leading-4 break-words whitespace-pre-wrap ${
-                                  darkTheme ? "text-white/82" : "text-black/78"
-                                }`}
-                              >
-                                {item.value}
-                              </div>
-                            </div>
-                          ))}
-
-                          {!!coordsLabel && !!mapHref && (
-                            <div>
-                              <div
-                                className={`text-[7px] uppercase tracking-[0.22em] font-extrabold ${
-                                  darkTheme ? "text-white/38" : "text-black/40"
-                                }`}
-                              >
-                                Coordinates
-                              </div>
-                              <a
-                                href={mapHref}
-                                target="_blank"
-                                rel="noreferrer"
-                                className={`mt-1 block text-[10px] font-bold leading-4 underline underline-offset-4 break-all ${coordText}`}
-                              >
-                                {coordsLabel}
-                              </a>
-                            </div>
-                          )}
-
-                          <div>
-                            <div
-                              className={`text-[7px] uppercase tracking-[0.22em] font-extrabold ${
-                                darkTheme ? "text-white/38" : "text-black/40"
-                              }`}
-                            >
-                              Reminder
-                            </div>
-                            <div
-                              className={`mt-1 text-[9px] leading-4 ${
-                                darkTheme ? "text-white/70" : "text-black/66"
-                              }`}
-                            >
-                              {safetyUseHint()}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div
-                    className={`border-t px-3 py-1.5 text-center text-[7px] font-semibold leading-3 ${
-                      darkTheme
-                        ? "border-white/8 text-white/52"
-                        : "border-black/8 text-black/50"
-                    }`}
-                  >
-                    {legalTinyLine()}
-                  </div>
-                </div>
-              </div>
+                <PanelBody />
+              </section>
             </div>
           ) : null}
         </div>
       ) : (
         <div
-          className="absolute inset-0 z-0 bg-transparent"
-          style={{ height: "100dvh" }}
-        />
+          className={`absolute inset-0 z-0 grid place-items-center px-4 ${darkTheme ? "bg-[#0d0e10]" : "bg-[#edf0f3]"}`}
+        >
+          <section
+            className={`w-full max-w-[620px] rounded-[30px] border p-5 shadow-[0_24px_70px_rgba(0,0,0,.18),inset_0_1px_0_rgba(255,255,255,.25)] ${glassBorder} ${glassSurface}`}
+          >
+            <VisitorIdentity />
+            <div className={`mt-4 rounded-[20px] border p-4 ${insetSurface}`}>
+              <div
+                className={`text-[9px] font-black uppercase tracking-[0.2em] ${mutedText}`}
+              >
+                {locationHeading}
+              </div>
+              <div className={`mt-2 text-[17px] font-black ${cardText}`}>
+                {placeLabel}
+              </div>
+              <div className={`mt-2 text-[11px] font-semibold ${mutedText}`}>
+                {browserHint ||
+                  "The full map preview is unavailable in this browser."}
+              </div>
+              {mapHref ? (
+                <a
+                  href={mapHref}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-4 inline-flex h-10 items-center justify-center rounded-full bg-black px-5 text-[10px] font-black text-white"
+                >
+                  Open location
+                </a>
+              ) : null}
+            </div>
+          </section>
+        </div>
       )}
 
-      <div className="absolute top-5 left-1/2 -translate-x-1/2 z-20">
-        {" "}
-        <div className="rounded-[24px] bg-white/84 border border-white/92 shadow-[0_14px_38px_rgba(0,0,0,0.16)] px-4 py-2.5 backdrop-blur-2xl min-w-[132px]">
+      <div className="absolute left-1/2 top-4 z-20 -translate-x-1/2">
+        <div className="min-w-[132px] rounded-[23px] border border-white/75 bg-white/72 px-4 py-2.5 shadow-[0_16px_40px_rgba(0,0,0,.16),inset_0_1px_0_rgba(255,255,255,.92)] backdrop-blur-2xl">
           <div className="flex flex-col items-center justify-center">
             <img
               src="/6logo.png"
               alt="StayKnown"
               className="h-5 w-5 object-contain"
             />
-            <div className="mt-1 text-[8px] uppercase tracking-[0.34em] text-black/55 font-semibold">
+            <div className="mt-1 text-[8px] font-black uppercase tracking-[0.31em] text-black/55">
               StayKnown
             </div>
           </div>
         </div>
       </div>
 
-      {showSpinner && (
-        <div className="absolute top-[92px] left-1/2 -translate-x-1/2 z-20">
+      {showSpinner ? (
+        <div className="absolute left-1/2 top-[90px] z-20 -translate-x-1/2 rounded-full border border-white/65 bg-white/55 p-3 shadow-lg backdrop-blur-xl">
           <PremiumSpinner />
         </div>
-      )}
+      ) : null}
 
-      {mapLoadError && (
-        <div className="absolute top-[124px] left-1/2 -translate-x-1/2 z-20">
+      {mapLoadError ? (
+        <div className="absolute left-1/2 top-[120px] z-20 max-w-[calc(100%-28px)] -translate-x-1/2">
           <div
-            className={`rounded-full border shadow-md px-3 py-2 ${
-              mapRetrying
-                ? "bg-white/88 border-white/90"
-                : "bg-red-50 border-red-200"
-            }`}
+            className={`rounded-full border px-3 py-2 shadow-md backdrop-blur-xl ${mapRetrying ? "border-white/75 bg-white/75" : "border-red-200 bg-red-50/92"}`}
           >
             <span
-              className={`text-[10px] tracking-[0.12em] font-bold whitespace-nowrap ${
-                mapRetrying ? "text-black/62" : "text-red-600"
-              }`}
+              className={`block truncate text-[9px] font-black tracking-[0.08em] ${mapRetrying ? "text-black/62" : "text-red-600"}`}
             >
               {mapLoadError}
             </span>
           </div>
         </div>
-      )}
+      ) : null}
 
-      {showFallbackHint && !showSpinner && (
-        <div className="absolute top-[92px] left-1/2 -translate-x-1/2 z-20">
-          <div className="rounded-full bg-white/70 border border-white/80 shadow-md px-3 py-1.5">
-            <span className="text-[9px] font-bold text-black/60 whitespace-nowrap">
-              Open in Chrome or Safari
-            </span>
-          </div>
-        </div>
-      )}
-
-      {!isPhone ? (
-        <div className="absolute inset-x-0 bottom-12 z-30 px-4">
-          <div className="mx-auto flex w-full max-w-[1120px] flex-col items-center gap-2">
-            <div
-              className={`pointer-events-auto flex max-w-full flex-wrap items-center justify-center gap-1 rounded-full border ${cardBorder} ${cardBg} px-2 py-1.5 shadow-[0_14px_34px_rgba(0,0,0,0.10)] backdrop-blur-2xl`}
-            >
-              <div
-                className={`rounded-full border px-2.5 py-[6px] text-[8px] font-extrabold uppercase tracking-[0.18em] shadow-[0_0_16px_rgba(15,143,112,0.12)] ${
-                  status === "live" && !sosActive
-                    ? "animate-[skLivePulse_2.6s_ease-in-out_infinite]"
-                    : ""
-                } ${sessionMeta.statusClass}`}
-              >
-                {sessionMeta.statusText}
-              </div>
-
-              <div className="rounded-full border border-white/75 bg-white/88 px-2 py-[6px] text-[8px] font-extrabold uppercase tracking-[0.13em] text-black/46">
-                {locationHeading} <span className="ml-1 text-black/34">›</span>
-              </div>
-
-              <div className="rounded-full border border-white/75 bg-white/92 px-2.5 py-[6px] text-[10px] font-bold text-black/78 max-w-[280px] truncate">
-                {placeLabel}
-              </div>
-
-              <div className="rounded-full border border-white/75 bg-white/88 px-2 py-[6px] text-[8px] font-extrabold uppercase tracking-[0.13em] text-black/46">
-                Heading to <span className="ml-1 text-black/34">›</span>
-              </div>
-
-              <div className="rounded-full border border-white/75 bg-white/92 px-2.5 py-[6px] text-[10px] font-bold text-black/78 max-w-[200px] truncate">
-                {destinationLabel}
-              </div>
-
-              <div className="rounded-full border border-white/75 bg-white/88 px-2 py-[6px] text-[8px] font-extrabold uppercase tracking-[0.13em] text-black/46">
-                Updated <span className="ml-1 text-black/34">›</span>
-              </div>
-
-              <div className="rounded-full border border-white/75 bg-white/92 px-2.5 py-[6px] text-[10px] font-bold text-black/78">
-                {lastUpdatedLabel}
-              </div>
-            </div>
-
-            {infoRows.length > 0 && (
-              <div
-                className={`pointer-events-auto flex max-w-[1080px] flex-wrap items-center justify-center gap-1.5 rounded-[18px] border ${cardBorder} ${cardBg} px-2.5 py-1.5 shadow-[0_12px_30px_rgba(0,0,0,0.08)] backdrop-blur-2xl`}
-              >
-                {infoRows.map((item) => (
-                  <React.Fragment key={item.label}>
-                    <div className="rounded-full border border-white/75 bg-white/88 px-2 py-[6px] text-[8px] font-extrabold uppercase tracking-[0.13em] text-black/46">
-                      {item.label} <span className="ml-1 text-black/34">›</span>
-                    </div>
-                    <div className="rounded-[16px] border border-white/75 bg-white/92 px-3 py-[6px] text-[10px] font-bold text-black/78 max-w-[320px] whitespace-normal break-words text-center">
-                      {item.value}
-                    </div>
-                  </React.Fragment>
-                ))}
-              </div>
-            )}
-
-            <div className="pointer-events-none max-w-[980px] rounded-[22px] border border-white/70 bg-white/48 px-4 py-2 text-center text-[10px] font-bold leading-5 text-black/56 shadow-[0_10px_28px_rgba(0,0,0,0.10)] backdrop-blur-2xl">
-              {safetyUseHint()}
-            </div>
-
-            <div
-              className={`pointer-events-none max-w-[980px] rounded-[22px] border px-4 py-[5px] text-center text-[8px] font-semibold leading-4 shadow-[0_10px_28px_rgba(0,0,0,0.06)] backdrop-blur-2xl ${
-                darkTheme
-                  ? "border-white/10 bg-black/28 text-white/52"
-                  : "border-white/70 bg-white/48 text-black/50"
-              }`}
-            >
-              {legalTinyLine()}
-            </div>
-          </div>
+      {!isPhone && renderMode === "map" && mapReady ? (
+        <div className="pointer-events-none absolute inset-x-0 bottom-7 z-30 px-4">
+          <section
+            className={`pointer-events-auto mx-auto h-[168px] w-full max-w-[1120px] overflow-hidden rounded-[32px] border p-4 shadow-[0_30px_80px_rgba(0,0,0,.22),inset_0_1px_0_rgba(255,255,255,.32)] backdrop-blur-[28px] ${glassBorder} ${glassSurface}`}
+          >
+            <PanelBody />
+          </section>
         </div>
       ) : null}
 
       <div
-        className={`absolute right-4 z-40 flex flex-col gap-2 ${
-          showZoomControls
-            ? "opacity-100 pointer-events-auto"
-            : "opacity-0 pointer-events-none"
-        } ${isPhone ? mobileZoomBottom : "bottom-6"}`}
+        className={`absolute right-4 z-40 flex flex-col gap-2 transition-opacity ${showZoomControls ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"} ${isPhone ? mobileZoomBottom : "bottom-[210px]"}`}
       >
-        <button
-          type="button"
-          aria-label="Zoom in"
-          disabled={!mapReady || renderMode !== "map"}
-          onClick={() => {
-            if (!mapReady || renderMode !== "map") return;
-            mapRef.current?.zoomIn({ duration: 220 });
-          }}
-          className={`h-7 w-7 rounded-[18px] border text-[16px] font-black shadow-[0_10px_24px_rgba(0,0,0,0.10)] backdrop-blur-xl transition-opacity ${
-            !mapReady || renderMode !== "map"
-              ? "border-white/35 bg-white/28 text-black/28 opacity-55 cursor-not-allowed"
-              : "border-white/55 bg-white/38 text-black/58"
-          }`}
-        >
-          +
-        </button>
-        <button
-          type="button"
-          aria-label="Zoom out"
-          disabled={!mapReady || renderMode !== "map"}
-          onClick={() => {
-            if (!mapReady || renderMode !== "map") return;
-            mapRef.current?.zoomOut({ duration: 220 });
-          }}
-          className={`h-7 w-7 rounded-[18px] border text-[16px] font-black shadow-[0_10px_24px_rgba(0,0,0,0.12)] backdrop-blur-xl transition-opacity ${
-            !mapReady || renderMode !== "map"
-              ? "border-white/30 bg-white/20 text-black/30 opacity-55 cursor-not-allowed"
-              : "border-white/40 bg-white/22 text-black/62"
-          }`}
-        >
-          −
-        </button>
+        {[
+          {
+            label: "Zoom in",
+            symbol: "+",
+            action: () => mapRef.current?.zoomIn({ duration: 220 }),
+          },
+          {
+            label: "Zoom out",
+            symbol: "−",
+            action: () => mapRef.current?.zoomOut({ duration: 220 }),
+          },
+        ].map((item) => (
+          <button
+            key={item.label}
+            type="button"
+            aria-label={item.label}
+            disabled={!mapReady || renderMode !== "map"}
+            onClick={item.action}
+            className="grid h-8 w-8 place-items-center rounded-[14px] border border-white/60 bg-white/62 text-[16px] font-black text-black/66 shadow-[0_12px_28px_rgba(0,0,0,.14),inset_0_1px_0_rgba(255,255,255,.86)] backdrop-blur-xl disabled:opacity-35"
+          >
+            {item.symbol}
+          </button>
+        ))}
       </div>
 
-      {accessGateOpen && !accessAccepted && (
-        <div className="absolute inset-0 z-[90] flex items-center justify-center bg-black/45 backdrop-blur-md px-4">
-          <div
-            className={`w-full max-w-[560px] rounded-[30px] border ${cardBorder} ${
-              darkTheme ? "bg-[#0d0d0d]/94" : "bg-white/95"
-            } shadow-[0_30px_100px_rgba(0,0,0,0.30)] p-5 md:p-6`}
+      {accessGateOpen && !accessAccepted ? (
+        <div className="absolute inset-0 z-[90] grid place-items-center overflow-y-auto bg-black/52 px-4 py-6 backdrop-blur-lg">
+          <section
+            className={`relative w-full max-w-[590px] overflow-hidden rounded-[34px] border p-5 shadow-[0_34px_120px_rgba(0,0,0,.42),inset_0_1px_0_rgba(255,255,255,.28)] md:p-7 ${glassBorder} ${glassSurface}`}
           >
-            <div
-              className={`text-[11px] font-black uppercase tracking-[0.34em] ${mutedText}`}
-            >
-              Live map access
-            </div>
+            <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-white/65 to-transparent" />
 
-            <div
-              className={`mt-3 text-[21px] md:text-[24px] font-black tracking-[-0.03em] ${cardText}`}
-            >
-              Privacy notice
-            </div>
-
-            <div
-              className={`mt-3 text-[11px] md:text-[12px] leading-6 ${
-                darkTheme ? "text-white/72" : "text-black/68"
-              }`}
-            >
-              This live map is provided only for approved safety use. Do not use
-              this session to stalk, monitor, harass, or track anyone you do not
-              know or do not have permission to protect. Misuse may violate
-              StayKnown policy, privacy rules, and applicable law.
-            </div>
-
-            <div
-              className={`mt-4 rounded-[22px] border ${cardBorder} ${innerBg} p-4`}
-            >
+            <div className="flex items-start gap-3.5">
               <div
-                className={`text-[12px] font-extrabold uppercase tracking-[0.24em] ${mutedText}`}
+                className={`grid h-12 w-12 shrink-0 place-items-center rounded-[17px] border shadow-[inset_0_1px_0_rgba(255,255,255,.30),inset_0_-12px_24px_rgba(0,0,0,.16)] ${insetSurface} ${cardText}`}
               >
-                Before you continue
+                <Glyph name="shield" className="h-5 w-5" />
               </div>
-              <div
-                className={`mt-2 text-[13px] leading-6 ${
-                  darkTheme ? "text-white/72" : "text-black/70"
-                }`}
-              >
-                By tapping accept, you confirm that you are opening this session
-                only for a legitimate safety reason.
+              <div className="min-w-0 flex-1">
+                <div
+                  className={`text-[9px] font-black uppercase tracking-[0.28em] ${mutedText}`}
+                >
+                  Signed Visit map access
+                </div>
+                <h1
+                  className={`mt-1.5 text-[23px] font-black leading-[1.1] tracking-[-0.035em] md:text-[27px] ${cardText}`}
+                >
+                  Protect, never control
+                </h1>
+                <p
+                  className={`mt-2 text-[11px] font-semibold leading-[1.65] md:text-[12px] ${mutedText}`}
+                >
+                  This map is provided for legitimate, consent-based safety
+                  support involving someone you know or are directly responsible
+                  for protecting.
+                </p>
               </div>
             </div>
 
-            <div className="mt-5 flex items-center justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => {
-                  setAccessGateOpen(false);
-                  if (typeof window !== "undefined") {
-                    window.location.replace("about:blank");
-                    window.close();
-                  }
-                }}
-                className={`group relative overflow-hidden rounded-full px-5 py-3 text-[13px] font-extrabold transition-all duration-200 ease-out active:scale-[0.985] hover:-translate-y-[1px] hover:shadow-[0_14px_34px_rgba(0,0,0,0.14)] ${
-                  darkTheme
-                    ? "bg-white/8 text-white/82 border border-white/12 hover:bg-white/12"
-                    : "bg-black/5 text-black/72 border border-black/10 hover:bg-black/[0.07]"
-                }`}
+            <div
+              className={`mt-4 max-h-[250px] overflow-y-auto rounded-[22px] border p-4 sk-scroll-hidden ${insetSurface}`}
+            >
+              <div
+                className={`text-[9px] font-black uppercase tracking-[0.20em] ${mutedText}`}
               >
-                <span className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-200 group-hover:opacity-100 bg-[linear-gradient(115deg,transparent_18%,rgba(255,255,255,0.22)_42%,transparent_64%)] bg-[length:220%_100%] animate-[skButtonSweep_1.8s_linear_infinite]" />
-                <span className="pointer-events-none absolute inset-0 opacity-0 active:opacity-100 bg-white/20 animate-[skButtonFlicker_220ms_ease-out]" />
-                <span className="relative z-[1]">Decline</span>
-              </button>
+                Safety and lawful-use policy
+              </div>
+              <div className="mt-3 grid gap-2">
+                {[
+                  "Do not stalk, secretly monitor, harass, punish, frighten, or control another person’s lawful movement.",
+                  "Do not lure someone, fabricate danger, falsely describe a route or area, test them, or send manipulative instructions.",
+                  "Use safety guidance only when you have a genuine concern. Verify through trusted methods and never place yourself at risk.",
+                  "Map access, consent decisions, guidance, messages, timestamps, and responses may be recorded for safety review, abuse prevention, investigation, and lawful reporting.",
+                ].map((line) => (
+                  <div key={line} className="flex items-start gap-2.5">
+                    <span
+                      className={`mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full border ${insetSurface} ${cardText}`}
+                    >
+                      <Glyph name="check" className="h-3 w-3" />
+                    </span>
+                    <span
+                      className={`text-[10px] font-semibold leading-[1.55] ${cardText}`}
+                    >
+                      {line}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
 
+            <label
+              className={`mt-4 flex cursor-pointer items-start gap-3 rounded-[19px] border p-3 ${insetSurface}`}
+            >
+              <input
+                type="checkbox"
+                checked={consentChecked}
+                onChange={(event) => setConsentChecked(event.target.checked)}
+                className="mt-0.5 h-4 w-4 shrink-0 accent-black"
+              />
+              <span
+                className={`text-[10px] font-bold leading-[1.55] ${cardText}`}
+              >
+                I understand and accept this safety-use policy. I confirm that
+                my access and any guidance I send are for a genuine, lawful
+                safety reason.
+              </span>
+            </label>
+
+            {consentError ? (
+              <div className="mt-3 rounded-[15px] border border-red-200 bg-red-50 px-3 py-2 text-center text-[9px] font-bold text-red-600">
+                {consentError}
+              </div>
+            ) : null}
+
+            <div className="mt-5 grid grid-cols-2 gap-2.5">
               <button
                 type="button"
-                onClick={() => {
-                  setAccessAccepted(true);
-                  setAccessGateOpen(false);
-                }}
-                className="group relative overflow-hidden rounded-full px-5 py-3 text-[13px] font-extrabold bg-[#dff5ee] text-[#0e8f70] border border-[#ccebdd] transition-all duration-200 ease-out active:scale-[0.985] hover:-translate-y-[1px] hover:shadow-[0_14px_34px_rgba(14,143,112,0.18)] hover:brightness-[1.02]"
+                disabled={consentRecording}
+                onClick={() => void declineAccess()}
+                className={`h-11 rounded-full border text-[10px] font-black transition active:scale-[0.99] disabled:opacity-40 ${insetSurface} ${cardText}`}
               >
-                <span className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-200 group-hover:opacity-100 bg-[linear-gradient(115deg,transparent_18%,rgba(255,255,255,0.34)_42%,transparent_64%)] bg-[length:220%_100%] animate-[skButtonSweep_1.8s_linear_infinite]" />
-                <span className="pointer-events-none absolute inset-0 opacity-0 active:opacity-100 bg-white/26 animate-[skButtonFlicker_220ms_ease-out]" />
-                <span className="relative z-[1]">I accept</span>
+                Decline
+              </button>
+              <button
+                type="button"
+                disabled={!consentChecked || consentRecording}
+                onClick={() => void recordAccessDecision("accepted")}
+                className="h-11 rounded-full border border-black bg-black text-[10px] font-black text-white shadow-[inset_0_1px_0_rgba(255,255,255,.20),inset_0_-10px_22px_rgba(0,0,0,.42),0_12px_28px_rgba(0,0,0,.18)] transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-35"
+              >
+                {consentRecording ? "Recording…" : "Accept and open map"}
               </button>
             </div>
-          </div>
+
+            <div
+              className={`mt-4 text-center text-[7.5px] font-semibold leading-[1.5] ${mutedText}`}
+            >
+              StayKnown does not replace emergency services. Misuse may lead to
+              access restriction, account action, evidence preservation,
+              investigation, or reporting where required.
+            </div>
+          </section>
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

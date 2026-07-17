@@ -1,30 +1,25 @@
-import { createClient } from "@supabase/supabase-js";
+import {
+  accessFromSearchParams,
+  clean,
+  createAdminClient,
+  validateVisitAccess,
+  verifyLiveAccess,
+} from "../../../live/live-access";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-function admin() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceRole = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-  if (!url || !serviceRole) {
-    throw new Error("Live tracking is not fully configured yet.");
-  }
-
-  return createClient(url, serviceRole, {
-    auth: { persistSession: false },
+function jsonResponse(body: unknown, status: number) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "Content-Type": "application/json" },
   });
 }
 
 function locationQuality(accuracy?: number | null, createdAt?: string | null) {
   const acc =
     typeof accuracy === "number" && Number.isFinite(accuracy) ? accuracy : null;
-
-  const created =
-    typeof createdAt === "string" && createdAt.trim()
-      ? new Date(createdAt)
-      : null;
-
+  const created = createdAt && clean(createdAt) ? new Date(createdAt) : null;
   const ageSeconds =
     created && !Number.isNaN(created.getTime())
       ? Math.max(0, Math.floor((Date.now() - created.getTime()) / 1000))
@@ -70,56 +65,56 @@ function locationQuality(accuracy?: number | null, createdAt?: string | null) {
 }
 
 export async function GET(req: Request) {
-  const url = new URL(req.url);
-  const sid = (url.searchParams.get("sid") || "").trim();
+  const requestUrl = new URL(req.url);
+  const access = accessFromSearchParams(requestUrl.searchParams);
+  const verified = verifyLiveAccess(access);
 
-  if (!sid) {
-    return new Response(
-      JSON.stringify({
-        ok: false,
-        error: "This live tracking link is missing its session details.",
-      }),
+  if (!verified.ok) {
+    return jsonResponse(
       {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
+        ok: false,
+        error: "This signed live-map access is invalid or expired.",
+        reason: verified.reason,
       },
+      401,
     );
   }
 
-  let sb;
+  let admin;
+  let accessContext;
+
   try {
-    sb = admin();
-  } catch (e) {
-    return new Response(
-      JSON.stringify({
-        ok: false,
-        error:
-          e instanceof Error
-            ? e.message
-            : "Live tracking is not available right now.",
-      }),
+    admin = createAdminClient();
+    accessContext = await validateVisitAccess(admin, verified);
+  } catch (error) {
+    return jsonResponse(
       {
-        status: 500,
-        headers: { "Content-Type": "application/json" },
+        ok: false,
+        error: error instanceof Error ? error.message : "Live access failed.",
       },
+      403,
     );
   }
 
+  const sid = verified.sid;
+  const ownerUserId = clean(accessContext.visit.user_id) || verified.uid;
+  const recipientId = accessContext.recipient?.id ?? "";
   const encoder = new TextEncoder();
 
   let closed = false;
   let keepAlive: ReturnType<typeof setInterval> | null = null;
-  let ch1: ReturnType<typeof sb.channel> | null = null;
-  let ch2: ReturnType<typeof sb.channel> | null = null;
-  let ch3: ReturnType<typeof sb.channel> | null = null;
+  let locationChannel: ReturnType<typeof admin.channel> | null = null;
+  let visitChannel: ReturnType<typeof admin.channel> | null = null;
+  let sosChannel: ReturnType<typeof admin.channel> | null = null;
+  let advisoryChannel: ReturnType<typeof admin.channel> | null = null;
 
   const sendChunk = (
     controller: ReadableStreamDefaultController<Uint8Array>,
-    obj: unknown,
+    value: unknown,
   ) => {
     if (closed) return;
     try {
-      controller.enqueue(encoder.encode(`data: ${JSON.stringify(obj)}\n\n`));
+      controller.enqueue(encoder.encode(`data: ${JSON.stringify(value)}\n\n`));
     } catch {
       closed = true;
     }
@@ -129,22 +124,20 @@ export async function GET(req: Request) {
     if (closed) return;
     closed = true;
 
-    if (keepAlive) {
-      clearInterval(keepAlive);
-      keepAlive = null;
+    if (keepAlive) clearInterval(keepAlive);
+    keepAlive = null;
+
+    for (const channel of [
+      locationChannel,
+      visitChannel,
+      sosChannel,
+      advisoryChannel,
+    ]) {
+      if (!channel) continue;
+      try {
+        await admin.removeChannel(channel);
+      } catch {}
     }
-
-    try {
-      if (ch1) await sb.removeChannel(ch1);
-    } catch {}
-
-    try {
-      if (ch2) await sb.removeChannel(ch2);
-    } catch {}
-
-    try {
-      if (ch3) await sb.removeChannel(ch3);
-    } catch {}
   };
 
   const stream = new ReadableStream<Uint8Array>({
@@ -152,6 +145,7 @@ export async function GET(req: Request) {
       sendChunk(controller, {
         type: "ready",
         session_id: sid,
+        advisory_enabled: Boolean(recipientId) && !accessContext.legacyReadOnly,
         t: Date.now(),
       });
 
@@ -159,25 +153,8 @@ export async function GET(req: Request) {
         sendChunk(controller, { type: "ka", t: Date.now() });
       }, 15000);
 
-      const visitRes = await sb
-        .from("visits")
-        .select(
-          "id,user_id,ended_at,destination_name,destination_address,end_lat,end_lng",
-        )
-        .eq("id", sid)
-        .maybeSingle();
-
-      const visit = visitRes.data as {
-        id?: string | null;
-        user_id?: string | null;
-        ended_at?: string | null;
-        destination_name?: string | null;
-        destination_address?: string | null;
-        end_lat?: number | null;
-        end_lng?: number | null;
-      } | null;
-
-      const latestRes = await sb
+      const visit = accessContext.visit;
+      const latestResult = await admin
         .from("visit_locations")
         .select("lat,lng,accuracy,place,created_at")
         .eq("session_id", sid)
@@ -185,15 +162,8 @@ export async function GET(req: Request) {
         .limit(1)
         .maybeSingle();
 
-      const latest = latestRes.data as {
-        lat?: number | null;
-        lng?: number | null;
-        accuracy?: number | null;
-        place?: string | null;
-        created_at?: string | null;
-      } | null;
-
-      const ended = Boolean(visit?.ended_at);
+      const latest = latestResult.data as Record<string, unknown> | null;
+      const ended = Boolean(visit.ended_at);
 
       if (typeof latest?.lat === "number" && typeof latest?.lng === "number") {
         sendChunk(controller, {
@@ -203,20 +173,20 @@ export async function GET(req: Request) {
           accuracy: latest.accuracy ?? null,
           place:
             latest.place ??
-            visit?.destination_name ??
-            visit?.destination_address ??
+            visit.destination_name ??
+            visit.destination_address ??
             null,
           created_at: latest.created_at ?? null,
           initial: true,
           ended,
           ...locationQuality(
-            latest.accuracy ?? null,
-            latest.created_at ?? null,
+            typeof latest.accuracy === "number" ? latest.accuracy : null,
+            clean(latest.created_at) || null,
           ),
         });
       } else if (
-        typeof visit?.end_lat === "number" &&
-        typeof visit?.end_lng === "number"
+        typeof visit.end_lat === "number" &&
+        typeof visit.end_lng === "number"
       ) {
         sendChunk(controller, {
           type: "location",
@@ -227,20 +197,41 @@ export async function GET(req: Request) {
           created_at: visit.ended_at ?? null,
           initial: true,
           ended: true,
-          ...locationQuality(null, visit.ended_at ?? null),
+          ...locationQuality(null, clean(visit.ended_at) || null),
         });
+      }
+
+      if (recipientId) {
+        const advisoryResult = await admin
+          .from("visit_safety_advisories")
+          .select(
+            "id,message_kind,message_text,status,response_kind,created_at,updated_at,leaving_at,safe_at",
+          )
+          .eq("visit_id", sid)
+          .eq("sender_contact_id", recipientId)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (!advisoryResult.error && advisoryResult.data) {
+          sendChunk(controller, {
+            type: "advisory",
+            initial: true,
+            advisory: advisoryResult.data,
+          });
+        }
       }
 
       if (ended) {
         sendChunk(controller, {
           type: "ended",
-          ended_at: visit?.ended_at,
+          ended_at: visit.ended_at,
           initial: true,
         });
         return;
       }
 
-      ch1 = sb
+      locationChannel = admin
         .channel(`live-loc-${sid}-${Date.now()}`)
         .on(
           "postgres_changes",
@@ -251,34 +242,28 @@ export async function GET(req: Request) {
             filter: `session_id=eq.${sid}`,
           },
           (payload) => {
-            const row = payload.new as {
-              lat?: number;
-              lng?: number;
-              accuracy?: number | null;
-              place?: string | null;
-              created_at?: string | null;
-            };
+            const row = payload.new as Record<string, unknown>;
+            if (typeof row.lat !== "number" || typeof row.lng !== "number")
+              return;
 
-            if (typeof row?.lat === "number" && typeof row?.lng === "number") {
-              sendChunk(controller, {
-                type: "location",
-                lat: row.lat,
-                lng: row.lng,
-                accuracy: row.accuracy ?? null,
-                place: row.place ?? null,
-                created_at: row.created_at ?? null,
-                ended: false,
-                ...locationQuality(
-                  row.accuracy ?? null,
-                  row.created_at ?? null,
-                ),
-              });
-            }
+            sendChunk(controller, {
+              type: "location",
+              lat: row.lat,
+              lng: row.lng,
+              accuracy: row.accuracy ?? null,
+              place: row.place ?? null,
+              created_at: row.created_at ?? null,
+              ended: false,
+              ...locationQuality(
+                typeof row.accuracy === "number" ? row.accuracy : null,
+                clean(row.created_at) || null,
+              ),
+            });
           },
         )
         .subscribe();
 
-      ch2 = sb
+      visitChannel = admin
         .channel(`live-visit-${sid}-${Date.now()}`)
         .on(
           "postgres_changes",
@@ -289,17 +274,11 @@ export async function GET(req: Request) {
             filter: `id=eq.${sid}`,
           },
           (payload) => {
-            const row = payload.new as {
-              ended_at?: string | null;
-              end_lat?: number | null;
-              end_lng?: number | null;
-              destination_name?: string | null;
-              destination_address?: string | null;
-            };
+            const row = payload.new as Record<string, unknown>;
 
             if (
-              typeof row?.end_lat === "number" &&
-              typeof row?.end_lng === "number"
+              typeof row.end_lat === "number" &&
+              typeof row.end_lng === "number"
             ) {
               sendChunk(controller, {
                 type: "location",
@@ -309,52 +288,60 @@ export async function GET(req: Request) {
                 place: row.destination_name ?? row.destination_address ?? null,
                 created_at: row.ended_at ?? null,
                 ended: Boolean(row.ended_at),
-                ...locationQuality(null, row.ended_at ?? null),
+                ...locationQuality(null, clean(row.ended_at) || null),
               });
             }
 
-            if (row?.ended_at) {
-              sendChunk(controller, {
-                type: "ended",
-                ended_at: row.ended_at,
-              });
+            if (row.ended_at) {
+              sendChunk(controller, { type: "ended", ended_at: row.ended_at });
             }
           },
         )
         .subscribe();
 
-      const visitOwnerId = visit?.user_id ?? null;
+      sosChannel = admin
+        .channel(`live-sos-${sid}-${Date.now()}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "sos_sessions",
+            filter: `user_id=eq.${ownerUserId}`,
+          },
+          (payload) => {
+            const row = payload.new as Record<string, unknown> | null;
+            const embedded =
+              row?.payload && typeof row.payload === "object"
+                ? (row.payload as Record<string, unknown>)
+                : {};
+            if (clean(embedded.session_id) !== sid) return;
+            sendChunk(controller, {
+              type: "sos",
+              active: row ? !Boolean(row.ended_at) : false,
+            });
+          },
+        )
+        .subscribe();
 
-      if (visitOwnerId) {
-        ch3 = sb
-          .channel(`live-sos-${sid}-${Date.now()}`)
+      if (recipientId) {
+        advisoryChannel = admin
+          .channel(`live-advisory-${sid}-${recipientId}-${Date.now()}`)
           .on(
             "postgres_changes",
             {
               event: "*",
               schema: "public",
-              table: "sos_sessions",
-              filter: `user_id=eq.${visitOwnerId}`,
+              table: "visit_safety_advisories",
+              filter: `visit_id=eq.${sid}`,
             },
             (payload) => {
-              const row = payload.new as {
-                ended_at?: string | null;
-                payload?: { session_id?: string | null } | null;
-              } | null;
-
-              const payloadSessionId =
-                typeof row?.payload === "object" && row?.payload
-                  ? String(row.payload.session_id || "").trim()
-                  : "";
-
-              if (payloadSessionId !== sid) return;
-
-              const active = row ? !Boolean(row.ended_at) : false;
-
-              sendChunk(controller, {
-                type: "sos",
-                active,
-              });
+              const row = (payload.new ?? payload.old) as Record<
+                string,
+                unknown
+              > | null;
+              if (!row || clean(row.sender_contact_id) !== recipientId) return;
+              sendChunk(controller, { type: "advisory", advisory: row });
             },
           )
           .subscribe();
