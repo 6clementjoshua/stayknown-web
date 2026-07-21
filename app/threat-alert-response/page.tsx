@@ -1,10 +1,13 @@
 import type { Metadata } from "next";
+import { createClient } from "@supabase/supabase-js";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 export const metadata: Metadata = {
   title: "Threat Alert response | StayKnown",
+  description:
+    "Secure StayKnown Threat Alert response confirmation and safety information.",
   robots: {
     index: false,
     follow: false,
@@ -14,6 +17,7 @@ export const metadata: Metadata = {
 
 type SearchValue = string | string[] | undefined;
 type SearchMap = Record<string, SearchValue>;
+type JsonRow = Record<string, unknown>;
 
 type PageProps = {
   searchParams: SearchMap | Promise<SearchMap>;
@@ -32,13 +36,89 @@ type FunctionResult = {
   };
 };
 
+type AlertSummary = {
+  found: boolean;
+  ownerName: string;
+  ownerAvatarUrl: string;
+  ownerSafetyImageUrl: string;
+  verified: boolean;
+  verificationBadge: string;
+  status: string;
+  place: string;
+  lat: number | null;
+  lng: number | null;
+  accuracyMeters: number | null;
+  locationStatus: string;
+  triggeredAt: string;
+  externalMapUrl: string;
+  premiumMapUrl: string;
+  recipientsCount: number;
+  respondedCount: number;
+  receivedCount: number;
+  checkingCount: number;
+};
+
+const DEFAULT_LOGO_URL =
+  "https://ipognlibpkbauusvfeic.supabase.co/storage/v1/object/public/public-assets/stayknown-logo.png";
+
+const CONTACT_CAUTION =
+  "Verify through a trusted method you already know. Do not travel alone or " +
+  "place yourself at risk based only on an alert. Contact the appropriate local " +
+  "emergency service when you believe there is immediate danger. An acknowledgement " +
+  "does not mean help is on the way.";
+
 function first(value: SearchValue): string {
   if (Array.isArray(value)) return String(value[0] ?? "").trim();
   return String(value ?? "").trim();
 }
 
+function clean(value: unknown): string {
+  if (value == null) return "";
+  const text = String(value).trim();
+  return text.toLowerCase() === "null" ? "" : text;
+}
+
+function numberOf(value: unknown): number | null {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function intOf(value: unknown): number {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return 0;
+  return Math.max(0, Math.trunc(parsed));
+}
+
+function safeHttpUrl(value: unknown): string {
+  const text = clean(value);
+  if (!text) return "";
+
+  try {
+    const url = new URL(text);
+    return url.protocol === "https:" || url.protocol === "http:"
+      ? url.toString()
+      : "";
+  } catch {
+    return "";
+  }
+}
+
+function firstNonEmpty(values: unknown[]): string {
+  for (const value of values) {
+    const text = clean(value);
+    if (text) return text;
+  }
+  return "";
+}
+
+function isUuid(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    value,
+  );
+}
+
 function normalizeAction(value: string): string {
-  const clean = value.trim().toLowerCase();
+  const normalized = value.trim().toLowerCase();
 
   const aliases: Record<string, string> = {
     received: "received",
@@ -54,7 +134,7 @@ function normalizeAction(value: string): string {
     emergency_help: "contacted_emergency_help",
   };
 
-  return aliases[clean] ?? "";
+  return aliases[normalized] ?? "";
 }
 
 function actionLabel(action: string): string {
@@ -70,6 +150,136 @@ function actionLabel(action: string): string {
     default:
       return "Response";
   }
+}
+
+function statusLabel(value: string): string {
+  const status = value.trim().toLowerCase();
+
+  switch (status) {
+    case "dispatching":
+      return "Sending";
+    case "active":
+      return "Active";
+    case "safe":
+    case "resolved_safe":
+      return "Resolved — safe";
+    case "accidental":
+    case "resolved_accidental":
+      return "Accidental alert";
+    case "cancelled":
+    case "canceled":
+      return "Cancelled";
+    case "expired":
+      return "Expired";
+    case "failed":
+      return "Delivery incomplete";
+    default:
+      return status ? status.replaceAll("_", " ") : "Recorded";
+  }
+}
+
+function formatDateTime(value: string): string {
+  if (!value) return "Time unavailable";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Time unavailable";
+
+  return new Intl.DateTimeFormat("en", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(date);
+}
+
+function coordinatesLabel(lat: number | null, lng: number | null): string {
+  if (lat == null || lng == null) return "Not attached";
+  return `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+}
+
+function accuracyLabel(value: number | null): string {
+  if (value == null || value <= 0) return "Unavailable";
+  if (value <= 80) return `Precise GPS • ±${Math.round(value)} m`;
+  if (value <= 250) {
+    return `Approximate area • ±${Math.round(value)} m`;
+  }
+  return `Broad area • ±${Math.round(value)} m`;
+}
+
+function publicLogoUrl(): string {
+  return (
+    safeHttpUrl(process.env.BRAND_LOGO_URL) ||
+    safeHttpUrl(process.env.NEXT_PUBLIC_BRAND_LOGO_URL) ||
+    DEFAULT_LOGO_URL
+  );
+}
+
+function siteBaseUrl(): string {
+  return firstNonEmpty([
+    process.env.PUBLIC_SITE_URL,
+    process.env.SITE_URL,
+    process.env.NEXT_PUBLIC_SITE_URL,
+    "https://stay-known.com",
+  ]).replace(/\/+$/g, "");
+}
+
+function createAdminClient(supabaseUrl: string, serviceRole: string) {
+  return createClient(supabaseUrl, serviceRole, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
+    },
+  });
+}
+
+type AdminClient = ReturnType<typeof createAdminClient>;
+
+async function resolveStorageImage(params: {
+  admin: AdminClient;
+  rawValue: unknown;
+  fallbackBucket: string;
+}): Promise<string> {
+  const value = clean(params.rawValue);
+  if (!value) return "";
+
+  const direct = safeHttpUrl(value);
+  if (direct) return direct;
+
+  const normalized = value.replace(/^\/+/, "");
+  if (!normalized) return "";
+
+  let bucket = params.fallbackBucket;
+  let path = normalized;
+
+  const slash = normalized.indexOf("/");
+  if (slash > 0) {
+    const possibleBucket = normalized.slice(0, slash);
+    const possiblePath = normalized.slice(slash + 1);
+
+    if (possibleBucket && possiblePath) {
+      bucket = possibleBucket;
+      path = possiblePath;
+    }
+  }
+
+  try {
+    const { data, error } = await params.admin.storage
+      .from(bucket)
+      .createSignedUrl(path, 24 * 60 * 60);
+
+    if (!error) return safeHttpUrl(data?.signedUrl);
+  } catch {}
+
+  if (bucket !== params.fallbackBucket) {
+    try {
+      const { data, error } = await params.admin.storage
+        .from(params.fallbackBucket)
+        .createSignedUrl(normalized, 24 * 60 * 60);
+
+      if (!error) return safeHttpUrl(data?.signedUrl);
+    } catch {}
+  }
+
+  return "";
 }
 
 async function submitSignedResponse(params: {
@@ -148,6 +358,184 @@ async function submitSignedResponse(params: {
   }
 }
 
+async function loadAlertSummary(alertId: string): Promise<AlertSummary> {
+  const empty: AlertSummary = {
+    found: false,
+    ownerName: "StayKnown member",
+    ownerAvatarUrl: "",
+    ownerSafetyImageUrl: "",
+    verified: false,
+    verificationBadge: "",
+    status: "",
+    place: "",
+    lat: null,
+    lng: null,
+    accuracyMeters: null,
+    locationStatus: "",
+    triggeredAt: "",
+    externalMapUrl: "",
+    premiumMapUrl: `${siteBaseUrl()}/threat-alert-map?alert=${encodeURIComponent(
+      alertId,
+    )}`,
+    recipientsCount: 0,
+    respondedCount: 0,
+    receivedCount: 0,
+    checkingCount: 0,
+  };
+
+  if (!isUuid(alertId)) return empty;
+
+  const supabaseUrl = firstNonEmpty([
+    process.env.SUPABASE_URL,
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+  ]).replace(/\/+$/g, "");
+
+  const serviceRole = clean(process.env.SUPABASE_SERVICE_ROLE_KEY);
+
+  if (!supabaseUrl || !serviceRole) return empty;
+
+  const admin = createAdminClient(supabaseUrl, serviceRole);
+
+  try {
+    const { data, error } = await admin
+      .from("threat_alerts")
+      .select("*")
+      .eq("id", alertId)
+      .maybeSingle();
+
+    if (error || !data || typeof data !== "object") return empty;
+
+    const alert = data as JsonRow;
+    const ownerUserId = clean(alert.owner_user_id);
+
+    let userProfile: JsonRow | null = null;
+    let profile: JsonRow | null = null;
+    let gallery: JsonRow | null = null;
+
+    if (ownerUserId) {
+      try {
+        const { data: row } = await admin
+          .from("user_profile")
+          .select("display_name,first_name,last_name,profile_photo_url")
+          .eq("user_id", ownerUserId)
+          .maybeSingle();
+
+        if (row && typeof row === "object") {
+          userProfile = row as JsonRow;
+        }
+      } catch {}
+
+      try {
+        const { data: row } = await admin
+          .from("profiles")
+          .select("avatar_url,verified")
+          .eq("id", ownerUserId)
+          .maybeSingle();
+
+        if (row && typeof row === "object") {
+          profile = row as JsonRow;
+        }
+      } catch {}
+
+      try {
+        const { data: row } = await admin
+          .from("safety_gallery")
+          .select("path,created_at")
+          .eq("user_id", ownerUserId)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (row && typeof row === "object") {
+          gallery = row as JsonRow;
+        }
+      } catch {}
+    }
+
+    const firstName = firstNonEmpty([
+      userProfile?.first_name,
+      alert.owner_first_name,
+    ]);
+
+    const lastName = clean(userProfile?.last_name);
+
+    const ownerName = firstNonEmpty([
+      userProfile?.display_name,
+      [firstName, lastName].filter(Boolean).join(" "),
+      alert.owner_full_name,
+      firstName,
+      "StayKnown member",
+    ]);
+
+    const avatarUrl =
+      (await resolveStorageImage({
+        admin,
+        rawValue: firstNonEmpty([
+          userProfile?.profile_photo_url,
+          profile?.avatar_url,
+        ]),
+        fallbackBucket: "avatars",
+      })) || safeHttpUrl(alert.owner_avatar_url);
+
+    const safetyImageUrl =
+      (await resolveStorageImage({
+        admin,
+        rawValue: gallery?.path,
+        fallbackBucket: "safety-gallery",
+      })) || safeHttpUrl(alert.owner_safety_image_url);
+
+    const lat = numberOf(alert.lat);
+    const lng = numberOf(alert.lng);
+
+    const externalMapUrl =
+      safeHttpUrl(alert.external_map_url) ||
+      (lat != null && lng != null
+        ? `https://www.google.com/maps?q=${encodeURIComponent(`${lat},${lng}`)}`
+        : "");
+
+    return {
+      found: true,
+      ownerName,
+      ownerAvatarUrl: avatarUrl,
+      ownerSafetyImageUrl: safetyImageUrl,
+      verified:
+        profile?.verified === true ||
+        Boolean(clean(alert.owner_verification_badge)),
+      verificationBadge: clean(alert.owner_verification_badge),
+      status: clean(alert.status),
+      place: firstNonEmpty([alert.place, alert.location_name]),
+      lat,
+      lng,
+      accuracyMeters: numberOf(
+        firstNonEmpty([alert.accuracy_meters, alert.accuracy]),
+      ),
+      locationStatus: firstNonEmpty([
+        alert.location_status,
+        alert.location_source,
+      ]),
+      triggeredAt: firstNonEmpty([
+        alert.triggered_at,
+        alert.activated_at,
+        alert.created_at,
+      ]),
+      externalMapUrl,
+      premiumMapUrl: `${siteBaseUrl()}/threat-alert-map?alert=${encodeURIComponent(
+        alertId,
+      )}`,
+      recipientsCount: intOf(alert.recipients_count),
+      respondedCount: intOf(alert.responded_count),
+      receivedCount: intOf(alert.received_count),
+      checkingCount: intOf(alert.checking_count),
+    };
+  } catch {
+    return empty;
+  }
+}
+
+function imageFallbackInitial(name: string): string {
+  return name.trim().slice(0, 1).toUpperCase() || "S";
+}
+
 export default async function ThreatAlertResponsePage({
   searchParams,
 }: PageProps) {
@@ -161,15 +549,18 @@ export default async function ThreatAlertResponsePage({
 
   const missing = !alertId || !recipientId || !action || !exp || !sig;
 
-  const submission = missing
-    ? {
+  const submissionPromise: Promise<{
+    status: number;
+    result: FunctionResult;
+  }> = missing
+    ? Promise.resolve({
         status: 400,
         result: {
           ok: false,
           error: "This secure Threat Alert response link is incomplete.",
-        } satisfies FunctionResult,
-      }
-    : await submitSignedResponse({
+        },
+      })
+    : submitSignedResponse({
         alertId,
         recipientId,
         action,
@@ -177,7 +568,12 @@ export default async function ThreatAlertResponsePage({
         sig,
       });
 
-  const result = submission.result;
+  const [submission, alert] = await Promise.all([
+    submissionPromise,
+    loadAlertSummary(alertId),
+  ]);
+
+  const result: FunctionResult = submission.result;
   const successful = result.ok === true;
   const closed = result.closed === true || submission.status === 409;
   const expiredOrInvalid =
@@ -209,13 +605,22 @@ export default async function ThreatAlertResponsePage({
         ? "For safety, secure response links expire and cannot be reused after their valid period."
         : result.error || "StayKnown could not record this response right now.";
 
+  const logoUrl = publicLogoUrl();
+  const identityImage =
+    alert.ownerAvatarUrl || alert.ownerSafetyImageUrl || logoUrl;
+  const locationText =
+    alert.place ||
+    (alert.lat != null && alert.lng != null
+      ? coordinatesLabel(alert.lat, alert.lng)
+      : "A confirmed location was not attached when this alert was sent.");
+
   return (
     <main
       style={{
         minHeight: "100vh",
         background:
-          "linear-gradient(145deg, #f5f5f5 0%, #ffffff 48%, #e9eaec 100%)",
-        color: "#111111",
+          "radial-gradient(circle at 10% 0%, rgba(255,255,255,.98), transparent 35%), linear-gradient(145deg, #eef1f4 0%, #ffffff 48%, #e5e8eb 100%)",
+        color: "#111318",
         display: "grid",
         placeItems: "center",
         padding: "24px 14px",
@@ -226,16 +631,31 @@ export default async function ThreatAlertResponsePage({
       <section
         style={{
           width: "100%",
-          maxWidth: 560,
-          background: "rgba(255,255,255,0.94)",
-          border: "1px solid rgba(0,0,0,0.09)",
-          borderRadius: 32,
-          padding: "30px 24px 25px",
+          maxWidth: 620,
+          background: "rgba(255,255,255,0.95)",
+          border: "1px solid rgba(0,0,0,0.085)",
+          borderRadius: 34,
+          padding: "27px 23px 24px",
           boxShadow:
-            "0 28px 80px rgba(0,0,0,0.13), inset 0 1px 0 rgba(255,255,255,0.9)",
+            "0 32px 90px rgba(0,0,0,0.14), inset 0 1px 0 rgba(255,255,255,0.98)",
           textAlign: "center",
         }}
       >
+        <img
+          src={logoUrl}
+          width={68}
+          height={68}
+          alt="StayKnown"
+          style={{
+            display: "block",
+            width: 68,
+            height: 68,
+            margin: "0 auto 13px",
+            objectFit: "contain",
+            borderRadius: 21,
+          }}
+        />
+
         <div
           style={{
             fontSize: 12,
@@ -249,13 +669,13 @@ export default async function ThreatAlertResponsePage({
         <div
           style={{
             marginTop: 6,
-            fontSize: 10,
-            color: "#777777",
-            fontWeight: 800,
-            letterSpacing: "1.2px",
+            fontSize: 9.5,
+            color: "#777b80",
+            fontWeight: 850,
+            letterSpacing: "1.05px",
           }}
         >
-          A 6 Clement Joshua service™
+          A 6 CLEMENT JOSHUA SERVICE™
         </div>
 
         <div
@@ -264,17 +684,17 @@ export default async function ThreatAlertResponsePage({
             width: 74,
             height: 74,
             borderRadius: 24,
-            margin: "24px auto 18px",
+            margin: "23px auto 17px",
             display: "grid",
             placeItems: "center",
-            background: successful ? "#111111" : "#eceef0",
-            color: successful ? "#ffffff" : "#111111",
-            border: "1px solid rgba(0,0,0,0.10)",
+            background: successful ? "#111318" : "#eceff1",
+            color: successful ? "#ffffff" : "#111318",
+            border: "1px solid rgba(0,0,0,0.09)",
             fontSize: 31,
             fontWeight: 950,
           }}
         >
-          {successful ? "✓" : closed ? "—" : "!"}
+          {successful ? "✓" : closed ? "○" : "!"}
         </div>
 
         <h1
@@ -291,46 +711,248 @@ export default async function ThreatAlertResponsePage({
 
         <p
           style={{
-            margin: "14px auto 0",
-            maxWidth: 450,
-            fontSize: 14,
-            lineHeight: 1.65,
-            color: "#3e4146",
-            fontWeight: 600,
+            margin: "13px auto 0",
+            maxWidth: 480,
+            fontSize: 13.5,
+            lineHeight: 1.62,
+            color: "#41464c",
+            fontWeight: 650,
           }}
         >
           {body}
         </p>
 
-        {successful ? (
+        {alert.found ? (
           <div
             style={{
-              marginTop: 19,
-              borderRadius: 20,
-              padding: "14px 15px",
-              background: "#f3f4f5",
-              border: "1px solid rgba(0,0,0,0.07)",
-              fontSize: 12,
-              fontWeight: 850,
+              marginTop: 21,
+              padding: 15,
+              borderRadius: 25,
+              background:
+                "linear-gradient(145deg, rgba(255,255,255,.96), rgba(236,239,242,.86))",
+              border: "1px solid rgba(0,0,0,.065)",
+              textAlign: "left",
             }}
           >
-            Current response: {label}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+              }}
+            >
+              <div
+                style={{
+                  width: 58,
+                  height: 58,
+                  flex: "0 0 58px",
+                  overflow: "hidden",
+                  borderRadius: 20,
+                  display: "grid",
+                  placeItems: "center",
+                  color: "#ffffff",
+                  background: "#111318",
+                  border: "1px solid rgba(255,255,255,.9)",
+                  fontSize: 21,
+                  fontWeight: 950,
+                }}
+              >
+                {identityImage ? (
+                  <img
+                    src={identityImage}
+                    width={58}
+                    height={58}
+                    alt={alert.ownerName}
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      objectFit:
+                        identityImage === logoUrl ? "contain" : "cover",
+                      padding: identityImage === logoUrl ? 10 : 0,
+                      background:
+                        identityImage === logoUrl ? "#ffffff" : "transparent",
+                    }}
+                  />
+                ) : (
+                  imageFallbackInitial(alert.ownerName)
+                )}
+              </div>
+
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div
+                  style={{
+                    color: "#73777c",
+                    fontSize: 8,
+                    fontWeight: 950,
+                    letterSpacing: "1.25px",
+                    textTransform: "uppercase",
+                  }}
+                >
+                  Threat Alert from
+                </div>
+
+                <div
+                  style={{
+                    marginTop: 4,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                    fontSize: 17,
+                    fontWeight: 950,
+                  }}
+                >
+                  {alert.ownerName}
+                  {alert.verified ? " ✓" : ""}
+                </div>
+
+                <div
+                  style={{
+                    marginTop: 5,
+                    color: "#73777c",
+                    fontSize: 10,
+                    fontWeight: 750,
+                  }}
+                >
+                  {formatDateTime(alert.triggeredAt)}
+                </div>
+              </div>
+
+              <div
+                style={{
+                  maxWidth: 112,
+                  padding: "8px 10px",
+                  borderRadius: 999,
+                  color: alert.status === "active" ? "#ffffff" : "#33373c",
+                  background: alert.status === "active" ? "#111318" : "#eef0f2",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                  fontSize: 8,
+                  fontWeight: 950,
+                  letterSpacing: ".65px",
+                  textTransform: "uppercase",
+                }}
+              >
+                {statusLabel(alert.status)}
+              </div>
+            </div>
+
+            <div
+              style={{
+                marginTop: 13,
+                padding: 13,
+                borderRadius: 19,
+                background: "rgba(255,255,255,.62)",
+                border: "1px solid rgba(0,0,0,.055)",
+              }}
+            >
+              <div
+                style={{
+                  color: "#73777c",
+                  fontSize: 8,
+                  fontWeight: 950,
+                  letterSpacing: "1.1px",
+                  textTransform: "uppercase",
+                }}
+              >
+                Last confirmed location
+              </div>
+
+              <div
+                style={{
+                  marginTop: 7,
+                  fontSize: 13.5,
+                  lineHeight: 1.45,
+                  fontWeight: 900,
+                }}
+              >
+                {locationText}
+              </div>
+
+              <div
+                style={{
+                  marginTop: 6,
+                  color: "#6f7479",
+                  fontSize: 10,
+                  lineHeight: 1.45,
+                  fontWeight: 700,
+                }}
+              >
+                {accuracyLabel(alert.accuracyMeters)}
+                {alert.locationStatus
+                  ? ` • ${alert.locationStatus.replaceAll("_", " ")}`
+                  : ""}
+              </div>
+            </div>
+
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(4, minmax(0,1fr))",
+                gap: 7,
+                marginTop: 9,
+              }}
+            >
+              {[
+                ["Contacts", alert.recipientsCount],
+                ["Responses", alert.respondedCount],
+                ["Received", alert.receivedCount],
+                ["Checking", alert.checkingCount],
+              ].map(([name, value]) => (
+                <div
+                  key={String(name)}
+                  style={{
+                    minWidth: 0,
+                    padding: "9px 7px",
+                    borderRadius: 16,
+                    background: "rgba(255,255,255,.58)",
+                    border: "1px solid rgba(0,0,0,.05)",
+                    textAlign: "center",
+                  }}
+                >
+                  <div
+                    style={{
+                      overflow: "hidden",
+                      color: "#777b80",
+                      fontSize: 7,
+                      fontWeight: 950,
+                      letterSpacing: ".6px",
+                      textOverflow: "ellipsis",
+                      textTransform: "uppercase",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {String(name)}
+                  </div>
+
+                  <div
+                    style={{
+                      marginTop: 4,
+                      fontSize: 13,
+                      fontWeight: 950,
+                    }}
+                  >
+                    {String(value)}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         ) : null}
 
         <div
           style={{
-            marginTop: 20,
+            marginTop: 18,
             borderRadius: 22,
-            padding: "17px",
-            background: "#111111",
+            padding: 17,
+            background: "#111318",
             color: "#ffffff",
             textAlign: "left",
           }}
         >
           <div
             style={{
-              fontSize: 11,
+              fontSize: 10,
               fontWeight: 950,
               letterSpacing: "1.1px",
               textTransform: "uppercase",
@@ -343,30 +965,98 @@ export default async function ThreatAlertResponsePage({
             style={{
               margin: "9px 0 0",
               color: "rgba(255,255,255,0.78)",
-              fontSize: 12,
+              fontSize: 11.5,
               lineHeight: 1.6,
-              fontWeight: 600,
+              fontWeight: 650,
             }}
           >
-            Verify through a trusted method you already know. Do not travel
-            alone or place yourself at risk based only on an alert. Contact the
-            appropriate local emergency service when you believe there is
-            immediate danger. An acknowledgement does not mean help is on the
-            way.
+            {CONTACT_CAUTION}
           </p>
+        </div>
+
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(2, minmax(0,1fr))",
+            gap: 8,
+            marginTop: 14,
+          }}
+        >
+          <a
+            href={alert.premiumMapUrl}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              minHeight: 44,
+              padding: "11px 14px",
+              borderRadius: 999,
+              color: "#ffffff",
+              background: "#111318",
+              border: "1px solid #111318",
+              textDecoration: "none",
+              fontSize: 10.5,
+              fontWeight: 950,
+            }}
+          >
+            Open full Threat Alert map
+          </a>
+
+          {alert.externalMapUrl ? (
+            <a
+              href={alert.externalMapUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                minHeight: 44,
+                padding: "11px 14px",
+                borderRadius: 999,
+                color: "#111318",
+                background: "#ffffff",
+                border: "1px solid rgba(0,0,0,.10)",
+                textDecoration: "none",
+                fontSize: 10.5,
+                fontWeight: 950,
+              }}
+            >
+              Open external map
+            </a>
+          ) : (
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                minHeight: 44,
+                padding: "11px 14px",
+                borderRadius: 999,
+                color: "#73777c",
+                background: "#f1f3f4",
+                border: "1px solid rgba(0,0,0,.06)",
+                fontSize: 10.5,
+                fontWeight: 900,
+              }}
+            >
+              External map unavailable
+            </span>
+          )}
         </div>
 
         <p
           style={{
-            margin: "19px 3px 0",
+            margin: "17px 3px 0",
             color: "#777b80",
-            fontSize: 10.5,
+            fontSize: 9.8,
             lineHeight: 1.55,
             fontWeight: 650,
           }}
         >
-          StayKnown does not replace emergency services. This page records only
-          the signed response selected from the original Threat Alert email.
+          StayKnown does not replace emergency services. This page records the
+          signed response selected from the original Threat Alert email and
+          displays the alert information available to the responder.
         </p>
       </section>
     </main>
