@@ -122,7 +122,6 @@ async function fetchCurrentOwnerIdentity(params: {
 
   let userProfile: JsonRow | null = null;
   let profile: JsonRow | null = null;
-  let gallery: JsonRow | null = null;
   let badge: JsonRow | null = null;
 
   try {
@@ -143,18 +142,6 @@ async function fetchCurrentOwnerIdentity(params: {
       .maybeSingle();
 
     if (data && typeof data === "object") profile = data as JsonRow;
-  } catch {}
-
-  try {
-    const { data } = await admin
-      .from("safety_gallery")
-      .select("path,created_at")
-      .eq("user_id", ownerUserId)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    if (data && typeof data === "object") gallery = data as JsonRow;
   } catch {}
 
   try {
@@ -483,52 +470,21 @@ function ErrorPage({ title, message }: { title: string; message: string }) {
           textAlign: "center",
         }}
       >
-        <div
-          aria-label="StayKnown"
-          role="img"
+        <img
+          src="/api/stayknown-logo"
+          width={66}
+          height={66}
+          alt="StayKnown"
           style={{
-            display: "grid",
-            placeItems: "center",
+            display: "block",
             width: 66,
             height: 66,
             margin: "0 auto 13px",
-            overflow: "hidden",
+            objectFit: "contain",
             borderRadius: 20,
             background: "#ffffff",
           }}
-        >
-          <svg
-            viewBox="0 0 120 120"
-            width="66"
-            height="66"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <rect width="120" height="120" rx="26" fill="#ffffff" />
-            <text
-              x="60"
-              y="63"
-              textAnchor="middle"
-              fill="#08090b"
-              fontSize="58"
-              fontWeight="950"
-              fontFamily="Arial Black, Arial, sans-serif"
-            >
-              6
-            </text>
-            <text
-              x="60"
-              y="86"
-              textAnchor="middle"
-              fill="#08090b"
-              fontSize="12"
-              fontWeight="950"
-              letterSpacing="1.2"
-              fontFamily="Arial Black, Arial, sans-serif"
-            >
-              STAYKNOWN
-            </text>
-          </svg>
-        </div>
+        />
 
         <div
           style={{
