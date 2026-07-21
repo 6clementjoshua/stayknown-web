@@ -986,6 +986,10 @@ export default function ThreatAlertMapClient({ alert }: Props) {
           padding: 16px;
         }
 
+        .sk-threat-primary-column {
+          display: contents;
+        }
+
         .sk-threat-identity {
           grid-area: identity;
           display: flex;
@@ -1545,7 +1549,7 @@ export default function ThreatAlertMapClient({ alert }: Props) {
             right: 10px;
             bottom: max(10px, env(safe-area-inset-bottom));
             width: calc(100vw - 20px);
-            max-height: min(58dvh, 560px);
+            max-height: min(72dvh, 760px);
             border-radius: 29px;
           }
 
@@ -1555,13 +1559,21 @@ export default function ThreatAlertMapClient({ alert }: Props) {
               minmax(0, 1fr)
               clamp(176px, 24vw, 246px);
             grid-template-areas:
-              "identity safety"
-              "location safety"
+              "primary safety"
               "response response"
               "legal legal";
             align-items: start;
             gap: 10px;
             padding: 13px;
+          }
+
+          .sk-threat-primary-column {
+            grid-area: primary;
+            display: flex;
+            flex-direction: column;
+            align-self: stretch;
+            min-width: 0;
+            gap: 10px;
           }
 
           /*
@@ -1593,8 +1605,8 @@ export default function ThreatAlertMapClient({ alert }: Props) {
           }
 
           .sk-threat-identity {
-            grid-area: identity;
             align-self: start;
+            width: 100%;
             min-width: 0;
             gap: 9px;
           }
@@ -1608,7 +1620,6 @@ export default function ThreatAlertMapClient({ alert }: Props) {
           }
 
           .sk-threat-location-card {
-            grid-area: location;
             align-self: start;
             min-width: 0;
             width: 100%;
@@ -1638,7 +1649,7 @@ export default function ThreatAlertMapClient({ alert }: Props) {
             border: 0;
             border-radius: 24px;
             color: inherit;
-            background: transparent;
+            background: #ffffff;
             cursor: pointer;
             appearance: none;
           }
@@ -1648,7 +1659,7 @@ export default function ThreatAlertMapClient({ alert }: Props) {
             place-items: center;
             width: 100%;
             height: 100%;
-            min-height: 230px;
+            min-height: 0;
             padding: 0;
             overflow: hidden;
             border: 1px solid rgba(17, 19, 24, 0.12);
@@ -1664,11 +1675,11 @@ export default function ThreatAlertMapClient({ alert }: Props) {
             display: block;
             width: 100%;
             height: 100%;
-            min-height: 230px;
+            min-height: 0;
             border-radius: inherit;
             background: #ffffff;
             object-fit: cover;
-            object-position: center 20%;
+            object-position: center 12%;
           }
 
           .sk-threat-mobile-feature-avatar .sk-threat-initial {
@@ -1676,7 +1687,7 @@ export default function ThreatAlertMapClient({ alert }: Props) {
             place-items: center;
             width: 100%;
             height: 100%;
-            min-height: 230px;
+            min-height: 100%;
             border-radius: inherit;
             color: #111318;
             background: #ffffff;
@@ -1686,23 +1697,6 @@ export default function ThreatAlertMapClient({ alert }: Props) {
           .sk-threat-mobile-feature-avatar .sk-threat-wordmark-fallback {
             border-radius: inherit;
             background: #ffffff;
-          }
-
-          .sk-threat-image-open-hint {
-            position: absolute;
-            right: 9px;
-            bottom: 9px;
-            padding: 6px 8px;
-            border: 1px solid rgba(255, 255, 255, 0.32);
-            border-radius: 999px;
-            color: #ffffff;
-            background: rgba(17, 19, 24, 0.62);
-            box-shadow: 0 8px 18px rgba(0, 0, 0, 0.16);
-            font-size: 6.8px;
-            font-weight: 900;
-            letter-spacing: 0.35px;
-            text-transform: uppercase;
-            backdrop-filter: blur(9px);
           }
 
           .sk-threat-expanded {
@@ -1800,12 +1794,6 @@ export default function ThreatAlertMapClient({ alert }: Props) {
             padding: 11px;
           }
 
-          .sk-threat-mobile-feature-avatar,
-          .sk-threat-mobile-feature-avatar img,
-          .sk-threat-mobile-feature-avatar .sk-threat-initial {
-            min-height: 210px;
-          }
-
           .sk-threat-identity {
             gap: 7px;
           }
@@ -1833,7 +1821,7 @@ export default function ThreatAlertMapClient({ alert }: Props) {
           .sk-threat-panel-inner {
             grid-template-columns:
               minmax(0, 1fr)
-              clamp(220px, 25vw, 320px);
+              clamp(220px, 23vw, 300px);
           }
 
           .sk-threat-location-card .sk-threat-grid {
@@ -1978,60 +1966,62 @@ export default function ThreatAlertMapClient({ alert }: Props) {
       {showPanel ? (
         <section className="sk-threat-panel">
           <div className="sk-threat-panel-inner">
-            <div className="sk-threat-identity">
-              <PreparedImage
-                src={assets.avatar}
-                fallbackLogo=""
-                alt={alert.ownerName}
-                className="sk-threat-avatar"
-                useInitialFallback
-              />
+            <div className="sk-threat-primary-column">
+              <div className="sk-threat-identity">
+                <PreparedImage
+                  src={assets.avatar}
+                  fallbackLogo=""
+                  alt={alert.ownerName}
+                  className="sk-threat-avatar"
+                  useInitialFallback
+                />
 
-              <div className="sk-threat-identity-copy">
-                <div className="sk-threat-kicker">Threat Alert from</div>
+                <div className="sk-threat-identity-copy">
+                  <div className="sk-threat-kicker">Threat Alert from</div>
 
-                <div className="sk-threat-owner-name">
-                  <h1>{alert.ownerName}</h1>
+                  <div className="sk-threat-owner-name">
+                    <h1>{alert.ownerName}</h1>
 
-                  <VerifiedBadge
-                    verified={alert.ownerVerified === true}
-                    badgeType={alert.ownerVerificationBadge}
-                  />
-                </div>
+                    <VerifiedBadge
+                      verified={alert.ownerVerified === true}
+                      badgeType={alert.ownerVerificationBadge}
+                    />
+                  </div>
 
-                <div className="sk-threat-triggered-time">
-                  Recorded {formatDateTime(displayTime)}
+                  <div className="sk-threat-triggered-time">
+                    Recorded {formatDateTime(displayTime)}
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <div className="sk-threat-location-card">
-              <div className="sk-threat-kicker">Last confirmed location</div>
+              <div className="sk-threat-location-card">
+                <div className="sk-threat-kicker">Last confirmed location</div>
 
-              <h2>{place}</h2>
-              <p>{accuracyInfo.detail}</p>
+                <h2>{place}</h2>
+                <p>{accuracyInfo.detail}</p>
 
-              <div className="sk-threat-grid">
-                <div className="sk-threat-stat">
-                  <span>Accuracy</span>
-                  <strong>{accuracyInfo.label}</strong>
-                </div>
+                <div className="sk-threat-grid">
+                  <div className="sk-threat-stat">
+                    <span>Accuracy</span>
+                    <strong>{accuracyInfo.label}</strong>
+                  </div>
 
-                <div className="sk-threat-stat">
-                  <span>Coordinates</span>
-                  <strong>
-                    {formatCoordinates(lat, lng) || "Not attached"}
-                  </strong>
-                </div>
+                  <div className="sk-threat-stat">
+                    <span>Coordinates</span>
+                    <strong>
+                      {formatCoordinates(lat, lng) || "Not attached"}
+                    </strong>
+                  </div>
 
-                <div className="sk-threat-stat">
-                  <span>Contacts alerted</span>
-                  <strong>{Number(alert.recipientsCount || 0)}</strong>
-                </div>
+                  <div className="sk-threat-stat">
+                    <span>Contacts alerted</span>
+                    <strong>{Number(alert.recipientsCount || 0)}</strong>
+                  </div>
 
-                <div className="sk-threat-stat">
-                  <span>Responses</span>
-                  <strong>{responseTotal}</strong>
+                  <div className="sk-threat-stat">
+                    <span>Responses</span>
+                    <strong>{responseTotal}</strong>
+                  </div>
                 </div>
               </div>
             </div>
@@ -2058,9 +2048,6 @@ export default function ThreatAlertMapClient({ alert }: Props) {
                   className="sk-threat-mobile-feature-avatar"
                   useInitialFallback
                 />
-                <span className="sk-threat-image-open-hint">
-                  Tap to enlarge
-                </span>
               </button>
 
               <div className="sk-threat-response-panel">
