@@ -1289,18 +1289,20 @@ export default function ThreatAlertMapClient({ alert }: Props) {
           }
         }
 
-        @media (max-width: 680px) {
+        @media (max-width: 680px), (pointer: coarse) and (max-width: 1100px) {
           /*
            * Mobile branding:
            * centered on the map, vertically arranged and never truncated.
            */
           .sk-threat-brand {
+            top: max(12px, env(safe-area-inset-top));
             left: 50%;
             right: auto;
-            width: 194px;
-            max-width: calc(100vw - 118px);
-            padding: 10px 13px 9px;
+            width: min(238px, calc(100vw - 150px));
+            max-width: none;
+            padding: 10px 14px 9px;
             transform: translateX(-50%);
+            text-align: center;
           }
 
           .sk-threat-brand-logo {
@@ -1310,29 +1312,35 @@ export default function ThreatAlertMapClient({ alert }: Props) {
 
           .sk-threat-brand-name {
             width: 100%;
+            min-width: 0;
             margin-top: 5px;
             overflow: visible;
+            text-align: center;
           }
 
           .sk-threat-brand-name strong {
+            display: block;
             width: 100%;
             overflow: visible;
-            font-size: 9.4px;
+            font-size: 9.5px;
             letter-spacing: 1.25px;
             line-height: 1.2;
+            text-align: center;
             text-overflow: clip;
             white-space: nowrap;
           }
 
           .sk-threat-brand-name span {
+            display: block;
             width: 100%;
             margin-top: 4px;
             overflow: visible;
-            font-size: 6.35px;
-            letter-spacing: 0.38px;
+            font-size: 6.4px;
+            letter-spacing: 0.22px;
             line-height: 1.25;
+            text-align: center;
             text-overflow: clip;
-            white-space: nowrap;
+            white-space: normal;
           }
 
           /*
@@ -1349,20 +1357,21 @@ export default function ThreatAlertMapClient({ alert }: Props) {
             right: 10px;
             bottom: max(10px, env(safe-area-inset-bottom));
             width: calc(100vw - 20px);
-            max-height: min(64dvh, 610px);
+            max-height: min(58dvh, 560px);
             border-radius: 29px;
           }
 
           .sk-threat-panel-inner {
             display: grid;
             grid-template-columns:
-              minmax(0, 1.34fr)
-              minmax(112px, 0.66fr);
+              minmax(0, 1fr)
+              118px;
             grid-template-areas:
               "identity safety"
               "location safety"
               "response response"
               "legal legal";
+            align-items: start;
             gap: 10px;
             padding: 13px;
           }
@@ -1372,22 +1381,32 @@ export default function ThreatAlertMapClient({ alert }: Props) {
            * a true circle with no black square/background behind it.
            */
           .sk-threat-avatar {
-            flex: 0 0 50px;
-            width: 50px;
-            height: 50px;
-            border: 1px solid rgba(17, 19, 24, 0.13);
+            flex: 0 0 48px;
+            width: 48px;
+            height: 48px;
+            padding: 0;
+            overflow: hidden;
+            border: 1px solid rgba(17, 19, 24, 0.12);
             border-radius: 999px;
             color: #111318;
             background: transparent;
-            box-shadow: 0 8px 18px rgba(0, 0, 0, 0.12);
+            box-shadow: 0 7px 16px rgba(0, 0, 0, 0.1);
           }
 
           .sk-threat-avatar img {
+            width: 100%;
+            height: 100%;
+            border-radius: inherit;
+            object-fit: cover;
+          }
+
+          .sk-threat-avatar .sk-threat-wordmark-fallback {
             border-radius: inherit;
           }
 
           .sk-threat-identity {
             grid-area: identity;
+            align-self: start;
             min-width: 0;
             gap: 9px;
           }
@@ -1402,7 +1421,9 @@ export default function ThreatAlertMapClient({ alert }: Props) {
 
           .sk-threat-location-card {
             grid-area: location;
+            align-self: start;
             min-width: 0;
+            width: 100%;
             margin: 0;
             padding: 12px;
           }
@@ -1420,19 +1441,18 @@ export default function ThreatAlertMapClient({ alert }: Props) {
             grid-area: safety;
             display: grid;
             place-items: center;
-            align-self: center;
-            justify-self: center;
-            width: min(148px, 100%);
-            height: auto;
-            aspect-ratio: 1;
+            align-self: start;
+            justify-self: end;
+            width: 112px;
+            height: 112px;
             overflow: hidden;
-            border: 1px solid rgba(17, 19, 24, 0.14);
-            border-radius: 999px;
+            border: 1px solid rgba(17, 19, 24, 0.13);
+            border-radius: 20px;
             color: #111318;
             background: transparent;
             box-shadow:
-              0 18px 36px rgba(0, 0, 0, 0.14),
-              inset 0 1px 0 rgba(255, 255, 255, 0.75);
+              0 12px 26px rgba(0, 0, 0, 0.12),
+              inset 0 1px 0 rgba(255, 255, 255, 0.72);
           }
 
           .sk-threat-mobile-feature-avatar img {
@@ -1449,7 +1469,7 @@ export default function ThreatAlertMapClient({ alert }: Props) {
             height: 100%;
             border-radius: inherit;
             background: rgba(255, 255, 255, 0.82);
-            font-size: 34px;
+            font-size: 28px;
           }
 
           .sk-threat-expanded {
@@ -1490,6 +1510,34 @@ export default function ThreatAlertMapClient({ alert }: Props) {
             line-height: 1.4;
           }
 
+          .sk-threat-guidance {
+            padding: 12px;
+            border-radius: 18px;
+          }
+
+          .sk-threat-guidance p {
+            margin-top: 7px;
+            font-size: 8.8px;
+            line-height: 1.48;
+          }
+
+          .sk-threat-status-detail {
+            margin-top: 8px;
+            padding: 9px 10px;
+            border-radius: 15px;
+            font-size: 8.5px;
+          }
+
+          .sk-threat-response-panel .sk-threat-grid {
+            gap: 6px;
+            margin-top: 8px;
+          }
+
+          .sk-threat-response-panel .sk-threat-stat {
+            padding: 8px;
+            border-radius: 14px;
+          }
+
           /*
            * Keep the avatar marker circular and remove any dark backing
            * visible around the profile image.
@@ -1501,9 +1549,16 @@ export default function ThreatAlertMapClient({ alert }: Props) {
           .sk-threat-marker-image-avatar {
             border-radius: 999px;
           }
+
+          .sk-threat-status-pill {
+            right: 10px;
+            max-width: 104px;
+            padding: 8px 9px;
+            font-size: 7.4px;
+          }
         }
 
-        @media (min-width: 681px) and (max-width: 980px) {
+        @media (pointer: fine) and (min-width: 681px) and (max-width: 980px) {
           .sk-threat-panel {
             width: min(860px, calc(100vw - 32px));
             max-height: min(62dvh, 620px);
