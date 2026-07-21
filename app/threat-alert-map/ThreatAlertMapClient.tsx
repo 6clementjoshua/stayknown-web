@@ -186,35 +186,107 @@ function initialOf(name: string): string {
   return safeText(name).slice(0, 1).toUpperCase() || "S";
 }
 
+async function decodeObjectUrl(objectUrl: string): Promise<boolean> {
+  const image = new window.Image();
+  image.decoding = "async";
+  image.src = objectUrl;
+
+  try {
+    if (typeof image.decode === "function") {
+      await Promise.race([
+        image.decode(),
+        new Promise<never>((_, reject) => {
+          window.setTimeout(
+            () => reject(new Error("image_decode_timeout")),
+            4500,
+          );
+        }),
+      ]);
+    } else {
+      await new Promise<void>((resolve, reject) => {
+        const timeout = window.setTimeout(
+          () => reject(new Error("image_load_timeout")),
+          4500,
+        );
+
+        image.onload = () => {
+          window.clearTimeout(timeout);
+          resolve();
+        };
+
+        image.onerror = () => {
+          window.clearTimeout(timeout);
+          reject(new Error("image_load_failed"));
+        };
+      });
+    }
+
+    return true;
+  } catch {
+    return false;
+  } finally {
+    image.onload = null;
+    image.onerror = null;
+  }
+}
+
 async function fetchImageObjectUrl(url: string): Promise<string> {
   const cleanUrl = safeText(url);
   if (!cleanUrl) return "";
 
-  const controller = new AbortController();
-  const timeout = window.setTimeout(() => controller.abort(), 6500);
+  const attempts = 3;
 
-  try {
-    const response = await fetch(cleanUrl, {
-      method: "GET",
-      cache: "no-store",
-      credentials: "same-origin",
-      signal: controller.signal,
-      headers: {
-        Accept: "image/avif,image/webp,image/png,image/jpeg,image/*,*/*;q=0.8",
-      },
-    });
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 7000);
 
-    if (!response.ok) return "";
+    try {
+      const separator = cleanUrl.includes("?") ? "&" : "?";
+      const requestUrl =
+        attempt === 0 ? cleanUrl : `${cleanUrl}${separator}retry=${attempt}`;
 
-    const blob = await response.blob();
-    if (!blob.type.startsWith("image/")) return "";
+      const response = await fetch(requestUrl, {
+        method: "GET",
+        cache: attempt === 0 ? "default" : "reload",
+        credentials: "same-origin",
+        signal: controller.signal,
+        headers: {
+          Accept:
+            "image/avif,image/webp,image/png,image/jpeg,image/*,*/*;q=0.8",
+        },
+      });
 
-    return URL.createObjectURL(blob);
-  } catch {
-    return "";
-  } finally {
-    window.clearTimeout(timeout);
+      if (!response.ok) {
+        throw new Error(`image_http_${response.status}`);
+      }
+
+      const blob = await response.blob();
+      if (!blob.type.startsWith("image/")) {
+        throw new Error("image_content_type_invalid");
+      }
+
+      const objectUrl = URL.createObjectURL(blob);
+      const decoded = await decodeObjectUrl(objectUrl);
+
+      if (decoded) {
+        return objectUrl;
+      }
+
+      URL.revokeObjectURL(objectUrl);
+    } catch {
+      // Retry below. The existing modal remains hidden until preparation ends.
+    } finally {
+      window.clearTimeout(timeout);
+    }
+
+    if (attempt < attempts - 1) {
+      await new Promise<void>((resolve) => {
+        window.setTimeout(resolve, 180 * (attempt + 1));
+      });
+    }
   }
+
+  return "";
 }
 
 function PreparedImage({
@@ -1365,7 +1437,7 @@ export default function ThreatAlertMapClient({ alert }: Props) {
             display: grid;
             grid-template-columns:
               minmax(0, 1fr)
-              118px;
+              clamp(138px, 22vw, 168px);
             grid-template-areas:
               "identity safety"
               "location safety"
@@ -1443,23 +1515,29 @@ export default function ThreatAlertMapClient({ alert }: Props) {
             place-items: center;
             align-self: start;
             justify-self: end;
-            width: 112px;
-            height: 112px;
+            width: 100%;
+            max-width: 168px;
+            height: auto;
+            aspect-ratio: 1;
+            padding: 0;
             overflow: hidden;
-            border: 1px solid rgba(17, 19, 24, 0.13);
-            border-radius: 20px;
+            border: 1px solid rgba(17, 19, 24, 0.12);
+            border-radius: 22px;
             color: #111318;
             background: transparent;
             box-shadow:
-              0 12px 26px rgba(0, 0, 0, 0.12),
-              inset 0 1px 0 rgba(255, 255, 255, 0.72);
+              0 13px 28px rgba(0, 0, 0, 0.11),
+              inset 0 1px 0 rgba(255, 255, 255, 0.76);
           }
 
           .sk-threat-mobile-feature-avatar img {
+            display: block;
             width: 100%;
             height: 100%;
-            object-fit: cover;
             border-radius: inherit;
+            background: transparent;
+            object-fit: cover;
+            object-position: center 24%;
           }
 
           .sk-threat-mobile-feature-avatar .sk-threat-initial {
@@ -1468,8 +1546,14 @@ export default function ThreatAlertMapClient({ alert }: Props) {
             width: 100%;
             height: 100%;
             border-radius: inherit;
-            background: rgba(255, 255, 255, 0.82);
-            font-size: 28px;
+            color: #111318;
+            background: transparent;
+            font-size: 30px;
+          }
+
+          .sk-threat-mobile-feature-avatar .sk-threat-wordmark-fallback {
+            border-radius: inherit;
+            background: transparent;
           }
 
           .sk-threat-expanded {
@@ -1555,6 +1639,24 @@ export default function ThreatAlertMapClient({ alert }: Props) {
             max-width: 104px;
             padding: 8px 9px;
             font-size: 7.4px;
+          }
+        }
+
+        @media (pointer: coarse) and (min-width: 620px) and (max-width: 1100px) {
+          .sk-threat-location-card .sk-threat-grid {
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+          }
+
+          .sk-threat-location-card .sk-threat-stat {
+            min-width: 0;
+            padding: 8px 6px;
+          }
+
+          .sk-threat-location-card .sk-threat-stat span,
+          .sk-threat-location-card .sk-threat-stat strong {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
           }
         }
 
@@ -1751,9 +1853,9 @@ export default function ThreatAlertMapClient({ alert }: Props) {
               />
 
               <PreparedImage
-                src={assets.avatar}
-                fallbackLogo=""
-                alt={alert.ownerName}
+                src={safetyImage || assets.avatar}
+                fallbackLogo={assets.avatar}
+                alt={`${alert.ownerName} safety image`}
                 className="sk-threat-mobile-feature-avatar"
                 useInitialFallback
               />
