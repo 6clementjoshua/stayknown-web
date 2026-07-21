@@ -373,7 +373,6 @@ export default function ThreatAlertMapClient({ alert }: Props) {
   const [mapMessage, setMapMessage] = React.useState(
     "Preparing the recorded Threat Alert location…",
   );
-  const [detailsExpanded, setDetailsExpanded] = React.useState(false);
   const [assets, setAssets] = React.useState<PreparedAssets>({
     ready: false,
     logo: "",
@@ -883,13 +882,12 @@ export default function ThreatAlertMapClient({ alert }: Props) {
         .sk-threat-panel-inner {
           display: grid;
           grid-template-columns:
-            minmax(280px, 1.02fr)
-            minmax(210px, 0.72fr)
+            minmax(300px, 1.18fr)
+            minmax(210px, 0.78fr)
             minmax(350px, 1.2fr);
           grid-template-areas:
             "identity identity identity"
-            "location location response"
-            "safety safety response"
+            "location safety response"
             "legal legal legal";
           gap: 12px;
           padding: 16px;
@@ -1001,21 +999,6 @@ export default function ThreatAlertMapClient({ alert }: Props) {
           background: #747980;
         }
 
-        .sk-threat-expand {
-          display: none;
-          flex: 0 0 auto;
-          padding: 9px 11px;
-          border: 1px solid rgba(0, 0, 0, 0.08);
-          border-radius: 999px;
-          color: #111318;
-          background: rgba(255, 255, 255, 0.64);
-          cursor: pointer;
-          font-size: 8px;
-          font-weight: 950;
-          letter-spacing: 0.65px;
-          text-transform: uppercase;
-        }
-
         .sk-threat-location-card {
           grid-area: location;
           min-width: 0;
@@ -1087,8 +1070,9 @@ export default function ThreatAlertMapClient({ alert }: Props) {
           grid-area: safety;
           display: grid;
           place-items: center;
+          align-self: stretch;
           min-width: 0;
-          min-height: 220px;
+          min-height: 0;
           overflow: hidden;
           border: 1px solid rgba(0, 0, 0, 0.065);
           border-radius: 22px;
@@ -1099,7 +1083,7 @@ export default function ThreatAlertMapClient({ alert }: Props) {
         .sk-threat-safety-image img {
           width: 100%;
           height: 100%;
-          min-height: 220px;
+          min-height: 0;
           object-fit: cover;
         }
 
@@ -1333,46 +1317,83 @@ export default function ThreatAlertMapClient({ alert }: Props) {
             right: 10px;
             bottom: max(10px, env(safe-area-inset-bottom));
             width: calc(100vw - 20px);
-            max-height: ${detailsExpanded ? "74dvh" : "43dvh"};
+            max-height: min(64dvh, 610px);
             border-radius: 29px;
           }
 
           .sk-threat-panel-inner {
-            display: block;
+            display: grid;
+            grid-template-columns:
+              minmax(0, 1.18fr)
+              minmax(112px, 0.82fr);
+            grid-template-areas:
+              "identity identity"
+              "location safety"
+              "response response"
+              "legal legal";
+            gap: 10px;
             padding: 13px;
           }
 
-          .sk-threat-expand {
-            display: inline-flex;
-          }
-
           .sk-threat-location-card {
-            margin-top: 14px;
+            grid-area: location;
+            margin: 0;
+            padding: 12px;
           }
 
           .sk-threat-expanded {
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 12px;
-            margin-top: 12px;
+            display: contents;
           }
 
-          .sk-threat-safety-image,
+          .sk-threat-expanded > div {
+            grid-area: response;
+            margin-top: 0;
+          }
+
+          .sk-threat-safety-image {
+            grid-area: safety;
+            align-self: stretch;
+            width: 100%;
+            min-height: 0;
+          }
+
           .sk-threat-safety-image img {
-            min-height: 190px;
+            width: 100%;
+            height: 100%;
+            min-height: 0;
+            object-fit: cover;
           }
 
           .sk-threat-legal {
-            margin-top: 10px;
+            grid-area: legal;
+            margin-top: 0;
           }
 
           .sk-threat-owner-name h1 {
             font-size: 17px;
           }
 
-          .sk-threat-grid,
+          .sk-threat-location-card .sk-threat-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 6px;
+          }
+
           .sk-threat-expanded > div .sk-threat-grid {
             grid-template-columns: repeat(2, minmax(0, 1fr));
+          }
+
+          .sk-threat-location-card .sk-threat-stat {
+            padding: 8px 7px;
+            border-radius: 14px;
+          }
+
+          .sk-threat-location-card h2 {
+            font-size: 12.5px;
+          }
+
+          .sk-threat-location-card p {
+            font-size: 9px;
+            line-height: 1.4;
           }
         }
 
@@ -1384,12 +1405,12 @@ export default function ThreatAlertMapClient({ alert }: Props) {
 
           .sk-threat-panel-inner {
             grid-template-columns:
-              minmax(250px, 1fr)
-              minmax(190px, 0.72fr);
+              minmax(280px, 1.16fr)
+              minmax(190px, 0.84fr);
             grid-template-areas:
               "identity identity"
-              "location location"
-              "safety response"
+              "location safety"
+              "response response"
               "legal legal";
           }
 
@@ -1526,14 +1547,6 @@ export default function ThreatAlertMapClient({ alert }: Props) {
                   Recorded {formatDateTime(displayTime)}
                 </div>
               </div>
-
-              <button
-                type="button"
-                className="sk-threat-expand"
-                onClick={() => setDetailsExpanded((value) => !value)}
-              >
-                {detailsExpanded ? "Minimize" : "More details"}
-              </button>
             </div>
 
             <div className="sk-threat-location-card">
