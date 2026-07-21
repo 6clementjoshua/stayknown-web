@@ -40,7 +40,11 @@ type Props = {
 
 type MapState = "loading" | "ready" | "fallback";
 
-const DEFAULT_LOGO_URL = "/6logo.png";
+const PRIMARY_LOGO_URL = "https://www.stay-known.com/6logo.png";
+const SECONDARY_LOGO_URL = "https://stay-known.com/6logo.png";
+const INLINE_LOGO_FALLBACK =
+  "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20128%20128%22%3E%0A%3Crect%20width%3D%22128%22%20height%3D%22128%22%20rx%3D%2230%22%20fill%3D%22white%22%2F%3E%0A%3Ccircle%20cx%3D%2264%22%20cy%3D%2264%22%20r%3D%2238%22%20fill%3D%22none%22%20stroke%3D%22%23111318%22%20stroke-width%3D%228%22%2F%3E%0A%3Cpath%20d%3D%22M64%2037v54M47%2048c-10%209-10%2023%200%2032M81%2048c10%209%2010%2023%200%2032%22%20fill%3D%22none%22%20stroke%3D%22%23111318%22%20stroke-width%3D%228%22%20stroke-linecap%3D%22round%22%2F%3E%0A%3C%2Fsvg%3E";
+const DEFAULT_LOGO_URL = PRIMARY_LOGO_URL;
 
 const DEFAULT_CAUTION =
   "StayKnown cannot independently confirm that an emergency is occurring. " +
@@ -81,6 +85,18 @@ function safeImageUrl(value: unknown): string {
   }
 
   return safeHttpUrl(text);
+}
+
+function uniqueImageCandidates(values: unknown[]): string[] {
+  const result: string[] = [];
+
+  for (const value of values) {
+    const candidate = safeImageUrl(value);
+    if (!candidate || result.includes(candidate)) continue;
+    result.push(candidate);
+  }
+
+  return result;
 }
 
 function finiteCoordinate(value: unknown): number | null {
@@ -231,8 +247,18 @@ function createMarkerElement(params: {
   const imageFrame = document.createElement("div");
   imageFrame.className = "sk-threat-marker-image-frame";
 
+  const candidates = uniqueImageCandidates([
+    params.avatarUrl,
+    params.logoUrl,
+    PRIMARY_LOGO_URL,
+    SECONDARY_LOGO_URL,
+    INLINE_LOGO_FALLBACK,
+  ]);
+
+  let candidateIndex = 0;
+
   const image = document.createElement("img");
-  image.src = params.avatarUrl || params.logoUrl;
+  image.src = candidates[candidateIndex] || INLINE_LOGO_FALLBACK;
   image.alt = "";
   image.setAttribute("aria-hidden", "true");
   image.draggable = false;
@@ -241,10 +267,10 @@ function createMarkerElement(params: {
     : "sk-threat-marker-image sk-threat-marker-image-logo";
 
   image.onerror = () => {
-    const currentSource = image.getAttribute("src") || "";
+    candidateIndex += 1;
 
-    if (currentSource !== params.logoUrl) {
-      image.src = params.logoUrl;
+    if (candidateIndex < candidates.length) {
+      image.src = candidates[candidateIndex];
       image.className = "sk-threat-marker-image sk-threat-marker-image-logo";
       return;
     }
@@ -316,16 +342,27 @@ function SafeImage({
   alt: string;
   className: string;
 }) {
-  const cleanSource = safeImageUrl(src);
-  const cleanFallback = safeImageUrl(fallback) || DEFAULT_LOGO_URL;
+  const candidates = React.useMemo(
+    () =>
+      uniqueImageCandidates([
+        src,
+        fallback,
+        PRIMARY_LOGO_URL,
+        SECONDARY_LOGO_URL,
+        INLINE_LOGO_FALLBACK,
+      ]),
+    [src, fallback],
+  );
 
-  const [current, setCurrent] = React.useState(cleanSource || cleanFallback);
+  const [index, setIndex] = React.useState(0);
   const [showInitial, setShowInitial] = React.useState(false);
 
   React.useEffect(() => {
-    setCurrent(cleanSource || cleanFallback);
+    setIndex(0);
     setShowInitial(false);
-  }, [cleanSource, cleanFallback]);
+  }, [candidates]);
+
+  const current = candidates[index] || INLINE_LOGO_FALLBACK;
 
   return (
     <div className={className} role="img" aria-label={alt}>
@@ -338,8 +375,8 @@ function SafeImage({
           aria-hidden="true"
           draggable={false}
           onError={() => {
-            if (current !== cleanFallback) {
-              setCurrent(cleanFallback);
+            if (index + 1 < candidates.length) {
+              setIndex((value) => value + 1);
               return;
             }
 
@@ -362,7 +399,11 @@ export default function ThreatAlertMapClient({ alert }: Props) {
   );
   const [detailsExpanded, setDetailsExpanded] = React.useState(false);
 
-  const logoUrl = safeImageUrl(alert.logoUrl) || DEFAULT_LOGO_URL;
+  const logoUrl =
+    safeImageUrl(alert.logoUrl) ||
+    PRIMARY_LOGO_URL ||
+    SECONDARY_LOGO_URL ||
+    INLINE_LOGO_FALLBACK;
   const avatarUrl = safeImageUrl(alert.ownerAvatarUrl);
   const safetyImageUrl = safeImageUrl(alert.ownerSafetyImageUrl);
   const lat = finiteCoordinate(alert.lat);
