@@ -1,10 +1,17 @@
 import type { Metadata } from "next";
+import { createClient } from "@supabase/supabase-js";
+
+import ThreatAlertMapClient, {
+  type ThreatAlertMapPayload,
+} from "./ThreatAlertMapClient";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 export const metadata: Metadata = {
   title: "Threat Alert location | StayKnown",
+  description:
+    "Secure StayKnown Threat Alert identity, location and responder guidance.",
   robots: {
     index: false,
     follow: false,
@@ -19,12 +26,12 @@ type PageProps = {
   searchParams: SearchMap | Promise<SearchMap>;
 };
 
-type ThreatAlertRow = Record<string, unknown>;
+type JsonRow = Record<string, unknown>;
 
 const DEFAULT_LOGO_URL =
   "https://ipognlibpkbauusvfeic.supabase.co/storage/v1/object/public/public-assets/stayknown-logo.png";
 
-const RECIPIENT_CAUTION =
+const CONTACT_CAUTION =
   "StayKnown cannot independently confirm that an emergency is occurring. " +
   "Contact the person through a trusted method first and verify with a nearby " +
   "trusted person when possible. If you believe there is immediate danger, " +
@@ -42,9 +49,21 @@ function clean(value: unknown): string {
   return text.toLowerCase() === "null" ? "" : text;
 }
 
+function boolOf(value: unknown): boolean {
+  if (value === true) return true;
+  const text = clean(value).toLowerCase();
+  return text === "true" || text === "1";
+}
+
 function numberOf(value: unknown): number | null {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+function intOf(value: unknown): number {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return 0;
+  return Math.max(0, Math.trunc(parsed));
 }
 
 function isUuid(value: string): boolean {
@@ -75,69 +94,321 @@ function firstNonEmpty(values: unknown[]): string {
   return "";
 }
 
-function formatDate(value: unknown): string {
-  const text = clean(value);
-  if (!text) return "";
-
-  const date = new Date(text);
-  if (Number.isNaN(date.getTime())) return "";
-
-  return new Intl.DateTimeFormat("en", {
-    dateStyle: "medium",
-    timeStyle: "short",
-    timeZoneName: "short",
-  }).format(date);
+function normalizeStorageValue(value: string): string {
+  return value.replace(/^\/+/, "").trim();
 }
 
-function statusLabel(statusValue: unknown): string {
-  const status = clean(statusValue).toLowerCase();
+function isActiveStatus(value: unknown): boolean {
+  const status = clean(value).toLowerCase();
+  return status === "dispatching" || status === "active";
+}
 
-  switch (status) {
-    case "dispatching":
-      return "Sending";
-    case "active":
-      return "Active";
-    case "safe":
-    case "resolved_safe":
-      return "Resolved — safe";
-    case "no_longer_threatened":
-    case "resolved_no_longer_threatened":
-      return "Resolved";
-    case "accidental":
-    case "resolved_accidental":
-      return "Accidental alert";
-    case "cancelled":
-    case "canceled":
-      return "Cancelled";
-    case "expired":
-      return "Expired";
-    case "failed":
-      return "Delivery failed";
-    default:
-      return status ? status.replaceAll("_", " ") : "Recorded";
+function publicLogoUrl(): string {
+  return (
+    safeHttpUrl(process.env.BRAND_LOGO_URL) ||
+    safeHttpUrl(process.env.NEXT_PUBLIC_BRAND_LOGO_URL) ||
+    DEFAULT_LOGO_URL
+  );
+}
+
+function createAdminClient(supabaseUrl: string, serviceRole: string) {
+  return createClient(supabaseUrl, serviceRole, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
+    },
+  });
+}
+
+type AdminClient = ReturnType<typeof createAdminClient>;
+
+async function resolveStorageImage(params: {
+  admin: AdminClient;
+  rawValue: unknown;
+  fallbackBucket: string;
+  expiresInSeconds?: number;
+}): Promise<string> {
+  const value = clean(params.rawValue);
+  if (!value) return "";
+
+  /*
+  Existing absolute URLs remain usable. When they have expired, the client
+  automatically falls back to the StayKnown logo. Fresh profile/gallery paths
+  are signed below whenever they are available.
+  */
+  const direct = safeHttpUrl(value);
+  if (direct) return direct;
+
+  const normalized = normalizeStorageValue(value);
+  if (!normalized) return "";
+
+  let bucket = params.fallbackBucket;
+  let path = normalized;
+
+  const slashIndex = normalized.indexOf("/");
+  if (slashIndex > 0) {
+    const firstPart = normalized.slice(0, slashIndex);
+    const remaining = normalized.slice(slashIndex + 1);
+
+    if (firstPart && remaining) {
+      bucket = firstPart;
+      path = remaining;
+    }
+  }
+
+  try {
+    const { data, error } = await params.admin.storage
+      .from(bucket)
+      .createSignedUrl(path, params.expiresInSeconds ?? 24 * 60 * 60);
+
+    if (!error) return safeHttpUrl(data?.signedUrl);
+  } catch {}
+
+  /*
+  Some stored values include a bucket prefix that is not actually a bucket.
+  Retry with the known fallback bucket before giving up.
+  */
+  if (bucket !== params.fallbackBucket) {
+    try {
+      const { data, error } = await params.admin.storage
+        .from(params.fallbackBucket)
+        .createSignedUrl(normalized, params.expiresInSeconds ?? 24 * 60 * 60);
+
+      if (!error) return safeHttpUrl(data?.signedUrl);
+    } catch {}
+  }
+
+  return "";
+}
+
+async function fetchCurrentOwnerIdentity(params: {
+  admin: AdminClient;
+  ownerUserId: string;
+  alert: JsonRow;
+}): Promise<{
+  name: string;
+  firstName: string;
+  avatarUrl: string;
+  safetyImageUrl: string;
+  verified: boolean;
+  verificationBadge: string;
+}> {
+  const { admin, ownerUserId, alert } = params;
+
+  let userProfile: JsonRow | null = null;
+  let profile: JsonRow | null = null;
+  let gallery: JsonRow | null = null;
+  let badge: JsonRow | null = null;
+
+  try {
+    const { data } = await admin
+      .from("user_profile")
+      .select("display_name,first_name,last_name,profile_photo_url,email")
+      .eq("user_id", ownerUserId)
+      .maybeSingle();
+
+    if (data && typeof data === "object") userProfile = data as JsonRow;
+  } catch {}
+
+  try {
+    const { data } = await admin
+      .from("profiles")
+      .select("avatar_url,verified,email")
+      .eq("id", ownerUserId)
+      .maybeSingle();
+
+    if (data && typeof data === "object") profile = data as JsonRow;
+  } catch {}
+
+  try {
+    const { data } = await admin
+      .from("safety_gallery")
+      .select("path,created_at")
+      .eq("user_id", ownerUserId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (data && typeof data === "object") gallery = data as JsonRow;
+  } catch {}
+
+  try {
+    const { data } = await admin
+      .from("user_verification_badges")
+      .select("badge_type,status,awarded_at,removed_at")
+      .eq("user_id", ownerUserId)
+      .eq("status", "active")
+      .is("removed_at", null)
+      .order("awarded_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (data && typeof data === "object") badge = data as JsonRow;
+  } catch {}
+
+  const firstName = firstNonEmpty([
+    userProfile?.first_name,
+    alert.owner_first_name,
+  ]);
+
+  const lastName = clean(userProfile?.last_name);
+
+  const name = firstNonEmpty([
+    userProfile?.display_name,
+    [firstName, lastName].filter(Boolean).join(" "),
+    alert.owner_full_name,
+    firstName,
+    "StayKnown member",
+  ]);
+
+  const currentAvatarRaw = firstNonEmpty([
+    userProfile?.profile_photo_url,
+    profile?.avatar_url,
+  ]);
+
+  const avatarUrl =
+    (await resolveStorageImage({
+      admin,
+      rawValue: currentAvatarRaw,
+      fallbackBucket: "avatars",
+    })) || safeHttpUrl(alert.owner_avatar_url);
+
+  const currentSafetyRaw = firstNonEmpty([gallery?.path]);
+
+  const safetyImageUrl =
+    (await resolveStorageImage({
+      admin,
+      rawValue: currentSafetyRaw,
+      fallbackBucket: "safety-gallery",
+    })) || safeHttpUrl(alert.owner_safety_image_url);
+
+  const verificationBadge = firstNonEmpty([
+    badge?.badge_type,
+    alert.owner_verification_badge,
+  ]);
+
+  const verified =
+    Boolean(verificationBadge) ||
+    boolOf(profile?.verified) ||
+    clean(alert.owner_verification_badge).toLowerCase() === "verified";
+
+  return {
+    name,
+    firstName: firstName || name.split(/\s+/).filter(Boolean)[0] || "Member",
+    avatarUrl,
+    safetyImageUrl,
+    verified,
+    verificationBadge,
+  };
+}
+
+function responseKindOf(row: JsonRow): string {
+  return firstNonEmpty([
+    row.response_kind,
+    row.acknowledgement_kind,
+    row.response,
+  ])
+    .toLowerCase()
+    .replaceAll("-", "_")
+    .replaceAll(" ", "_");
+}
+
+async function fetchResponseCounts(params: {
+  admin: AdminClient;
+  alertId: string;
+  alert: JsonRow;
+}): Promise<{
+  recipientsCount: number;
+  respondedCount: number;
+  receivedCount: number;
+  checkingCount: number;
+  contactedEmergencyHelpCount: number;
+  unableToRespondCount: number;
+}> {
+  const fallback = {
+    recipientsCount: intOf(params.alert.recipients_count),
+    respondedCount: intOf(params.alert.responded_count),
+    receivedCount: intOf(params.alert.received_count),
+    checkingCount: intOf(params.alert.checking_count),
+    contactedEmergencyHelpCount: intOf(
+      params.alert.contacted_emergency_help_count,
+    ),
+    unableToRespondCount: intOf(params.alert.unable_to_respond_count),
+  };
+
+  try {
+    const { data, error } = await params.admin
+      .from("threat_alert_recipients")
+      .select(
+        "id,response_kind,acknowledgement_kind,response,acknowledged_at,responded_at",
+      )
+      .eq("alert_id", params.alertId);
+
+    if (error || !Array.isArray(data)) return fallback;
+
+    let receivedCount = 0;
+    let checkingCount = 0;
+    let contactedEmergencyHelpCount = 0;
+    let unableToRespondCount = 0;
+    let respondedCount = 0;
+
+    for (const rawRow of data) {
+      const row =
+        rawRow && typeof rawRow === "object"
+          ? (rawRow as JsonRow)
+          : ({} as JsonRow);
+
+      const kind = responseKindOf(row);
+      const hasResponse =
+        Boolean(kind) ||
+        Boolean(clean(row.acknowledged_at)) ||
+        Boolean(clean(row.responded_at));
+
+      if (hasResponse) respondedCount += 1;
+
+      switch (kind) {
+        case "received":
+        case "alert_received":
+        case "threat_alert_received":
+          receivedCount += 1;
+          break;
+
+        case "checking":
+        case "threat_alert_checking":
+          checkingCount += 1;
+          break;
+
+        case "contacted_emergency_help":
+        case "emergency_help":
+          contactedEmergencyHelpCount += 1;
+          break;
+
+        case "unable_to_respond":
+        case "cannot_respond":
+        case "cant_respond":
+        case "threat_alert_unable":
+          unableToRespondCount += 1;
+          break;
+      }
+    }
+
+    return {
+      recipientsCount: data.length,
+      respondedCount,
+      receivedCount,
+      checkingCount,
+      contactedEmergencyHelpCount,
+      unableToRespondCount,
+    };
+  } catch {
+    return fallback;
   }
 }
 
-function isActiveStatus(statusValue: unknown): boolean {
-  const status = clean(statusValue).toLowerCase();
-  return status === "active" || status === "dispatching";
-}
-
-function mapUrlFor(alert: ThreatAlertRow): string {
-  const direct = safeHttpUrl(alert.external_map_url);
-  if (direct) return direct;
-
-  const lat = numberOf(alert.lat);
-  const lng = numberOf(alert.lng);
-
-  if (lat == null || lng == null) return "";
-
-  return `https://www.google.com/maps?q=${encodeURIComponent(`${lat},${lng}`)}`;
-}
-
-async function loadAlert(alertId: string): Promise<{
+async function loadThreatAlert(alertId: string): Promise<{
   status: number;
-  alert: ThreatAlertRow | null;
+  payload: ThreatAlertMapPayload | null;
   error: string;
 }> {
   const supabaseUrl = firstNonEmpty([
@@ -145,137 +416,142 @@ async function loadAlert(alertId: string): Promise<{
     process.env.NEXT_PUBLIC_SUPABASE_URL,
   ]).replace(/\/+$/g, "");
 
-  /*
-  This key remains server-side because this file is a Server Component.
-  Never rename it to NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY.
-  */
   const serviceRole = clean(process.env.SUPABASE_SERVICE_ROLE_KEY);
 
   if (!supabaseUrl || !serviceRole) {
     return {
       status: 500,
-      alert: null,
+      payload: null,
       error:
         "StayKnown’s secure Threat Alert map service is not configured on this website deployment.",
     };
   }
 
+  const admin = createAdminClient(supabaseUrl, serviceRole);
+
   try {
-    const response = await fetch(
-      `${supabaseUrl}/rest/v1/threat_alerts?id=eq.${encodeURIComponent(
-        alertId,
-      )}&select=*&limit=1`,
-      {
-        method: "GET",
-        cache: "no-store",
-        headers: {
-          apikey: serviceRole,
-          Authorization: `Bearer ${serviceRole}`,
-          Accept: "application/json",
-        },
-      },
-    );
+    const { data, error } = await admin
+      .from("threat_alerts")
+      .select("*")
+      .eq("id", alertId)
+      .maybeSingle();
 
-    const body = await response.json().catch(() => null);
-
-    if (!response.ok) {
+    if (error) {
       return {
-        status: response.status,
-        alert: null,
+        status: 500,
+        payload: null,
         error: "StayKnown could not load this Threat Alert right now.",
       };
     }
 
-    const row = Array.isArray(body) && body.length > 0 ? body[0] : null;
-
-    if (!row || typeof row !== "object") {
+    if (!data || typeof data !== "object") {
       return {
         status: 404,
-        alert: null,
+        payload: null,
         error: "This Threat Alert could not be found.",
       };
     }
 
+    const alert = data as JsonRow;
+    const ownerUserId = clean(alert.owner_user_id);
+
+    if (!ownerUserId) {
+      return {
+        status: 422,
+        payload: null,
+        error: "This Threat Alert is missing its sender identity.",
+      };
+    }
+
+    const [identity, counts] = await Promise.all([
+      fetchCurrentOwnerIdentity({
+        admin,
+        ownerUserId,
+        alert,
+      }),
+      fetchResponseCounts({
+        admin,
+        alertId,
+        alert,
+      }),
+    ]);
+
+    const lat = numberOf(alert.lat);
+    const lng = numberOf(alert.lng);
+    const accuracyMeters = numberOf(
+      firstNonEmpty([alert.accuracy_meters, alert.accuracy]),
+    );
+
+    const payload: ThreatAlertMapPayload = {
+      alertId,
+      ownerName: identity.name,
+      ownerFirstName: identity.firstName,
+      ownerAvatarUrl: identity.avatarUrl,
+      ownerSafetyImageUrl: identity.safetyImageUrl,
+      ownerVerified: identity.verified,
+      ownerVerificationBadge: identity.verificationBadge,
+      status: clean(alert.status) || "recorded",
+      active: isActiveStatus(alert.status),
+      place: firstNonEmpty([alert.place, alert.location_name]),
+      lat,
+      lng,
+      accuracyMeters,
+      locationStatus: firstNonEmpty([
+        alert.location_status,
+        alert.location_source,
+      ]),
+      triggeredAt: firstNonEmpty([alert.triggered_at, alert.created_at]),
+      activatedAt: clean(alert.activated_at),
+      expiresAt: clean(alert.expires_at),
+      resolvedAt: firstNonEmpty([
+        alert.resolved_at,
+        alert.ended_at,
+        alert.cancelled_at,
+      ]),
+      externalMapUrl:
+        safeHttpUrl(alert.external_map_url) ||
+        (lat != null && lng != null
+          ? `https://www.google.com/maps?q=${encodeURIComponent(
+              `${lat},${lng}`,
+            )}`
+          : ""),
+      recipientsCount: counts.recipientsCount,
+      respondedCount: counts.respondedCount,
+      receivedCount: counts.receivedCount,
+      checkingCount: counts.checkingCount,
+      contactedEmergencyHelpCount: counts.contactedEmergencyHelpCount,
+      unableToRespondCount: counts.unableToRespondCount,
+      logoUrl: publicLogoUrl(),
+      caution: CONTACT_CAUTION,
+    };
+
     return {
       status: 200,
-      alert: row as ThreatAlertRow,
+      payload,
       error: "",
     };
   } catch {
     return {
       status: 503,
-      alert: null,
+      payload: null,
       error: "StayKnown could not reach the Threat Alert service right now.",
     };
   }
 }
 
-export default async function ThreatAlertMapPage({ searchParams }: PageProps) {
-  const params = await Promise.resolve(searchParams);
-  const alertId = first(params.alert);
-
-  const result = !isUuid(alertId)
-    ? {
-        status: 400,
-        alert: null,
-        error: "This Threat Alert link is incomplete or invalid.",
-      }
-    : await loadAlert(alertId);
-
-  const alert = result.alert;
-
-  const ownerName = alert
-    ? firstNonEmpty([
-        alert.owner_full_name,
-        alert.owner_first_name,
-        "StayKnown member",
-      ])
-    : "StayKnown member";
-
-  const imageUrl = alert
-    ? safeHttpUrl(
-        firstNonEmpty([alert.owner_safety_image_url, alert.owner_avatar_url]),
-      )
-    : "";
-
-  const logoUrl = safeHttpUrl(process.env.BRAND_LOGO_URL) || DEFAULT_LOGO_URL;
-
-  const place = alert ? firstNonEmpty([alert.place, alert.location_name]) : "";
-
-  const lat = alert ? numberOf(alert.lat) : null;
-  const lng = alert ? numberOf(alert.lng) : null;
-  const accuracy = alert ? numberOf(alert.accuracy_meters) : null;
-  const locationStatus = alert ? clean(alert.location_status) : "";
-  const triggeredAt = alert
-    ? formatDate(
-        firstNonEmpty([
-          alert.triggered_at,
-          alert.activated_at,
-          alert.created_at,
-        ]),
-      )
-    : "";
-
-  const status = alert ? statusLabel(alert.status) : "";
-  const active = alert ? isActiveStatus(alert.status) : false;
-  const mapUrl = alert ? mapUrlFor(alert) : "";
-
-  const locationSummary = place
-    ? place
-    : lat != null && lng != null
-      ? `${lat.toFixed(6)}, ${lng.toFixed(6)}`
-      : "A confirmed location was not attached when this alert was sent.";
+function ErrorPage({ title, message }: { title: string; message: string }) {
+  const logoUrl = publicLogoUrl();
 
   return (
     <main
       style={{
         minHeight: "100vh",
-        background:
-          "linear-gradient(145deg, #f2f3f4 0%, #ffffff 48%, #e5e7e9 100%)",
-        color: "#111111",
         display: "grid",
         placeItems: "center",
         padding: "24px 14px",
+        color: "#111318",
+        background:
+          "linear-gradient(145deg, #eef1f4 0%, #ffffff 48%, #e5e8eb 100%)",
         fontFamily:
           "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif",
       }}
@@ -283,340 +559,142 @@ export default async function ThreatAlertMapPage({ searchParams }: PageProps) {
       <section
         style={{
           width: "100%",
-          maxWidth: 610,
-          background: "rgba(255,255,255,0.96)",
-          border: "1px solid rgba(0,0,0,0.09)",
+          maxWidth: 520,
+          padding: "28px 23px 24px",
+          border: "1px solid rgba(0,0,0,0.08)",
           borderRadius: 32,
-          overflow: "hidden",
+          background: "rgba(255,255,255,0.95)",
           boxShadow:
-            "0 30px 90px rgba(0,0,0,0.14), inset 0 1px 0 rgba(255,255,255,0.95)",
+            "0 30px 90px rgba(0,0,0,0.14), inset 0 1px 0 rgba(255,255,255,0.98)",
+          textAlign: "center",
         }}
       >
-        <header
+        <img
+          src={logoUrl}
+          width={66}
+          height={66}
+          alt="StayKnown"
           style={{
-            padding: "25px 24px 17px",
-            textAlign: "center",
-            borderBottom: "1px solid rgba(0,0,0,0.07)",
+            display: "block",
+            width: 66,
+            height: 66,
+            margin: "0 auto 13px",
+            objectFit: "contain",
+            borderRadius: 20,
+          }}
+        />
+
+        <div
+          style={{
+            fontSize: 12,
+            fontWeight: 950,
+            letterSpacing: "2px",
           }}
         >
-          <img
-            src={logoUrl}
-            width={62}
-            height={62}
-            alt="StayKnown"
-            style={{
-              width: 62,
-              height: 62,
-              display: "block",
-              margin: "0 auto 12px",
-              borderRadius: 19,
-              objectFit: "contain",
-            }}
-          />
+          STAYKNOWN™
+        </div>
 
-          <div
-            style={{
-              fontSize: 13,
-              fontWeight: 950,
-              letterSpacing: "2.3px",
-            }}
-          >
-            STAYKNOWN™
-          </div>
+        <div
+          style={{
+            marginTop: 5,
+            color: "#777b80",
+            fontSize: 9,
+            fontWeight: 850,
+            letterSpacing: "1px",
+          }}
+        >
+          A 6 CLEMENT JOSHUA SERVICE™
+        </div>
 
-          <div
-            style={{
-              marginTop: 5,
-              fontSize: 10,
-              color: "#777777",
-              fontWeight: 800,
-              letterSpacing: "1.1px",
-            }}
-          >
-            A 6 Clement Joshua service™
-          </div>
-        </header>
+        <div
+          style={{
+            display: "grid",
+            placeItems: "center",
+            width: 72,
+            height: 72,
+            margin: "23px auto 17px",
+            border: "1px solid rgba(0,0,0,0.08)",
+            borderRadius: 24,
+            background: "#eef0f2",
+            fontSize: 29,
+            fontWeight: 950,
+          }}
+        >
+          !
+        </div>
 
-        <div style={{ padding: "24px" }}>
-          {!alert ? (
-            <div style={{ textAlign: "center", padding: "10px 2px 5px" }}>
-              <div
-                style={{
-                  width: 74,
-                  height: 74,
-                  borderRadius: 24,
-                  display: "grid",
-                  placeItems: "center",
-                  margin: "0 auto 17px",
-                  background: "#eceef0",
-                  border: "1px solid rgba(0,0,0,0.09)",
-                  fontSize: 29,
-                  fontWeight: 950,
-                }}
-              >
-                !
-              </div>
+        <h1
+          style={{
+            margin: 0,
+            fontSize: 24,
+            lineHeight: 1.16,
+            letterSpacing: "-0.35px",
+            fontWeight: 950,
+          }}
+        >
+          {title}
+        </h1>
 
-              <h1
-                style={{
-                  margin: 0,
-                  fontSize: 24,
-                  lineHeight: 1.17,
-                  fontWeight: 950,
-                }}
-              >
-                Threat Alert unavailable
-              </h1>
+        <p
+          style={{
+            maxWidth: 430,
+            margin: "13px auto 0",
+            color: "#555a60",
+            fontSize: 13,
+            lineHeight: 1.62,
+            fontWeight: 650,
+          }}
+        >
+          {message}
+        </p>
 
-              <p
-                style={{
-                  margin: "13px auto 0",
-                  maxWidth: 460,
-                  color: "#555a60",
-                  fontSize: 13.5,
-                  lineHeight: 1.6,
-                  fontWeight: 650,
-                }}
-              >
-                {result.error}
-              </p>
-            </div>
-          ) : (
-            <>
-              <div
-                style={{
-                  display: "flex",
-                  gap: 14,
-                  alignItems: "center",
-                }}
-              >
-                <div
-                  style={{
-                    width: 82,
-                    height: 82,
-                    flex: "0 0 82px",
-                    borderRadius: 26,
-                    overflow: "hidden",
-                    display: "grid",
-                    placeItems: "center",
-                    background: "#f2f3f4",
-                    border: "1px solid rgba(0,0,0,0.08)",
-                  }}
-                >
-                  <img
-                    src={imageUrl || logoUrl}
-                    width={82}
-                    height={82}
-                    alt={imageUrl ? ownerName : "StayKnown"}
-                    style={{
-                      width: "100%",
-                      height: "100%",
-                      objectFit: imageUrl ? "cover" : "contain",
-                      padding: imageUrl ? 0 : 12,
-                      boxSizing: "border-box",
-                    }}
-                  />
-                </div>
-
-                <div style={{ minWidth: 0, flex: 1 }}>
-                  <div
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: 7,
-                      padding: "7px 10px",
-                      borderRadius: 999,
-                      background: active ? "#111111" : "#eff0f1",
-                      color: active ? "#ffffff" : "#333333",
-                      fontSize: 10,
-                      fontWeight: 950,
-                      letterSpacing: "0.8px",
-                      textTransform: "uppercase",
-                    }}
-                  >
-                    {active ? "● " : ""}
-                    {status}
-                  </div>
-
-                  <h1
-                    style={{
-                      margin: "10px 0 0",
-                      fontSize: 23,
-                      lineHeight: 1.12,
-                      letterSpacing: "-0.4px",
-                      fontWeight: 950,
-                      overflowWrap: "anywhere",
-                    }}
-                  >
-                    {ownerName}
-                  </h1>
-
-                  {triggeredAt ? (
-                    <div
-                      style={{
-                        marginTop: 7,
-                        color: "#73777c",
-                        fontSize: 11,
-                        fontWeight: 750,
-                      }}
-                    >
-                      Threat Alert recorded {triggeredAt}
-                    </div>
-                  ) : null}
-                </div>
-              </div>
-
-              <div
-                style={{
-                  marginTop: 21,
-                  padding: "17px",
-                  borderRadius: 22,
-                  background: "#f4f5f6",
-                  border: "1px solid rgba(0,0,0,0.07)",
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: 10.5,
-                    color: "#686c71",
-                    fontWeight: 950,
-                    letterSpacing: "1.15px",
-                    textTransform: "uppercase",
-                  }}
-                >
-                  Last confirmed location
-                </div>
-
-                <div
-                  style={{
-                    marginTop: 9,
-                    fontSize: 15,
-                    lineHeight: 1.5,
-                    fontWeight: 900,
-                    overflowWrap: "anywhere",
-                  }}
-                >
-                  {locationSummary}
-                </div>
-
-                {accuracy != null && accuracy > 0 ? (
-                  <div
-                    style={{
-                      marginTop: 6,
-                      color: "#70757a",
-                      fontSize: 11,
-                      fontWeight: 700,
-                    }}
-                  >
-                    Approximate accuracy: ±{Math.round(accuracy)} metres
-                  </div>
-                ) : null}
-
-                {locationStatus ? (
-                  <div
-                    style={{
-                      marginTop: 5,
-                      color: "#85898e",
-                      fontSize: 10.5,
-                      fontWeight: 700,
-                    }}
-                  >
-                    Location status: {locationStatus.replaceAll("_", " ")}
-                  </div>
-                ) : null}
-
-                {mapUrl ? (
-                  <div style={{ marginTop: 14 }}>
-                    <a
-                      href={mapUrl}
-                      rel="noopener noreferrer"
-                      style={{
-                        display: "inline-block",
-                        padding: "12px 17px",
-                        borderRadius: 999,
-                        background: "#111111",
-                        color: "#ffffff",
-                        textDecoration: "none",
-                        fontSize: 12.5,
-                        fontWeight: 950,
-                      }}
-                    >
-                      Open map
-                    </a>
-                  </div>
-                ) : null}
-              </div>
-
-              {!active ? (
-                <div
-                  style={{
-                    marginTop: 14,
-                    padding: "14px 15px",
-                    borderRadius: 20,
-                    background: "#ffffff",
-                    border: "1px solid rgba(0,0,0,0.08)",
-                    color: "#555a60",
-                    fontSize: 12,
-                    lineHeight: 1.5,
-                    fontWeight: 700,
-                  }}
-                >
-                  This Threat Alert is no longer active. Its recorded sender,
-                  status and last confirmed location remain visible for safety
-                  history.
-                </div>
-              ) : null}
-
-              <div
-                style={{
-                  marginTop: 17,
-                  padding: "17px",
-                  borderRadius: 22,
-                  background: "#111111",
-                  color: "#ffffff",
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: 10.5,
-                    fontWeight: 950,
-                    letterSpacing: "1.1px",
-                    textTransform: "uppercase",
-                  }}
-                >
-                  Respond without risking yourself
-                </div>
-
-                <p
-                  style={{
-                    margin: "9px 0 0",
-                    color: "rgba(255,255,255,0.78)",
-                    fontSize: 12,
-                    lineHeight: 1.6,
-                    fontWeight: 600,
-                  }}
-                >
-                  {RECIPIENT_CAUTION}
-                </p>
-              </div>
-            </>
-          )}
-
-          <p
-            style={{
-              margin: "19px 3px 0",
-              color: "#7b7f84",
-              textAlign: "center",
-              fontSize: 10.5,
-              lineHeight: 1.55,
-              fontWeight: 650,
-            }}
-          >
-            StayKnown does not replace emergency services. This page displays
-            the location recorded when the Threat Alert was activated.
-          </p>
+        <div
+          style={{
+            marginTop: 19,
+            padding: "14px",
+            borderRadius: 20,
+            color: "#ffffff",
+            background: "#111318",
+            fontSize: 11,
+            lineHeight: 1.58,
+            fontWeight: 650,
+          }}
+        >
+          Verify the person through a trusted method. Do not travel alone or
+          place yourself at risk based only on an alert.
         </div>
       </section>
     </main>
   );
+}
+
+export default async function ThreatAlertMapPage({ searchParams }: PageProps) {
+  const params = await Promise.resolve(searchParams);
+  const alertId = first(params.alert);
+
+  if (!isUuid(alertId)) {
+    return (
+      <ErrorPage
+        title="Threat Alert link incomplete"
+        message="This link does not contain a valid Threat Alert identifier. Reopen the original StayKnown email or notification."
+      />
+    );
+  }
+
+  const result = await loadThreatAlert(alertId);
+
+  if (!result.payload) {
+    return (
+      <ErrorPage
+        title={
+          result.status === 404
+            ? "Threat Alert not found"
+            : "Threat Alert unavailable"
+        }
+        message={result.error}
+      />
+    );
+  }
+
+  return <ThreatAlertMapClient alert={result.payload} />;
 }
