@@ -445,6 +445,7 @@ export default function ThreatAlertMapClient({ alert }: Props) {
   const [mapMessage, setMapMessage] = React.useState(
     "Preparing the recorded Threat Alert location…",
   );
+  const [safetyPreviewOpen, setSafetyPreviewOpen] = React.useState(false);
   const [assets, setAssets] = React.useState<PreparedAssets>({
     ready: false,
     logo: "",
@@ -535,6 +536,26 @@ export default function ThreatAlertMapClient({ alert }: Props) {
       objectUrls.forEach((value) => URL.revokeObjectURL(value));
     };
   }, [avatarEndpoint, safetyEndpoint]);
+
+  React.useEffect(() => {
+    if (!safetyPreviewOpen) return;
+
+    const previousOverflow = document.body.style.overflow;
+
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setSafetyPreviewOpen(false);
+      }
+    };
+
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", closeOnEscape);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [safetyPreviewOpen]);
 
   const recenter = React.useCallback(() => {
     if (!mapRef.current || !hasLocation || lat == null || lng == null) return;
@@ -1336,6 +1357,101 @@ export default function ThreatAlertMapClient({ alert }: Props) {
           box-shadow: 8px 8px 16px rgba(0, 0, 0, 0.14);
         }
 
+        .sk-threat-image-preview-backdrop {
+          position: fixed;
+          z-index: 100;
+          inset: 0;
+          display: grid;
+          place-items: center;
+          padding: max(24px, env(safe-area-inset-top)) 18px
+            max(24px, env(safe-area-inset-bottom));
+          background: rgba(8, 9, 11, 0.62);
+          backdrop-filter: blur(18px);
+        }
+
+        .sk-threat-image-preview-card {
+          position: relative;
+          width: min(86vw, 520px);
+          max-height: min(82dvh, 720px);
+          overflow: hidden;
+          border: 1px solid rgba(255, 255, 255, 0.88);
+          border-radius: 30px;
+          background: #ffffff;
+          box-shadow:
+            0 34px 100px rgba(0, 0, 0, 0.34),
+            inset 0 1px 0 rgba(255, 255, 255, 0.98);
+        }
+
+        .sk-threat-image-preview-close {
+          position: absolute;
+          z-index: 3;
+          top: 12px;
+          right: 12px;
+          display: grid;
+          place-items: center;
+          width: 38px;
+          height: 38px;
+          border: 1px solid rgba(0, 0, 0, 0.08);
+          border-radius: 999px;
+          color: #111318;
+          background: rgba(255, 255, 255, 0.92);
+          box-shadow: 0 10px 26px rgba(0, 0, 0, 0.18);
+          cursor: pointer;
+          font-size: 25px;
+          font-weight: 500;
+          line-height: 1;
+        }
+
+        .sk-threat-image-preview-photo {
+          display: grid;
+          place-items: center;
+          width: 100%;
+          min-height: 320px;
+          max-height: min(68dvh, 610px);
+          overflow: hidden;
+          background: #ffffff;
+        }
+
+        .sk-threat-image-preview-photo img {
+          display: block;
+          width: 100%;
+          height: 100%;
+          max-height: min(68dvh, 610px);
+          object-fit: contain;
+          object-position: center;
+          background: #ffffff;
+        }
+
+        .sk-threat-image-preview-photo .sk-threat-initial {
+          display: grid;
+          place-items: center;
+          width: 100%;
+          min-height: 320px;
+          color: #111318;
+          background: #ffffff;
+          font-size: 48px;
+        }
+
+        .sk-threat-image-preview-caption {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+          padding: 14px 18px 17px;
+          border-top: 1px solid rgba(0, 0, 0, 0.07);
+          text-align: center;
+        }
+
+        .sk-threat-image-preview-caption strong {
+          font-size: 14px;
+          font-weight: 950;
+        }
+
+        .sk-threat-image-preview-caption span {
+          color: rgba(17, 19, 24, 0.54);
+          font-size: 9px;
+          font-weight: 700;
+        }
+
         @keyframes skThreatRadar {
           0% {
             opacity: 0;
@@ -1437,7 +1553,7 @@ export default function ThreatAlertMapClient({ alert }: Props) {
             display: grid;
             grid-template-columns:
               minmax(0, 1fr)
-              clamp(138px, 22vw, 168px);
+              clamp(176px, 24vw, 246px);
             grid-template-areas:
               "identity safety"
               "location safety"
@@ -1509,35 +1625,50 @@ export default function ThreatAlertMapClient({ alert }: Props) {
             display: none;
           }
 
-          .sk-threat-mobile-feature-avatar {
+          .sk-threat-mobile-feature-trigger {
             grid-area: safety;
+            position: relative;
+            align-self: stretch;
+            justify-self: stretch;
+            display: block;
+            min-width: 0;
+            min-height: 0;
+            padding: 0;
+            overflow: hidden;
+            border: 0;
+            border-radius: 24px;
+            color: inherit;
+            background: transparent;
+            cursor: pointer;
+            appearance: none;
+          }
+
+          .sk-threat-mobile-feature-avatar {
             display: grid;
             place-items: center;
-            align-self: start;
-            justify-self: end;
             width: 100%;
-            max-width: 168px;
-            height: auto;
-            aspect-ratio: 1;
+            height: 100%;
+            min-height: 230px;
             padding: 0;
             overflow: hidden;
             border: 1px solid rgba(17, 19, 24, 0.12);
-            border-radius: 22px;
+            border-radius: 24px;
             color: #111318;
-            background: transparent;
+            background: #ffffff;
             box-shadow:
-              0 13px 28px rgba(0, 0, 0, 0.11),
-              inset 0 1px 0 rgba(255, 255, 255, 0.76);
+              0 14px 30px rgba(0, 0, 0, 0.11),
+              inset 0 1px 0 rgba(255, 255, 255, 0.94);
           }
 
           .sk-threat-mobile-feature-avatar img {
             display: block;
             width: 100%;
             height: 100%;
+            min-height: 230px;
             border-radius: inherit;
-            background: transparent;
+            background: #ffffff;
             object-fit: cover;
-            object-position: center 24%;
+            object-position: center 20%;
           }
 
           .sk-threat-mobile-feature-avatar .sk-threat-initial {
@@ -1545,15 +1676,33 @@ export default function ThreatAlertMapClient({ alert }: Props) {
             place-items: center;
             width: 100%;
             height: 100%;
+            min-height: 230px;
             border-radius: inherit;
             color: #111318;
-            background: transparent;
-            font-size: 30px;
+            background: #ffffff;
+            font-size: 34px;
           }
 
           .sk-threat-mobile-feature-avatar .sk-threat-wordmark-fallback {
             border-radius: inherit;
-            background: transparent;
+            background: #ffffff;
+          }
+
+          .sk-threat-image-open-hint {
+            position: absolute;
+            right: 9px;
+            bottom: 9px;
+            padding: 6px 8px;
+            border: 1px solid rgba(255, 255, 255, 0.32);
+            border-radius: 999px;
+            color: #ffffff;
+            background: rgba(17, 19, 24, 0.62);
+            box-shadow: 0 8px 18px rgba(0, 0, 0, 0.16);
+            font-size: 6.8px;
+            font-weight: 900;
+            letter-spacing: 0.35px;
+            text-transform: uppercase;
+            backdrop-filter: blur(9px);
           }
 
           .sk-threat-expanded {
@@ -1642,7 +1791,51 @@ export default function ThreatAlertMapClient({ alert }: Props) {
           }
         }
 
+        @media (max-width: 420px) {
+          .sk-threat-panel-inner {
+            grid-template-columns:
+              minmax(0, 1fr)
+              142px;
+            gap: 8px;
+            padding: 11px;
+          }
+
+          .sk-threat-mobile-feature-avatar,
+          .sk-threat-mobile-feature-avatar img,
+          .sk-threat-mobile-feature-avatar .sk-threat-initial {
+            min-height: 210px;
+          }
+
+          .sk-threat-identity {
+            gap: 7px;
+          }
+
+          .sk-threat-avatar {
+            flex-basis: 42px;
+            width: 42px;
+            height: 42px;
+          }
+
+          .sk-threat-owner-name h1 {
+            font-size: 14px;
+          }
+
+          .sk-threat-location-card {
+            padding: 10px;
+          }
+
+          .sk-threat-location-card .sk-threat-stat {
+            padding: 7px 6px;
+          }
+        }
+
         @media (pointer: coarse) and (min-width: 620px) and (max-width: 1100px) {
+          .sk-threat-panel-inner {
+            grid-template-columns:
+              minmax(0, 1fr)
+              clamp(220px, 25vw, 320px);
+          }
+
           .sk-threat-location-card .sk-threat-grid {
             grid-template-columns: repeat(4, minmax(0, 1fr));
           }
@@ -1852,13 +2045,23 @@ export default function ThreatAlertMapClient({ alert }: Props) {
                 useInitialFallback
               />
 
-              <PreparedImage
-                src={safetyImage || assets.avatar}
-                fallbackLogo={assets.avatar}
-                alt={`${alert.ownerName} safety image`}
-                className="sk-threat-mobile-feature-avatar"
-                useInitialFallback
-              />
+              <button
+                type="button"
+                className="sk-threat-mobile-feature-trigger"
+                aria-label={`Open ${alert.ownerName} safety image`}
+                onClick={() => setSafetyPreviewOpen(true)}
+              >
+                <PreparedImage
+                  src={safetyImage || assets.avatar}
+                  fallbackLogo={assets.avatar}
+                  alt={`${alert.ownerName} safety image`}
+                  className="sk-threat-mobile-feature-avatar"
+                  useInitialFallback
+                />
+                <span className="sk-threat-image-open-hint">
+                  Tap to enlarge
+                </span>
+              </button>
 
               <div className="sk-threat-response-panel">
                 <div className="sk-threat-guidance">
@@ -1909,6 +2112,44 @@ export default function ThreatAlertMapClient({ alert }: Props) {
             </div>
           </div>
         </section>
+      ) : null}
+
+      {safetyPreviewOpen ? (
+        <div
+          className="sk-threat-image-preview-backdrop"
+          role="presentation"
+          onClick={() => setSafetyPreviewOpen(false)}
+        >
+          <section
+            className="sk-threat-image-preview-card"
+            role="dialog"
+            aria-modal="true"
+            aria-label={`${alert.ownerName} safety image preview`}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <button
+              type="button"
+              className="sk-threat-image-preview-close"
+              aria-label="Close safety image"
+              onClick={() => setSafetyPreviewOpen(false)}
+            >
+              ×
+            </button>
+
+            <PreparedImage
+              src={safetyImage || assets.avatar}
+              fallbackLogo={assets.avatar}
+              alt={`${alert.ownerName} safety image`}
+              className="sk-threat-image-preview-photo"
+              useInitialFallback
+            />
+
+            <div className="sk-threat-image-preview-caption">
+              <strong>{alert.ownerName}</strong>
+              <span>Safety image attached to this Threat Alert</span>
+            </div>
+          </section>
+        </div>
       ) : null}
     </main>
   );
