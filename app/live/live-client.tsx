@@ -233,14 +233,30 @@ function sessionMetaRows(seedStatus: LiveStatus, sosActive: boolean) {
   };
 }
 
-function buildMarkerEl(isLive = true) {
+type MapMarkerOptions = {
+  isLive?: boolean;
+  avatarUrl?: string;
+  displayName?: string;
+};
+
+function buildMarkerEl({
+  isLive = true,
+  avatarUrl = "",
+  displayName = "StayKnown member",
+}: MapMarkerOptions) {
+  const cleanAvatarUrl = avatarUrl.trim();
+  const cleanDisplayName = displayName.trim() || "StayKnown member";
+
   const wrap = document.createElement("div");
-  wrap.style.width = "88px";
-  wrap.style.height = "88px";
+  wrap.style.width = "96px";
+  wrap.style.height = "96px";
   wrap.style.display = "flex";
   wrap.style.alignItems = "center";
   wrap.style.justifyContent = "center";
   wrap.style.position = "relative";
+  wrap.dataset.skLive = isLive ? "1" : "0";
+  wrap.dataset.skAvatar = cleanAvatarUrl;
+  wrap.dataset.skDisplayName = cleanDisplayName;
 
   const makeRing = (
     delayMs: number,
@@ -254,7 +270,7 @@ function buildMarkerEl(isLive = true) {
     ring.style.height = `${size}px`;
     ring.style.borderRadius = "9999px";
     ring.style.border = `1.2px solid ${borderColor}`;
-    ring.style.boxShadow = `0 0 16px ${shadowColor}`;
+    ring.style.boxShadow = `0 0 18px ${shadowColor}`;
     ring.style.opacity = "0";
     ring.style.transform = "scale(0.72)";
     ring.setAttribute("data-sk-radar", "1");
@@ -266,46 +282,68 @@ function buildMarkerEl(isLive = true) {
 
   const halo = document.createElement("div");
   halo.style.position = "absolute";
-  halo.style.width = "52px";
-  halo.style.height = "52px";
+  halo.style.width = "58px";
+  halo.style.height = "58px";
   halo.style.borderRadius = "9999px";
-  halo.style.background = "rgba(255,255,255,0.10)";
-  halo.style.backdropFilter = "blur(10px)";
-  halo.style.boxShadow = "0 0 0 9px rgba(255,255,255,0.04)";
+  halo.style.background = "rgba(255,255,255,0.13)";
+  halo.style.backdropFilter = "blur(12px)";
+  halo.style.boxShadow =
+    "0 0 0 10px rgba(255,255,255,0.05), 0 12px 30px rgba(0,0,0,0.14)";
 
   const pin = document.createElement("div");
-  pin.style.width = "44px";
-  pin.style.height = "44px";
+  pin.style.width = "48px";
+  pin.style.height = "48px";
   pin.style.borderRadius = "9999px";
   pin.style.display = "flex";
   pin.style.alignItems = "center";
   pin.style.justifyContent = "center";
+  pin.style.overflow = "hidden";
   pin.style.background =
-    "linear-gradient(180deg, rgba(255,255,255,0.99), rgba(243,245,247,0.95))";
-  pin.style.border = "1px solid rgba(255,255,255,0.98)";
+    "linear-gradient(180deg, rgba(255,255,255,0.995), rgba(239,242,245,0.97))";
+  pin.style.border = "2px solid rgba(255,255,255,0.98)";
   pin.style.boxShadow =
-    "0 14px 30px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,1), inset 0 -8px 18px rgba(0,0,0,0.04)";
+    "0 16px 34px rgba(0,0,0,0.20), inset 0 1px 0 rgba(255,255,255,1), inset 0 -9px 20px rgba(0,0,0,0.05)";
   pin.style.position = "relative";
   pin.style.zIndex = "3";
 
   const img = document.createElement("img");
-  img.src = "/6logo.png";
-  img.alt = "StayKnown";
-  img.style.width = "18px";
-  img.style.height = "18px";
-  img.style.objectFit = "contain";
+
+  const applyLogoFallback = () => {
+    img.src = "/6logo.png";
+    img.alt = "StayKnown";
+    img.style.width = "24px";
+    img.style.height = "24px";
+    img.style.objectFit = "contain";
+    img.style.padding = "0";
+  };
+
+  if (cleanAvatarUrl) {
+    img.src = cleanAvatarUrl;
+    img.alt = `${cleanDisplayName} location`;
+    img.style.width = "100%";
+    img.style.height = "100%";
+    img.style.objectFit = "cover";
+    img.style.padding = "0";
+    img.referrerPolicy = "no-referrer";
+    img.onerror = () => {
+      img.onerror = null;
+      applyLogoFallback();
+    };
+  } else {
+    applyLogoFallback();
+  }
 
   pin.appendChild(img);
 
   if (isLive) {
     wrap.appendChild(
-      makeRing(0, 50, "rgba(138,138,138,0.70)", "rgba(120,120,120,0.08)"),
+      makeRing(0, 56, "rgba(115,115,115,0.72)", "rgba(110,110,110,0.10)"),
     );
     wrap.appendChild(
-      makeRing(760, 62, "rgba(192,192,192,0.56)", "rgba(196,196,196,0.06)"),
+      makeRing(760, 70, "rgba(184,184,184,0.58)", "rgba(190,190,190,0.07)"),
     );
     wrap.appendChild(
-      makeRing(1520, 76, "rgba(224,224,224,0.38)", "rgba(225,225,225,0.04)"),
+      makeRing(1520, 86, "rgba(225,225,225,0.40)", "rgba(225,225,225,0.05)"),
     );
   }
 
@@ -635,6 +673,8 @@ export default function LiveClient({ access }: { access: LiveAccessProps }) {
   const bootedRef = React.useRef(false);
   const hasCenteredRef = React.useRef(false);
   const lastPointRef = React.useRef<{ lat: number; lng: number } | null>(null);
+  const markerAvatarUrlRef = React.useRef("");
+  const markerDisplayNameRef = React.useRef("StayKnown member");
 
   const [status, setStatus] = React.useState<LiveStatus>("loading");
   const [renderMode, setRenderMode] = React.useState<RenderMode>("map");
@@ -905,30 +945,54 @@ export default function LiveClient({ access }: { access: LiveAccessProps }) {
       nextStatus: LiveStatus = "live",
       createdAt?: string,
       accuracy?: number,
+      markerAvatarUrl?: string,
+      markerDisplayName?: string,
     ) => {
       const quality = locationQuality(accuracy);
       const nextLngLat: [number, number] = [lng, lat];
       const previousPoint = lastPointRef.current;
+      const desiredAvatarUrl = cleanLabel(
+        markerAvatarUrl ?? markerAvatarUrlRef.current,
+        "",
+      );
+      const desiredDisplayName = cleanLabel(
+        markerDisplayName ?? markerDisplayNameRef.current,
+        "StayKnown member",
+      );
+
+      markerAvatarUrlRef.current = desiredAvatarUrl;
+      markerDisplayNameRef.current = desiredDisplayName;
 
       if (mapRef.current) {
         const needsLiveMarker = nextStatus !== "ended";
 
         if (!markerRef.current) {
           markerRef.current = new maplibregl.Marker({
-            element: buildMarkerEl(needsLiveMarker),
+            element: buildMarkerEl({
+              isLive: needsLiveMarker,
+              avatarUrl: desiredAvatarUrl,
+              displayName: desiredDisplayName,
+            }),
             anchor: "center",
           });
         } else {
           const el = markerRef.current.getElement();
-          const hasRadar = el.querySelector("[data-sk-radar='1']");
+          const markerLive = el.dataset.skLive === "1";
+          const markerAvatar = el.dataset.skAvatar || "";
+          const currentMarkerName = el.dataset.skDisplayName || "";
 
           if (
-            (needsLiveMarker && !hasRadar) ||
-            (!needsLiveMarker && hasRadar)
+            markerLive !== needsLiveMarker ||
+            markerAvatar !== desiredAvatarUrl ||
+            currentMarkerName !== desiredDisplayName
           ) {
             markerRef.current.remove();
             markerRef.current = new maplibregl.Marker({
-              element: buildMarkerEl(needsLiveMarker),
+              element: buildMarkerEl({
+                isLive: needsLiveMarker,
+                avatarUrl: desiredAvatarUrl,
+                displayName: desiredDisplayName,
+              }),
               anchor: "center",
             });
           }
@@ -1003,9 +1067,15 @@ export default function LiveClient({ access }: { access: LiveAccessProps }) {
   );
   const syncFromSeed = React.useCallback(
     (seed: SeedResp) => {
+      const nextVisitorName = cleanLabel(seed.visitor_name, "User");
+      const nextVisitorAvatarUrl = cleanLabel(seed.visitor_avatar_url, "");
+
+      markerDisplayNameRef.current = nextVisitorName;
+      markerAvatarUrlRef.current = nextVisitorAvatarUrl;
+
       setDestinationLabel(sessionLabelFromSeed(seed));
       setDestinationAddressLabel(cleanLabel(seed.destination_address));
-      setVisitorName(cleanLabel(seed.visitor_name, "User"));
+      setVisitorName(nextVisitorName);
       setStartedDateLabel(formatLiveDate(seed.started_at));
       setStartedTimeLabel(formatStartedTime(seed.started_at));
       setPurposeLabel(cleanLabel(seed.purpose));
@@ -1014,7 +1084,7 @@ export default function LiveClient({ access }: { access: LiveAccessProps }) {
         formatDurationMins(seed.expected_duration_minutes),
       );
       setExtraNoteLabel(cleanLabel(seed.extra_note));
-      setVisitorAvatarUrl(cleanLabel(seed.visitor_avatar_url, ""));
+      setVisitorAvatarUrl(nextVisitorAvatarUrl);
       setVisitorVerified(seed.visitor_verified === true);
       setVisitorBadgeType(cleanLabel(seed.visitor_badge_type, ""));
       setViewerName(cleanLabel(seed.viewer_name, ""));
@@ -1037,6 +1107,8 @@ export default function LiveClient({ access }: { access: LiveAccessProps }) {
           seed.ended ? "ended" : "live",
           seed.latest.created_at,
           seed.latest.accuracy,
+          nextVisitorAvatarUrl,
+          nextVisitorName,
         );
       } else {
         setPlaceLabel(
@@ -1279,9 +1351,9 @@ export default function LiveClient({ access }: { access: LiveAccessProps }) {
 
       const initialCenter: [number, number] = hasLatest
         ? [seed.latest!.lng, seed.latest!.lat]
-        : [0, 0];
+        : FALLBACK_CENTER;
 
-      const initialZoom = hasLatest ? INITIAL_VIEW_ZOOM : 2.4;
+      const initialZoom = hasLatest ? INITIAL_VIEW_ZOOM : FALLBACK_ZOOM;
 
       let lastError: Error | null = null;
 
@@ -1515,9 +1587,12 @@ export default function LiveClient({ access }: { access: LiveAccessProps }) {
   const sessionMeta = sessionMetaRows(status, sosActive);
   const showSpinner = status === "loading";
   const isPhone = isPhoneViewport();
+  const desktopViewport = isDesktop() || !isPhone;
   const showMobileSheet = isPhone && renderMode === "map" && mapReady;
   const showZoomControls = renderMode === "map" && mapReady;
-  const mobileZoomBottom = "bottom-[216px]";
+  const mobileZoomBottom = mobileSheetShrunk
+    ? "bottom-[108px]"
+    : "bottom-[342px]";
 
   const activeResponse = String(activeAdvisory?.response_kind || "").trim();
   const activeStatus = String(activeAdvisory?.status || "").trim();
@@ -1548,6 +1623,20 @@ export default function LiveClient({ access }: { access: LiveAccessProps }) {
     { label: "Expected stay", value: expectedDurationLabel },
   ].filter((item) => item.value && item.value !== "—");
 
+  const visitStartedLabel = [startedDateLabel, startedTimeLabel]
+    .filter((value) => value && value !== "—")
+    .join(" • ");
+
+  const detailInfoRows = [
+    { label: "Coordinates", value: coordsLabel },
+    { label: "Visit started", value: visitStartedLabel },
+    { label: "Destination address", value: destinationAddressLabel },
+    { label: "Purpose", value: purposeLabel },
+    { label: "Person to meet", value: personToMeetLabel },
+    { label: "Extra safety note", value: extraNoteLabel },
+    { label: "Signed viewer", value: viewerName },
+  ].filter((item) => item.value && item.value !== "—");
+
   const VisitorIdentity = ({ compact = false }: { compact?: boolean }) => (
     <div className="flex min-w-0 items-center gap-2.5">
       <div
@@ -1555,19 +1644,22 @@ export default function LiveClient({ access }: { access: LiveAccessProps }) {
           compact ? "h-8 w-8 rounded-[12px]" : "h-10 w-10 rounded-[15px]"
         } ${darkTheme ? "border-white/14 bg-white/8" : "border-white/80 bg-white"}`}
       >
-        {visitorAvatarUrl ? (
-          <img
-            src={visitorAvatarUrl}
-            alt={visitorName}
-            className="h-full w-full object-cover"
-          />
-        ) : (
-          <div
-            className={`grid h-full w-full place-items-center font-black ${cardText}`}
-          >
-            {visitorName.trim().slice(0, 1).toUpperCase() || "S"}
-          </div>
-        )}
+        <img
+          src={visitorAvatarUrl || "/6logo.png"}
+          alt={visitorAvatarUrl ? visitorName : "StayKnown"}
+          className={`h-full w-full ${
+            visitorAvatarUrl ? "object-cover" : "object-contain p-1.5"
+          }`}
+          referrerPolicy="no-referrer"
+          onError={(event) => {
+            const target = event.currentTarget;
+            target.onerror = null;
+            target.src = "/6logo.png";
+            target.alt = "StayKnown";
+            target.style.objectFit = "contain";
+            target.style.padding = compact ? "5px" : "7px";
+          }}
+        />
       </div>
       <div className="min-w-0">
         <div className="flex min-w-0 items-center gap-1.5">
@@ -1981,6 +2073,28 @@ export default function LiveClient({ access }: { access: LiveAccessProps }) {
               </div>
             ))}
           </div>
+
+          {detailInfoRows.length > 0 ? (
+            <div className="mt-2 grid gap-1.5">
+              {detailInfoRows.map((item) => (
+                <div
+                  key={item.label}
+                  className={`rounded-[13px] border px-2.5 py-2 ${insetSurface}`}
+                >
+                  <div
+                    className={`text-[6.5px] font-black uppercase tracking-[0.16em] ${mutedText}`}
+                  >
+                    {item.label}
+                  </div>
+                  <div
+                    className={`mt-1 break-words text-[8.7px] font-extrabold leading-[1.42] ${cardText}`}
+                  >
+                    {item.value}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : null}
         </div>
 
         {canSendAdvisory && status !== "ended" ? (
@@ -2042,9 +2156,42 @@ export default function LiveClient({ access }: { access: LiveAccessProps }) {
             <div className="pointer-events-none absolute inset-x-0 bottom-[14px] z-30 px-3">
               <section
                 data-sk-mobile-sheet="1"
-                className={`pointer-events-auto mx-auto h-[190px] w-full max-w-[640px] overflow-hidden rounded-[30px] border p-3.5 shadow-[0_26px_70px_rgba(0,0,0,.24),inset_0_1px_0_rgba(255,255,255,.30)] backdrop-blur-[26px] ${glassBorder} ${glassSurface}`}
+                className={`pointer-events-auto mx-auto w-full max-w-[640px] overflow-hidden rounded-[30px] border p-3.5 shadow-[0_26px_70px_rgba(0,0,0,.24),inset_0_1px_0_rgba(255,255,255,.30)] backdrop-blur-[26px] transition-[height] duration-300 ${
+                  mobileSheetShrunk ? "h-[92px]" : "h-[326px]"
+                } ${glassBorder} ${glassSurface}`}
               >
-                <PanelBody />
+                <button
+                  type="button"
+                  aria-label={
+                    mobileSheetShrunk
+                      ? "Expand Visit information"
+                      : "Minimize Visit information"
+                  }
+                  onClick={() => setMobileSheetShrunk((value) => !value)}
+                  className={`mx-auto flex h-5 items-center gap-2 rounded-full px-2 text-[7px] font-black uppercase tracking-[0.16em] ${mutedText}`}
+                >
+                  <span
+                    className={`block h-1 w-11 rounded-full ${
+                      darkTheme ? "bg-white/28" : "bg-black/18"
+                    }`}
+                  />
+                  {mobileSheetShrunk ? "Expand" : "Minimize"}
+                </button>
+
+                {mobileSheetShrunk ? (
+                  <div className="mt-2 flex items-center justify-between gap-3">
+                    <VisitorIdentity compact />
+                    <div
+                      className={`rounded-full border px-2.5 py-1.5 text-[7px] font-black uppercase tracking-[0.16em] ${sessionMeta.statusClass}`}
+                    >
+                      {sessionMeta.statusText}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mt-1 h-[calc(100%-24px)]">
+                    <PanelBody />
+                  </div>
+                )}
               </section>
             </div>
           ) : null}
@@ -2120,7 +2267,7 @@ export default function LiveClient({ access }: { access: LiveAccessProps }) {
         </div>
       ) : null}
 
-      {!isPhone && renderMode === "map" && mapReady ? (
+      {desktopViewport && renderMode === "map" && mapReady ? (
         <div className="pointer-events-none absolute inset-x-0 bottom-7 z-30 px-4">
           <section
             className={`pointer-events-auto mx-auto h-[168px] w-full max-w-[1120px] overflow-hidden rounded-[32px] border p-4 shadow-[0_30px_80px_rgba(0,0,0,.22),inset_0_1px_0_rgba(255,255,255,.32)] backdrop-blur-[28px] ${glassBorder} ${glassSurface}`}
@@ -2185,9 +2332,7 @@ export default function LiveClient({ access }: { access: LiveAccessProps }) {
                 <p
                   className={`mt-2 text-[11px] font-semibold leading-[1.65] md:text-[12px] ${mutedText}`}
                 >
-                  This map is provided for legitimate, consent-based safety
-                  support involving someone you know or are directly responsible
-                  for protecting.
+                  {safetyUseHint()}
                 </p>
               </div>
             </div>
@@ -2272,6 +2417,9 @@ export default function LiveClient({ access }: { access: LiveAccessProps }) {
               StayKnown does not replace emergency services. Misuse may lead to
               access restriction, account action, evidence preservation,
               investigation, or reporting where required.
+              <div className="mt-1.5 font-black tracking-[0.08em]">
+                {legalTinyLine()}
+              </div>
             </div>
           </section>
         </div>
