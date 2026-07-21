@@ -416,8 +416,6 @@ export default function ThreatAlertMapClient({ alert }: Props) {
   const displayTime =
     alert.triggeredAt || alert.activatedAt || alert.expiresAt || "";
 
-  const appHref = `stayknown://threat-alert/${encodeURIComponent(alert.alertId)}`;
-
   const safetyImage = assets.safety || assets.avatar;
 
   const tomtomKey = safeText(process.env.NEXT_PUBLIC_TOMTOM_API_KEY);
@@ -697,25 +695,27 @@ export default function ThreatAlertMapClient({ alert }: Props) {
           top: max(14px, env(safe-area-inset-top));
           left: 14px;
           display: flex;
+          flex-direction: column;
           align-items: center;
-          gap: 10px;
-          max-width: calc(100vw - 148px);
-          padding: 8px 12px 8px 8px;
+          justify-content: center;
+          width: 142px;
+          max-width: calc(100vw - 164px);
+          padding: 10px 12px 9px;
           border: 1px solid rgba(255, 255, 255, 0.88);
           border-radius: 22px;
           background: rgba(255, 255, 255, 0.84);
           box-shadow:
             0 15px 38px rgba(0, 0, 0, 0.13),
             inset 0 1px 0 rgba(255, 255, 255, 0.98);
+          text-align: center;
           backdrop-filter: blur(22px);
         }
 
         .sk-threat-brand-logo {
           display: grid;
           place-items: center;
-          flex: 0 0 38px;
-          width: 38px;
-          height: 38px;
+          width: 40px;
+          height: 40px;
           overflow: hidden;
           border-radius: 13px;
           background: #ffffff;
@@ -729,27 +729,35 @@ export default function ThreatAlertMapClient({ alert }: Props) {
         }
 
         .sk-threat-brand-name {
+          width: 100%;
           min-width: 0;
+          margin-top: 6px;
+          text-align: center;
         }
 
         .sk-threat-brand-name strong {
           display: block;
+          width: 100%;
           overflow: hidden;
+          text-align: center;
           text-overflow: ellipsis;
           white-space: nowrap;
-          font-size: 11px;
+          font-size: 10px;
           font-weight: 950;
-          letter-spacing: 1.55px;
+          letter-spacing: 1.4px;
         }
 
         .sk-threat-brand-name span {
           display: block;
-          margin-top: 3px;
+          width: 100%;
+          margin-top: 4px;
           overflow: hidden;
           color: rgba(17, 19, 24, 0.52);
-          font-size: 7.5px;
+          text-align: center;
+          font-size: 6.8px;
           font-weight: 850;
-          letter-spacing: 0.72px;
+          letter-spacing: 0.58px;
+          line-height: 1.25;
           text-overflow: ellipsis;
           white-space: nowrap;
         }
@@ -880,8 +888,8 @@ export default function ThreatAlertMapClient({ alert }: Props) {
             minmax(350px, 1.2fr);
           grid-template-areas:
             "identity identity identity"
-            "location safety response"
-            "location safety actions"
+            "location location response"
+            "safety safety response"
             "legal legal legal";
           gap: 12px;
           padding: 16px;
@@ -1012,7 +1020,7 @@ export default function ThreatAlertMapClient({ alert }: Props) {
           grid-area: location;
           min-width: 0;
           margin: 0;
-          padding: 14px;
+          padding: 16px;
           border: 1px solid rgba(0, 0, 0, 0.065);
           border-radius: 22px;
           background: rgba(255, 255, 255, 0.66);
@@ -1035,7 +1043,7 @@ export default function ThreatAlertMapClient({ alert }: Props) {
 
         .sk-threat-grid {
           display: grid;
-          grid-template-columns: repeat(2, minmax(0, 1fr));
+          grid-template-columns: repeat(4, minmax(0, 1fr));
           gap: 8px;
           margin-top: 10px;
         }
@@ -1100,6 +1108,10 @@ export default function ThreatAlertMapClient({ alert }: Props) {
           min-width: 0;
         }
 
+        .sk-threat-expanded > div .sk-threat-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
         .sk-threat-guidance {
           padding: 15px;
           border-radius: 22px;
@@ -1140,34 +1152,6 @@ export default function ThreatAlertMapClient({ alert }: Props) {
           font-size: 9.5px;
           font-weight: 700;
           line-height: 1.48;
-        }
-
-        .sk-threat-actions {
-          grid-area: actions;
-          display: grid;
-          align-self: end;
-          grid-template-columns: minmax(0, 1fr);
-          gap: 8px;
-          margin: 0;
-        }
-
-        .sk-threat-action {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          min-height: 43px;
-          padding: 11px 14px;
-          border: 1px solid #111318;
-          border-radius: 999px;
-          color: #ffffff;
-          background: #111318;
-          box-shadow:
-            inset 0 1px 0 rgba(255, 255, 255, 0.18),
-            inset 0 -11px 22px rgba(0, 0, 0, 0.36);
-          text-align: center;
-          text-decoration: none;
-          font-size: 9.5px;
-          font-weight: 950;
         }
 
         .sk-threat-legal {
@@ -1319,7 +1303,29 @@ export default function ThreatAlertMapClient({ alert }: Props) {
 
         @media (max-width: 680px) {
           .sk-threat-brand {
+            width: 132px;
             max-width: calc(100vw - 136px);
+            padding: 9px 10px 8px;
+          }
+
+          .sk-threat-brand-logo {
+            width: 36px;
+            height: 36px;
+          }
+
+          .sk-threat-brand-name {
+            margin-top: 5px;
+          }
+
+          .sk-threat-brand-name strong {
+            font-size: 9px;
+            letter-spacing: 1.25px;
+          }
+
+          .sk-threat-brand-name span {
+            margin-top: 3px;
+            font-size: 6.2px;
+            letter-spacing: 0.45px;
           }
 
           .sk-threat-panel {
@@ -1356,10 +1362,6 @@ export default function ThreatAlertMapClient({ alert }: Props) {
             min-height: 190px;
           }
 
-          .sk-threat-actions {
-            margin-top: 12px;
-          }
-
           .sk-threat-legal {
             margin-top: 10px;
           }
@@ -1368,7 +1370,8 @@ export default function ThreatAlertMapClient({ alert }: Props) {
             font-size: 17px;
           }
 
-          .sk-threat-grid {
+          .sk-threat-grid,
+          .sk-threat-expanded > div .sk-threat-grid {
             grid-template-columns: repeat(2, minmax(0, 1fr));
           }
         }
@@ -1385,9 +1388,8 @@ export default function ThreatAlertMapClient({ alert }: Props) {
               minmax(190px, 0.72fr);
             grid-template-areas:
               "identity identity"
-              "location safety"
-              "response response"
-              "actions actions"
+              "location location"
+              "safety response"
               "legal legal";
           }
 
@@ -1502,7 +1504,7 @@ export default function ThreatAlertMapClient({ alert }: Props) {
             <div className="sk-threat-identity">
               <PreparedImage
                 src={assets.avatar}
-                fallbackLogo={assets.logo}
+                fallbackLogo=""
                 alt={alert.ownerName}
                 className="sk-threat-avatar"
                 useInitialFallback
@@ -1567,8 +1569,8 @@ export default function ThreatAlertMapClient({ alert }: Props) {
 
             <div className="sk-threat-expanded">
               <PreparedImage
-                src={safetyImage}
-                fallbackLogo={assets.logo}
+                src={safetyImage || assets.avatar}
+                fallbackLogo={assets.avatar}
                 alt={`${alert.ownerName} safety image`}
                 className="sk-threat-safety-image"
                 useInitialFallback
@@ -1615,12 +1617,6 @@ export default function ThreatAlertMapClient({ alert }: Props) {
                   </div>
                 </div>
               </div>
-            </div>
-
-            <div className="sk-threat-actions">
-              <a href={appHref} className="sk-threat-action">
-                Open in StayKnown
-              </a>
             </div>
 
             <div className="sk-threat-legal">
