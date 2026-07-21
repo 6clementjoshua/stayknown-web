@@ -159,8 +159,7 @@ export default async function ThreatAlertResponsePage({
   const exp = first(params.exp);
   const sig = first(params.sig);
 
-  const missing =
-    !alertId || !recipientId || !action || !exp || !sig;
+  const missing = !alertId || !recipientId || !action || !exp || !sig;
 
   const submission = missing
     ? {
@@ -185,11 +184,11 @@ export default async function ThreatAlertResponsePage({
     submission.status === 401 ||
     submission.status === 403 ||
     (!successful &&
-      String(result.error ?? "").toLowerCase().includes("unauthorized"));
+      String(result.error ?? "")
+        .toLowerCase()
+        .includes("unauthorized"));
 
-  const label = actionLabel(
-    result.acknowledgement?.response_kind ?? action,
-  );
+  const label = actionLabel(result.acknowledgement?.response_kind ?? action);
 
   const title = successful
     ? `${label} recorded`
@@ -208,8 +207,7 @@ export default async function ThreatAlertResponsePage({
       ? "The person who activated this Threat Alert has already ended or resolved it."
       : expiredOrInvalid
         ? "For safety, secure response links expire and cannot be reused after their valid period."
-        : result.error ||
-          "StayKnown could not record this response right now.";
+        : result.error || "StayKnown could not record this response right now.";
 
   return (
     <main
