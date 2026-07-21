@@ -40,8 +40,7 @@ type Props = {
 
 type MapState = "loading" | "ready" | "fallback";
 
-const DEFAULT_LOGO_URL =
-  "https://ipognlibpkbauusvfeic.supabase.co/storage/v1/object/public/public-assets/stayknown-logo.png";
+const DEFAULT_LOGO_URL = "/6logo.png";
 
 const DEFAULT_CAUTION =
   "StayKnown cannot independently confirm that an emergency is occurring. " +
@@ -71,6 +70,17 @@ function safeHttpUrl(value: unknown): string {
   } catch {
     return "";
   }
+}
+
+function safeImageUrl(value: unknown): string {
+  const text = safeText(value);
+  if (!text) return "";
+
+  if (text.startsWith("/") && !text.startsWith("//")) {
+    return text;
+  }
+
+  return safeHttpUrl(text);
 }
 
 function finiteCoordinate(value: unknown): number | null {
@@ -192,17 +202,6 @@ function statusCopy(
   }
 }
 
-function mapsHref(
-  externalUrl: string,
-  lat: number | null,
-  lng: number | null,
-): string {
-  const direct = safeHttpUrl(externalUrl);
-  if (direct) return direct;
-  if (lat == null || lng == null) return "";
-  return `https://www.google.com/maps?q=${encodeURIComponent(`${lat},${lng}`)}`;
-}
-
 function avatarInitial(name: string): string {
   return safeText(name).slice(0, 1).toUpperCase() || "S";
 }
@@ -234,25 +233,30 @@ function createMarkerElement(params: {
 
   const image = document.createElement("img");
   image.src = params.avatarUrl || params.logoUrl;
-  image.alt = params.avatarUrl ? params.ownerName : "StayKnown";
+  image.alt = "";
+  image.setAttribute("aria-hidden", "true");
+  image.draggable = false;
   image.className = params.avatarUrl
     ? "sk-threat-marker-image sk-threat-marker-image-avatar"
     : "sk-threat-marker-image sk-threat-marker-image-logo";
 
   image.onerror = () => {
-    if (image.src !== params.logoUrl) {
+    const currentSource = image.getAttribute("src") || "";
+
+    if (currentSource !== params.logoUrl) {
       image.src = params.logoUrl;
-      image.alt = "StayKnown";
       image.className = "sk-threat-marker-image sk-threat-marker-image-logo";
       return;
     }
 
-    image.style.display = "none";
+    image.remove();
 
-    const initial = document.createElement("span");
-    initial.className = "sk-threat-marker-initial";
-    initial.textContent = avatarInitial(params.ownerName);
-    imageFrame.appendChild(initial);
+    if (!imageFrame.querySelector(".sk-threat-marker-initial")) {
+      const initial = document.createElement("span");
+      initial.className = "sk-threat-marker-initial";
+      initial.textContent = avatarInitial(params.ownerName);
+      imageFrame.appendChild(initial);
+    }
   };
 
   imageFrame.appendChild(image);
@@ -312,30 +316,36 @@ function SafeImage({
   alt: string;
   className: string;
 }) {
-  const [current, setCurrent] = React.useState(src || fallback);
-  const [failedFallback, setFailedFallback] = React.useState(false);
+  const cleanSource = safeImageUrl(src);
+  const cleanFallback = safeImageUrl(fallback) || DEFAULT_LOGO_URL;
+
+  const [current, setCurrent] = React.useState(cleanSource || cleanFallback);
+  const [showInitial, setShowInitial] = React.useState(false);
 
   React.useEffect(() => {
-    setCurrent(src || fallback);
-    setFailedFallback(false);
-  }, [src, fallback]);
+    setCurrent(cleanSource || cleanFallback);
+    setShowInitial(false);
+  }, [cleanSource, cleanFallback]);
 
   return (
-    <div className={className}>
-      {!failedFallback ? (
+    <div className={className} role="img" aria-label={alt}>
+      {showInitial ? (
+        <span>{avatarInitial(alt)}</span>
+      ) : (
         <img
           src={current}
-          alt={current === fallback ? "StayKnown" : alt}
+          alt=""
+          aria-hidden="true"
+          draggable={false}
           onError={() => {
-            if (current !== fallback) {
-              setCurrent(fallback);
-            } else {
-              setFailedFallback(true);
+            if (current !== cleanFallback) {
+              setCurrent(cleanFallback);
+              return;
             }
+
+            setShowInitial(true);
           }}
         />
-      ) : (
-        <span>{avatarInitial(alt)}</span>
       )}
     </div>
   );
@@ -352,9 +362,9 @@ export default function ThreatAlertMapClient({ alert }: Props) {
   );
   const [detailsExpanded, setDetailsExpanded] = React.useState(false);
 
-  const logoUrl = safeHttpUrl(alert.logoUrl) || DEFAULT_LOGO_URL;
-  const avatarUrl = safeHttpUrl(alert.ownerAvatarUrl);
-  const safetyImageUrl = safeHttpUrl(alert.ownerSafetyImageUrl);
+  const logoUrl = safeImageUrl(alert.logoUrl) || DEFAULT_LOGO_URL;
+  const avatarUrl = safeImageUrl(alert.ownerAvatarUrl);
+  const safetyImageUrl = safeImageUrl(alert.ownerSafetyImageUrl);
   const lat = finiteCoordinate(alert.lat);
   const lng = finiteCoordinate(alert.lng);
   const hasLocation =
@@ -368,7 +378,6 @@ export default function ThreatAlertMapClient({ alert }: Props) {
   const accuracy = finiteCoordinate(alert.accuracyMeters);
   const accuracyInfo = accuracyCopy(accuracy);
   const statusInfo = statusCopy(alert.status, alert.active);
-  const externalMapHref = mapsHref(alert.externalMapUrl || "", lat, lng);
   const appHref = `stayknown://threat-alert/${encodeURIComponent(alert.alertId)}`;
   const place =
     safeText(alert.place) ||
@@ -627,11 +636,34 @@ export default function ThreatAlertMapClient({ alert }: Props) {
           backdrop-filter: blur(22px);
         }
 
-        .sk-threat-map-fallback-card img {
+        .sk-threat-fallback-logo {
+          display: grid;
+          place-items: center;
           width: 58px;
           height: 58px;
-          object-fit: contain;
+          margin: 0 auto;
+          overflow: hidden;
           border-radius: 18px;
+          background: white;
+        }
+
+        .sk-threat-fallback-logo img {
+          width: 100%;
+          height: 100%;
+          padding: 5px;
+          object-fit: contain;
+        }
+
+        .sk-threat-fallback-logo span {
+          display: grid;
+          place-items: center;
+          width: 100%;
+          height: 100%;
+          margin: 0;
+          color: white;
+          background: #111318;
+          font-size: 20px;
+          font-weight: 950;
         }
 
         .sk-threat-map-fallback-card strong {
@@ -669,11 +701,33 @@ export default function ThreatAlertMapClient({ alert }: Props) {
           backdrop-filter: blur(22px);
         }
 
-        .sk-threat-brand img {
+        .sk-threat-brand-logo {
+          display: grid;
+          place-items: center;
+          flex: 0 0 38px;
           width: 38px;
           height: 38px;
-          object-fit: contain;
+          overflow: hidden;
           border-radius: 13px;
+          background: white;
+        }
+
+        .sk-threat-brand-logo img {
+          width: 100%;
+          height: 100%;
+          padding: 3px;
+          object-fit: contain;
+        }
+
+        .sk-threat-brand-logo span {
+          display: grid;
+          place-items: center;
+          width: 100%;
+          height: 100%;
+          color: white;
+          background: #111318;
+          font-size: 14px;
+          font-weight: 950;
         }
 
         .sk-threat-brand-name {
@@ -1030,7 +1084,7 @@ export default function ThreatAlertMapClient({ alert }: Props) {
 
         .sk-threat-actions {
           display: grid;
-          grid-template-columns: repeat(2, minmax(0, 1fr));
+          grid-template-columns: minmax(0, 1fr);
           gap: 8px;
           margin-top: 12px;
         }
@@ -1254,10 +1308,6 @@ export default function ThreatAlertMapClient({ alert }: Props) {
           .sk-threat-owner-name h1 {
             font-size: 17px;
           }
-
-          .sk-threat-actions {
-            grid-template-columns: 1fr;
-          }
         }
 
         @media (min-width: 681px) {
@@ -1272,7 +1322,12 @@ export default function ThreatAlertMapClient({ alert }: Props) {
       {mapState === "fallback" ? (
         <div className="sk-threat-map-fallback">
           <div className="sk-threat-map-fallback-card">
-            <img src={logoUrl} alt="StayKnown" />
+            <SafeImage
+              src={logoUrl}
+              fallback={DEFAULT_LOGO_URL}
+              alt="StayKnown"
+              className="sk-threat-fallback-logo"
+            />
             <strong>Recorded Threat Alert location</strong>
             <span>{mapMessage}</span>
           </div>
@@ -1287,7 +1342,12 @@ export default function ThreatAlertMapClient({ alert }: Props) {
       ) : null}
 
       <div className="sk-threat-brand">
-        <img src={logoUrl} alt="StayKnown" />
+        <SafeImage
+          src={logoUrl}
+          fallback={DEFAULT_LOGO_URL}
+          alt="StayKnown"
+          className="sk-threat-brand-logo"
+        />
         <div className="sk-threat-brand-name">
           <strong>STAYKNOWN™</strong>
           <span>A 6 CLEMENT JOSHUA SERVICE™</span>
@@ -1440,22 +1500,10 @@ export default function ThreatAlertMapClient({ alert }: Props) {
           </div>
 
           <div className="sk-threat-actions">
-            {externalMapHref ? (
-              <a
-                href={externalMapHref}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="sk-threat-action sk-threat-action-primary"
-              >
-                Open external map
-              </a>
-            ) : (
-              <span className="sk-threat-action sk-threat-action-primary">
-                Location navigation unavailable
-              </span>
-            )}
-
-            <a href={appHref} className="sk-threat-action">
+            <a
+              href={appHref}
+              className="sk-threat-action sk-threat-action-primary"
+            >
               Open in StayKnown
             </a>
           </div>
