@@ -28,9 +28,6 @@ type PageProps = {
 
 type JsonRow = Record<string, unknown>;
 
-const DEFAULT_LOGO_URL =
-  "https://ipognlibpkbauusvfeic.supabase.co/storage/v1/object/public/public-assets/stayknown-logo.png";
-
 const CONTACT_CAUTION =
   "StayKnown cannot independently confirm that an emergency is occurring. " +
   "Contact the person through a trusted method first and verify with a nearby " +
@@ -94,21 +91,9 @@ function firstNonEmpty(values: unknown[]): string {
   return "";
 }
 
-function normalizeStorageValue(value: string): string {
-  return value.replace(/^\/+/, "").trim();
-}
-
 function isActiveStatus(value: unknown): boolean {
   const status = clean(value).toLowerCase();
   return status === "dispatching" || status === "active";
-}
-
-function publicLogoUrl(): string {
-  return (
-    safeHttpUrl(process.env.BRAND_LOGO_URL) ||
-    safeHttpUrl(process.env.NEXT_PUBLIC_BRAND_LOGO_URL) ||
-    DEFAULT_LOGO_URL
-  );
 }
 
 function createAdminClient(supabaseUrl: string, serviceRole: string) {
@@ -123,65 +108,6 @@ function createAdminClient(supabaseUrl: string, serviceRole: string) {
 
 type AdminClient = ReturnType<typeof createAdminClient>;
 
-async function resolveStorageImage(params: {
-  admin: AdminClient;
-  rawValue: unknown;
-  fallbackBucket: string;
-  expiresInSeconds?: number;
-}): Promise<string> {
-  const value = clean(params.rawValue);
-  if (!value) return "";
-
-  /*
-  Existing absolute URLs remain usable. When they have expired, the client
-  automatically falls back to the StayKnown logo. Fresh profile/gallery paths
-  are signed below whenever they are available.
-  */
-  const direct = safeHttpUrl(value);
-  if (direct) return direct;
-
-  const normalized = normalizeStorageValue(value);
-  if (!normalized) return "";
-
-  let bucket = params.fallbackBucket;
-  let path = normalized;
-
-  const slashIndex = normalized.indexOf("/");
-  if (slashIndex > 0) {
-    const firstPart = normalized.slice(0, slashIndex);
-    const remaining = normalized.slice(slashIndex + 1);
-
-    if (firstPart && remaining) {
-      bucket = firstPart;
-      path = remaining;
-    }
-  }
-
-  try {
-    const { data, error } = await params.admin.storage
-      .from(bucket)
-      .createSignedUrl(path, params.expiresInSeconds ?? 24 * 60 * 60);
-
-    if (!error) return safeHttpUrl(data?.signedUrl);
-  } catch {}
-
-  /*
-  Some stored values include a bucket prefix that is not actually a bucket.
-  Retry with the known fallback bucket before giving up.
-  */
-  if (bucket !== params.fallbackBucket) {
-    try {
-      const { data, error } = await params.admin.storage
-        .from(params.fallbackBucket)
-        .createSignedUrl(normalized, params.expiresInSeconds ?? 24 * 60 * 60);
-
-      if (!error) return safeHttpUrl(data?.signedUrl);
-    } catch {}
-  }
-
-  return "";
-}
-
 async function fetchCurrentOwnerIdentity(params: {
   admin: AdminClient;
   ownerUserId: string;
@@ -189,8 +115,6 @@ async function fetchCurrentOwnerIdentity(params: {
 }): Promise<{
   name: string;
   firstName: string;
-  avatarUrl: string;
-  safetyImageUrl: string;
   verified: boolean;
   verificationBadge: string;
 }> {
@@ -262,27 +186,6 @@ async function fetchCurrentOwnerIdentity(params: {
     "StayKnown member",
   ]);
 
-  const currentAvatarRaw = firstNonEmpty([
-    userProfile?.profile_photo_url,
-    profile?.avatar_url,
-  ]);
-
-  const avatarUrl =
-    (await resolveStorageImage({
-      admin,
-      rawValue: currentAvatarRaw,
-      fallbackBucket: "avatars",
-    })) || safeHttpUrl(alert.owner_avatar_url);
-
-  const currentSafetyRaw = firstNonEmpty([gallery?.path]);
-
-  const safetyImageUrl =
-    (await resolveStorageImage({
-      admin,
-      rawValue: currentSafetyRaw,
-      fallbackBucket: "safety-gallery",
-    })) || safeHttpUrl(alert.owner_safety_image_url);
-
   const verificationBadge = firstNonEmpty([
     badge?.badge_type,
     alert.owner_verification_badge,
@@ -296,8 +199,6 @@ async function fetchCurrentOwnerIdentity(params: {
   return {
     name,
     firstName: firstName || name.split(/\s+/).filter(Boolean)[0] || "Member",
-    avatarUrl,
-    safetyImageUrl,
     verified,
     verificationBadge,
   };
@@ -482,12 +383,28 @@ async function loadThreatAlert(alertId: string): Promise<{
       firstNonEmpty([alert.accuracy_meters, alert.accuracy]),
     );
 
+    const imageVersion = encodeURIComponent(
+      firstNonEmpty([
+        alert.updated_at,
+        alert.created_at,
+        Date.now().toString(),
+      ]),
+    );
+
+    const ownerAvatarUrl =
+      `/api/threat-alert-image?alert=${encodeURIComponent(alertId)}` +
+      `&kind=avatar&v=${imageVersion}`;
+
+    const ownerSafetyImageUrl =
+      `/api/threat-alert-image?alert=${encodeURIComponent(alertId)}` +
+      `&kind=safety&v=${imageVersion}`;
+
     const payload: ThreatAlertMapPayload = {
       alertId,
       ownerName: identity.name,
       ownerFirstName: identity.firstName,
-      ownerAvatarUrl: identity.avatarUrl,
-      ownerSafetyImageUrl: identity.safetyImageUrl,
+      ownerAvatarUrl,
+      ownerSafetyImageUrl,
       ownerVerified: identity.verified,
       ownerVerificationBadge: identity.verificationBadge,
       status: clean(alert.status) || "recorded",
@@ -521,7 +438,6 @@ async function loadThreatAlert(alertId: string): Promise<{
       checkingCount: counts.checkingCount,
       contactedEmergencyHelpCount: counts.contactedEmergencyHelpCount,
       unableToRespondCount: counts.unableToRespondCount,
-      logoUrl: publicLogoUrl(),
       caution: CONTACT_CAUTION,
     };
 
@@ -540,8 +456,6 @@ async function loadThreatAlert(alertId: string): Promise<{
 }
 
 function ErrorPage({ title, message }: { title: string; message: string }) {
-  const logoUrl = publicLogoUrl();
-
   return (
     <main
       style={{
@@ -569,20 +483,52 @@ function ErrorPage({ title, message }: { title: string; message: string }) {
           textAlign: "center",
         }}
       >
-        <img
-          src={logoUrl}
-          width={66}
-          height={66}
-          alt="StayKnown"
+        <div
+          aria-label="StayKnown"
+          role="img"
           style={{
-            display: "block",
+            display: "grid",
+            placeItems: "center",
             width: 66,
             height: 66,
             margin: "0 auto 13px",
-            objectFit: "contain",
+            overflow: "hidden",
             borderRadius: 20,
+            background: "#ffffff",
           }}
-        />
+        >
+          <svg
+            viewBox="0 0 120 120"
+            width="66"
+            height="66"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <rect width="120" height="120" rx="26" fill="#ffffff" />
+            <text
+              x="60"
+              y="63"
+              textAnchor="middle"
+              fill="#08090b"
+              fontSize="58"
+              fontWeight="950"
+              fontFamily="Arial Black, Arial, sans-serif"
+            >
+              6
+            </text>
+            <text
+              x="60"
+              y="86"
+              textAnchor="middle"
+              fill="#08090b"
+              fontSize="12"
+              fontWeight="950"
+              letterSpacing="1.2"
+              fontFamily="Arial Black, Arial, sans-serif"
+            >
+              STAYKNOWN
+            </text>
+          </svg>
+        </div>
 
         <div
           style={{

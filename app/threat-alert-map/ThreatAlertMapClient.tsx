@@ -30,7 +30,6 @@ export type ThreatAlertMapPayload = {
   checkingCount?: number;
   contactedEmergencyHelpCount?: number;
   unableToRespondCount?: number;
-  logoUrl?: string;
   caution?: string;
 };
 
@@ -40,12 +39,6 @@ type Props = {
 
 type MapState = "loading" | "ready" | "fallback";
 
-const PRIMARY_LOGO_URL = "https://www.stay-known.com/6logo.png";
-const SECONDARY_LOGO_URL = "https://stay-known.com/6logo.png";
-const INLINE_LOGO_FALLBACK =
-  "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20128%20128%22%3E%0A%3Crect%20width%3D%22128%22%20height%3D%22128%22%20rx%3D%2230%22%20fill%3D%22white%22%2F%3E%0A%3Ccircle%20cx%3D%2264%22%20cy%3D%2264%22%20r%3D%2238%22%20fill%3D%22none%22%20stroke%3D%22%23111318%22%20stroke-width%3D%228%22%2F%3E%0A%3Cpath%20d%3D%22M64%2037v54M47%2048c-10%209-10%2023%200%2032M81%2048c10%209%2010%2023%200%2032%22%20fill%3D%22none%22%20stroke%3D%22%23111318%22%20stroke-width%3D%228%22%20stroke-linecap%3D%22round%22%2F%3E%0A%3C%2Fsvg%3E";
-const DEFAULT_LOGO_URL = PRIMARY_LOGO_URL;
-
 const DEFAULT_CAUTION =
   "StayKnown cannot independently confirm that an emergency is occurring. " +
   "Contact the person through a trusted method first and verify with a nearby " +
@@ -53,7 +46,6 @@ const DEFAULT_CAUTION =
   "contact the appropriate local emergency service. Do not travel alone or " +
   "place yourself at risk based only on this alert.";
 
-const FALLBACK_CENTER: [number, number] = [8.3349, 4.5736];
 const MAP_LOAD_TIMEOUT_MS = 16000;
 
 function safeText(value: unknown): string {
@@ -62,42 +54,78 @@ function safeText(value: unknown): string {
   return text.toLowerCase() === "null" ? "" : text;
 }
 
-function safeHttpUrl(value: unknown): string {
-  const text = safeText(value);
-  if (!text) return "";
-
-  try {
-    const url = new URL(text);
-    return url.protocol === "https:" || url.protocol === "http:"
-      ? url.toString()
-      : "";
-  } catch {
-    return "";
-  }
+function BrandMark({
+  className = "",
+  title = "StayKnown",
+}: {
+  className?: string;
+  title?: string;
+}) {
+  return (
+    <svg
+      viewBox="0 0 120 120"
+      className={className}
+      role="img"
+      aria-label={title}
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <rect width="120" height="120" rx="26" fill="#ffffff" />
+      <text
+        x="60"
+        y="63"
+        textAnchor="middle"
+        fill="#08090b"
+        fontSize="58"
+        fontWeight="950"
+        fontFamily="Arial Black, Arial, sans-serif"
+      >
+        6
+      </text>
+      <text
+        x="60"
+        y="86"
+        textAnchor="middle"
+        fill="#08090b"
+        fontSize="12"
+        fontWeight="950"
+        letterSpacing="1.2"
+        fontFamily="Arial Black, Arial, sans-serif"
+      >
+        STAYKNOWN
+      </text>
+    </svg>
+  );
 }
 
-function safeImageUrl(value: unknown): string {
-  const text = safeText(value);
-  if (!text) return "";
-
-  if (text.startsWith("/") && !text.startsWith("//")) {
-    return text;
-  }
-
-  return safeHttpUrl(text);
-}
-
-function uniqueImageCandidates(values: unknown[]): string[] {
-  const result: string[] = [];
-
-  for (const value of values) {
-    const candidate = safeImageUrl(value);
-    if (!candidate || result.includes(candidate)) continue;
-    result.push(candidate);
-  }
-
-  return result;
-}
+const BRAND_MARKUP = `
+  <svg
+    viewBox="0 0 120 120"
+    role="img"
+    aria-label="StayKnown"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <rect width="120" height="120" rx="26" fill="#ffffff"></rect>
+    <text
+      x="60"
+      y="63"
+      text-anchor="middle"
+      fill="#08090b"
+      font-size="58"
+      font-weight="950"
+      font-family="Arial Black, Arial, sans-serif"
+    >6</text>
+    <text
+      x="60"
+      y="86"
+      text-anchor="middle"
+      fill="#08090b"
+      font-size="12"
+      font-weight="950"
+      letter-spacing="1.2"
+      font-family="Arial Black, Arial, sans-serif"
+    >STAYKNOWN</text>
+  </svg>
+`;
 
 function finiteCoordinate(value: unknown): number | null {
   const number = Number(value);
@@ -111,10 +139,26 @@ function formatDateTime(value?: string): string {
   const date = new Date(text);
   if (Number.isNaN(date.getTime())) return "Time unavailable";
 
-  return new Intl.DateTimeFormat("en", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(date);
+  return `${new Intl.DateTimeFormat("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+    timeZone: "UTC",
+  }).format(date)} UTC`;
+}
+
+function mapOffsetForViewport(): [number, number] {
+  if (typeof window === "undefined") return [0, 0];
+
+  const width = window.innerWidth;
+
+  if (width <= 680) return [0, -70];
+  if (width <= 1023) return [220, 0];
+  if (width <= 1439) return [275, 0];
+  return [330, 0];
 }
 
 function formatCoordinates(lat: number | null, lng: number | null): string {
@@ -224,7 +268,6 @@ function avatarInitial(name: string): string {
 
 function createMarkerElement(params: {
   avatarUrl: string;
-  logoUrl: string;
   ownerName: string;
   active: boolean;
 }): HTMLDivElement {
@@ -247,45 +290,33 @@ function createMarkerElement(params: {
   const imageFrame = document.createElement("div");
   imageFrame.className = "sk-threat-marker-image-frame";
 
-  const candidates = uniqueImageCandidates([
-    params.avatarUrl,
-    params.logoUrl,
-    PRIMARY_LOGO_URL,
-    SECONDARY_LOGO_URL,
-    INLINE_LOGO_FALLBACK,
-  ]);
+  const brand = document.createElement("div");
+  brand.className = "sk-threat-marker-brand";
+  brand.innerHTML = BRAND_MARKUP;
+  imageFrame.appendChild(brand);
 
-  let candidateIndex = 0;
+  if (params.avatarUrl) {
+    const image = document.createElement("img");
+    image.src = params.avatarUrl;
+    image.alt = "";
+    image.setAttribute("aria-hidden", "true");
+    image.draggable = false;
+    image.className = "sk-threat-marker-image sk-threat-marker-image-avatar";
+    image.style.opacity = "0";
 
-  const image = document.createElement("img");
-  image.src = candidates[candidateIndex] || INLINE_LOGO_FALLBACK;
-  image.alt = "";
-  image.setAttribute("aria-hidden", "true");
-  image.draggable = false;
-  image.className = params.avatarUrl
-    ? "sk-threat-marker-image sk-threat-marker-image-avatar"
-    : "sk-threat-marker-image sk-threat-marker-image-logo";
+    image.onload = () => {
+      brand.style.display = "none";
+      image.style.opacity = "1";
+    };
 
-  image.onerror = () => {
-    candidateIndex += 1;
+    image.onerror = () => {
+      image.remove();
+      brand.style.display = "grid";
+    };
 
-    if (candidateIndex < candidates.length) {
-      image.src = candidates[candidateIndex];
-      image.className = "sk-threat-marker-image sk-threat-marker-image-logo";
-      return;
-    }
+    imageFrame.appendChild(image);
+  }
 
-    image.remove();
-
-    if (!imageFrame.querySelector(".sk-threat-marker-initial")) {
-      const initial = document.createElement("span");
-      initial.className = "sk-threat-marker-initial";
-      initial.textContent = avatarInitial(params.ownerName);
-      imageFrame.appendChild(initial);
-    }
-  };
-
-  imageFrame.appendChild(image);
   root.appendChild(imageFrame);
 
   const pointer = document.createElement("div");
@@ -333,56 +364,52 @@ function VerifiedBadge({
 
 function SafeImage({
   src,
-  fallback,
   alt,
   className,
 }: {
   src: string;
-  fallback: string;
   alt: string;
   className: string;
 }) {
-  const candidates = React.useMemo(
-    () =>
-      uniqueImageCandidates([
-        src,
-        fallback,
-        PRIMARY_LOGO_URL,
-        SECONDARY_LOGO_URL,
-        INLINE_LOGO_FALLBACK,
-      ]),
-    [src, fallback],
-  );
-
-  const [index, setIndex] = React.useState(0);
-  const [showInitial, setShowInitial] = React.useState(false);
+  const cleanSource = safeText(src);
+  const [loadedSource, setLoadedSource] = React.useState("");
 
   React.useEffect(() => {
-    setIndex(0);
-    setShowInitial(false);
-  }, [candidates]);
+    let cancelled = false;
 
-  const current = candidates[index] || INLINE_LOGO_FALLBACK;
+    setLoadedSource("");
+
+    if (!cleanSource) {
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    const probe = new window.Image();
+
+    probe.onload = () => {
+      if (!cancelled) setLoadedSource(cleanSource);
+    };
+
+    probe.onerror = () => {
+      if (!cancelled) setLoadedSource("");
+    };
+
+    probe.src = cleanSource;
+
+    return () => {
+      cancelled = true;
+      probe.onload = null;
+      probe.onerror = null;
+    };
+  }, [cleanSource]);
 
   return (
     <div className={className} role="img" aria-label={alt}>
-      {showInitial ? (
-        <span>{avatarInitial(alt)}</span>
+      {loadedSource ? (
+        <img src={loadedSource} alt="" aria-hidden="true" draggable={false} />
       ) : (
-        <img
-          src={current}
-          alt=""
-          aria-hidden="true"
-          draggable={false}
-          onError={() => {
-            if (index + 1 < candidates.length) {
-              setIndex((value) => value + 1);
-              return;
-            }
-
-            setShowInitial(true);
-          }}
-        />
+        <BrandMark className="sk-threat-inline-brand" title="StayKnown" />
       )}
     </div>
   );
@@ -399,13 +426,8 @@ export default function ThreatAlertMapClient({ alert }: Props) {
   );
   const [detailsExpanded, setDetailsExpanded] = React.useState(false);
 
-  const logoUrl =
-    safeImageUrl(alert.logoUrl) ||
-    PRIMARY_LOGO_URL ||
-    SECONDARY_LOGO_URL ||
-    INLINE_LOGO_FALLBACK;
-  const avatarUrl = safeImageUrl(alert.ownerAvatarUrl);
-  const safetyImageUrl = safeImageUrl(alert.ownerSafetyImageUrl);
+  const avatarUrl = safeText(alert.ownerAvatarUrl);
+  const safetyImageUrl = safeText(alert.ownerSafetyImageUrl);
   const lat = finiteCoordinate(alert.lat);
   const lng = finiteCoordinate(alert.lng);
   const hasLocation =
@@ -419,7 +441,6 @@ export default function ThreatAlertMapClient({ alert }: Props) {
   const accuracy = finiteCoordinate(alert.accuracyMeters);
   const accuracyInfo = accuracyCopy(accuracy);
   const statusInfo = statusCopy(alert.status, alert.active);
-  const appHref = `stayknown://threat-alert/${encodeURIComponent(alert.alertId)}`;
   const place =
     safeText(alert.place) ||
     (hasLocation
@@ -445,6 +466,7 @@ export default function ThreatAlertMapClient({ alert }: Props) {
     mapRef.current.easeTo({
       center: [lng, lat],
       zoom: accuracyInfo.zoom,
+      offset: mapOffsetForViewport(),
       duration: 650,
       essential: true,
     });
@@ -472,6 +494,7 @@ export default function ThreatAlertMapClient({ alert }: Props) {
 
     let disposed = false;
     let timeout: ReturnType<typeof setTimeout> | null = null;
+    let positionAlertForViewport = () => {};
 
     try {
       setMapState("loading");
@@ -502,7 +525,6 @@ export default function ThreatAlertMapClient({ alert }: Props) {
       const marker = new maplibregl.Marker({
         element: createMarkerElement({
           avatarUrl,
-          logoUrl,
           ownerName: alert.ownerName,
           active: alert.active,
         }),
@@ -517,36 +539,57 @@ export default function ThreatAlertMapClient({ alert }: Props) {
         if (disposed) return;
         setMapState("fallback");
         setMapMessage(
-          "The map is taking longer than expected. Use the external map button below.",
+          "The map is taking longer than expected. The recorded alert details remain available.",
         );
       }, MAP_LOAD_TIMEOUT_MS);
+
+      positionAlertForViewport = () => {
+        if (disposed) return;
+
+        map.resize();
+        map.easeTo({
+          center: [lng, lat],
+          zoom: map.getZoom(),
+          offset: mapOffsetForViewport(),
+          duration: 0,
+          essential: true,
+        });
+      };
 
       map.once("load", () => {
         if (disposed) return;
         if (timeout) clearTimeout(timeout);
+
         setMapState("ready");
         setMapMessage("");
-        map.resize();
-        requestAnimationFrame(() => map.resize());
+
+        positionAlertForViewport();
+        requestAnimationFrame(positionAlertForViewport);
       });
+
+      window.addEventListener("resize", positionAlertForViewport);
 
       map.on("error", () => {
         if (disposed) return;
         setMapState("fallback");
         setMapMessage(
-          "The embedded map could not load here. The alert information and external map remain available.",
+          "The embedded map could not load here. The recorded alert information remains available.",
         );
       });
     } catch {
       setMapState("fallback");
       setMapMessage(
-        "The embedded map could not load here. The alert information and external map remain available.",
+        "The embedded map could not load here. The recorded alert information remains available.",
       );
     }
 
     return () => {
       disposed = true;
       if (timeout) clearTimeout(timeout);
+
+      try {
+        window.removeEventListener("resize", positionAlertForViewport);
+      } catch {}
 
       try {
         markerRef.current?.remove();
@@ -568,7 +611,6 @@ export default function ThreatAlertMapClient({ alert }: Props) {
     hasLocation,
     lat,
     lng,
-    logoUrl,
   ]);
 
   return (
@@ -705,6 +747,26 @@ export default function ThreatAlertMapClient({ alert }: Props) {
           background: #111318;
           font-size: 20px;
           font-weight: 950;
+        }
+
+        .sk-threat-inline-brand {
+          display: block;
+          width: 100%;
+          height: 100%;
+        }
+
+        .sk-threat-marker-brand {
+          display: grid;
+          place-items: center;
+          width: 100%;
+          height: 100%;
+          background: #ffffff;
+        }
+
+        .sk-threat-marker-brand svg {
+          display: block;
+          width: 100%;
+          height: 100%;
         }
 
         .sk-threat-map-fallback-card strong {
@@ -919,6 +981,11 @@ export default function ThreatAlertMapClient({ alert }: Props) {
           object-fit: cover;
         }
 
+        .sk-threat-avatar .sk-threat-inline-brand {
+          padding: 7px;
+          background: #ffffff;
+        }
+
         .sk-threat-identity-copy {
           min-width: 0;
           flex: 1;
@@ -1081,6 +1148,15 @@ export default function ThreatAlertMapClient({ alert }: Props) {
           object-fit: cover;
         }
 
+        .sk-threat-safety-image .sk-threat-inline-brand {
+          width: min(140px, 52%);
+          height: auto;
+          aspect-ratio: 1;
+          padding: 8px;
+          border-radius: 28px;
+          background: #ffffff;
+        }
+
         .sk-threat-guidance {
           padding: 15px;
           border-radius: 22px;
@@ -1121,38 +1197,6 @@ export default function ThreatAlertMapClient({ alert }: Props) {
           font-size: 9.5px;
           font-weight: 700;
           line-height: 1.48;
-        }
-
-        .sk-threat-actions {
-          display: grid;
-          grid-template-columns: minmax(0, 1fr);
-          gap: 8px;
-          margin-top: 12px;
-        }
-
-        .sk-threat-action {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          min-height: 43px;
-          padding: 11px 14px;
-          border: 1px solid rgba(0, 0, 0, 0.09);
-          border-radius: 999px;
-          color: #111318;
-          background: rgba(255, 255, 255, 0.65);
-          text-align: center;
-          text-decoration: none;
-          font-size: 9.5px;
-          font-weight: 950;
-        }
-
-        .sk-threat-action-primary {
-          border-color: #111318;
-          color: white;
-          background: #111318;
-          box-shadow:
-            inset 0 1px 0 rgba(255, 255, 255, 0.18),
-            inset 0 -11px 22px rgba(0, 0, 0, 0.36);
         }
 
         .sk-threat-legal {
@@ -1259,6 +1303,7 @@ export default function ThreatAlertMapClient({ alert }: Props) {
         .sk-threat-marker-image {
           width: 100%;
           height: 100%;
+          transition: opacity 180ms ease;
         }
 
         .sk-threat-marker-image-avatar {
@@ -1324,6 +1369,7 @@ export default function ThreatAlertMapClient({ alert }: Props) {
             width: calc(100vw - 20px);
             left: 10px;
             right: 10px;
+            top: auto;
             bottom: max(10px, env(safe-area-inset-bottom));
             max-height: ${detailsExpanded ? "74dvh" : "43dvh"};
             border-radius: 29px;
@@ -1351,7 +1397,146 @@ export default function ThreatAlertMapClient({ alert }: Props) {
           }
         }
 
-        @media (min-width: 681px) {
+        @media (min-width: 681px) and (max-width: 1023px) {
+          .sk-threat-brand {
+            top: 18px;
+            left: 18px;
+            max-width: 430px;
+          }
+
+          .sk-threat-status-pill {
+            top: 21px;
+            right: 18px;
+          }
+
+          .sk-threat-controls {
+            top: 82px;
+            right: 18px;
+          }
+
+          .sk-threat-panel {
+            left: 18px;
+            right: auto;
+            top: 88px;
+            bottom: 18px;
+            width: min(430px, calc(100vw - 110px));
+            max-height: none;
+            margin: 0;
+            border-radius: 30px;
+          }
+
+          .sk-threat-panel-inner {
+            padding: 16px;
+          }
+
+          .sk-threat-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+          }
+
+          .sk-threat-expanded {
+            grid-template-columns: 1fr;
+          }
+
+          .sk-threat-safety-image,
+          .sk-threat-safety-image img {
+            min-height: 180px;
+            max-height: 220px;
+          }
+
+          .sk-threat-expand {
+            display: none;
+          }
+        }
+
+        @media (min-width: 1024px) and (max-width: 1439px) {
+          .sk-threat-brand {
+            top: 20px;
+            left: 22px;
+            max-width: min(540px, 42vw);
+          }
+
+          .sk-threat-status-pill {
+            top: 23px;
+            right: 22px;
+          }
+
+          .sk-threat-controls {
+            top: 86px;
+            right: 22px;
+          }
+
+          .sk-threat-panel {
+            left: 22px;
+            right: auto;
+            top: 92px;
+            bottom: 22px;
+            width: min(540px, 42vw);
+            max-height: none;
+            margin: 0;
+            border-radius: 32px;
+          }
+
+          .sk-threat-panel-inner {
+            padding: 18px;
+          }
+
+          .sk-threat-expanded {
+            grid-template-columns: 168px minmax(0, 1fr);
+          }
+
+          .sk-threat-safety-image,
+          .sk-threat-safety-image img {
+            min-height: 190px;
+            max-height: 250px;
+          }
+
+          .sk-threat-expand {
+            display: none;
+          }
+        }
+
+        @media (min-width: 1440px) {
+          .sk-threat-brand {
+            top: 24px;
+            left: 26px;
+            max-width: min(620px, 38vw);
+          }
+
+          .sk-threat-status-pill {
+            top: 27px;
+            right: 26px;
+          }
+
+          .sk-threat-controls {
+            top: 92px;
+            right: 26px;
+          }
+
+          .sk-threat-panel {
+            left: 26px;
+            right: auto;
+            top: 98px;
+            bottom: 26px;
+            width: min(620px, 38vw);
+            max-height: none;
+            margin: 0;
+            border-radius: 34px;
+          }
+
+          .sk-threat-panel-inner {
+            padding: 20px;
+          }
+
+          .sk-threat-expanded {
+            grid-template-columns: 190px minmax(0, 1fr);
+          }
+
+          .sk-threat-safety-image,
+          .sk-threat-safety-image img {
+            min-height: 210px;
+            max-height: 285px;
+          }
+
           .sk-threat-expand {
             display: none;
           }
@@ -1363,12 +1548,9 @@ export default function ThreatAlertMapClient({ alert }: Props) {
       {mapState === "fallback" ? (
         <div className="sk-threat-map-fallback">
           <div className="sk-threat-map-fallback-card">
-            <SafeImage
-              src={logoUrl}
-              fallback={DEFAULT_LOGO_URL}
-              alt="StayKnown"
-              className="sk-threat-fallback-logo"
-            />
+            <div className="sk-threat-fallback-logo">
+              <BrandMark className="sk-threat-inline-brand" title="StayKnown" />
+            </div>
             <strong>Recorded Threat Alert location</strong>
             <span>{mapMessage}</span>
           </div>
@@ -1383,12 +1565,9 @@ export default function ThreatAlertMapClient({ alert }: Props) {
       ) : null}
 
       <div className="sk-threat-brand">
-        <SafeImage
-          src={logoUrl}
-          fallback={DEFAULT_LOGO_URL}
-          alt="StayKnown"
-          className="sk-threat-brand-logo"
-        />
+        <div className="sk-threat-brand-logo">
+          <BrandMark className="sk-threat-inline-brand" title="StayKnown" />
+        </div>
         <div className="sk-threat-brand-name">
           <strong>STAYKNOWN™</strong>
           <span>A 6 CLEMENT JOSHUA SERVICE™</span>
@@ -1439,7 +1618,6 @@ export default function ThreatAlertMapClient({ alert }: Props) {
           <div className="sk-threat-identity">
             <SafeImage
               src={avatarUrl}
-              fallback={logoUrl}
               alt={alert.ownerName}
               className="sk-threat-avatar"
             />
@@ -1495,7 +1673,6 @@ export default function ThreatAlertMapClient({ alert }: Props) {
           <div className="sk-threat-expanded">
             <SafeImage
               src={safetyImage}
-              fallback={logoUrl}
               alt={`${alert.ownerName} safety image`}
               className="sk-threat-safety-image"
             />
@@ -1539,16 +1716,6 @@ export default function ThreatAlertMapClient({ alert }: Props) {
               </div>
             </div>
           </div>
-
-          <div className="sk-threat-actions">
-            <a
-              href={appHref}
-              className="sk-threat-action sk-threat-action-primary"
-            >
-              Open in StayKnown
-            </a>
-          </div>
-
           <div className="sk-threat-legal">
             Acknowledging an alert does not mean emergency help has been
             dispatched. StayKnown does not replace emergency services.
