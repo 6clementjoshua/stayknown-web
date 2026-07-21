@@ -40,7 +40,6 @@ type AlertSummary = {
   found: boolean;
   ownerName: string;
   ownerAvatarUrl: string;
-  ownerSafetyImageUrl: string;
   verified: boolean;
   verificationBadge: string;
   status: string;
@@ -50,16 +49,13 @@ type AlertSummary = {
   accuracyMeters: number | null;
   locationStatus: string;
   triggeredAt: string;
-  externalMapUrl: string;
-  premiumMapUrl: string;
   recipientsCount: number;
   respondedCount: number;
   receivedCount: number;
   checkingCount: number;
 };
 
-const DEFAULT_LOGO_URL =
-  "https://ipognlibpkbauusvfeic.supabase.co/storage/v1/object/public/public-assets/stayknown-logo.png";
+const ORIGINAL_LOGO_ENDPOINT = "/api/stayknown-logo";
 
 const CONTACT_CAUTION =
   "Verify through a trusted method you already know. Do not travel alone or " +
@@ -204,23 +200,6 @@ function accuracyLabel(value: number | null): string {
   return `Broad area • ±${Math.round(value)} m`;
 }
 
-function publicLogoUrl(): string {
-  return (
-    safeHttpUrl(process.env.BRAND_LOGO_URL) ||
-    safeHttpUrl(process.env.NEXT_PUBLIC_BRAND_LOGO_URL) ||
-    DEFAULT_LOGO_URL
-  );
-}
-
-function siteBaseUrl(): string {
-  return firstNonEmpty([
-    process.env.PUBLIC_SITE_URL,
-    process.env.SITE_URL,
-    process.env.NEXT_PUBLIC_SITE_URL,
-    "https://stay-known.com",
-  ]).replace(/\/+$/g, "");
-}
-
 function createAdminClient(supabaseUrl: string, serviceRole: string) {
   return createClient(supabaseUrl, serviceRole, {
     auth: {
@@ -232,55 +211,6 @@ function createAdminClient(supabaseUrl: string, serviceRole: string) {
 }
 
 type AdminClient = ReturnType<typeof createAdminClient>;
-
-async function resolveStorageImage(params: {
-  admin: AdminClient;
-  rawValue: unknown;
-  fallbackBucket: string;
-}): Promise<string> {
-  const value = clean(params.rawValue);
-  if (!value) return "";
-
-  const direct = safeHttpUrl(value);
-  if (direct) return direct;
-
-  const normalized = value.replace(/^\/+/, "");
-  if (!normalized) return "";
-
-  let bucket = params.fallbackBucket;
-  let path = normalized;
-
-  const slash = normalized.indexOf("/");
-  if (slash > 0) {
-    const possibleBucket = normalized.slice(0, slash);
-    const possiblePath = normalized.slice(slash + 1);
-
-    if (possibleBucket && possiblePath) {
-      bucket = possibleBucket;
-      path = possiblePath;
-    }
-  }
-
-  try {
-    const { data, error } = await params.admin.storage
-      .from(bucket)
-      .createSignedUrl(path, 24 * 60 * 60);
-
-    if (!error) return safeHttpUrl(data?.signedUrl);
-  } catch {}
-
-  if (bucket !== params.fallbackBucket) {
-    try {
-      const { data, error } = await params.admin.storage
-        .from(params.fallbackBucket)
-        .createSignedUrl(normalized, 24 * 60 * 60);
-
-      if (!error) return safeHttpUrl(data?.signedUrl);
-    } catch {}
-  }
-
-  return "";
-}
 
 async function submitSignedResponse(params: {
   alertId: string;
@@ -363,7 +293,6 @@ async function loadAlertSummary(alertId: string): Promise<AlertSummary> {
     found: false,
     ownerName: "StayKnown member",
     ownerAvatarUrl: "",
-    ownerSafetyImageUrl: "",
     verified: false,
     verificationBadge: "",
     status: "",
@@ -373,10 +302,6 @@ async function loadAlertSummary(alertId: string): Promise<AlertSummary> {
     accuracyMeters: null,
     locationStatus: "",
     triggeredAt: "",
-    externalMapUrl: "",
-    premiumMapUrl: `${siteBaseUrl()}/threat-alert-map?alert=${encodeURIComponent(
-      alertId,
-    )}`,
     recipientsCount: 0,
     respondedCount: 0,
     receivedCount: 0,
@@ -410,7 +335,6 @@ async function loadAlertSummary(alertId: string): Promise<AlertSummary> {
 
     let userProfile: JsonRow | null = null;
     let profile: JsonRow | null = null;
-    let gallery: JsonRow | null = null;
 
     if (ownerUserId) {
       try {
@@ -436,20 +360,6 @@ async function loadAlertSummary(alertId: string): Promise<AlertSummary> {
           profile = row as JsonRow;
         }
       } catch {}
-
-      try {
-        const { data: row } = await admin
-          .from("safety_gallery")
-          .select("path,created_at")
-          .eq("user_id", ownerUserId)
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
-
-        if (row && typeof row === "object") {
-          gallery = row as JsonRow;
-        }
-      } catch {}
     }
 
     const firstName = firstNonEmpty([
@@ -467,37 +377,25 @@ async function loadAlertSummary(alertId: string): Promise<AlertSummary> {
       "StayKnown member",
     ]);
 
-    const avatarUrl =
-      (await resolveStorageImage({
-        admin,
-        rawValue: firstNonEmpty([
-          userProfile?.profile_photo_url,
-          profile?.avatar_url,
-        ]),
-        fallbackBucket: "avatars",
-      })) || safeHttpUrl(alert.owner_avatar_url);
+    const imageVersion = encodeURIComponent(
+      firstNonEmpty([
+        alert.updated_at,
+        alert.created_at,
+        Date.now().toString(),
+      ]),
+    );
 
-    const safetyImageUrl =
-      (await resolveStorageImage({
-        admin,
-        rawValue: gallery?.path,
-        fallbackBucket: "safety-gallery",
-      })) || safeHttpUrl(alert.owner_safety_image_url);
+    const avatarUrl =
+      `/api/threat-alert-image?alert=${encodeURIComponent(alertId)}` +
+      `&kind=avatar&v=${imageVersion}`;
 
     const lat = numberOf(alert.lat);
     const lng = numberOf(alert.lng);
-
-    const externalMapUrl =
-      safeHttpUrl(alert.external_map_url) ||
-      (lat != null && lng != null
-        ? `https://www.google.com/maps?q=${encodeURIComponent(`${lat},${lng}`)}`
-        : "");
 
     return {
       found: true,
       ownerName,
       ownerAvatarUrl: avatarUrl,
-      ownerSafetyImageUrl: safetyImageUrl,
       verified:
         profile?.verified === true ||
         Boolean(clean(alert.owner_verification_badge)),
@@ -518,10 +416,6 @@ async function loadAlertSummary(alertId: string): Promise<AlertSummary> {
         alert.activated_at,
         alert.created_at,
       ]),
-      externalMapUrl,
-      premiumMapUrl: `${siteBaseUrl()}/threat-alert-map?alert=${encodeURIComponent(
-        alertId,
-      )}`,
       recipientsCount: intOf(alert.recipients_count),
       respondedCount: intOf(alert.responded_count),
       receivedCount: intOf(alert.received_count),
@@ -532,8 +426,54 @@ async function loadAlertSummary(alertId: string): Promise<AlertSummary> {
   }
 }
 
-function imageFallbackInitial(name: string): string {
-  return name.trim().slice(0, 1).toUpperCase() || "S";
+function ResultStatusIcon({
+  successful,
+  closed,
+  expiredOrInvalid,
+}: {
+  successful: boolean;
+  closed: boolean;
+  expiredOrInvalid: boolean;
+}) {
+  const path =
+    successful || closed
+      ? "M7.7 12.4l2.7 2.7 5.9-6"
+      : expiredOrInvalid
+        ? "M12 7.5v5l3 1.8"
+        : "M12 8.2v4.4m0 3.2h.01";
+
+  return (
+    <div
+      aria-hidden="true"
+      style={{
+        width: 74,
+        height: 74,
+        borderRadius: 24,
+        margin: "23px auto 17px",
+        display: "grid",
+        placeItems: "center",
+        background: successful ? "#111318" : "#eceff1",
+        color: successful ? "#ffffff" : "#111318",
+        border: "1px solid rgba(0,0,0,0.09)",
+        boxShadow:
+          "inset 0 1px 0 rgba(255,255,255,.88), 0 10px 24px rgba(0,0,0,.08)",
+      }}
+    >
+      <svg
+        viewBox="0 0 24 24"
+        width="34"
+        height="34"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <circle cx="12" cy="12" r="8.5" />
+        <path d={path} />
+      </svg>
+    </div>
+  );
 }
 
 export default async function ThreatAlertResponsePage({
@@ -605,9 +545,8 @@ export default async function ThreatAlertResponsePage({
         ? "For safety, secure response links expire and cannot be reused after their valid period."
         : result.error || "StayKnown could not record this response right now.";
 
-  const logoUrl = publicLogoUrl();
-  const identityImage =
-    alert.ownerAvatarUrl || alert.ownerSafetyImageUrl || logoUrl;
+  const logoUrl = ORIGINAL_LOGO_ENDPOINT;
+  const identityImage = alert.ownerAvatarUrl;
   const locationText =
     alert.place ||
     (alert.lat != null && alert.lng != null
@@ -641,18 +580,20 @@ export default async function ThreatAlertResponsePage({
           textAlign: "center",
         }}
       >
-        <img
-          src={logoUrl}
-          width={68}
-          height={68}
-          alt="StayKnown"
+        <div
+          role="img"
+          aria-label="StayKnown"
           style={{
             display: "block",
-            width: 68,
-            height: 68,
+            width: 72,
+            height: 72,
             margin: "0 auto 13px",
-            objectFit: "contain",
-            borderRadius: 21,
+            borderRadius: 22,
+            backgroundColor: "#ffffff",
+            backgroundImage: `url("${logoUrl}")`,
+            backgroundPosition: "center",
+            backgroundRepeat: "no-repeat",
+            backgroundSize: "contain",
           }}
         />
 
@@ -678,24 +619,11 @@ export default async function ThreatAlertResponsePage({
           A 6 CLEMENT JOSHUA SERVICE™
         </div>
 
-        <div
-          aria-hidden="true"
-          style={{
-            width: 74,
-            height: 74,
-            borderRadius: 24,
-            margin: "23px auto 17px",
-            display: "grid",
-            placeItems: "center",
-            background: successful ? "#111318" : "#eceff1",
-            color: successful ? "#ffffff" : "#111318",
-            border: "1px solid rgba(0,0,0,0.09)",
-            fontSize: 31,
-            fontWeight: 950,
-          }}
-        >
-          {successful ? "✓" : closed ? "○" : "!"}
-        </div>
+        <ResultStatusIcon
+          successful={successful}
+          closed={closed}
+          expiredOrInvalid={expiredOrInvalid}
+        />
 
         <h1
           style={{
@@ -742,40 +670,33 @@ export default async function ThreatAlertResponsePage({
               }}
             >
               <div
+                role="img"
+                aria-label={`${alert.ownerName} profile photo`}
                 style={{
                   width: 58,
                   height: 58,
                   flex: "0 0 58px",
                   overflow: "hidden",
-                  borderRadius: 20,
+                  borderRadius: 999,
                   display: "grid",
                   placeItems: "center",
-                  color: "#ffffff",
-                  background: "#111318",
-                  border: "1px solid rgba(255,255,255,.9)",
-                  fontSize: 21,
+                  color: "#111318",
+                  backgroundColor: "#ffffff",
+                  backgroundImage: identityImage
+                    ? `url("${identityImage}")`
+                    : "none",
+                  backgroundPosition: "center",
+                  backgroundRepeat: "no-repeat",
+                  backgroundSize: "cover",
+                  border: "1px solid rgba(17,19,24,.12)",
+                  boxShadow: "0 8px 18px rgba(0,0,0,.10)",
+                  fontSize: 19,
                   fontWeight: 950,
                 }}
               >
-                {identityImage ? (
-                  <img
-                    src={identityImage}
-                    width={58}
-                    height={58}
-                    alt={alert.ownerName}
-                    style={{
-                      width: "100%",
-                      height: "100%",
-                      objectFit:
-                        identityImage === logoUrl ? "contain" : "cover",
-                      padding: identityImage === logoUrl ? 10 : 0,
-                      background:
-                        identityImage === logoUrl ? "#ffffff" : "transparent",
-                    }}
-                  />
-                ) : (
-                  imageFallbackInitial(alert.ownerName)
-                )}
+                {!identityImage
+                  ? alert.ownerName.trim().slice(0, 1).toUpperCase() || "S"
+                  : null}
               </div>
 
               <div style={{ minWidth: 0, flex: 1 }}>
@@ -974,80 +895,9 @@ export default async function ThreatAlertResponsePage({
           </p>
         </div>
 
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(2, minmax(0,1fr))",
-            gap: 8,
-            marginTop: 14,
-          }}
-        >
-          <a
-            href={alert.premiumMapUrl}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              minHeight: 44,
-              padding: "11px 14px",
-              borderRadius: 999,
-              color: "#ffffff",
-              background: "#111318",
-              border: "1px solid #111318",
-              textDecoration: "none",
-              fontSize: 10.5,
-              fontWeight: 950,
-            }}
-          >
-            Open full Threat Alert map
-          </a>
-
-          {alert.externalMapUrl ? (
-            <a
-              href={alert.externalMapUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                minHeight: 44,
-                padding: "11px 14px",
-                borderRadius: 999,
-                color: "#111318",
-                background: "#ffffff",
-                border: "1px solid rgba(0,0,0,.10)",
-                textDecoration: "none",
-                fontSize: 10.5,
-                fontWeight: 950,
-              }}
-            >
-              Open external map
-            </a>
-          ) : (
-            <span
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                minHeight: 44,
-                padding: "11px 14px",
-                borderRadius: 999,
-                color: "#73777c",
-                background: "#f1f3f4",
-                border: "1px solid rgba(0,0,0,.06)",
-                fontSize: 10.5,
-                fontWeight: 900,
-              }}
-            >
-              External map unavailable
-            </span>
-          )}
-        </div>
-
         <p
           style={{
-            margin: "17px 3px 0",
+            margin: "18px 3px 0",
             color: "#777b80",
             fontSize: 9.8,
             lineHeight: 1.55,
