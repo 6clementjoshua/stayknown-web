@@ -10,11 +10,7 @@ export type CheckInSeed = {
   audience: "contacts" | "self";
   expiresAt: number;
   visitorName: string;
-
-  // User avatar shown before the name.
-  // The flow remains safe if no avatar is supplied.
   visitorAvatarUrl?: string | null;
-
   verified: boolean;
   badgeType: string;
   checkedInAt: string;
@@ -27,6 +23,24 @@ export type CheckInSeed = {
 };
 
 type RenderMode = "map" | "fallback";
+
+type PreparedAssets = {
+  ready: boolean;
+  avatar: string;
+  logo: string;
+};
+
+const ORIGINAL_LOGO_ENDPOINT = "/api/stayknown-logo";
+
+function safeText(value: unknown): string {
+  if (value == null) {
+    return "";
+  }
+
+  const text = String(value).trim();
+
+  return text.toLowerCase() === "null" ? "" : text;
+}
 
 function prefersDarkTheme() {
   if (typeof window === "undefined") {
@@ -89,10 +103,116 @@ function accuracyLabel(accuracy: number | null) {
   return `Approximate location • ± ${accuracy.toFixed(0)} meters`;
 }
 
-function initialOf(name: string) {
-  const cleanName = name.trim();
+async function decodeObjectUrl(objectUrl: string): Promise<boolean> {
+  const image = new window.Image();
 
-  return cleanName.slice(0, 1).toUpperCase() || "S";
+  image.decoding = "async";
+  image.src = objectUrl;
+
+  try {
+    if (typeof image.decode === "function") {
+      await Promise.race([
+        image.decode(),
+
+        new Promise<never>((_, reject) => {
+          window.setTimeout(() => {
+            reject(new Error("image_decode_timeout"));
+          }, 4500);
+        }),
+      ]);
+    } else {
+      await new Promise<void>((resolve, reject) => {
+        const timeout = window.setTimeout(() => {
+          reject(new Error("image_load_timeout"));
+        }, 4500);
+
+        image.onload = () => {
+          window.clearTimeout(timeout);
+          resolve();
+        };
+
+        image.onerror = () => {
+          window.clearTimeout(timeout);
+          reject(new Error("image_load_failed"));
+        };
+      });
+    }
+
+    return true;
+  } catch {
+    return false;
+  } finally {
+    image.onload = null;
+    image.onerror = null;
+  }
+}
+
+async function fetchImageObjectUrl(url: string): Promise<string> {
+  const cleanUrl = safeText(url);
+
+  if (!cleanUrl) {
+    return "";
+  }
+
+  const attempts = 3;
+
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    const controller = new AbortController();
+
+    const timeout = window.setTimeout(() => {
+      controller.abort();
+    }, 7000);
+
+    try {
+      const separator = cleanUrl.includes("?") ? "&" : "?";
+
+      const requestUrl =
+        attempt === 0 ? cleanUrl : `${cleanUrl}${separator}retry=${attempt}`;
+
+      const response = await fetch(requestUrl, {
+        method: "GET",
+        cache: attempt === 0 ? "default" : "reload",
+        credentials: "same-origin",
+        signal: controller.signal,
+        headers: {
+          Accept:
+            "image/avif,image/webp,image/png,image/jpeg,image/*,*/*;q=0.8",
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`image_http_${response.status}`);
+      }
+
+      const blob = await response.blob();
+
+      if (!blob.type.startsWith("image/")) {
+        throw new Error("image_content_type_invalid");
+      }
+
+      const objectUrl = URL.createObjectURL(blob);
+
+      const decoded = await decodeObjectUrl(objectUrl);
+
+      if (decoded) {
+        return objectUrl;
+      }
+
+      URL.revokeObjectURL(objectUrl);
+    } catch {
+      // Retry below.
+    } finally {
+      window.clearTimeout(timeout);
+    }
+
+    if (attempt < attempts - 1) {
+      await new Promise<void>((resolve) => {
+        window.setTimeout(resolve, 180 * (attempt + 1));
+      });
+    }
+  }
+
+  return "";
 }
 
 function buildCheckInMarker() {
@@ -151,40 +271,35 @@ function buildCheckInMarker() {
 function UserAvatar({
   name,
   avatarUrl,
+  logoUrl,
 }: {
   name: string;
-  avatarUrl?: string | null;
+  avatarUrl: string;
+  logoUrl: string;
 }) {
-  const cleanAvatarUrl = typeof avatarUrl === "string" ? avatarUrl.trim() : "";
+  const hasAvatar = Boolean(avatarUrl);
 
-  const [imageFailed, setImageFailed] = React.useState(false);
-
-  React.useEffect(() => {
-    setImageFailed(false);
-  }, [cleanAvatarUrl]);
-
-  const showImage = Boolean(cleanAvatarUrl) && !imageFailed;
+  const finalSource = avatarUrl || logoUrl || "/6logo.png";
 
   return (
     <div
-      className="relative grid h-[58px] w-[58px] shrink-0 place-items-center overflow-hidden rounded-[21px] border border-white/95 bg-black text-white shadow-[0_15px_28px_rgba(0,0,0,0.17),inset_0_1px_0_rgba(255,255,255,0.20)]"
+      className={`relative grid h-[58px] w-[58px] shrink-0 place-items-center overflow-hidden rounded-[21px] border border-white/95 shadow-[0_15px_28px_rgba(0,0,0,0.17),inset_0_1px_0_rgba(255,255,255,0.20)] ${
+        hasAvatar ? "bg-black" : "bg-white"
+      }`}
       role="img"
       aria-label={`${name} profile picture`}
     >
-      {showImage ? (
-        <img
-          src={cleanAvatarUrl}
-          alt=""
-          aria-hidden="true"
-          draggable={false}
-          onError={() => {
-            setImageFailed(true);
-          }}
-          className="h-full w-full object-cover"
-        />
-      ) : (
-        <span className="text-[21px] font-black">{initialOf(name)}</span>
-      )}
+      <img
+        src={finalSource}
+        alt=""
+        aria-hidden="true"
+        draggable={false}
+        className={
+          hasAvatar
+            ? "h-full w-full object-cover"
+            : "h-full w-full bg-white p-2 object-contain"
+        }
+      />
     </div>
   );
 }
@@ -235,9 +350,60 @@ export default function CheckInClient({ seed }: { seed: CheckInSeed }) {
 
   const [mapError, setMapError] = React.useState("");
 
+  const [assets, setAssets] = React.useState<PreparedAssets>({
+    ready: false,
+    avatar: "",
+    logo: "",
+  });
+
+  const avatarEndpoint = safeText(seed.visitorAvatarUrl);
+
   const coordinates = formatCoordinates(seed.lat, seed.lng);
 
   const confidence = accuracyLabel(seed.accuracy);
+
+  React.useEffect(() => {
+    let cancelled = false;
+
+    const objectUrls: string[] = [];
+
+    async function prepareAssets() {
+      const [avatar, logo] = await Promise.all([
+        fetchImageObjectUrl(avatarEndpoint).catch(() => ""),
+        fetchImageObjectUrl(ORIGINAL_LOGO_ENDPOINT).catch(() => ""),
+      ]);
+
+      for (const value of [avatar, logo]) {
+        if (value) {
+          objectUrls.push(value);
+        }
+      }
+
+      if (cancelled) {
+        objectUrls.forEach((value) => {
+          URL.revokeObjectURL(value);
+        });
+
+        return;
+      }
+
+      setAssets({
+        ready: true,
+        avatar,
+        logo,
+      });
+    }
+
+    void prepareAssets();
+
+    return () => {
+      cancelled = true;
+
+      objectUrls.forEach((value) => {
+        URL.revokeObjectURL(value);
+      });
+    };
+  }, [avatarEndpoint]);
 
   React.useEffect(() => {
     setDarkTheme(prefersDarkTheme());
@@ -285,9 +451,7 @@ export default function CheckInClient({ seed }: { seed: CheckInSeed }) {
     try {
       const map = new maplibregl.Map({
         container: mapContainerRef.current,
-
         style: styleUrl,
-
         center: [seed.lng, seed.lat],
 
         zoom:
@@ -363,7 +527,6 @@ export default function CheckInClient({ seed }: { seed: CheckInSeed }) {
         window.clearTimeout(timeout);
 
         setMapReady(false);
-
         setRenderMode("fallback");
 
         setMapError("StayKnown map preview is temporarily unavailable.");
@@ -452,7 +615,6 @@ export default function CheckInClient({ seed }: { seed: CheckInSeed }) {
           className="absolute inset-0"
           style={{
             height: "100dvh",
-
             background: darkTheme ? "#111111" : "#eef1f4",
           }}
         />
@@ -511,7 +673,8 @@ export default function CheckInClient({ seed }: { seed: CheckInSeed }) {
               <div className="flex min-w-0 flex-1 items-center gap-3">
                 <UserAvatar
                   name={seed.visitorName}
-                  avatarUrl={seed.visitorAvatarUrl}
+                  avatarUrl={assets.avatar}
+                  logoUrl={assets.logo}
                 />
 
                 <div className="min-w-0 flex-1">
@@ -655,7 +818,6 @@ export default function CheckInClient({ seed }: { seed: CheckInSeed }) {
                 type="button"
                 onClick={() => {
                   window.location.replace("about:blank");
-
                   window.close();
                 }}
                 className={`rounded-full border px-5 py-3 text-[13px] font-extrabold ${

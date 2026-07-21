@@ -12,6 +12,7 @@ type ChatMapPayload = {
   capturedAt?: string;
   senderName?: string;
   senderUsername?: string;
+  senderAvatarUrl?: string;
   senderId?: string;
   context?: string;
   messageId?: string;
@@ -22,11 +23,22 @@ type ChatPresenceStatus = "in_chat" | "online" | "offline";
 type CoordinateAge = "fresh" | "recent" | "old";
 type RenderMode = "map" | "fallback";
 
+type PreparedAssets = {
+  ready: boolean;
+  avatar: string;
+  logo: string;
+};
+
 type StatusResp = {
   ok: boolean;
   sender_id?: string | null;
   thread_id?: string | null;
   message_id?: string | null;
+  sender_avatar_url?: string | null;
+  sender?: {
+    avatar_url?: string | null;
+    profile_photo_url?: string | null;
+  } | null;
   presence?: {
     is_online?: boolean;
     is_in_this_chat?: boolean;
@@ -59,6 +71,7 @@ const MAP_LOAD_TIMEOUT_MS = 16000;
 const MAP_AUTO_RETRY_LIMIT = 2;
 const MAP_RETRY_DELAY_MS = 900;
 const STATUS_POLL_MS = 4000;
+const ORIGINAL_LOGO_ENDPOINT = "/api/stayknown-logo";
 
 function safeText(v?: string | null, fallback = "") {
   const s = String(v || "").trim();
@@ -170,6 +183,146 @@ function safetyUseHint() {
   );
 }
 
+async function decodeObjectUrl(objectUrl: string): Promise<boolean> {
+  const image = new window.Image();
+  image.decoding = "async";
+  image.src = objectUrl;
+
+  try {
+    if (typeof image.decode === "function") {
+      await Promise.race([
+        image.decode(),
+        new Promise<never>((_, reject) => {
+          window.setTimeout(
+            () => reject(new Error("image_decode_timeout")),
+            4500,
+          );
+        }),
+      ]);
+    } else {
+      await new Promise<void>((resolve, reject) => {
+        const timeout = window.setTimeout(
+          () => reject(new Error("image_load_timeout")),
+          4500,
+        );
+
+        image.onload = () => {
+          window.clearTimeout(timeout);
+          resolve();
+        };
+
+        image.onerror = () => {
+          window.clearTimeout(timeout);
+          reject(new Error("image_load_failed"));
+        };
+      });
+    }
+
+    return true;
+  } catch {
+    return false;
+  } finally {
+    image.onload = null;
+    image.onerror = null;
+  }
+}
+
+async function fetchImageObjectUrl(url: string): Promise<string> {
+  const cleanUrl = safeText(url);
+  if (!cleanUrl) return "";
+
+  const attempts = 3;
+
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 7000);
+
+    try {
+      const separator = cleanUrl.includes("?") ? "&" : "?";
+      const requestUrl =
+        attempt === 0 ? cleanUrl : `${cleanUrl}${separator}retry=${attempt}`;
+
+      const response = await fetch(requestUrl, {
+        method: "GET",
+        cache: attempt === 0 ? "default" : "reload",
+        credentials: "same-origin",
+        signal: controller.signal,
+        headers: {
+          Accept:
+            "image/avif,image/webp,image/png,image/jpeg,image/*,*/*;q=0.8",
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`image_http_${response.status}`);
+      }
+
+      const blob = await response.blob();
+      if (!blob.type.startsWith("image/")) {
+        throw new Error("image_content_type_invalid");
+      }
+
+      const objectUrl = URL.createObjectURL(blob);
+      const decoded = await decodeObjectUrl(objectUrl);
+
+      if (decoded) {
+        return objectUrl;
+      }
+
+      URL.revokeObjectURL(objectUrl);
+    } catch {
+      // Retry below. The StayKnown logo remains the visual fallback.
+    } finally {
+      window.clearTimeout(timeout);
+    }
+
+    if (attempt < attempts - 1) {
+      await new Promise<void>((resolve) => {
+        window.setTimeout(resolve, 180 * (attempt + 1));
+      });
+    }
+  }
+
+  return "";
+}
+
+function UserAvatar({
+  name,
+  avatarUrl,
+  logoUrl,
+  size = "large",
+}: {
+  name: string;
+  avatarUrl: string;
+  logoUrl: string;
+  size?: "small" | "large";
+}) {
+  const hasAvatar = Boolean(avatarUrl);
+  const source = avatarUrl || logoUrl || "/6logo.png";
+  const dimensions = size === "small" ? "h-11 w-11" : "h-[58px] w-[58px]";
+  const radius = size === "small" ? "rounded-[17px]" : "rounded-[21px]";
+
+  return (
+    <div
+      className={`relative grid ${dimensions} shrink-0 place-items-center overflow-hidden ${radius} border border-white/15 bg-white shadow-[0_15px_28px_rgba(0,0,0,0.22),inset_0_1px_0_rgba(255,255,255,0.20)]`}
+      role="img"
+      aria-label={`${name} profile picture`}
+    >
+      <img
+        src={source}
+        alt=""
+        aria-hidden="true"
+        draggable={false}
+        className={
+          hasAvatar
+            ? "h-full w-full object-cover"
+            : "h-full w-full bg-white p-2 object-contain"
+        }
+      />
+    </div>
+  );
+}
+
 function buildMarkerEl(isFresh = true) {
   const wrap = document.createElement("div");
   wrap.style.width = "88px";
@@ -272,6 +425,20 @@ export default function ChatMapClient({
   const [mapLoadError, setMapLoadError] = React.useState("");
   const [mobileSheetShrunk, setMobileSheetShrunk] = React.useState(false);
   const [status, setStatus] = React.useState<StatusResp | null>(null);
+  const [avatarEndpoint, setAvatarEndpoint] = React.useState(() => {
+    const direct = safeText(payload.senderAvatarUrl);
+    if (direct) return direct;
+
+    const senderId = safeText(payload.senderId);
+    return senderId
+      ? `/api/chat-map/avatar?sender_id=${encodeURIComponent(senderId)}`
+      : "";
+  });
+  const [assets, setAssets] = React.useState<PreparedAssets>({
+    ready: false,
+    avatar: "",
+    logo: "",
+  });
 
   const [lat, setLat] = React.useState(payload.lat);
   const [lng, setLng] = React.useState(payload.lng);
@@ -299,14 +466,13 @@ export default function ChatMapClient({
       ? "Shared coordinate"
       : "Current area";
 
-  const eyebrow = `${presenceLabel(presenceStatus)} • Chat location`;
-
-  const cardBg = darkTheme ? "bg-black/78" : "bg-white/92";
-  const cardBorder = darkTheme ? "border-white/10" : "border-black/10";
-  const cardText = darkTheme ? "text-white" : "text-black";
-  const mutedText = darkTheme ? "text-white/45" : "text-black/45";
-  const innerBg = darkTheme ? "bg-white/5" : "bg-[#f6f7f8]";
-  const coordText = darkTheme ? "!text-white" : "!text-black";
+  // All map information surfaces intentionally use one permanent dark-glass UI.
+  const cardBg = "bg-black/80";
+  const cardBorder = "border-white/12";
+  const cardText = "text-white";
+  const mutedText = "text-white/52";
+  const innerBg = "bg-white/6";
+  const coordText = "!text-white";
 
   const isPhone = isPhoneViewport();
   const showMobileSheet = isPhone && renderMode === "map" && mapReady;
@@ -388,6 +554,17 @@ export default function ChatMapClient({
 
     setStatus(json);
 
+    const statusAvatar =
+      safeText(json.sender_avatar_url) ||
+      safeText(json.sender?.avatar_url) ||
+      safeText(json.sender?.profile_photo_url);
+
+    if (statusAvatar) {
+      setAvatarEndpoint((current) =>
+        current === statusAvatar ? current : statusAvatar,
+      );
+    }
+
     const opened = json.opened_message;
     const nextLat =
       typeof opened?.lat === "number" && Number.isFinite(opened.lat)
@@ -416,6 +593,40 @@ export default function ChatMapClient({
     syncMarker(nextLat, nextLng, coordinateAgeFrom(nextCaptured) !== "old");
     centerMapOn(nextLat, nextLng);
   }, [payload, syncMarker, centerMapOn]);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    const objectUrls: string[] = [];
+
+    async function prepareIdentityAssets() {
+      const [avatar, logo] = await Promise.all([
+        fetchImageObjectUrl(avatarEndpoint).catch(() => ""),
+        fetchImageObjectUrl(ORIGINAL_LOGO_ENDPOINT).catch(() => ""),
+      ]);
+
+      for (const value of [avatar, logo]) {
+        if (value) objectUrls.push(value);
+      }
+
+      if (cancelled) {
+        objectUrls.forEach((value) => URL.revokeObjectURL(value));
+        return;
+      }
+
+      setAssets({
+        ready: true,
+        avatar,
+        logo,
+      });
+    }
+
+    void prepareIdentityAssets();
+
+    return () => {
+      cancelled = true;
+      objectUrls.forEach((value) => URL.revokeObjectURL(value));
+    };
+  }, [avatarEndpoint]);
 
   React.useEffect(() => {
     setDarkTheme(prefersDarkTheme());
@@ -704,31 +915,28 @@ export default function ChatMapClient({
                 data-sk-mobile-sheet="1"
                 className="mx-auto w-[calc(100%-10px)] max-w-[640px] pointer-events-auto"
               >
-                <div
-                  className={`rounded-[30px] border shadow-[0_24px_60px_rgba(0,0,0,0.18)] overflow-hidden backdrop-blur-2xl ${
-                    darkTheme
-                      ? "bg-black/68 border-white/14"
-                      : "bg-black/34 border-white/12"
-                  }`}
-                >
+                <div className="overflow-hidden rounded-[30px] border border-white/12 bg-black/80 shadow-[0_26px_80px_rgba(0,0,0,0.30)] backdrop-blur-2xl">
                   <button
                     type="button"
                     onClick={() => setMobileSheetShrunk((v) => !v)}
                     className="w-full px-4 pt-1.5 pb-[2px]"
                     aria-label="Toggle chat map details"
                   >
-                    <div
-                      className={`mx-auto h-1.5 w-12 rounded-full ${
-                        darkTheme ? "bg-white/18" : "bg-black/18"
-                      }`}
-                    />
+                    <div className="mx-auto h-1.5 w-12 rounded-full bg-white/18" />
                   </button>
 
-                  <div className="px-4 pt-1.5 pb-[2px]">
-                    <div className="flex items-start justify-between gap-2">
+                  <div className="px-4 pb-[2px] pt-1.5">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <UserAvatar
+                        name={sender}
+                        avatarUrl={assets.avatar}
+                        logoUrl={assets.logo}
+                        size="small"
+                      />
+
                       <div className="min-w-0 flex-1">
                         <div
-                          className={`flex items-center gap-1 text-[6px] uppercase tracking-[0.2em] font-extrabold ${mutedText}`}
+                          className={`flex items-center gap-1 text-[6px] font-extrabold uppercase tracking-[0.2em] ${mutedText}`}
                         >
                           <span>{presenceLabel(presenceStatus)}</span>
                           <span>•</span>
@@ -736,18 +944,14 @@ export default function ChatMapClient({
                         </div>
 
                         <div
-                          className={`mt-1 text-[12px] font-black leading-[1.25] ${cardText}`}
-                        >
-                          {place}
-                        </div>
-
-                        <div
-                          className={`mt-1 text-[9px] leading-4 ${
-                            darkTheme ? "text-white/58" : "text-black/56"
-                          }`}
+                          className={`mt-1 truncate text-[13px] font-black leading-[1.25] ${cardText}`}
                         >
                           {sender}
-                          {username ? ` • @${username}` : ""}
+                        </div>
+
+                        <div className="mt-0.5 truncate text-[9px] leading-4 text-white/58">
+                          {username ? `@${username} • ` : ""}
+                          {place}
                         </div>
                       </div>
                     </div>
@@ -764,11 +968,7 @@ export default function ChatMapClient({
                         >
                           <div className="space-y-2">
                             <div>
-                              <div
-                                className={`text-[7px] uppercase tracking-[0.22em] font-extrabold ${
-                                  darkTheme ? "text-white/38" : "text-black/40"
-                                }`}
-                              >
+                              <div className="text-[7px] font-extrabold uppercase tracking-[0.22em] text-white/38">
                                 {locationHeading}
                               </div>
                               <div
@@ -780,22 +980,14 @@ export default function ChatMapClient({
 
                             {infoRows.map((item) => (
                               <div key={item.label}>
-                                <div
-                                  className={`text-[7px] uppercase tracking-[0.22em] font-extrabold ${
-                                    darkTheme
-                                      ? "text-white/38"
-                                      : "text-black/40"
-                                  }`}
-                                >
+                                <div className="text-[7px] font-extrabold uppercase tracking-[0.22em] text-white/38">
                                   {item.label}
                                 </div>
                                 <div
-                                  className={`mt-1 text-[10px] font-bold leading-4 break-words ${
+                                  className={`mt-1 break-words text-[10px] font-bold leading-4 ${
                                     item.label === "Coordinates"
                                       ? `break-all ${coordText}`
-                                      : darkTheme
-                                        ? "text-white/82"
-                                        : "text-black/78"
+                                      : "text-white/82"
                                   }`}
                                 >
                                   {item.value}
@@ -804,18 +996,10 @@ export default function ChatMapClient({
                             ))}
 
                             <div>
-                              <div
-                                className={`text-[7px] uppercase tracking-[0.22em] font-extrabold ${
-                                  darkTheme ? "text-white/38" : "text-black/40"
-                                }`}
-                              >
+                              <div className="text-[7px] font-extrabold uppercase tracking-[0.22em] text-white/38">
                                 Reminder
                               </div>
-                              <div
-                                className={`mt-1 text-[9px] leading-4 ${
-                                  darkTheme ? "text-white/70" : "text-black/66"
-                                }`}
-                              >
+                              <div className="mt-1 text-[9px] leading-4 text-white/70">
                                 {safetyUseHint()}
                               </div>
                             </div>
@@ -825,13 +1009,7 @@ export default function ChatMapClient({
                     </div>
                   ) : null}
 
-                  <div
-                    className={`border-t px-3 py-1.5 text-center text-[7px] font-semibold leading-3 ${
-                      darkTheme
-                        ? "border-white/8 text-white/52"
-                        : "border-black/8 text-black/50"
-                    }`}
-                  >
+                  <div className="border-t border-white/8 px-3 py-1.5 text-center text-[7px] font-semibold leading-3 text-white/52">
                     {legalTinyLine()}
                   </div>
                 </div>
@@ -859,8 +1037,11 @@ export default function ChatMapClient({
               alt="StayKnown"
               className="h-5 w-5 object-contain"
             />
-            <div className="mt-1 text-[8px] uppercase tracking-[0.34em] text-black/55 font-semibold">
+            <div className="mt-1 text-[8px] font-semibold uppercase tracking-[0.34em] text-black/55">
               StayKnown
+            </div>
+            <div className="mt-1 whitespace-nowrap text-[6.5px] font-extrabold tracking-[0.08em] text-black/40">
+              A 6 Clement Joshua service™
             </div>
           </div>
         </div>
@@ -889,69 +1070,74 @@ export default function ChatMapClient({
       )}
 
       {!isPhone ? (
-        <div className="absolute inset-x-0 bottom-12 z-30 px-4">
-          <div className="mx-auto flex w-full max-w-[1120px] flex-col items-center gap-2">
-            <div
-              className={`pointer-events-auto flex max-w-full flex-wrap items-center justify-center gap-1 rounded-full border ${cardBorder} ${cardBg} px-2 py-1.5 shadow-[0_14px_34px_rgba(0,0,0,0.10)] backdrop-blur-2xl`}
-            >
-              <div className="rounded-full border bg-[#dff5ee] text-[#0e8f70] border-[#ccebdd] px-2.5 py-[6px] text-[8px] font-extrabold uppercase tracking-[0.18em]">
-                {presenceLabel(presenceStatus)}
-              </div>
+        <div className="absolute inset-x-0 bottom-8 z-30 px-4">
+          <section className="mx-auto w-full max-w-[1120px] overflow-hidden rounded-[30px] border border-white/12 bg-black/80 shadow-[0_26px_80px_rgba(0,0,0,0.30)] backdrop-blur-2xl">
+            <div className="p-4">
+              <div className="flex flex-wrap items-center gap-3">
+                <UserAvatar
+                  name={sender}
+                  avatarUrl={assets.avatar}
+                  logoUrl={assets.logo}
+                />
 
-              <div className="rounded-full border border-white/75 bg-white/88 px-2 py-[6px] text-[8px] font-extrabold uppercase tracking-[0.13em] text-black/46">
-                {locationHeading} <span className="ml-1 text-black/34">›</span>
-              </div>
-
-              <div className="rounded-full border border-white/75 bg-white/92 px-2.5 py-[6px] text-[10px] font-bold text-black/78 max-w-[280px] truncate">
-                {place}
-              </div>
-
-              <div className="rounded-full border border-white/75 bg-white/88 px-2 py-[6px] text-[8px] font-extrabold uppercase tracking-[0.13em] text-black/46">
-                Sender <span className="ml-1 text-black/34">›</span>
-              </div>
-
-              <div className="rounded-full border border-white/75 bg-white/92 px-2.5 py-[6px] text-[10px] font-bold text-black/78 max-w-[200px] truncate">
-                {sender}
-              </div>
-
-              <div className="rounded-full border border-white/75 bg-white/88 px-2 py-[6px] text-[8px] font-extrabold uppercase tracking-[0.13em] text-black/46">
-                Captured <span className="ml-1 text-black/34">›</span>
-              </div>
-
-              <div className="rounded-full border border-white/75 bg-white/92 px-2.5 py-[6px] text-[10px] font-bold text-black/78">
-                {formatCapturedTime(capturedAt)}
-              </div>
-            </div>
-
-            <div
-              className={`pointer-events-auto flex max-w-[1080px] flex-wrap items-center justify-center gap-1.5 rounded-[18px] border ${cardBorder} ${cardBg} px-2.5 py-1.5 shadow-[0_12px_30px_rgba(0,0,0,0.08)] backdrop-blur-2xl`}
-            >
-              {infoRows.map((item) => (
-                <React.Fragment key={item.label}>
-                  <div className="rounded-full border border-white/75 bg-white/88 px-2 py-[6px] text-[8px] font-extrabold uppercase tracking-[0.13em] text-black/46">
-                    {item.label} <span className="ml-1 text-black/34">›</span>
+                <div className="min-w-[190px] flex-1">
+                  <div className="text-[8px] font-black uppercase tracking-[0.24em] text-white/45">
+                    {presenceLabel(presenceStatus)} • {ageLabel(coordinateAge)}
                   </div>
-                  <div className="rounded-[16px] border border-white/75 bg-white/92 px-3 py-[6px] text-[10px] font-bold text-black/78 max-w-[420px] whitespace-normal break-words text-center">
-                    {item.value}
+                  <div className="mt-1 truncate text-[18px] font-black text-white">
+                    {sender}
                   </div>
-                </React.Fragment>
-              ))}
+                  <div className="mt-1 truncate text-[10px] font-semibold text-white/55">
+                    {username ? `@${username} • ` : ""}
+                    {place}
+                  </div>
+                </div>
+
+                <div className="rounded-full border border-[#ccebdd] bg-[#dff5ee] px-3 py-2 text-[8px] font-black uppercase tracking-[0.16em] text-[#0e8f70]">
+                  {presenceLabel(presenceStatus)}
+                </div>
+              </div>
+
+              <div className="mt-4 grid grid-cols-2 gap-2 lg:grid-cols-4">
+                <div className="rounded-[18px] border border-white/10 bg-white/6 p-3 text-center">
+                  <div className="text-[7px] font-black uppercase tracking-[0.2em] text-white/38">
+                    {locationHeading}
+                  </div>
+                  <div className="mt-1 break-words text-[10px] font-bold leading-4 text-white/82">
+                    {place}
+                  </div>
+                </div>
+
+                {infoRows.map((item) => (
+                  <div
+                    key={item.label}
+                    className="rounded-[18px] border border-white/10 bg-white/6 p-3 text-center"
+                  >
+                    <div className="text-[7px] font-black uppercase tracking-[0.2em] text-white/38">
+                      {item.label}
+                    </div>
+                    <div
+                      className={`mt-1 break-words text-[10px] font-bold leading-4 ${
+                        item.label === "Coordinates"
+                          ? "break-all text-white"
+                          : "text-white/82"
+                      }`}
+                    >
+                      {item.value}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-3 rounded-[20px] border border-white/10 bg-white/6 px-4 py-3 text-center text-[9px] font-semibold leading-5 text-white/62">
+                {safetyUseHint()}
+              </div>
             </div>
 
-            <div className="pointer-events-none max-w-[980px] rounded-[22px] border border-white/70 bg-white/48 px-4 py-2 text-center text-[10px] font-bold leading-5 text-black/56 shadow-[0_10px_28px_rgba(0,0,0,0.10)] backdrop-blur-2xl">
-              {safetyUseHint()}
-            </div>
-
-            <div
-              className={`pointer-events-none max-w-[980px] rounded-[22px] border px-4 py-[5px] text-center text-[8px] font-semibold leading-4 shadow-[0_10px_28px_rgba(0,0,0,0.06)] backdrop-blur-2xl ${
-                darkTheme
-                  ? "border-white/10 bg-black/28 text-white/52"
-                  : "border-white/70 bg-white/48 text-black/50"
-              }`}
-            >
+            <div className="border-t border-white/8 px-4 py-2 text-center text-[8px] font-semibold text-white/48">
               {legalTinyLine()}
             </div>
-          </div>
+          </section>
         </div>
       ) : null}
 
@@ -967,7 +1153,7 @@ export default function ChatMapClient({
           aria-label="Zoom in"
           disabled={!mapReady || renderMode !== "map"}
           onClick={() => mapRef.current?.zoomIn({ duration: 220 })}
-          className="h-7 w-7 rounded-[18px] border border-white/55 bg-white/38 text-[16px] font-black text-black/58 shadow-[0_10px_24px_rgba(0,0,0,0.10)] backdrop-blur-xl disabled:opacity-40"
+          className="h-8 w-8 rounded-[16px] border border-white/14 bg-black/68 text-[16px] font-black text-white/82 shadow-[0_10px_24px_rgba(0,0,0,0.18)] backdrop-blur-xl disabled:opacity-40"
         >
           +
         </button>
@@ -976,7 +1162,7 @@ export default function ChatMapClient({
           aria-label="Zoom out"
           disabled={!mapReady || renderMode !== "map"}
           onClick={() => mapRef.current?.zoomOut({ duration: 220 })}
-          className="h-7 w-7 rounded-[18px] border border-white/40 bg-white/22 text-[16px] font-black text-black/62 shadow-[0_10px_24px_rgba(0,0,0,0.12)] backdrop-blur-xl disabled:opacity-40"
+          className="h-8 w-8 rounded-[16px] border border-white/14 bg-black/68 text-[16px] font-black text-white/82 shadow-[0_10px_24px_rgba(0,0,0,0.18)] backdrop-blur-xl disabled:opacity-40"
         >
           −
         </button>
