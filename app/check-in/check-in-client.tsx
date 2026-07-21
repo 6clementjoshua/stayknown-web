@@ -10,6 +10,11 @@ export type CheckInSeed = {
   audience: "contacts" | "self";
   expiresAt: number;
   visitorName: string;
+
+  // User avatar shown before the name.
+  // The flow remains safe if no avatar is supplied.
+  visitorAvatarUrl?: string | null;
+
   verified: boolean;
   badgeType: string;
   checkedInAt: string;
@@ -64,10 +69,6 @@ function formatCoordinates(lat: number, lng: number) {
   return `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
 }
 
-function googleMapsHref(lat: number, lng: number) {
-  return `https://www.google.com/maps?q=${lat},${lng}`;
-}
-
 function accuracyLabel(accuracy: number | null) {
   if (
     typeof accuracy !== "number" ||
@@ -86,6 +87,12 @@ function accuracyLabel(accuracy: number | null) {
   }
 
   return `Approximate location • ± ${accuracy.toFixed(0)} meters`;
+}
+
+function initialOf(name: string) {
+  const cleanName = name.trim();
+
+  return cleanName.slice(0, 1).toUpperCase() || "S";
 }
 
 function buildCheckInMarker() {
@@ -141,13 +148,58 @@ function buildCheckInMarker() {
   return wrap;
 }
 
+function UserAvatar({
+  name,
+  avatarUrl,
+}: {
+  name: string;
+  avatarUrl?: string | null;
+}) {
+  const cleanAvatarUrl = typeof avatarUrl === "string" ? avatarUrl.trim() : "";
+
+  const [imageFailed, setImageFailed] = React.useState(false);
+
+  React.useEffect(() => {
+    setImageFailed(false);
+  }, [cleanAvatarUrl]);
+
+  const showImage = Boolean(cleanAvatarUrl) && !imageFailed;
+
+  return (
+    <div
+      className="relative grid h-[58px] w-[58px] shrink-0 place-items-center overflow-hidden rounded-[21px] border border-white/95 bg-black text-white shadow-[0_15px_28px_rgba(0,0,0,0.17),inset_0_1px_0_rgba(255,255,255,0.20)]"
+      role="img"
+      aria-label={`${name} profile picture`}
+    >
+      {showImage ? (
+        <img
+          src={cleanAvatarUrl}
+          alt=""
+          aria-hidden="true"
+          draggable={false}
+          onError={() => {
+            setImageFailed(true);
+          }}
+          className="h-full w-full object-cover"
+        />
+      ) : (
+        <span className="text-[21px] font-black">{initialOf(name)}</span>
+      )}
+    </div>
+  );
+}
+
 function VerifiedName({ name, verified }: { name: string; verified: boolean }) {
   return (
-    <span className="inline-flex items-center justify-center gap-1.5">
-      <span>{name}</span>
+    <span className="inline-flex min-w-0 items-center justify-start gap-1.5">
+      <span className="truncate">{name}</span>
 
       {verified ? (
-        <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-black text-[9px] font-black text-white">
+        <span
+          className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-black text-[9px] font-black text-white"
+          title="Verified StayKnown user"
+          aria-label="Verified StayKnown user"
+        >
           ✓
         </span>
       ) : null}
@@ -182,8 +234,6 @@ export default function CheckInClient({ seed }: { seed: CheckInSeed }) {
   const [mapReady, setMapReady] = React.useState(false);
 
   const [mapError, setMapError] = React.useState("");
-
-  const mapHref = googleMapsHref(seed.lat, seed.lng);
 
   const coordinates = formatCoordinates(seed.lat, seed.lng);
 
@@ -417,7 +467,7 @@ export default function CheckInClient({ seed }: { seed: CheckInSeed }) {
       )}
 
       <div className="absolute left-1/2 top-5 z-30 -translate-x-1/2">
-        <div className="min-w-[150px] rounded-[24px] border border-white/90 bg-white/86 px-4 py-2.5 shadow-[0_16px_42px_rgba(0,0,0,0.16)] backdrop-blur-2xl">
+        <div className="min-w-[205px] rounded-[24px] border border-white/90 bg-white/86 px-5 py-2.5 shadow-[0_16px_42px_rgba(0,0,0,0.16)] backdrop-blur-2xl">
           <div className="flex flex-col items-center">
             <img
               src="/6logo.png"
@@ -428,12 +478,16 @@ export default function CheckInClient({ seed }: { seed: CheckInSeed }) {
             <div className="mt-1 text-[8px] font-bold uppercase tracking-[0.32em] text-black/55">
               StayKnown
             </div>
+
+            <div className="mt-1.5 whitespace-nowrap text-[6.8px] font-extrabold tracking-[0.08em] text-black/40">
+              A 6 Clement Joshua service™
+            </div>
           </div>
         </div>
       </div>
 
       {!mapReady && renderMode === "map" && accepted ? (
-        <div className="absolute left-1/2 top-[92px] z-30 -translate-x-1/2">
+        <div className="absolute left-1/2 top-[108px] z-30 -translate-x-1/2">
           <div className="rounded-full border border-white/85 bg-white/82 px-3 py-2 text-[10px] font-extrabold text-black/60 shadow-md backdrop-blur-xl">
             Preparing check-in map…
           </div>
@@ -441,7 +495,7 @@ export default function CheckInClient({ seed }: { seed: CheckInSeed }) {
       ) : null}
 
       {mapError ? (
-        <div className="absolute left-1/2 top-[132px] z-30 -translate-x-1/2">
+        <div className="absolute left-1/2 top-[148px] z-30 -translate-x-1/2">
           <div className="rounded-full border border-white/80 bg-white/82 px-3 py-2 text-[10px] font-bold text-black/58 shadow-md backdrop-blur-xl">
             {mapError}
           </div>
@@ -454,24 +508,31 @@ export default function CheckInClient({ seed }: { seed: CheckInSeed }) {
         >
           <div className="px-5 pb-3 pt-5 md:px-6">
             <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <div
-                  className={`text-[9px] font-black uppercase tracking-[0.28em] ${mutedText}`}
-                >
-                  One-time safety snapshot
-                </div>
+              <div className="flex min-w-0 flex-1 items-center gap-3">
+                <UserAvatar
+                  name={seed.visitorName}
+                  avatarUrl={seed.visitorAvatarUrl}
+                />
 
-                <div
-                  className={`mt-2 text-[19px] font-black tracking-[-0.03em] ${primaryText}`}
-                >
-                  <VerifiedName
-                    name={seed.visitorName}
-                    verified={seed.verified}
-                  />
-                </div>
+                <div className="min-w-0 flex-1">
+                  <div
+                    className={`text-[9px] font-black uppercase tracking-[0.28em] ${mutedText}`}
+                  >
+                    One-time safety snapshot
+                  </div>
 
-                <div className={`mt-1 text-[12px] font-bold ${mutedText}`}>
-                  marked themselves safe through StayKnown.
+                  <div
+                    className={`mt-2 min-w-0 text-[19px] font-black tracking-[-0.03em] ${primaryText}`}
+                  >
+                    <VerifiedName
+                      name={seed.visitorName}
+                      verified={seed.verified}
+                    />
+                  </div>
+
+                  <div className={`mt-1 text-[12px] font-bold ${mutedText}`}>
+                    marked themselves safe through StayKnown.
+                  </div>
                 </div>
               </div>
 
@@ -516,25 +577,16 @@ export default function CheckInClient({ seed }: { seed: CheckInSeed }) {
               </div>
             </div>
 
-            <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-              <a
-                href={mapHref}
-                target="_blank"
-                rel="noreferrer"
-                className="flex-1 rounded-full border border-black/10 bg-black px-5 py-3 text-center text-[12px] font-black text-white shadow-[0_14px_34px_rgba(0,0,0,0.18)] transition active:scale-[0.99]"
-              >
-                Open in Google Maps
-              </a>
-
-              {renderMode === "fallback" ? (
+            {renderMode === "fallback" ? (
+              <div className="mt-4">
                 <button
                   type="button"
                   onClick={() => {
                     setMapError("");
-
+                    setMapReady(false);
                     setRenderMode("map");
                   }}
-                  className={`flex-1 rounded-full border px-5 py-3 text-[12px] font-black transition active:scale-[0.99] ${
+                  className={`w-full rounded-full border px-5 py-3 text-[12px] font-black transition active:scale-[0.99] ${
                     darkTheme
                       ? "border-white/14 bg-white/8 text-white"
                       : "border-black/10 bg-white text-black"
@@ -542,8 +594,8 @@ export default function CheckInClient({ seed }: { seed: CheckInSeed }) {
                 >
                   Retry StayKnown map
                 </button>
-              ) : null}
-            </div>
+              </div>
+            ) : null}
           </div>
 
           <div

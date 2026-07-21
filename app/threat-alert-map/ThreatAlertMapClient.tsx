@@ -1870,6 +1870,102 @@ export default function ThreatAlertMapClient({ alert }: Props) {
             grid-area: safety;
           }
         }
+
+        /*
+         * Unified StayKnown map modal palette:
+         * only the Threat Alert bottom modal uses the same permanent dark,
+         * translucent glass treatment as the I’M SAFE map modal.
+         * Map, branding, markers, status pill and preview remain unchanged.
+         */
+        .sk-threat-panel {
+          color: #ffffff;
+          border-color: rgba(255, 255, 255, 0.12);
+          background: rgba(0, 0, 0, 0.8);
+          box-shadow:
+            0 26px 80px rgba(0, 0, 0, 0.34),
+            inset 0 1px 0 rgba(255, 255, 255, 0.1);
+          backdrop-filter: blur(28px);
+        }
+
+        .sk-threat-panel .sk-threat-kicker {
+          color: rgba(255, 255, 255, 0.58);
+        }
+
+        .sk-threat-panel .sk-threat-owner-name h1,
+        .sk-threat-panel .sk-threat-location-card h2,
+        .sk-threat-panel .sk-threat-stat strong {
+          color: #ffffff;
+        }
+
+        .sk-threat-panel .sk-threat-triggered-time,
+        .sk-threat-panel .sk-threat-location-card p {
+          color: rgba(255, 255, 255, 0.58);
+        }
+
+        .sk-threat-panel .sk-threat-location-card,
+        .sk-threat-panel .sk-threat-stat,
+        .sk-threat-panel .sk-threat-status-detail {
+          border-color: rgba(255, 255, 255, 0.12);
+          background: rgba(255, 255, 255, 0.06);
+        }
+
+        .sk-threat-panel .sk-threat-stat span {
+          color: rgba(255, 255, 255, 0.48);
+        }
+
+        .sk-threat-panel .sk-threat-status-detail {
+          color: rgba(255, 255, 255, 0.62);
+        }
+
+        .sk-threat-panel .sk-threat-status-detail strong {
+          color: #ffffff;
+        }
+
+        .sk-threat-panel .sk-threat-safety-image {
+          border-color: rgba(255, 255, 255, 0.12);
+          background: rgba(255, 255, 255, 0.06);
+        }
+
+        .sk-threat-panel .sk-threat-legal {
+          color: rgba(255, 255, 255, 0.48);
+        }
+
+        .sk-threat-panel .sk-threat-avatar {
+          color: #ffffff;
+          border-color: rgba(255, 255, 255, 0.16);
+          background: rgba(255, 255, 255, 0.08);
+        }
+
+        .sk-threat-panel .sk-threat-verified {
+          color: #111318;
+          border-color: rgba(255, 255, 255, 0.7);
+          background: #ffffff;
+        }
+
+        .sk-threat-panel .sk-threat-verified-official {
+          color: #ffffff;
+          background: #747980;
+        }
+
+        @media (max-width: 680px), (pointer: coarse) and (max-width: 1100px) {
+          .sk-threat-panel .sk-threat-avatar {
+            color: #ffffff;
+            border-color: rgba(255, 255, 255, 0.16);
+            background: rgba(255, 255, 255, 0.08);
+            box-shadow: 0 7px 16px rgba(0, 0, 0, 0.22);
+          }
+
+          .sk-threat-panel .sk-threat-mobile-feature-trigger,
+          .sk-threat-panel .sk-threat-mobile-feature-avatar {
+            border-color: rgba(255, 255, 255, 0.12);
+            background: rgba(255, 255, 255, 0.06);
+          }
+
+          .sk-threat-panel .sk-threat-mobile-feature-avatar .sk-threat-initial {
+            color: #ffffff;
+            background: rgba(255, 255, 255, 0.06);
+          }
+        }
       `}</style>
 
       <div ref={mapContainerRef} className="sk-threat-map" />
