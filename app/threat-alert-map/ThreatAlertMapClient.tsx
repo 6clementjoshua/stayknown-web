@@ -1087,13 +1087,17 @@ export default function ThreatAlertMapClient({ alert }: Props) {
           object-fit: cover;
         }
 
-        .sk-threat-expanded > div {
+        .sk-threat-response-panel {
           grid-area: response;
           min-width: 0;
         }
 
-        .sk-threat-expanded > div .sk-threat-grid {
+        .sk-threat-response-panel .sk-threat-grid {
           grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .sk-threat-mobile-feature-avatar {
+          display: none;
         }
 
         .sk-threat-guidance {
@@ -1286,32 +1290,60 @@ export default function ThreatAlertMapClient({ alert }: Props) {
         }
 
         @media (max-width: 680px) {
+          /*
+           * Mobile branding:
+           * centered on the map, vertically arranged and never truncated.
+           */
           .sk-threat-brand {
-            width: 132px;
-            max-width: calc(100vw - 136px);
-            padding: 9px 10px 8px;
+            left: 50%;
+            right: auto;
+            width: 194px;
+            max-width: calc(100vw - 118px);
+            padding: 10px 13px 9px;
+            transform: translateX(-50%);
           }
 
           .sk-threat-brand-logo {
-            width: 36px;
-            height: 36px;
+            width: 38px;
+            height: 38px;
           }
 
           .sk-threat-brand-name {
+            width: 100%;
             margin-top: 5px;
+            overflow: visible;
           }
 
           .sk-threat-brand-name strong {
-            font-size: 9px;
+            width: 100%;
+            overflow: visible;
+            font-size: 9.4px;
             letter-spacing: 1.25px;
+            line-height: 1.2;
+            text-overflow: clip;
+            white-space: nowrap;
           }
 
           .sk-threat-brand-name span {
-            margin-top: 3px;
-            font-size: 6.2px;
-            letter-spacing: 0.45px;
+            width: 100%;
+            margin-top: 4px;
+            overflow: visible;
+            font-size: 6.35px;
+            letter-spacing: 0.38px;
+            line-height: 1.25;
+            text-overflow: clip;
+            white-space: nowrap;
           }
 
+          /*
+           * Preserve the existing bottom modal while placing the permanent
+           * avatar in the right-hand area:
+           *
+           * identity | avatar
+           * location | avatar
+           * response across full width
+           * legal across full width
+           */
           .sk-threat-panel {
             left: 10px;
             right: 10px;
@@ -1324,10 +1356,10 @@ export default function ThreatAlertMapClient({ alert }: Props) {
           .sk-threat-panel-inner {
             display: grid;
             grid-template-columns:
-              minmax(0, 1.18fr)
-              minmax(112px, 0.82fr);
+              minmax(0, 1.34fr)
+              minmax(112px, 0.66fr);
             grid-template-areas:
-              "identity identity"
+              "identity safety"
               "location safety"
               "response response"
               "legal legal";
@@ -1335,33 +1367,99 @@ export default function ThreatAlertMapClient({ alert }: Props) {
             padding: 13px;
           }
 
+          /*
+           * Small identity avatar:
+           * a true circle with no black square/background behind it.
+           */
+          .sk-threat-avatar {
+            flex: 0 0 50px;
+            width: 50px;
+            height: 50px;
+            border: 1px solid rgba(17, 19, 24, 0.13);
+            border-radius: 999px;
+            color: #111318;
+            background: transparent;
+            box-shadow: 0 8px 18px rgba(0, 0, 0, 0.12);
+          }
+
+          .sk-threat-avatar img {
+            border-radius: inherit;
+          }
+
+          .sk-threat-identity {
+            grid-area: identity;
+            min-width: 0;
+            gap: 9px;
+          }
+
+          .sk-threat-owner-name h1 {
+            font-size: 16px;
+          }
+
+          .sk-threat-triggered-time {
+            font-size: 8.6px;
+          }
+
           .sk-threat-location-card {
             grid-area: location;
+            min-width: 0;
             margin: 0;
             padding: 12px;
+          }
+
+          /*
+           * The desktop Safety Gallery block is not moved or redesigned;
+           * it is simply hidden on mobile. Mobile uses the user's avatar
+           * permanently in the exact right-hand position requested.
+           */
+          .sk-threat-safety-image-desktop {
+            display: none;
+          }
+
+          .sk-threat-mobile-feature-avatar {
+            grid-area: safety;
+            display: grid;
+            place-items: center;
+            align-self: center;
+            justify-self: center;
+            width: min(148px, 100%);
+            height: auto;
+            aspect-ratio: 1;
+            overflow: hidden;
+            border: 1px solid rgba(17, 19, 24, 0.14);
+            border-radius: 999px;
+            color: #111318;
+            background: transparent;
+            box-shadow:
+              0 18px 36px rgba(0, 0, 0, 0.14),
+              inset 0 1px 0 rgba(255, 255, 255, 0.75);
+          }
+
+          .sk-threat-mobile-feature-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: inherit;
+          }
+
+          .sk-threat-mobile-feature-avatar .sk-threat-initial {
+            display: grid;
+            place-items: center;
+            width: 100%;
+            height: 100%;
+            border-radius: inherit;
+            background: rgba(255, 255, 255, 0.82);
+            font-size: 34px;
           }
 
           .sk-threat-expanded {
             display: contents;
           }
 
-          .sk-threat-expanded > div {
+          .sk-threat-response-panel {
             grid-area: response;
+            min-width: 0;
             margin-top: 0;
-          }
-
-          .sk-threat-safety-image {
-            grid-area: safety;
-            align-self: stretch;
-            width: 100%;
-            min-height: 0;
-          }
-
-          .sk-threat-safety-image img {
-            width: 100%;
-            height: 100%;
-            min-height: 0;
-            object-fit: cover;
           }
 
           .sk-threat-legal {
@@ -1369,16 +1467,12 @@ export default function ThreatAlertMapClient({ alert }: Props) {
             margin-top: 0;
           }
 
-          .sk-threat-owner-name h1 {
-            font-size: 17px;
-          }
-
           .sk-threat-location-card .sk-threat-grid {
             grid-template-columns: repeat(2, minmax(0, 1fr));
             gap: 6px;
           }
 
-          .sk-threat-expanded > div .sk-threat-grid {
+          .sk-threat-response-panel .sk-threat-grid {
             grid-template-columns: repeat(2, minmax(0, 1fr));
           }
 
@@ -1394,6 +1488,18 @@ export default function ThreatAlertMapClient({ alert }: Props) {
           .sk-threat-location-card p {
             font-size: 9px;
             line-height: 1.4;
+          }
+
+          /*
+           * Keep the avatar marker circular and remove any dark backing
+           * visible around the profile image.
+           */
+          .sk-threat-marker-image-frame {
+            background: #ffffff;
+          }
+
+          .sk-threat-marker-image-avatar {
+            border-radius: 999px;
           }
         }
 
@@ -1418,7 +1524,7 @@ export default function ThreatAlertMapClient({ alert }: Props) {
             display: contents;
           }
 
-          .sk-threat-expanded > div {
+          .sk-threat-response-panel {
             grid-area: response;
           }
 
@@ -1585,11 +1691,19 @@ export default function ThreatAlertMapClient({ alert }: Props) {
                 src={safetyImage || assets.avatar}
                 fallbackLogo={assets.avatar}
                 alt={`${alert.ownerName} safety image`}
-                className="sk-threat-safety-image"
+                className="sk-threat-safety-image sk-threat-safety-image-desktop"
                 useInitialFallback
               />
 
-              <div>
+              <PreparedImage
+                src={assets.avatar}
+                fallbackLogo=""
+                alt={alert.ownerName}
+                className="sk-threat-mobile-feature-avatar"
+                useInitialFallback
+              />
+
+              <div className="sk-threat-response-panel">
                 <div className="sk-threat-guidance">
                   <strong>Respond without risking yourself</strong>
                   <p>{safeText(alert.caution) || DEFAULT_CAUTION}</p>
