@@ -320,7 +320,7 @@ function UserAvatar({
   return (
     <div
       className={`relative grid h-[58px] w-[58px] shrink-0 place-items-center overflow-hidden rounded-[21px] border border-white/95 shadow-[0_15px_28px_rgba(0,0,0,0.17),inset_0_1px_0_rgba(255,255,255,0.20)] ${
-        hasAvatar ? "bg-black" : "bg-white"
+        hasAvatar ? "bg-transparent" : "bg-white"
       }`}
       role="img"
       aria-label={`${name} profile picture`}
@@ -332,14 +332,13 @@ function UserAvatar({
         draggable={false}
         className={
           hasAvatar
-            ? "h-full w-full object-cover"
+            ? "h-full w-full bg-transparent object-cover"
             : "h-full w-full bg-white p-2 object-contain"
         }
       />
     </div>
   );
 }
-
 function VerifiedName({ name, verified }: { name: string; verified: boolean }) {
   return (
     <span className="inline-flex min-w-0 items-center justify-start gap-1.5">
