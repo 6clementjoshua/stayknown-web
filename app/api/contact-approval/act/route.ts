@@ -12,6 +12,8 @@ type Decision = "approve" | "decline";
 type ApprovalRow = {
   id: string;
   requester_id?: string | null;
+  target_user_id?: string | null;
+  target_email?: string | null;
   status?: string | null;
   added_type?: string | null;
   contact_row_id?: string | null;
@@ -155,14 +157,32 @@ function requestState(row: ApprovalRow) {
   return "pending_other_party" as const;
 }
 
+function publicApprovalRequest(row: ApprovalRow) {
+  return {
+    id: row.id,
+    status: row.status ?? null,
+    added_type: row.added_type ?? null,
+    expires_at: row.expires_at ?? null,
+    owner_approved: row.owner_approved === true,
+    target_approved: row.target_approved === true,
+    owner_declined: row.owner_declined === true,
+    target_declined: row.target_declined === true,
+    owner_completed_at: row.owner_completed_at ?? null,
+    target_completed_at: row.target_completed_at ?? null,
+    requester_name: row.requester_name ?? null,
+    requester_email_masked: row.requester_email_masked ?? null,
+    target_name: row.target_name ?? null,
+    target_email_masked: row.target_email_masked ?? null,
+  };
+}
+
 async function finalizeContactIfReady(
   sb: ReturnType<typeof admin>,
   row: ApprovalRow,
-) {
-  const ownerApproved = row.owner_approved === true;
-  const targetApproved = row.target_approved === true;
-
-  if (!ownerApproved || !targetApproved) return false;
+): Promise<boolean> {
+  if (row.owner_approved !== true || row.target_approved !== true) {
+    return false;
+  }
 
   const addedType = clean(row.added_type).toLowerCase();
   const contactRowId = clean(row.contact_row_id);
@@ -171,26 +191,30 @@ async function finalizeContactIfReady(
     throw new Error("Missing contact_row_id");
   }
 
+  let finalizedContactId = "";
+
   if (addedType === "emergency") {
-    const { error } = await sb
+    const { data, error } = await sb
       .from("emergency_contacts")
-      .update({
-        approval_status: "approved",
-      })
+      .update({ approval_status: "approved" })
       .eq("id", contactRowId)
-      .eq("approval_status", "pending");
+      .eq("approval_status", "pending")
+      .select("id")
+      .maybeSingle();
 
     if (error) throw error;
+    finalizedContactId = clean((data as Record<string, unknown> | null)?.id);
   } else if (addedType === "sos") {
-    const { error } = await sb
+    const { data, error } = await sb
       .from("sos_contacts")
-      .update({
-        approval_status: "approved",
-      })
+      .update({ approval_status: "approved" })
       .eq("id", contactRowId)
-      .eq("approval_status", "pending");
+      .eq("approval_status", "pending")
+      .select("id")
+      .maybeSingle();
 
     if (error) throw error;
+    finalizedContactId = clean((data as Record<string, unknown> | null)?.id);
   } else {
     throw new Error("Unsupported added_type for dual confirmation");
   }
@@ -206,38 +230,46 @@ async function finalizeContactIfReady(
 
   if (reqErr) throw reqErr;
 
-  return true;
+  // Only the request that actually changed the contact from pending to
+  // approved sends the completion notifications. This prevents duplicate
+  // email and push delivery when both links are submitted at nearly the same
+  // time or a browser retries the request.
+  return finalizedContactId.length > 0;
 }
 
 async function removePendingContact(
   sb: ReturnType<typeof admin>,
   row: ApprovalRow,
-) {
+): Promise<boolean> {
   const addedType = clean(row.added_type).toLowerCase();
   const contactRowId = clean(row.contact_row_id);
 
-  if (!contactRowId) return;
+  if (!contactRowId) return false;
 
   if (addedType === "emergency") {
-    const { error } = await sb
+    const { data, error } = await sb
       .from("emergency_contacts")
       .delete()
       .eq("id", contactRowId)
-      .eq("approval_status", "pending");
+      .eq("approval_status", "pending")
+      .select("id")
+      .maybeSingle();
 
     if (error) throw error;
-    return;
+    return clean((data as Record<string, unknown> | null)?.id).length > 0;
   }
 
   if (addedType === "sos") {
-    const { error } = await sb
+    const { data, error } = await sb
       .from("sos_contacts")
       .delete()
       .eq("id", contactRowId)
-      .eq("approval_status", "pending");
+      .eq("approval_status", "pending")
+      .select("id")
+      .maybeSingle();
 
     if (error) throw error;
-    return;
+    return clean((data as Record<string, unknown> | null)?.id).length > 0;
   }
 
   throw new Error("Unsupported added_type for pending contact removal");
@@ -391,6 +423,8 @@ export async function POST(req: Request) {
         `
           id,
           requester_id,
+          target_user_id,
+          target_email,
           status,
           added_type,
           contact_row_id,
@@ -430,13 +464,16 @@ export async function POST(req: Request) {
     const currentState = requestState(row);
 
     if (currentState === "expired") {
-      await sb
+      const { data: expiredClaim } = await sb
         .from("contact_approval_requests")
         .update({
           status: "expired",
           updated_at: toIsoNow(),
         })
-        .eq("id", requestId);
+        .eq("id", requestId)
+        .neq("status", "expired")
+        .select("id")
+        .maybeSingle();
 
       const addedType = clean(row.added_type).toLowerCase();
       const contactRowId = clean(row.contact_row_id);
@@ -457,12 +494,30 @@ export async function POST(req: Request) {
         }
       }
 
+      if (clean((expiredClaim as Record<string, unknown> | null)?.id)) {
+        await invokeInternalEdge("contact_declined_notify", {
+          request_id: requestId,
+          resolution: "expired",
+          actor: "system",
+          adder_user_id: clean(row.requester_id),
+          added_type: clean(row.added_type),
+          target_user_id: clean(row.target_user_id),
+          target_email: clean(row.target_email),
+          target_display_name:
+            clean(row.target_name) || clean(row.target_email_masked),
+          item: {
+            name: clean(row.target_name),
+            email: clean(row.target_email),
+          },
+        });
+      }
+
       return NextResponse.json({
         ok: false,
         state: "expired",
         message:
           "This request expired for security reasons. Please restart the process.",
-        request: row,
+        request: publicApprovalRequest(row),
       });
     }
 
@@ -471,7 +526,7 @@ export async function POST(req: Request) {
         ok: false,
         state: "declined",
         message: "This request was already declined and cannot proceed.",
-        request: row,
+        request: publicApprovalRequest(row),
       });
     }
 
@@ -480,7 +535,24 @@ export async function POST(req: Request) {
         ok: false,
         state: "already_resolved",
         message: "This request was already completed successfully.",
-        request: row,
+        request: publicApprovalRequest(row),
+      });
+    }
+
+    const actorAlreadyCompleted =
+      actor === "owner"
+        ? row.owner_approved === true || row.owner_declined === true
+        : row.target_approved === true || row.target_declined === true;
+
+    if (actorAlreadyCompleted) {
+      return NextResponse.json({
+        ok: true,
+        state: requestState(row),
+        message:
+          actor === "owner"
+            ? "Your decision was already recorded. Waiting for the contact email owner."
+            : "Your decision was already recorded. Waiting for the account owner.",
+        request: publicApprovalRequest(row),
       });
     }
 
@@ -554,6 +626,8 @@ export async function POST(req: Request) {
         `
           id,
           requester_id,
+          target_user_id,
+          target_email,
           status,
           added_type,
           contact_row_id,
@@ -581,19 +655,26 @@ export async function POST(req: Request) {
     const nextState = requestState(nextRow);
 
     if (nextState === "declined") {
-      await removePendingContact(sb, nextRow);
+      const removedPendingContact = await removePendingContact(sb, nextRow);
 
-      await invokeInternalEdge("contact_declined_notify", {
-        adder_user_id: clean(nextRow.requester_id),
-        added_type: clean(nextRow.added_type),
-        target_display_name:
-          clean(nextRow.target_name) || clean(nextRow.target_email_masked),
-        decline_action: "decline",
-        item: {
-          name: clean(nextRow.target_name),
-          email: clean(nextRow.target_email_masked),
-        },
-      });
+      if (removedPendingContact) {
+        await invokeInternalEdge("contact_declined_notify", {
+          request_id: clean(nextRow.id),
+          resolution: "declined",
+          actor,
+          adder_user_id: clean(nextRow.requester_id),
+          added_type: clean(nextRow.added_type),
+          target_user_id: clean(nextRow.target_user_id),
+          target_email: clean(nextRow.target_email),
+          target_display_name:
+            clean(nextRow.target_name) || clean(nextRow.target_email_masked),
+          decline_action: "decline",
+          item: {
+            name: clean(nextRow.target_name),
+            email: clean(nextRow.target_email),
+          },
+        });
+      }
 
       return NextResponse.json({
         ok: true,
@@ -602,24 +683,33 @@ export async function POST(req: Request) {
           actor === "owner"
             ? "You declined this request. The email will not be added."
             : "You declined this request. The email will not be added.",
-        request: nextRow,
+        request: publicApprovalRequest(nextRow),
       });
     }
     if (nextState === "fully_approved") {
-      await finalizeContactIfReady(sb, nextRow);
+      const finalizedNow = await finalizeContactIfReady(sb, nextRow);
 
-      const approvedContact = await loadApprovedContactItem(sb, nextRow);
+      if (finalizedNow) {
+        const approvedContact = await loadApprovedContactItem(sb, nextRow);
 
-      await invokeInternalEdge("contact_added_notify", {
-        adder_user_id: clean(nextRow.requester_id),
-        added_type: approvedContact.addedType,
-        adder_name: clean(nextRow.requester_name) || "StayKnown User",
-        requester_email_masked: clean(nextRow.requester_email_masked),
-        target_name: clean(nextRow.target_name),
-        target_email_masked: clean(nextRow.target_email_masked),
-        request_id: clean(nextRow.id),
-        items: [approvedContact.item],
-      });
+        await invokeInternalEdge("contact_added_notify", {
+          adder_user_id: clean(nextRow.requester_id),
+          added_type: approvedContact.addedType,
+          adder_name: clean(nextRow.requester_name) || "StayKnown User",
+          requester_email_masked: clean(nextRow.requester_email_masked),
+          target_user_id: clean(nextRow.target_user_id),
+          target_name: clean(nextRow.target_name),
+          target_email: clean(nextRow.target_email),
+          target_email_masked: clean(nextRow.target_email_masked),
+          request_id: clean(nextRow.id),
+          items: [
+            {
+              ...approvedContact.item,
+              target_user_id: clean(nextRow.target_user_id),
+            },
+          ],
+        });
+      }
 
       const { data: finalData } = await sb
         .from("contact_approval_requests")
@@ -651,9 +741,16 @@ export async function POST(req: Request) {
         state: "fully_approved",
         message:
           "Both confirmations are complete. The contact has now been added successfully.",
-        request: (finalData as ApprovalRow | null) ?? nextRow,
+        request: publicApprovalRequest(
+          (finalData as ApprovalRow | null) ?? nextRow,
+        ),
       });
     }
+
+    await invokeInternalEdge("contact_approval_progress_notify", {
+      request_id: clean(nextRow.id),
+      completed_actor: actor,
+    });
 
     return NextResponse.json({
       ok: true,
@@ -662,7 +759,7 @@ export async function POST(req: Request) {
         actor === "owner"
           ? "Your confirmation has been recorded. The request will complete when the contact email owner also confirms."
           : "Your confirmation has been recorded. The request will complete when the account owner also confirms.",
-      request: nextRow,
+      request: publicApprovalRequest(nextRow),
     });
   } catch (e) {
     return NextResponse.json(
