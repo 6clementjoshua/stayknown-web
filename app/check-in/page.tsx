@@ -250,64 +250,6 @@ async function loadVerification(sb: SupabaseClient, userId: string) {
   }
 }
 
-async function signedAvatar(
-  sb: SupabaseClient,
-  rawPath: string,
-): Promise<string> {
-  const raw = safeTrim(rawPath);
-
-  if (!raw) {
-    return "";
-  }
-
-  if (/^https?:\/\//i.test(raw)) {
-    return raw;
-  }
-
-  const normalized = raw.replace(/^\/+/, "");
-
-  const candidates = normalized.startsWith("avatars/")
-    ? [
-        {
-          bucket: "avatars",
-          path: normalized.slice("avatars/".length),
-        },
-      ]
-    : normalized.startsWith("safety-gallery/")
-      ? [
-          {
-            bucket: "safety-gallery",
-            path: normalized.slice("safety-gallery/".length),
-          },
-        ]
-      : [
-          {
-            bucket: "avatars",
-            path: normalized,
-          },
-          {
-            bucket: "safety-gallery",
-            path: normalized,
-          },
-        ];
-
-  for (const candidate of candidates) {
-    try {
-      const result = await sb.storage
-        .from(candidate.bucket)
-        .createSignedUrl(candidate.path, 60 * 60);
-
-      const url = safeTrim(result.data?.signedUrl);
-
-      if (!result.error && url) {
-        return url;
-      }
-    } catch {}
-  }
-
-  return "";
-}
-
 export default async function CheckInPage({
   searchParams,
 }: {
@@ -348,34 +290,24 @@ export default async function CheckInPage({
   try {
     const sb = admin();
 
-    const [checkInResult, profileResult, profileFallbackResult, verification] =
-      await Promise.all([
-        sb
-          .from("daily_safety_checkins")
-          .select(
-            "id,user_id,checked_in_at,lat,lng,accuracy,place,plan_tier,missed_alerts_enabled,created_at",
-          )
-          .eq("id", checkInId)
-          .eq("user_id", userId)
-          .maybeSingle(),
+    const [checkInResult, profileResult, verification] = await Promise.all([
+      sb
+        .from("daily_safety_checkins")
+        .select(
+          "id,user_id,checked_in_at,lat,lng,accuracy,place,plan_tier,missed_alerts_enabled,created_at",
+        )
+        .eq("id", checkInId)
+        .eq("user_id", userId)
+        .maybeSingle(),
 
-        sb
-          .from("user_profile")
-          .select(
-            [
-              "display_name",
-              "first_name",
-              "last_name",
-              "profile_photo_url",
-            ].join(","),
-          )
-          .eq("user_id", userId)
-          .maybeSingle(),
+      sb
+        .from("user_profile")
+        .select("display_name,first_name,last_name")
+        .eq("user_id", userId)
+        .maybeSingle(),
 
-        sb.from("profiles").select("avatar_url").eq("id", userId).maybeSingle(),
-
-        loadVerification(sb, userId),
-      ]);
+      loadVerification(sb, userId),
+    ]);
 
     if (checkInResult.error || !checkInResult.data) {
       return <InvalidState reason="checkin_not_found" />;
@@ -385,9 +317,6 @@ export default async function CheckInPage({
 
     const profile =
       (profileResult.data as Record<string, unknown> | null) ?? null;
-
-    const fallbackProfile =
-      (profileFallbackResult.data as Record<string, unknown> | null) ?? null;
 
     const lat =
       typeof row.lat === "number" && Number.isFinite(row.lat) ? row.lat : null;
@@ -404,23 +333,32 @@ export default async function CheckInPage({
       return <InvalidState reason="location_not_attached" />;
     }
 
-    const storedAvatarPath =
-      safeTrim(profile?.profile_photo_url) ||
-      safeTrim(fallbackProfile?.avatar_url);
-
     /*
-     * Same avatar resolution pattern used
-     * by the working live Visit map:
+     * Use the same secure image-proxy pattern
+     * as the working Threat Alert map.
      *
-     * user_profile.profile_photo_url
-     * → profiles.avatar_url
-     * → conventional avatars/{uid}/avatar path
-     * → StayKnown logo only if all fail.
+     * The proxy re-reads the user's current
+     * avatar, repairs stale Supabase signed
+     * URLs, downloads private Storage objects
+     * with the service role, and returns real
+     * image bytes to this same-origin page.
      */
-    const visitorAvatarUrl = await signedAvatar(
-      sb,
-      storedAvatarPath || `${userId}/avatar`,
-    );
+    const avatarQuery = new URLSearchParams({
+      cid: checkInId,
+      exp: String(expiresAt),
+      uid: userId,
+      aud: audience,
+      sig: safeTrim(params.get("sig")),
+    });
+
+    const avatarVersion =
+      safeTrim(row.checked_in_at) ||
+      safeTrim(row.created_at) ||
+      String(Date.now());
+
+    avatarQuery.set("v", avatarVersion);
+
+    const visitorAvatarUrl = `/api/check-in-image?${avatarQuery.toString()}`;
 
     const seed: CheckInSeed = {
       checkInId,
