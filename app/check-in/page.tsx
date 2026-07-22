@@ -1,10 +1,23 @@
 import crypto from "crypto";
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import CheckInClient, { type CheckInSeed } from "./check-in-client";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 export const runtime = "nodejs";
+
+type CheckInRow = {
+  id: string;
+  user_id: string;
+  checked_in_at: string | null;
+  lat: number | null;
+  lng: number | null;
+  accuracy: number | null;
+  place: string | null;
+  plan_tier: string | null;
+  missed_alerts_enabled: boolean | null;
+  created_at: string | null;
+};
 
 function admin() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -32,32 +45,29 @@ function cleanString(value: unknown): string | null {
 
 function safeEqualBase64Url(expected: string, received: string): boolean {
   try {
-    const expectedBuffer = Buffer.from(expected);
-    const receivedBuffer = Buffer.from(received);
+    const a = Buffer.from(expected);
+    const b = Buffer.from(received);
 
-    if (
-      expectedBuffer.length !== receivedBuffer.length ||
-      expectedBuffer.length === 0
-    ) {
+    if (a.length !== b.length || a.length === 0) {
       return false;
     }
 
-    return crypto.timingSafeEqual(expectedBuffer, receivedBuffer);
+    return crypto.timingSafeEqual(a, b);
   } catch {
     return false;
   }
 }
 
 function verifySignature(params: URLSearchParams) {
-  const checkInId = safeTrim(params.get("cid"));
+  const cid = safeTrim(params.get("cid"));
   const exp = safeTrim(params.get("exp"));
-  const userId = safeTrim(params.get("uid"));
-  const audience = safeTrim(params.get("aud"));
-  const signature = safeTrim(params.get("sig"));
+  const uid = safeTrim(params.get("uid"));
+  const aud = safeTrim(params.get("aud"));
+  const sig = safeTrim(params.get("sig"));
 
   const secret = safeTrim(process.env.TRACKING_SIGNING_SECRET);
 
-  if (!checkInId) {
+  if (!cid) {
     return {
       ok: false,
       reason: "missing_cid" as const,
@@ -71,14 +81,14 @@ function verifySignature(params: URLSearchParams) {
     };
   }
 
-  if (!userId) {
+  if (!uid) {
     return {
       ok: false,
       reason: "missing_uid" as const,
     };
   }
 
-  if (!signature) {
+  if (!sig) {
     return {
       ok: false,
       reason: "missing_sig" as const,
@@ -92,37 +102,33 @@ function verifySignature(params: URLSearchParams) {
     };
   }
 
-  const expirationNumber = Number(exp);
+  const expNum = Number(exp);
   const now = Math.floor(Date.now() / 1000);
 
-  if (!Number.isFinite(expirationNumber)) {
+  if (!Number.isFinite(expNum)) {
     return {
       ok: false,
       reason: "bad_exp" as const,
     };
   }
 
-  if (expirationNumber < now) {
+  if (expNum < now) {
     return {
       ok: false,
       reason: "expired" as const,
     };
   }
 
-  if (audience !== "contacts" && audience !== "self") {
+  if (aud !== "contacts" && aud !== "self") {
     return {
       ok: false,
       reason: "bad_audience" as const,
     };
   }
 
-  const message =
-    `cid=${checkInId}` +
-    `&exp=${expirationNumber}` +
-    `&uid=${userId}` +
-    `&aud=${audience}`;
+  const message = `cid=${cid}&exp=${expNum}` + `&uid=${uid}&aud=${aud}`;
 
-  const expectedSignature = crypto
+  const expected = crypto
     .createHmac("sha256", secret)
     .update(message)
     .digest("base64")
@@ -130,18 +136,18 @@ function verifySignature(params: URLSearchParams) {
     .replace(/\//g, "_")
     .replace(/=+$/g, "");
 
-  const ok = safeEqualBase64Url(expectedSignature, signature);
+  const ok = safeEqualBase64Url(expected, sig);
 
   console.log("[check-in-verify]", {
     ok,
     reason: ok ? "ok" : "bad_signature",
-    cid_present: Boolean(checkInId),
-    uid_present: Boolean(userId),
-    audience,
+    cid_present: Boolean(cid),
+    uid_present: Boolean(uid),
+    aud,
     exp,
     now,
-    sig_prefix: signature.slice(0, 12),
-    expected_prefix: expectedSignature.slice(0, 12),
+    sig_prefix: sig.slice(0, 12),
+    expected_prefix: expected.slice(0, 12),
     secret_present: Boolean(secret),
   });
 
@@ -202,28 +208,21 @@ function displayNameFromProfile(profile: Record<string, unknown> | null) {
   return fullName || "StayKnown member";
 }
 
-async function loadVerification(
-  supabase: ReturnType<typeof admin>,
-  userId: string,
-) {
+async function loadVerification(sb: SupabaseClient, userId: string) {
   let profileVerified = false;
 
   try {
-    const profileResult = await supabase
+    const profileResult = await sb
       .from("profiles")
       .select("verified")
       .eq("id", userId)
       .maybeSingle();
 
-    const profileRow = profileResult.data as {
-      verified?: boolean | null;
-    } | null;
-
-    profileVerified = profileRow?.verified === true;
+    profileVerified = profileResult.data?.verified === true;
   } catch {}
 
   try {
-    const badgeResult = await supabase
+    const badgeResult = await sb
       .from("user_verification_badges")
       .select("badge_type,status")
       .eq("user_id", userId)
@@ -238,15 +237,10 @@ async function loadVerification(
       .limit(1)
       .maybeSingle();
 
-    const badgeRow = badgeResult.data as {
-      badge_type?: string | null;
-      status?: string | null;
-    } | null;
-
     return {
-      verified: profileVerified || Boolean(badgeRow),
+      verified: profileVerified || Boolean(badgeResult.data),
 
-      badgeType: safeTrim(badgeRow?.badge_type),
+      badgeType: safeTrim(badgeResult.data?.badge_type),
     };
   } catch {
     return {
@@ -254,6 +248,64 @@ async function loadVerification(
       badgeType: "",
     };
   }
+}
+
+async function signedAvatar(
+  sb: SupabaseClient,
+  rawPath: string,
+): Promise<string> {
+  const raw = safeTrim(rawPath);
+
+  if (!raw) {
+    return "";
+  }
+
+  if (/^https?:\/\//i.test(raw)) {
+    return raw;
+  }
+
+  const normalized = raw.replace(/^\/+/, "");
+
+  const candidates = normalized.startsWith("avatars/")
+    ? [
+        {
+          bucket: "avatars",
+          path: normalized.slice("avatars/".length),
+        },
+      ]
+    : normalized.startsWith("safety-gallery/")
+      ? [
+          {
+            bucket: "safety-gallery",
+            path: normalized.slice("safety-gallery/".length),
+          },
+        ]
+      : [
+          {
+            bucket: "avatars",
+            path: normalized,
+          },
+          {
+            bucket: "safety-gallery",
+            path: normalized,
+          },
+        ];
+
+  for (const candidate of candidates) {
+    try {
+      const result = await sb.storage
+        .from(candidate.bucket)
+        .createSignedUrl(candidate.path, 60 * 60);
+
+      const url = safeTrim(result.data?.signedUrl);
+
+      if (!result.error && url) {
+        return url;
+      }
+    } catch {}
+  }
+
+  return "";
 }
 
 export default async function CheckInPage({
@@ -294,45 +346,48 @@ export default async function CheckInPage({
   }
 
   try {
-    const supabase = admin();
+    const sb = admin();
 
-    const [checkInResult, profileResult, verification] = await Promise.all([
-      supabase
-        .from("daily_safety_checkins")
-        .select(
-          "id,user_id,checked_in_at,lat,lng,accuracy,place,plan_tier,missed_alerts_enabled,created_at",
-        )
-        .eq("id", checkInId)
-        .eq("user_id", userId)
-        .maybeSingle(),
+    const [checkInResult, profileResult, profileFallbackResult, verification] =
+      await Promise.all([
+        sb
+          .from("daily_safety_checkins")
+          .select(
+            "id,user_id,checked_in_at,lat,lng,accuracy,place,plan_tier,missed_alerts_enabled,created_at",
+          )
+          .eq("id", checkInId)
+          .eq("user_id", userId)
+          .maybeSingle(),
 
-      supabase
-        .from("user_profile")
-        .select("display_name,first_name,last_name")
-        .eq("user_id", userId)
-        .maybeSingle(),
+        sb
+          .from("user_profile")
+          .select(
+            [
+              "display_name",
+              "first_name",
+              "last_name",
+              "profile_photo_url",
+            ].join(","),
+          )
+          .eq("user_id", userId)
+          .maybeSingle(),
 
-      loadVerification(supabase, userId),
-    ]);
+        sb.from("profiles").select("avatar_url").eq("id", userId).maybeSingle(),
+
+        loadVerification(sb, userId),
+      ]);
 
     if (checkInResult.error || !checkInResult.data) {
-      console.error("[check-in-page.checkin]", checkInResult.error);
-
       return <InvalidState reason="checkin_not_found" />;
     }
 
-    const row = checkInResult.data as unknown as {
-      id: string;
-      user_id: string;
-      checked_in_at: string;
-      lat: number | null;
-      lng: number | null;
-      accuracy: number | null;
-      place: string | null;
-      plan_tier: string;
-      missed_alerts_enabled: boolean;
-      created_at: string;
-    };
+    const row = checkInResult.data as unknown as CheckInRow;
+
+    const profile =
+      (profileResult.data as Record<string, unknown> | null) ?? null;
+
+    const fallbackProfile =
+      (profileFallbackResult.data as Record<string, unknown> | null) ?? null;
 
     const lat =
       typeof row.lat === "number" && Number.isFinite(row.lat) ? row.lat : null;
@@ -345,9 +400,27 @@ export default async function CheckInPage({
         ? row.accuracy
         : null;
 
-    if (lat === null || lng === null) {
+    if (lat == null || lng == null) {
       return <InvalidState reason="location_not_attached" />;
     }
+
+    const storedAvatarPath =
+      safeTrim(profile?.profile_photo_url) ||
+      safeTrim(fallbackProfile?.avatar_url);
+
+    /*
+     * Same avatar resolution pattern used
+     * by the working live Visit map:
+     *
+     * user_profile.profile_photo_url
+     * → profiles.avatar_url
+     * → conventional avatars/{uid}/avatar path
+     * → StayKnown logo only if all fail.
+     */
+    const visitorAvatarUrl = await signedAvatar(
+      sb,
+      storedAvatarPath || `${userId}/avatar`,
+    );
 
     const seed: CheckInSeed = {
       checkInId,
@@ -355,9 +428,9 @@ export default async function CheckInPage({
       audience,
       expiresAt,
 
-      visitorName: displayNameFromProfile(
-        (profileResult.data as Record<string, unknown> | null) ?? null,
-      ),
+      visitorName: displayNameFromProfile(profile),
+
+      visitorAvatarUrl: visitorAvatarUrl || null,
 
       verified: verification.verified,
 

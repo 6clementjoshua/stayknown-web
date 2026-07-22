@@ -215,7 +215,18 @@ async function fetchImageObjectUrl(url: string): Promise<string> {
   return "";
 }
 
-function buildCheckInMarker() {
+function buildCheckInMarker({
+  avatarUrl,
+  logoUrl,
+  displayName,
+}: {
+  avatarUrl: string;
+  logoUrl: string;
+  displayName: string;
+}) {
+  const cleanAvatarUrl = safeText(avatarUrl);
+  const cleanLogoUrl = safeText(logoUrl) || "/6logo.png";
+
   const wrap = document.createElement("div");
 
   wrap.style.width = "88px";
@@ -224,6 +235,7 @@ function buildCheckInMarker() {
   wrap.style.alignItems = "center";
   wrap.style.justifyContent = "center";
   wrap.style.position = "relative";
+  wrap.setAttribute("aria-label", `${displayName} check-in location`);
 
   const halo = document.createElement("div");
 
@@ -235,7 +247,7 @@ function buildCheckInMarker() {
   halo.style.border = "1px solid rgba(255,255,255,0.24)";
   halo.style.backdropFilter = "blur(10px)";
   halo.style.boxShadow =
-    "0 0 0 10px rgba(255,255,255,0.05), 0 18px 40px rgba(0,0,0,0.16)";
+    "0 0 0 10px rgba(255,255,255,0.05), " + "0 18px 40px rgba(0,0,0,0.16)";
 
   const pin = document.createElement("div");
 
@@ -245,21 +257,45 @@ function buildCheckInMarker() {
   pin.style.display = "flex";
   pin.style.alignItems = "center";
   pin.style.justifyContent = "center";
+  pin.style.overflow = "hidden";
   pin.style.background =
-    "linear-gradient(180deg, rgba(255,255,255,0.99), rgba(243,245,247,0.96))";
-  pin.style.border = "1px solid rgba(255,255,255,0.98)";
+    "linear-gradient(180deg, " +
+    "rgba(255,255,255,0.99), " +
+    "rgba(243,245,247,0.96))";
+  pin.style.border = "2px solid rgba(255,255,255,0.98)";
   pin.style.boxShadow =
-    "0 16px 34px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,1)";
+    "0 16px 34px rgba(0,0,0,0.18), " + "inset 0 1px 0 rgba(255,255,255,1)";
   pin.style.position = "relative";
   pin.style.zIndex = "2";
 
   const image = document.createElement("img");
 
-  image.src = "/6logo.png";
-  image.alt = "StayKnown";
-  image.style.width = "19px";
-  image.style.height = "19px";
-  image.style.objectFit = "contain";
+  const applyLogoFallback = () => {
+    image.src = cleanLogoUrl;
+    image.alt = "StayKnown";
+    image.style.width = "100%";
+    image.style.height = "100%";
+    image.style.objectFit = "contain";
+    image.style.padding = "9px";
+    image.style.background = "#ffffff";
+  };
+
+  if (cleanAvatarUrl) {
+    image.src = cleanAvatarUrl;
+    image.alt = `${displayName} profile photo`;
+    image.style.width = "100%";
+    image.style.height = "100%";
+    image.style.objectFit = "cover";
+    image.style.padding = "0";
+    image.style.background = "transparent";
+
+    image.onerror = () => {
+      image.onerror = null;
+      applyLogoFallback();
+    };
+  } else {
+    applyLogoFallback();
+  }
 
   pin.appendChild(image);
   wrap.appendChild(halo);
@@ -498,7 +534,11 @@ export default function CheckInClient({ seed }: { seed: CheckInSeed }) {
         setMapError("");
 
         markerRef.current = new maplibregl.Marker({
-          element: buildCheckInMarker(),
+          element: buildCheckInMarker({
+            avatarUrl: assets.avatar,
+            logoUrl: assets.logo,
+            displayName: seed.visitorName,
+          }),
           anchor: "center",
         })
           .setLngLat([seed.lng, seed.lat])
@@ -563,6 +603,39 @@ export default function CheckInClient({ seed }: { seed: CheckInSeed }) {
       setMapError("StayKnown map preview is temporarily unavailable.");
     }
   }, [accepted, renderMode, seed.accuracy, seed.lat, seed.lng]);
+
+  /*
+   * Refresh only the marker when the prepared avatar becomes available.
+   * The map itself is not recreated, so existing map behaviour remains intact.
+   */
+  React.useEffect(() => {
+    if (!mapReady || renderMode !== "map" || !mapRef.current) {
+      return;
+    }
+
+    try {
+      markerRef.current?.remove();
+    } catch {}
+
+    markerRef.current = new maplibregl.Marker({
+      element: buildCheckInMarker({
+        avatarUrl: assets.avatar,
+        logoUrl: assets.logo,
+        displayName: seed.visitorName,
+      }),
+      anchor: "center",
+    })
+      .setLngLat([seed.lng, seed.lat])
+      .addTo(mapRef.current);
+  }, [
+    assets.avatar,
+    assets.logo,
+    mapReady,
+    renderMode,
+    seed.lat,
+    seed.lng,
+    seed.visitorName,
+  ]);
 
   const cardBackground = darkTheme ? "bg-black/80" : "bg-white/94";
 
