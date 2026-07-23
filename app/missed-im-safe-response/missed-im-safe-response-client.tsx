@@ -34,6 +34,7 @@ type PublicPerson = {
   name: string;
   verified: boolean;
   username?: string | null;
+  avatarUrl?: string | null;
 };
 
 type ActionResp = {
@@ -142,6 +143,36 @@ function fallbackMessage(uiState: UiState, contextSuccess: string) {
 
 function cleanName(value: string) {
   return value.trim() || "StayKnown member";
+}
+
+function signedAvatarUrl(params: {
+  person: "subject" | "contact";
+  uid: string;
+  contact: string;
+  contactName: string;
+  subjectName: string;
+  response: ResponseChoice;
+  expected: string;
+  due: string;
+  sent: string;
+  exp: number;
+  sig: string;
+}) {
+  const search = new URLSearchParams({
+    person: params.person,
+    uid: params.uid,
+    contact: params.contact,
+    contact_name: params.contactName,
+    subject_name: params.subjectName,
+    response: params.response,
+    expected: params.expected,
+    due: params.due,
+    sent: params.sent,
+    exp: String(params.exp),
+    sig: params.sig,
+  });
+
+  return `/api/missed-im-safe-response/avatar?${search.toString()}`;
 }
 
 function VerifiedBadge() {
@@ -310,12 +341,36 @@ function PersonCard({
   person: PublicPerson;
   supporting?: string;
 }) {
+  const avatarUrl = (person.avatarUrl || "").trim();
+  const [avatarFailed, setAvatarFailed] = React.useState(false);
+
+  React.useEffect(() => {
+    setAvatarFailed(false);
+  }, [avatarUrl]);
+
+  const showAvatar = avatarUrl.length > 0 && !avatarFailed;
+  const initial = cleanName(person.name).slice(0, 1).toUpperCase();
+
   return (
     <div className="group relative min-w-0 overflow-hidden rounded-[24px] border border-white/80 bg-[linear-gradient(145deg,rgba(255,255,255,0.9),rgba(222,225,229,0.66))] p-4 shadow-[0_18px_42px_rgba(0,0,0,0.09),inset_0_1px_0_rgba(255,255,255,1),inset_0_-10px_22px_rgba(0,0,0,0.04)] transition duration-300 hover:-translate-y-0.5 hover:shadow-[0_22px_50px_rgba(0,0,0,0.12),inset_0_1px_0_rgba(255,255,255,1),inset_0_-10px_22px_rgba(0,0,0,0.045)]">
       <span className="pointer-events-none absolute inset-x-5 top-px h-px bg-white" />
       <div className="flex min-w-0 items-center gap-3">
-        <div className="grid h-11 w-11 shrink-0 place-items-center rounded-[16px] border border-white/90 bg-[linear-gradient(145deg,#ffffff,#dfe2e6)] text-[15px] font-black text-black/78 shadow-[0_10px_22px_rgba(0,0,0,0.1),inset_0_1px_0_rgba(255,255,255,1),inset_0_-5px_10px_rgba(0,0,0,0.05)]">
-          {cleanName(person.name).slice(0, 1).toUpperCase()}
+        <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-[16px] border border-white/90 bg-[linear-gradient(145deg,#ffffff,#dfe2e6)] shadow-[0_10px_22px_rgba(0,0,0,0.1),inset_0_1px_0_rgba(255,255,255,1),inset_0_-5px_10px_rgba(0,0,0,0.05)]">
+          {showAvatar ? (
+            <img
+              src={avatarUrl}
+              alt={`${cleanName(person.name)} profile`}
+              className="h-full w-full object-cover"
+              loading="eager"
+              decoding="async"
+              referrerPolicy="no-referrer"
+              onError={() => setAvatarFailed(true)}
+            />
+          ) : (
+            <div className="grid h-full w-full place-items-center text-[15px] font-black text-black/78">
+              {initial}
+            </div>
+          )}
         </div>
 
         <div className="min-w-0 text-left">
@@ -417,16 +472,46 @@ export default function MissedImSafeResponseClient({
   const [message, setMessage] = React.useState("");
   const [remaining, setRemaining] = React.useState(formatRemaining(exp));
 
+  const subjectAvatarUrl = signedAvatarUrl({
+    person: "subject",
+    uid,
+    contact,
+    contactName,
+    subjectName,
+    response,
+    expected,
+    due,
+    sent,
+    exp,
+    sig,
+  });
+
+  const contactAvatarUrl = signedAvatarUrl({
+    person: "contact",
+    uid,
+    contact,
+    contactName,
+    subjectName,
+    response,
+    expected,
+    due,
+    sent,
+    exp,
+    sig,
+  });
+
   const [subjectPerson, setSubjectPerson] = React.useState<PublicPerson>({
     name: initialSubject?.name || subjectName,
     verified: initialSubject?.verified === true,
     username: initialSubject?.username || null,
+    avatarUrl: initialSubject?.avatarUrl || subjectAvatarUrl,
   });
 
   const [contactPerson, setContactPerson] = React.useState<PublicPerson>({
     name: initialContact?.name || contactName.trim() || contact,
     verified: initialContact?.verified === true,
     username: initialContact?.username || null,
+    avatarUrl: initialContact?.avatarUrl || contactAvatarUrl,
   });
 
   const displaySubjectName = cleanName(subjectPerson.name || subjectName);
@@ -460,19 +545,21 @@ export default function MissedImSafeResponseClient({
 
   function applyPeopleFromResponse(data: ActionResp) {
     if (data.subject?.name) {
-      setSubjectPerson({
-        name: data.subject.name,
-        verified: data.subject.verified === true,
-        username: data.subject.username || null,
-      });
+      setSubjectPerson((previous) => ({
+        name: data.subject?.name || previous.name,
+        verified: data.subject?.verified === true,
+        username: data.subject?.username || null,
+        avatarUrl: data.subject?.avatarUrl || previous.avatarUrl,
+      }));
     }
 
     if (data.contact?.name) {
-      setContactPerson({
-        name: data.contact.name,
-        verified: data.contact.verified === true,
-        username: data.contact.username || null,
-      });
+      setContactPerson((previous) => ({
+        name: data.contact?.name || previous.name,
+        verified: data.contact?.verified === true,
+        username: data.contact?.username || null,
+        avatarUrl: data.contact?.avatarUrl || previous.avatarUrl,
+      }));
     }
   }
 
