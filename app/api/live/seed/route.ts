@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import type {
+  AdvisorySnapshot,
+  LivePoint,
+  LiveSeedResponse,
+} from "../../../live/live-types";
 import {
   accessFromSearchParams,
   clean,
@@ -11,6 +16,8 @@ import {
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
+
+const NEARBY_APPROVED_CONTACT_RADIUS_METERS = 5000;
 
 type VisitLocationRow = {
   lat?: number | null;
@@ -221,22 +228,28 @@ export async function GET(req: Request) {
 
     const profileFallback = await admin
       .from("profiles")
-      .select("avatar_url")
+      .select("first_name,last_name,avatar_url")
       .eq("id", ownerUserId)
       .maybeSingle();
 
     const profile = profileResult.data as Record<string, unknown> | null;
-    const first = clean(profile?.first_name);
-    const last = clean(profile?.last_name);
+    const fallbackProfile = profileFallback.data as Record<
+      string,
+      unknown
+    > | null;
+
+    const first =
+      clean(profile?.first_name) || clean(fallbackProfile?.first_name);
+    const last = clean(profile?.last_name) || clean(fallbackProfile?.last_name);
+
     const visitorName =
-      clean(profile?.display_name) ||
       [first, last].filter(Boolean).join(" ") ||
+      clean(profile?.display_name) ||
       "StayKnown user";
     const verification = await loadVerification(admin, ownerUserId);
     const avatarUrl = await signedAvatar(
       admin,
-      clean(profile?.profile_photo_url) ||
-        clean(profileFallback.data?.avatar_url),
+      clean(profile?.profile_photo_url) || clean(fallbackProfile?.avatar_url),
     );
 
     const payload =
@@ -244,13 +257,18 @@ export async function GET(req: Request) {
         ? (visit.payload as VisitPayload)
         : {};
 
-    const latestPoint =
+    const latestPoint: LivePoint | null =
       latest && typeof latest.lat === "number" && typeof latest.lng === "number"
         ? {
-            ...latest,
+            lat: latest.lat,
+            lng: latest.lng,
+            accuracy:
+              typeof latest.accuracy === "number" ? latest.accuracy : null,
+            place: clean(latest.place) || null,
+            created_at: clean(latest.created_at) || null,
             ...locationQuality(
-              latest.accuracy ?? null,
-              latest.created_at ?? null,
+              typeof latest.accuracy === "number" ? latest.accuracy : null,
+              clean(latest.created_at) || null,
             ),
           }
         : ended &&
@@ -261,14 +279,15 @@ export async function GET(req: Request) {
               lng: visit.end_lng,
               accuracy: null,
               place:
-                latest?.place ??
-                visit.destination_name ??
-                visit.destination_address ??
+                clean(latest?.place) ||
+                clean(visit.destination_name) ||
+                clean(visit.destination_address) ||
                 null,
-              created_at: visit.ended_at ?? latest?.created_at ?? null,
+              created_at:
+                clean(visit.ended_at) || clean(latest?.created_at) || null,
               ...locationQuality(
                 null,
-                clean(visit.ended_at) || latest?.created_at || null,
+                clean(visit.ended_at) || clean(latest?.created_at) || null,
               ),
             }
           : !ended &&
@@ -279,14 +298,15 @@ export async function GET(req: Request) {
                 lng: visit.start_lng,
                 accuracy: null,
                 place:
-                  latest?.place ??
-                  visit.destination_name ??
-                  visit.destination_address ??
+                  clean(latest?.place) ||
+                  clean(visit.destination_name) ||
+                  clean(visit.destination_address) ||
                   null,
-                created_at: visit.started_at ?? latest?.created_at ?? null,
+                created_at:
+                  clean(visit.started_at) || clean(latest?.created_at) || null,
                 ...locationQuality(
                   null,
-                  clean(visit.started_at) || latest?.created_at || null,
+                  clean(visit.started_at) || clean(latest?.created_at) || null,
                 ),
               }
             : null;
@@ -298,7 +318,14 @@ export async function GET(req: Request) {
         ? ownerUserId
         : "";
 
-    let activeAdvisory: Record<string, unknown> | null = null;
+    const nearbyPresenceEnabled =
+      verified.version === "v2" &&
+      verified.aud === "contacts" &&
+      Boolean(recipient) &&
+      !accessContext.legacyReadOnly &&
+      !ended;
+
+    let activeAdvisory: AdvisorySnapshot | null = null;
     if (recipient) {
       const advisoryResult = await admin
         .from("visit_safety_advisories")
@@ -313,17 +340,32 @@ export async function GET(req: Request) {
         .maybeSingle();
 
       if (!advisoryResult.error && advisoryResult.data) {
-        activeAdvisory = advisoryResult.data as Record<string, unknown>;
+        const row = advisoryResult.data as Record<string, unknown>;
+        const advisoryId = clean(row.id);
+
+        if (advisoryId) {
+          activeAdvisory = {
+            id: advisoryId,
+            message_kind: clean(row.message_kind) || undefined,
+            message_text: clean(row.message_text) || undefined,
+            status: clean(row.status) || undefined,
+            response_kind: clean(row.response_kind) || null,
+            created_at: clean(row.created_at) || undefined,
+            updated_at: clean(row.updated_at) || undefined,
+            leaving_at: clean(row.leaving_at) || null,
+            safe_at: clean(row.safe_at) || null,
+          };
+        }
       }
     }
 
-    return NextResponse.json({
+    const response: LiveSeedResponse = {
       ok: true,
       session_id: sid,
       latest: latestPoint,
       ended,
       sos_active: ended ? false : sosActive,
-      started_at: visit.started_at ?? null,
+      started_at: clean(visit.started_at) || null,
       destination_name:
         clean(visit.destination_name) ||
         clean(payload.destination_name) ||
@@ -340,6 +382,8 @@ export async function GET(req: Request) {
           : null,
       extra_note: clean(payload.extra_note) || null,
       visitor_name: visitorName,
+      visitor_first_name: first || null,
+      visitor_last_name: last || null,
       visitor_avatar_url: avatarUrl || null,
       visitor_verified: verification.verified,
       visitor_badge_type: verification.badgeType || null,
@@ -356,6 +400,19 @@ export async function GET(req: Request) {
         !accessContext.legacyReadOnly &&
         !ended,
       active_advisory: activeAdvisory,
+      nearby_presence_enabled: nearbyPresenceEnabled,
+      nearby_presence_radius_meters: nearbyPresenceEnabled
+        ? NEARBY_APPROVED_CONTACT_RADIUS_METERS
+        : null,
+    };
+
+    return NextResponse.json(response, {
+      headers: {
+        "Cache-Control": "private, no-store, no-cache, must-revalidate",
+        Pragma: "no-cache",
+        Expires: "0",
+        "X-Content-Type-Options": "nosniff",
+      },
     });
   } catch (error) {
     const message =
@@ -367,6 +424,17 @@ export async function GET(req: Request) {
       : message.includes("not_authorized")
         ? 403
         : 500;
-    return NextResponse.json({ ok: false, error: message }, { status });
+    return NextResponse.json(
+      { ok: false, error: message },
+      {
+        status,
+        headers: {
+          "Cache-Control": "private, no-store, no-cache, must-revalidate",
+          Pragma: "no-cache",
+          Expires: "0",
+          "X-Content-Type-Options": "nosniff",
+        },
+      },
+    );
   }
 }

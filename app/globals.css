@@ -531,3 +531,143 @@ a:hover {
     opacity: 0;
   }
 }
+
+/* =====================================================
+   LIVE MAP — NEARBY APPROVED CONTACT PRESENCE
+   The marker itself is created in app/live/live-client.tsx.
+   These rules keep the attached mini-card above the avatar,
+   preserve overflow during map movement, and provide the
+   monochrome LIVE / recent-presence animation.
+===================================================== */
+
+.maplibregl-marker {
+  overflow: visible !important;
+}
+
+/*
+ * A nearby marker contains both the avatar and its mini-card.
+ * The card must remain visually attached to that marker while
+ * MapLibre translates the marker around the map.
+ */
+.maplibregl-marker:has([data-sk-nearby-marker]) {
+  overflow: visible !important;
+  isolation: isolate;
+  z-index: 8;
+}
+
+.maplibregl-marker:has([data-sk-nearby-marker] [aria-expanded="true"]) {
+  z-index: 40 !important;
+}
+
+[data-sk-nearby-marker] {
+  overflow: visible !important;
+  contain: layout style;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+[data-sk-nearby-card] {
+  will-change: opacity, transform;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: geometricPrecision;
+}
+
+[data-sk-nearby-marker] button {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+[data-sk-nearby-marker] button:focus-visible {
+  outline: 2px solid rgba(17, 19, 24, 0.28);
+  outline-offset: 3px;
+  border-radius: 999px;
+}
+
+[data-sk-nearby-radar="1"] {
+  transform-origin: center;
+  will-change: opacity, transform;
+  animation-name: skNearbyRadarStrong;
+}
+
+[data-sk-nearby-halo="recent"] {
+  transform-origin: center;
+  will-change: opacity, transform;
+  animation-name: skNearbyRecentBreath;
+}
+
+[data-sk-nearby-halo="paused"] {
+  opacity: 0.54;
+}
+
+@keyframes skNearbyRadarStrong {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.56);
+  }
+
+  18% {
+    opacity: 0.86;
+  }
+
+  72% {
+    opacity: 0.22;
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(1.58);
+  }
+}
+
+@keyframes skNearbyRecentBreath {
+
+  0%,
+  100% {
+    opacity: 0.54;
+    transform: translate(-50%, -50%) scale(0.92);
+  }
+
+  50% {
+    opacity: 0.92;
+    transform: translate(-50%, -50%) scale(1.08);
+  }
+}
+
+/*
+ * Compact phone protection:
+ * the card width is still controlled by live-client.tsx, while this
+ * prevents the browser from clipping long full names or relationship text.
+ */
+@media (max-width: 420px) {
+  [data-sk-nearby-card] {
+    max-width: calc(100vw - 18px) !important;
+  }
+}
+
+/*
+ * Accessibility: preserve the marker and information card while removing
+ * repeated motion for people who request reduced motion.
+ */
+@media (prefers-reduced-motion: reduce) {
+
+  [data-sk-radar="1"],
+  [data-sk-nearby-radar="1"],
+  [data-sk-nearby-halo] {
+    animation: none !important;
+  }
+
+  [data-sk-nearby-radar="1"] {
+    opacity: 0.18 !important;
+    transform: translate(-50%, -50%) scale(1) !important;
+  }
+
+  [data-sk-nearby-halo="recent"] {
+    opacity: 0.7 !important;
+    transform: translate(-50%, -50%) scale(1) !important;
+  }
+
+  [data-sk-nearby-card] {
+    transition-duration: 1ms !important;
+  }
+}

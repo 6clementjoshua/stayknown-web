@@ -4,6 +4,12 @@ import React from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 
+import {
+  normalizeNearbyApprovedContacts,
+  type NearbyApprovedContactPresence,
+  type NearbyApprovedContactsResponse,
+} from "./live-types";
+
 type SeedResp = {
   ok: boolean;
   session_id: string;
@@ -29,6 +35,8 @@ type SeedResp = {
   expected_duration_minutes?: number | null;
   extra_note?: string | null;
   visitor_name?: string | null;
+  visitor_first_name?: string | null;
+  visitor_last_name?: string | null;
   visitor_avatar_url?: string | null;
   visitor_verified?: boolean;
   visitor_badge_type?: string | null;
@@ -41,6 +49,8 @@ type SeedResp = {
   legacy_read_only?: boolean;
   can_send_advisory?: boolean;
   active_advisory?: AdvisorySnapshot | null;
+  nearby_presence_enabled?: boolean;
+  nearby_presence_radius_meters?: number | null;
   error?: string;
   detail?: string;
 };
@@ -83,6 +93,9 @@ const MOVE_FOLLOW_THRESHOLD_METERS = 28;
 const MAP_LOAD_TIMEOUT_MS = 16000;
 const MAP_AUTO_RETRY_LIMIT = 2;
 const MAP_RETRY_DELAY_MS = 900;
+const NEARBY_APPROVED_CONTACT_DEFAULT_RADIUS_METERS = 5000;
+const NEARBY_CARD_AUTO_CLOSE_MS = 5000;
+const NEARBY_CARD_WIDTH_PX = 230;
 
 function distanceMeters(
   aLat: number,
@@ -351,6 +364,372 @@ function buildMarkerEl({
   wrap.appendChild(pin);
 
   return wrap;
+}
+
+type NearbyMarkerElementParts = {
+  element: HTMLDivElement;
+  card: HTMLDivElement;
+  setOpen: (open: boolean, horizontalShift?: number) => void;
+};
+
+type NearbyMarkerEntry = NearbyMarkerElementParts & {
+  marker: maplibregl.Marker;
+  contact: NearbyApprovedContactPresence;
+};
+
+function nearbyDistanceLabel(distance: number) {
+  if (!Number.isFinite(distance) || distance < 0) return "Distance unavailable";
+  if (distance < 1000) return `${Math.max(1, Math.round(distance))} m away`;
+
+  const kilometres = distance / 1000;
+  return `${kilometres < 10 ? kilometres.toFixed(1) : Math.round(kilometres)} km away`;
+}
+
+function nearbyPresenceLabel(contact: NearbyApprovedContactPresence) {
+  if (contact.is_sos === true) return "SOS active";
+  if (contact.presence_state === "paused") return "Location paused";
+  if (contact.presence_state === "recent") return "Recently active";
+  return "LIVE Visit";
+}
+
+function buildNearbyApprovedContactMarkerEl(params: {
+  contact: NearbyApprovedContactPresence;
+  darkTheme: boolean;
+  onToggle: () => void;
+}): NearbyMarkerElementParts {
+  const { contact, darkTheme, onToggle } = params;
+  const root = document.createElement("div");
+  root.dataset.skNearbyMarker = contact.marker_id;
+  root.style.position = "relative";
+  root.style.width = `${NEARBY_CARD_WIDTH_PX}px`;
+  root.style.height = "174px";
+  root.style.overflow = "visible";
+  root.style.pointerEvents = "none";
+
+  const card = document.createElement("div");
+  card.dataset.skNearbyCard = contact.marker_id;
+  card.setAttribute("role", "dialog");
+  card.setAttribute("aria-label", `${contact.full_name} map information`);
+  card.style.position = "absolute";
+  card.style.zIndex = "24";
+  card.style.left = "50%";
+  card.style.bottom = "79px";
+  card.style.width = `${NEARBY_CARD_WIDTH_PX}px`;
+  card.style.maxWidth = "calc(100vw - 24px)";
+  card.style.padding = "12px 13px 11px";
+  card.style.borderRadius = "18px";
+  card.style.border = darkTheme
+    ? "1px solid rgba(255,255,255,0.16)"
+    : "1px solid rgba(255,255,255,0.92)";
+  card.style.background = darkTheme
+    ? "linear-gradient(145deg, rgba(18,18,20,0.96), rgba(3,3,4,0.92))"
+    : "linear-gradient(145deg, rgba(255,255,255,0.98), rgba(232,235,239,0.95))";
+  card.style.color = darkTheme ? "#ffffff" : "#111318";
+  card.style.boxShadow = darkTheme
+    ? "0 22px 54px rgba(0,0,0,0.38), inset 0 1px 0 rgba(255,255,255,0.10)"
+    : "0 22px 54px rgba(0,0,0,0.23), inset 0 1px 0 rgba(255,255,255,0.98)";
+  card.style.backdropFilter = "blur(24px)";
+  card.style.opacity = "0";
+  card.style.visibility = "hidden";
+  card.style.pointerEvents = "none";
+  card.style.transform = "translate(-50%, 8px) scale(0.965)";
+  card.style.transformOrigin = "50% 100%";
+  card.style.transition =
+    "opacity 180ms ease, transform 220ms cubic-bezier(.2,.85,.24,1), visibility 180ms ease";
+
+  const arrow = document.createElement("div");
+  arrow.style.position = "absolute";
+  arrow.style.left = "50%";
+  arrow.style.bottom = "-6px";
+  arrow.style.width = "13px";
+  arrow.style.height = "13px";
+  arrow.style.borderRight = darkTheme
+    ? "1px solid rgba(255,255,255,0.14)"
+    : "1px solid rgba(255,255,255,0.92)";
+  arrow.style.borderBottom = darkTheme
+    ? "1px solid rgba(255,255,255,0.14)"
+    : "1px solid rgba(255,255,255,0.92)";
+  arrow.style.background = darkTheme ? "#09090a" : "#eef1f4";
+  arrow.style.transform = "translateX(-50%) rotate(45deg)";
+  arrow.style.transition = "left 180ms ease";
+  card.appendChild(arrow);
+
+  const nameRow = document.createElement("div");
+  nameRow.style.display = "flex";
+  nameRow.style.alignItems = "center";
+  nameRow.style.gap = "6px";
+
+  const name = document.createElement("div");
+  name.textContent = contact.full_name;
+  name.style.minWidth = "0";
+  name.style.flex = "1";
+  name.style.overflow = "hidden";
+  name.style.textOverflow = "ellipsis";
+  name.style.whiteSpace = "nowrap";
+  name.style.fontSize = "12px";
+  name.style.fontWeight = "950";
+  name.style.letterSpacing = "-0.15px";
+  nameRow.appendChild(name);
+
+  if (contact.verified === true) {
+    const verified = document.createElement("span");
+    verified.textContent = "✓";
+    verified.title = "Verified StayKnown user";
+    verified.style.display = "inline-grid";
+    verified.style.placeItems = "center";
+    verified.style.flex = "0 0 auto";
+    verified.style.width = "16px";
+    verified.style.height = "16px";
+    verified.style.borderRadius = "999px";
+    verified.style.background = darkTheme ? "#ffffff" : "#111318";
+    verified.style.color = darkTheme ? "#111318" : "#ffffff";
+    verified.style.fontSize = "8px";
+    verified.style.fontWeight = "950";
+    nameRow.appendChild(verified);
+  }
+
+  const relationship = document.createElement("div");
+  relationship.textContent = contact.relationship_label;
+  relationship.style.marginTop = "4px";
+  relationship.style.color = darkTheme
+    ? "rgba(255,255,255,0.62)"
+    : "rgba(17,19,24,0.58)";
+  relationship.style.fontSize = "8px";
+  relationship.style.fontWeight = "850";
+  relationship.style.letterSpacing = "0.08px";
+
+  const metaRow = document.createElement("div");
+  metaRow.style.display = "flex";
+  metaRow.style.alignItems = "center";
+  metaRow.style.flexWrap = "wrap";
+  metaRow.style.gap = "6px";
+  metaRow.style.marginTop = "9px";
+
+  const status = document.createElement("span");
+  status.textContent = nearbyPresenceLabel(contact);
+  status.style.display = "inline-flex";
+  status.style.alignItems = "center";
+  status.style.minHeight = "22px";
+  status.style.padding = "0 8px";
+  status.style.borderRadius = "999px";
+  status.style.background =
+    contact.presence_state === "live" || contact.is_sos === true
+      ? darkTheme
+        ? "rgba(255,255,255,0.94)"
+        : "#111318"
+      : darkTheme
+        ? "rgba(255,255,255,0.10)"
+        : "rgba(17,19,24,0.07)";
+  status.style.color =
+    contact.presence_state === "live" || contact.is_sos === true
+      ? darkTheme
+        ? "#111318"
+        : "#ffffff"
+      : darkTheme
+        ? "rgba(255,255,255,0.76)"
+        : "rgba(17,19,24,0.68)";
+  status.style.fontSize = "7px";
+  status.style.fontWeight = "950";
+  status.style.letterSpacing = "0.55px";
+  status.style.textTransform = "uppercase";
+
+  const distance = document.createElement("span");
+  distance.textContent = nearbyDistanceLabel(contact.distance_meters);
+  distance.style.color = darkTheme
+    ? "rgba(255,255,255,0.68)"
+    : "rgba(17,19,24,0.62)";
+  distance.style.fontSize = "8px";
+  distance.style.fontWeight = "900";
+
+  metaRow.appendChild(status);
+  metaRow.appendChild(distance);
+
+  const place = document.createElement("div");
+  place.textContent = cleanLabel(contact.place, "Nearby area");
+  place.style.marginTop = "8px";
+  place.style.overflow = "hidden";
+  place.style.textOverflow = "ellipsis";
+  place.style.whiteSpace = "nowrap";
+  place.style.color = darkTheme
+    ? "rgba(255,255,255,0.78)"
+    : "rgba(17,19,24,0.74)";
+  place.style.fontSize = "9px";
+  place.style.fontWeight = "800";
+
+  card.appendChild(nameRow);
+  card.appendChild(relationship);
+  card.appendChild(metaRow);
+  card.appendChild(place);
+
+  card.addEventListener("click", (event) => event.stopPropagation());
+  root.appendChild(card);
+
+  const visual = document.createElement("button");
+  visual.type = "button";
+  visual.setAttribute(
+    "aria-label",
+    `Open ${contact.full_name} map information`,
+  );
+  visual.setAttribute("aria-expanded", "false");
+  visual.style.position = "absolute";
+  visual.style.left = "50%";
+  visual.style.bottom = "0";
+  visual.style.width = "86px";
+  visual.style.height = "88px";
+  visual.style.padding = "0";
+  visual.style.border = "0";
+  visual.style.background = "transparent";
+  visual.style.transform = "translateX(-50%)";
+  visual.style.cursor = "pointer";
+  visual.style.pointerEvents = "auto";
+  visual.style.overflow = "visible";
+  visual.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    onToggle();
+  });
+
+  const addRadarField = (size: number, delayMs: number, opacity: number) => {
+    const field = document.createElement("span");
+    field.dataset.skNearbyRadar = "1";
+    field.style.position = "absolute";
+    field.style.left = "50%";
+    field.style.top = "43%";
+    field.style.width = `${size}px`;
+    field.style.height = `${size}px`;
+    field.style.borderRadius = "999px";
+    field.style.background = darkTheme
+      ? `radial-gradient(circle, rgba(255,255,255,${opacity}) 0%, rgba(150,150,150,${opacity * 0.72}) 34%, rgba(45,45,45,${opacity * 0.48}) 61%, transparent 78%)`
+      : `radial-gradient(circle, rgba(20,20,20,${opacity}) 0%, rgba(90,90,90,${opacity * 0.72}) 34%, rgba(190,190,190,${opacity * 0.48}) 61%, transparent 78%)`;
+    field.style.filter = "blur(1.4px)";
+    field.style.opacity = "0";
+    field.style.transform = "translate(-50%, -50%) scale(0.56)";
+    field.style.pointerEvents = "none";
+    field.style.animation = `skNearbyRadarStrong 3s ease-out ${delayMs}ms infinite`;
+    visual.appendChild(field);
+  };
+
+  if (contact.presence_state === "live") {
+    addRadarField(52, 0, 0.34);
+    addRadarField(70, 820, 0.24);
+    addRadarField(88, 1640, 0.16);
+  }
+
+  const halo = document.createElement("span");
+  halo.dataset.skNearbyHalo = contact.presence_state;
+  halo.style.position = "absolute";
+  halo.style.left = "50%";
+  halo.style.top = "43%";
+  halo.style.width = "58px";
+  halo.style.height = "58px";
+  halo.style.borderRadius = "999px";
+  halo.style.transform = "translate(-50%, -50%)";
+  halo.style.background =
+    contact.presence_state === "paused"
+      ? darkTheme
+        ? "rgba(255,255,255,0.055)"
+        : "rgba(17,19,24,0.045)"
+      : darkTheme
+        ? "rgba(255,255,255,0.12)"
+        : "rgba(17,19,24,0.09)";
+  halo.style.boxShadow =
+    contact.presence_state === "live"
+      ? darkTheme
+        ? "0 0 0 9px rgba(255,255,255,0.04), 0 12px 28px rgba(0,0,0,0.26)"
+        : "0 0 0 9px rgba(17,19,24,0.035), 0 12px 28px rgba(0,0,0,0.17)"
+      : darkTheme
+        ? "0 0 0 7px rgba(255,255,255,0.025)"
+        : "0 0 0 7px rgba(17,19,24,0.025)";
+  halo.style.animation =
+    contact.presence_state === "recent"
+      ? "skNearbyRecentBreath 2.8s ease-in-out infinite"
+      : "none";
+  visual.appendChild(halo);
+
+  const pin = document.createElement("span");
+  pin.style.position = "absolute";
+  pin.style.zIndex = "4";
+  pin.style.left = "50%";
+  pin.style.top = "43%";
+  pin.style.display = "grid";
+  pin.style.placeItems = "center";
+  pin.style.width = "48px";
+  pin.style.height = "48px";
+  pin.style.overflow = "hidden";
+  pin.style.borderRadius = "999px";
+  pin.style.border = "2px solid rgba(255,255,255,0.98)";
+  pin.style.background = "#ffffff";
+  pin.style.boxShadow =
+    "0 14px 30px rgba(0,0,0,0.26), inset 0 1px 0 rgba(255,255,255,0.98)";
+  pin.style.transform = "translate(-50%, -50%)";
+
+  const image = document.createElement("img");
+  image.src = cleanLabel(contact.avatar_url, "/6logo.png");
+  image.alt = `${contact.full_name} location`;
+  image.referrerPolicy = "no-referrer";
+  image.draggable = false;
+  image.style.width = "100%";
+  image.style.height = "100%";
+  image.style.objectFit = contact.avatar_url ? "cover" : "contain";
+  image.style.padding = contact.avatar_url ? "0" : "8px";
+  image.onerror = () => {
+    image.onerror = null;
+    image.src = "/6logo.png";
+    image.alt = "StayKnown";
+    image.style.objectFit = "contain";
+    image.style.padding = "8px";
+  };
+  pin.appendChild(image);
+
+  if (contact.verified === true) {
+    const badge = document.createElement("span");
+    badge.textContent = "✓";
+    badge.style.position = "absolute";
+    badge.style.zIndex = "6";
+    badge.style.left = "calc(50% + 13px)";
+    badge.style.top = "calc(43% - 23px)";
+    badge.style.display = "grid";
+    badge.style.placeItems = "center";
+    badge.style.width = "15px";
+    badge.style.height = "15px";
+    badge.style.borderRadius = "999px";
+    badge.style.border = "1px solid rgba(255,255,255,0.92)";
+    badge.style.background = "#111318";
+    badge.style.color = "#ffffff";
+    badge.style.fontSize = "7px";
+    badge.style.fontWeight = "950";
+    visual.appendChild(badge);
+  }
+
+  const point = document.createElement("span");
+  point.style.position = "absolute";
+  point.style.zIndex = "3";
+  point.style.left = "50%";
+  point.style.top = "calc(43% + 18px)";
+  point.style.width = "13px";
+  point.style.height = "13px";
+  point.style.borderRight = "2px solid rgba(255,255,255,0.96)";
+  point.style.borderBottom = "2px solid rgba(255,255,255,0.96)";
+  point.style.background = "#111318";
+  point.style.transform = "translateX(-50%) rotate(45deg)";
+  point.style.boxShadow = "6px 6px 14px rgba(0,0,0,0.15)";
+
+  visual.appendChild(point);
+  visual.appendChild(pin);
+  root.appendChild(visual);
+
+  const setOpen = (open: boolean, horizontalShift = 0) => {
+    visual.setAttribute("aria-expanded", open ? "true" : "false");
+    arrow.style.left = `calc(50% - ${horizontalShift}px)`;
+    card.style.opacity = open ? "1" : "0";
+    card.style.visibility = open ? "visible" : "hidden";
+    card.style.pointerEvents = open ? "auto" : "none";
+    card.style.transform = open
+      ? `translate(calc(-50% + ${horizontalShift}px), 0) scale(1)`
+      : `translate(calc(-50% + ${horizontalShift}px), 8px) scale(0.965)`;
+  };
+
+  return { element: root, card, setOpen };
 }
 
 function PremiumSpinner() {
@@ -646,6 +1025,7 @@ function accessQuery(access: LiveAccessProps) {
     uid: access.uid,
     aud: access.aud,
     sig: access.sig,
+    version: access.version,
   });
   if (access.rid) params.set("rid", access.rid);
   return params.toString();
@@ -662,6 +1042,20 @@ export default function LiveClient({ access }: { access: LiveAccessProps }) {
     null,
   );
   const lastPoiFetchAtRef = React.useRef<number>(0);
+
+  const nearbyMarkersRef = React.useRef<Map<string, NearbyMarkerEntry>>(
+    new Map(),
+  );
+  const nearbyFetchAbortRef = React.useRef<AbortController | null>(null);
+  const openNearbyMarkerIdRef = React.useRef<string | null>(null);
+  const nearbyCardTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
+  const nearbyPresenceEnabledRef = React.useRef(false);
+  const nearbyRadiusMetersRef = React.useRef(
+    NEARBY_APPROVED_CONTACT_DEFAULT_RADIUS_METERS,
+  );
+  const nearbyInitialFitDoneRef = React.useRef(false);
 
   const eventSourceRef = React.useRef<EventSource | null>(null);
   const reconnectTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(
@@ -873,6 +1267,207 @@ export default function LiveClient({ access }: { access: LiveAccessProps }) {
     poiMarkersRef.current.forEach((marker) => marker.remove());
     poiMarkersRef.current = [];
   }, []);
+
+  const closeNearbyMarkerCard = React.useCallback(() => {
+    if (nearbyCardTimerRef.current) {
+      clearTimeout(nearbyCardTimerRef.current);
+      nearbyCardTimerRef.current = null;
+    }
+
+    const openId = openNearbyMarkerIdRef.current;
+    if (openId) {
+      nearbyMarkersRef.current.get(openId)?.setOpen(false, 0);
+    }
+
+    openNearbyMarkerIdRef.current = null;
+  }, []);
+
+  const positionNearbyMarkerCard = React.useCallback(
+    (entry: NearbyMarkerEntry) => {
+      const map = mapRef.current;
+      if (!map) return;
+
+      const canvas = map.getCanvasContainer();
+      const point = map.project([entry.contact.lng, entry.contact.lat]);
+      const halfCard = NEARBY_CARD_WIDTH_PX / 2;
+      const edgePadding = 12;
+      let shift = 0;
+
+      if (point.x - halfCard < edgePadding) {
+        shift = edgePadding - (point.x - halfCard);
+      } else if (point.x + halfCard > canvas.clientWidth - edgePadding) {
+        shift = canvas.clientWidth - edgePadding - (point.x + halfCard);
+      }
+
+      shift = Math.max(-92, Math.min(92, Math.round(shift)));
+      entry.setOpen(true, shift);
+    },
+    [],
+  );
+
+  const recordNearbyMarkerOpened = React.useCallback(
+    async (markerId: string) => {
+      try {
+        await fetch("/api/live/nearby", {
+          method: "POST",
+          cache: "no-store",
+          keepalive: true,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ...access,
+            action: "marker_opened",
+            marker_id: markerId,
+          }),
+        });
+      } catch {}
+    },
+    [access],
+  );
+
+  const toggleNearbyMarkerCard = React.useCallback(
+    (markerId: string) => {
+      const entry = nearbyMarkersRef.current.get(markerId);
+      if (!entry) return;
+
+      if (openNearbyMarkerIdRef.current === markerId) {
+        closeNearbyMarkerCard();
+        return;
+      }
+
+      closeNearbyMarkerCard();
+      openNearbyMarkerIdRef.current = markerId;
+      positionNearbyMarkerCard(entry);
+      void recordNearbyMarkerOpened(markerId);
+
+      nearbyCardTimerRef.current = setTimeout(() => {
+        closeNearbyMarkerCard();
+      }, NEARBY_CARD_AUTO_CLOSE_MS);
+    },
+    [closeNearbyMarkerCard, positionNearbyMarkerCard, recordNearbyMarkerOpened],
+  );
+
+  const removeNearbyMarkers = React.useCallback(() => {
+    closeNearbyMarkerCard();
+
+    for (const entry of nearbyMarkersRef.current.values()) {
+      try {
+        entry.marker.remove();
+      } catch {}
+    }
+
+    nearbyMarkersRef.current.clear();
+  }, [closeNearbyMarkerCard]);
+
+  const syncNearbyApprovedContactMarkers = React.useCallback(
+    (contacts: NearbyApprovedContactPresence[]) => {
+      const map = mapRef.current;
+      removeNearbyMarkers();
+      if (!map || contacts.length === 0) return;
+
+      for (const contact of contacts) {
+        let entry: NearbyMarkerEntry | null = null;
+
+        const parts = buildNearbyApprovedContactMarkerEl({
+          contact,
+          darkTheme,
+          onToggle: () => toggleNearbyMarkerCard(contact.marker_id),
+        });
+
+        const marker = new maplibregl.Marker({
+          element: parts.element,
+          anchor: "bottom",
+        })
+          .setLngLat([contact.lng, contact.lat])
+          .addTo(map);
+
+        entry = {
+          ...parts,
+          marker,
+          contact,
+        };
+
+        nearbyMarkersRef.current.set(contact.marker_id, entry);
+      }
+
+      if (!nearbyInitialFitDoneRef.current && lastPointRef.current) {
+        const bounds = new maplibregl.LngLatBounds();
+        bounds.extend([lastPointRef.current.lng, lastPointRef.current.lat]);
+
+        for (const contact of contacts) {
+          bounds.extend([contact.lng, contact.lat]);
+        }
+
+        nearbyInitialFitDoneRef.current = true;
+
+        window.setTimeout(() => {
+          if (!mapRef.current || contacts.length === 0) return;
+
+          mapRef.current.fitBounds(bounds, {
+            padding:
+              typeof window !== "undefined" &&
+              window.matchMedia("(max-width: 767px)").matches
+                ? { top: 200, right: 48, bottom: 380, left: 48 }
+                : { top: 190, right: 90, bottom: 230, left: 90 },
+            maxZoom: 14.8,
+            duration: 720,
+            essential: true,
+          });
+        }, 120);
+      }
+    },
+    [darkTheme, removeNearbyMarkers, toggleNearbyMarkerCard],
+  );
+
+  const refreshNearbyApprovedContacts = React.useCallback(async () => {
+    if (!nearbyPresenceEnabledRef.current || !mapRef.current) {
+      return;
+    }
+
+    nearbyFetchAbortRef.current?.abort();
+    const controller = new AbortController();
+    nearbyFetchAbortRef.current = controller;
+
+    try {
+      const radius = Math.max(
+        100,
+        Math.min(10000, nearbyRadiusMetersRef.current),
+      );
+
+      const response = await fetch(
+        `/api/live/nearby?${signedQuery}&radius=${encodeURIComponent(String(radius))}`,
+        {
+          cache: "no-store",
+          signal: controller.signal,
+        },
+      );
+
+      const result = (await response
+        .json()
+        .catch(() => ({}))) as Partial<NearbyApprovedContactsResponse>;
+
+      if (controller.signal.aborted) return;
+
+      if (response.status === 410) {
+        nearbyPresenceEnabledRef.current = false;
+        removeNearbyMarkers();
+        return;
+      }
+
+      if (!response.ok || result.ok !== true) {
+        if (response.status === 401 || response.status === 403) {
+          nearbyPresenceEnabledRef.current = false;
+          removeNearbyMarkers();
+        }
+        return;
+      }
+
+      const contacts = normalizeNearbyApprovedContacts(result.contacts);
+      syncNearbyApprovedContactMarkers(contacts);
+    } catch (error) {
+      if (controller.signal.aborted) return;
+      console.warn("[SK_LIVE_NEARBY] refresh failed", error);
+    }
+  }, [removeNearbyMarkers, signedQuery, syncNearbyApprovedContactMarkers]);
 
   const syncPoiMarkerVisibility = React.useCallback(() => {
     if (!mapRef.current) return;
@@ -1090,6 +1685,14 @@ export default function LiveClient({ access }: { access: LiveAccessProps }) {
       setViewerName(cleanLabel(seed.viewer_name, ""));
       setCanSendAdvisory(seed.can_send_advisory === true);
       setActiveAdvisory(seed.active_advisory ?? null);
+
+      const nearbyEnabled =
+        seed.nearby_presence_enabled === true && seed.ended !== true;
+      const nearbyRadius = Number(seed.nearby_presence_radius_meters);
+      nearbyPresenceEnabledRef.current = nearbyEnabled;
+      nearbyRadiusMetersRef.current = Number.isFinite(nearbyRadius)
+        ? Math.max(100, Math.min(10000, Math.round(nearbyRadius)))
+        : NEARBY_APPROVED_CONTACT_DEFAULT_RADIUS_METERS;
       if (seed.active_advisory) setPanelMode("sent");
 
       setSosActive(seed.ended ? false : Boolean(seed.sos_active));
@@ -1119,13 +1722,26 @@ export default function LiveClient({ access }: { access: LiveAccessProps }) {
       }
 
       if (seed.ended) {
+        nearbyPresenceEnabledRef.current = false;
+        removeNearbyMarkers();
         setSosActive(false);
         clearReconnect();
         closeStream();
         stopPolling();
+      } else if (nearbyEnabled) {
+        void refreshNearbyApprovedContacts();
+      } else {
+        removeNearbyMarkers();
       }
     },
-    [applyPoint, clearReconnect, closeStream, stopPolling],
+    [
+      applyPoint,
+      clearReconnect,
+      closeStream,
+      refreshNearbyApprovedContacts,
+      removeNearbyMarkers,
+      stopPolling,
+    ],
   );
 
   React.useEffect(() => {
@@ -1272,7 +1888,20 @@ export default function LiveClient({ access }: { access: LiveAccessProps }) {
         try {
           const data = JSON.parse(msg.data);
 
-          if (data.type === "ready" || data.type === "ka") return;
+          if (data.type === "ka") return;
+
+          if (data.type === "ready") {
+            if (data.nearby_presence_enabled === true) {
+              nearbyPresenceEnabledRef.current = true;
+              void refreshNearbyApprovedContacts();
+            }
+            return;
+          }
+
+          if (data.type === "nearby_presence_refresh") {
+            void refreshNearbyApprovedContacts();
+            return;
+          }
 
           if (data.type === "location") {
             if (typeof data.lat === "number" && typeof data.lng === "number") {
@@ -1286,6 +1915,8 @@ export default function LiveClient({ access }: { access: LiveAccessProps }) {
               );
             }
             if (data.ended) {
+              nearbyPresenceEnabledRef.current = false;
+              removeNearbyMarkers();
               setStatus("ended");
               setSosActive(false);
               clearReconnect();
@@ -1319,6 +1950,8 @@ export default function LiveClient({ access }: { access: LiveAccessProps }) {
               setStatus("ended");
               setSosActive(false);
             }
+            nearbyPresenceEnabledRef.current = false;
+            removeNearbyMarkers();
             clearReconnect();
             closeStream();
             stopPolling();
@@ -1384,6 +2017,7 @@ export default function LiveClient({ access }: { access: LiveAccessProps }) {
           }
 
           clearPoiMarkers();
+          removeNearbyMarkers();
 
           const map = new maplibregl.Map({
             container: mapDivRef.current,
@@ -1406,6 +2040,14 @@ export default function LiveClient({ access }: { access: LiveAccessProps }) {
           });
 
           mapRef.current = map;
+
+          map.on("click", () => closeNearbyMarkerCard());
+          map.on("move", () => {
+            const openId = openNearbyMarkerIdRef.current;
+            if (!openId) return;
+            const entry = nearbyMarkersRef.current.get(openId);
+            if (entry) positionNearbyMarkerCard(entry);
+          });
 
           await new Promise<void>((resolve, reject) => {
             let settled = false;
@@ -1486,6 +2128,7 @@ export default function LiveClient({ access }: { access: LiveAccessProps }) {
           }
 
           clearPoiMarkers();
+          removeNearbyMarkers();
 
           if (attempt < MAP_AUTO_RETRY_LIMIT) {
             setMapLoadError("Reloading map…");
@@ -1551,11 +2194,14 @@ export default function LiveClient({ access }: { access: LiveAccessProps }) {
 
     return () => {
       closed = true;
+      bootedRef.current = false;
       poiFetchAbortRef.current?.abort();
       clearReconnect();
       closeStream();
       stopPolling();
       clearPoiMarkers();
+      nearbyFetchAbortRef.current?.abort();
+      removeNearbyMarkers();
       markerRef.current = null;
       mapRef.current?.remove();
       mapRef.current = null;
@@ -1571,6 +2217,10 @@ export default function LiveClient({ access }: { access: LiveAccessProps }) {
     closeStream,
     stopPolling,
     clearPoiMarkers,
+    closeNearbyMarkerCard,
+    positionNearbyMarkerCard,
+    refreshNearbyApprovedContacts,
+    removeNearbyMarkers,
   ]);
 
   const locationHeading =
@@ -2137,6 +2787,51 @@ export default function LiveClient({ access }: { access: LiveAccessProps }) {
         fontFeatureSettings: "'cv02','cv03','cv04','cv11'",
       }}
     >
+      <style>{`
+        @keyframes skLiveRadarStrong {
+          0% { opacity: 0; transform: scale(0.72); }
+          16% { opacity: 0.72; }
+          100% { opacity: 0; transform: scale(1.62); }
+        }
+
+        @keyframes skNearbyRadarStrong {
+          0% {
+            opacity: 0;
+            transform: translate(-50%, -50%) scale(0.56);
+          }
+          18% { opacity: 0.86; }
+          72% { opacity: 0.22; }
+          100% {
+            opacity: 0;
+            transform: translate(-50%, -50%) scale(1.58);
+          }
+        }
+
+        @keyframes skNearbyRecentBreath {
+          0%, 100% {
+            opacity: 0.54;
+            transform: translate(-50%, -50%) scale(0.92);
+          }
+          50% {
+            opacity: 0.92;
+            transform: translate(-50%, -50%) scale(1.08);
+          }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          [data-sk-radar="1"],
+          [data-sk-nearby-radar="1"],
+          [data-sk-nearby-halo] {
+            animation: none !important;
+          }
+
+          [data-sk-nearby-radar="1"] {
+            opacity: 0.18 !important;
+            transform: translate(-50%, -50%) scale(1) !important;
+          }
+        }
+      `}</style>
+
       {renderMode === "map" ? (
         <div
           className="absolute inset-0 z-0 overflow-hidden"

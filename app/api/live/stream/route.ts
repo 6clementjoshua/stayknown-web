@@ -9,10 +9,18 @@ import {
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
+const NEARBY_REFRESH_INTERVAL_MS = 25000;
+
 function jsonResponse(body: unknown, status: number) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      "Cache-Control": "private, no-store, no-cache, must-revalidate",
+      Pragma: "no-cache",
+      Expires: "0",
+      "X-Content-Type-Options": "nosniff",
+    },
   });
 }
 
@@ -99,14 +107,25 @@ export async function GET(req: Request) {
   const sid = verified.sid;
   const ownerUserId = clean(accessContext.visit.user_id) || verified.uid;
   const recipientId = accessContext.recipient?.id ?? "";
+  const initialEnded = Boolean(accessContext.visit.ended_at);
+  const nearbyPresenceEnabled =
+    verified.version === "v2" &&
+    verified.aud === "contacts" &&
+    Boolean(recipientId) &&
+    !accessContext.legacyReadOnly &&
+    !initialEnded;
+
   const encoder = new TextEncoder();
 
   let closed = false;
   let keepAlive: ReturnType<typeof setInterval> | null = null;
+  let nearbyRefreshTimer: ReturnType<typeof setInterval> | null = null;
+
   let locationChannel: ReturnType<typeof admin.channel> | null = null;
   let visitChannel: ReturnType<typeof admin.channel> | null = null;
   let sosChannel: ReturnType<typeof admin.channel> | null = null;
   let advisoryChannel: ReturnType<typeof admin.channel> | null = null;
+  let nearbyPresenceChannel: ReturnType<typeof admin.channel> | null = null;
 
   const sendChunk = (
     controller: ReadableStreamDefaultController<Uint8Array>,
@@ -120,6 +139,27 @@ export async function GET(req: Request) {
     }
   };
 
+  const sendNearbyRefresh = (
+    controller: ReadableStreamDefaultController<Uint8Array>,
+    reason:
+      | "presence_started"
+      | "presence_updated"
+      | "presence_paused"
+      | "presence_ended"
+      | "presence_expired"
+      | "contact_membership_changed"
+      | "manual_refresh" = "manual_refresh",
+  ) => {
+    if (!nearbyPresenceEnabled || closed) return;
+
+    sendChunk(controller, {
+      type: "nearby_presence_refresh",
+      session_id: sid,
+      reason,
+      occurred_at: new Date().toISOString(),
+    });
+  };
+
   const cleanup = async () => {
     if (closed) return;
     closed = true;
@@ -127,11 +167,15 @@ export async function GET(req: Request) {
     if (keepAlive) clearInterval(keepAlive);
     keepAlive = null;
 
+    if (nearbyRefreshTimer) clearInterval(nearbyRefreshTimer);
+    nearbyRefreshTimer = null;
+
     for (const channel of [
       locationChannel,
       visitChannel,
       sosChannel,
       advisoryChannel,
+      nearbyPresenceChannel,
     ]) {
       if (!channel) continue;
       try {
@@ -146,12 +190,21 @@ export async function GET(req: Request) {
         type: "ready",
         session_id: sid,
         advisory_enabled: Boolean(recipientId) && !accessContext.legacyReadOnly,
+        nearby_presence_enabled: nearbyPresenceEnabled,
         t: Date.now(),
       });
 
       keepAlive = setInterval(() => {
         sendChunk(controller, { type: "ka", t: Date.now() });
       }, 15000);
+
+      if (nearbyPresenceEnabled) {
+        sendNearbyRefresh(controller, "manual_refresh");
+
+        nearbyRefreshTimer = setInterval(() => {
+          sendNearbyRefresh(controller, "manual_refresh");
+        }, NEARBY_REFRESH_INTERVAL_MS);
+      }
 
       const visit = accessContext.visit;
       const latestResult = await admin
@@ -259,6 +312,11 @@ export async function GET(req: Request) {
                 clean(row.created_at) || null,
               ),
             });
+
+            // Distances to approved-contact markers are calculated from the
+            // Visit subject's latest coordinate, so a subject movement needs
+            // a secure nearby-route refresh.
+            sendNearbyRefresh(controller, "manual_refresh");
           },
         )
         .subscribe();
@@ -294,6 +352,7 @@ export async function GET(req: Request) {
 
             if (row.ended_at) {
               sendChunk(controller, { type: "ended", ended_at: row.ended_at });
+              sendNearbyRefresh(controller, "presence_ended");
             }
           },
         )
@@ -323,6 +382,67 @@ export async function GET(req: Request) {
           },
         )
         .subscribe();
+
+      if (nearbyPresenceEnabled) {
+        const contactsResult = await admin
+          .from("emergency_contacts")
+          .select("target_user_id,approval_status,blocked,restricted")
+          .eq("user_id", ownerUserId)
+          .eq("approval_status", "approved");
+
+        const approvedContactUserIds = Array.from(
+          new Set(
+            (contactsResult.data ?? [])
+              .filter(
+                (row) =>
+                  row.blocked !== true &&
+                  row.restricted !== true &&
+                  clean(row.target_user_id),
+              )
+              .map((row) => clean(row.target_user_id))
+              .filter(Boolean),
+          ),
+        );
+
+        if (approvedContactUserIds.length > 0) {
+          let channel = admin.channel(
+            `live-nearby-${sid}-${recipientId}-${Date.now()}`,
+          );
+
+          for (const contactUserId of approvedContactUserIds) {
+            channel = channel.on(
+              "postgres_changes",
+              {
+                event: "*",
+                schema: "public",
+                table: "live_safety_presence",
+                filter: `user_id=eq.${contactUserId}`,
+              },
+              (payload) => {
+                const row = (payload.new ?? payload.old) as Record<
+                  string,
+                  unknown
+                > | null;
+
+                const state = clean(row?.presence_state).toLowerCase();
+                const eventType = clean(payload.eventType).toUpperCase();
+
+                if (eventType === "DELETE") {
+                  sendNearbyRefresh(controller, "presence_ended");
+                } else if (state === "paused") {
+                  sendNearbyRefresh(controller, "presence_paused");
+                } else if (eventType === "INSERT") {
+                  sendNearbyRefresh(controller, "presence_started");
+                } else {
+                  sendNearbyRefresh(controller, "presence_updated");
+                }
+              },
+            );
+          }
+
+          nearbyPresenceChannel = channel.subscribe();
+        }
+      }
 
       if (recipientId) {
         advisoryChannel = admin
@@ -363,7 +483,7 @@ export async function GET(req: Request) {
   return new Response(stream, {
     headers: {
       "Content-Type": "text/event-stream; charset=utf-8",
-      "Cache-Control": "no-cache, no-transform",
+      "Cache-Control": "private, no-store, no-cache, no-transform",
       Connection: "keep-alive",
       "X-Accel-Buffering": "no",
     },
