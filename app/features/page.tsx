@@ -33,13 +33,13 @@ const FEATURE_GROUPS = [
     name: "Secure Communication",
     description:
       "Protected chat entry, translation-aware messages, voice notes, media, stories, and profile trust.",
-    url: "/learn/secure-chat-biometric",
+    url: "/learn/secure-chat-protection",
   },
   {
     name: "Safety Integrity",
     description:
       "VPN location-reliability controls, sensitive-screen privacy, plan-aware capacity, and fast safety navigation.",
-    url: "/learn/vpn-safety-gate",
+    url: "/learn/vpn-safety",
   },
 ] as const;
 

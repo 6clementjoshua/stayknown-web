@@ -165,7 +165,6 @@ export async function createStayKnownIcon({
             display: "flex",
             borderRadius: 999,
             background: "rgba(0,0,0,0.07)",
-            filter: `blur(${Math.max(1, Math.round(size * 0.012))}px)`,
           }}
         />
       </div>

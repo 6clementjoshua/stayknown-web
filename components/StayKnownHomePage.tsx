@@ -36,6 +36,8 @@ type IconName =
   | "question"
   | "arrow";
 
+
+
 type FooterLink = {
   label: string;
   href: string;
@@ -216,7 +218,7 @@ const APP_SLIDES: HeroSlide[] = [
  * #how-it-works, #guided-demo, #app-preview, #plans, #trust, and #faq.
  *
  * Public routes reserved for the next implementation stages:
- * /how-it-works, /features, /plans, /safety-trust, /watch,
+ * /watch,
  * /students, /travel-rides, /families-guardians, /accessibility,
  * /status, /about, and /press-updates.
  *
@@ -226,6 +228,9 @@ const FOOTER_GROUPS: Array<{ title: string; links: FooterLink[] }> = [
   {
     title: "Learn",
     links: [
+      { label: "How StayKnown Works", href: "/how-it-works" },
+      { label: "Product Features", href: "/features" },
+      { label: "Plans & Pricing", href: "/plans" },
       { label: "Safe Journey", href: "/learn/safe-journey" },
       { label: "Family Safety", href: "/learn/family-safety" },
       { label: "Location & Live Safety", href: "/location-safety" },
@@ -265,13 +270,7 @@ const FOOTER_GROUPS: Array<{ title: string; links: FooterLink[] }> = [
   },
 ];
 
-function PremiumIcon({
-  name,
-  className = "",
-}: {
-  name: IconName;
-  className?: string;
-}) {
+function PremiumIcon({ name, className = "" }: { name: IconName; className?: string }) {
   const paths: Record<IconName, string[]> = {
     consent: [
       "M12 21s-7-4.35-7-10a4 4 0 0 1 7-2.65A4 4 0 0 1 19 11c0 5.65-7 10-7 10Z",
@@ -288,9 +287,16 @@ function PremiumIcon({
       "M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z",
       "M12 12h.01",
     ],
-    sos: ["M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20Z", "M12 7v6", "M12 17h.01"],
+    sos: [
+      "M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20Z",
+      "M12 7v6",
+      "M12 17h.01",
+    ],
     check: ["m5 12 4 4L19 6"],
-    student: ["m3 9 9-5 9 5-9 5-9-5Z", "M7 11.2V16c2.8 2.1 7.2 2.1 10 0v-4.8"],
+    student: [
+      "m3 9 9-5 9 5-9 5-9-5Z",
+      "M7 11.2V16c2.8 2.1 7.2 2.1 10 0v-4.8",
+    ],
     travel: [
       "M4 17 17 4",
       "m14 3 3 1 1 3",
@@ -308,8 +314,16 @@ function PremiumIcon({
       "M12 22s8-3.8 8-10V5l-8-3-8 3v7c0 6.2 8 10 8 10Z",
       "m8.8 12 2.1 2.1 4.6-4.8",
     ],
-    privacy: ["M6 11V8a6 6 0 0 1 12 0v3", "M5 11h14v10H5z", "M12 15v2"],
-    proof: ["M7 3h8l4 4v14H7z", "M15 3v5h5", "m10 15 1.5 1.5L15 13"],
+    privacy: [
+      "M6 11V8a6 6 0 0 1 12 0v3",
+      "M5 11h14v10H5z",
+      "M12 15v2",
+    ],
+    proof: [
+      "M7 3h8l4 4v14H7z",
+      "M15 3v5h5",
+      "m10 15 1.5 1.5L15 13",
+    ],
     question: [
       "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z",
       "M9.8 9a2.4 2.4 0 1 1 3.8 1.95c-.95.68-1.6 1.18-1.6 2.3",
@@ -458,9 +472,7 @@ function CinematicHeroSection({ slides }: { slides: CinematicHeroSlide[] }) {
           <div
             key={slide.id}
             className={`absolute inset-0 transition-opacity duration-[1050ms] ease-out ${
-              index === activeIndex
-                ? "opacity-100"
-                : "pointer-events-none opacity-0"
+              index === activeIndex ? "opacity-100" : "pointer-events-none opacity-0"
             }`}
             aria-hidden={index !== activeIndex}
           >
@@ -472,9 +484,7 @@ function CinematicHeroSection({ slides }: { slides: CinematicHeroSlide[] }) {
               quality={82}
               sizes="100vw"
               className="object-cover"
-              style={{
-                objectPosition: slide.objectPosition ?? "center center",
-              }}
+              style={{ objectPosition: slide.objectPosition ?? "center center" }}
             />
           </div>
         ))}
@@ -546,9 +556,7 @@ function CinematicHeroSection({ slides }: { slides: CinematicHeroSlide[] }) {
                 type="button"
                 onClick={() => setIsPaused((current) => !current)}
                 className="ml-1 inline-flex h-9 items-center rounded-full border border-white/12 bg-white/[0.06] px-3 text-[9px] font-black uppercase tracking-[0.16em] text-white/68 transition hover:border-white/20 hover:bg-white/[0.1] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
-                aria-label={
-                  isPaused ? "Resume hero slides" : "Pause hero slides"
-                }
+                aria-label={isPaused ? "Resume hero slides" : "Pause hero slides"}
               >
                 {isPaused ? "Resume" : "Pause"}
               </button>
@@ -611,10 +619,7 @@ function StayKnownIntroSection() {
   ];
 
   return (
-    <section
-      id="stayknown-intro"
-      className="relative z-10 overflow-hidden bg-black"
-    >
+    <section id="stayknown-intro" className="relative z-10 overflow-hidden bg-black">
       <div className="pointer-events-none absolute left-1/2 top-0 h-[420px] w-[760px] -translate-x-1/2 rounded-full bg-white/[0.035] blur-[110px]" />
 
       <div className="relative mx-auto max-w-6xl px-4 py-16 sm:px-5 sm:py-20 lg:px-6 lg:py-24">
@@ -729,6 +734,7 @@ function HowItWorksSection() {
   );
 }
 
+
 function AudienceSection() {
   const audiences = [
     {
@@ -820,11 +826,7 @@ function PlansSection() {
       featured: false,
       pricePrimary: "Free",
       priceSecondary: "No paid subscription required",
-      capacities: [
-        "1 approved contact",
-        "Core Visit access",
-        "Twice-daily I’M SAFE",
-      ],
+      capacities: ["1 approved contact", "Core Visit access", "Twice-daily I’M SAFE"],
       features: [
         "Start and end Visits",
         "Add a destination and review Visit history",
@@ -1051,10 +1053,7 @@ function TrustSection() {
   const comparison = [
     ["Sharing model", "User-started Visits and safety flows"],
     ["Contact access", "Approved and intentional"],
-    [
-      "Safety information",
-      "Location plus destination, state, proof, and context",
-    ],
+    ["Safety information", "Location plus destination, state, proof, and context"],
     ["Permanent tracking required", "No"],
     ["Professional emergency dispatch", "Not currently provided"],
   ];
@@ -1097,10 +1096,7 @@ function TrustSection() {
           ))}
         </div>
 
-        <div
-          data-sk-reveal
-          className="sk-reveal mt-5 overflow-hidden rounded-[32px] border border-white/[0.11] bg-[#050505] shadow-[0_28px_80px_rgba(0,0,0,0.46)]"
-        >
+        <div data-sk-reveal className="sk-reveal mt-5 overflow-hidden rounded-[32px] border border-white/[0.11] bg-[#050505] shadow-[0_28px_80px_rgba(0,0,0,0.46)]">
           <div className="grid gap-7 p-5 sm:p-7 lg:grid-cols-[0.8fr_1.2fr] lg:items-center">
             <div>
               <div className="text-[10px] font-black uppercase tracking-[0.22em] text-white/40">
@@ -1110,10 +1106,7 @@ function TrustSection() {
                 Context, consent, recognition, and escalation.
               </h3>
               <p className="mt-4 text-[13px] font-semibold leading-relaxed text-white/58 sm:text-[14px]">
-                StayKnown is not being redesigned into an always-on family
-                tracker. The competitive advantage remains a consent-recorded
-                safety flow that tells trusted people what is happening and why
-                access exists.
+                StayKnown is not being redesigned into an always-on family tracker. The competitive advantage remains a consent-recorded safety flow that tells trusted people what is happening and why access exists.
               </p>
             </div>
 
@@ -1140,6 +1133,7 @@ function TrustSection() {
     </section>
   );
 }
+
 
 function FaqSection() {
   return (
@@ -1181,7 +1175,10 @@ function FaqSection() {
                     shadow-[inset_0_1px_0_rgba(255,255,255,0.09),0_8px_18px_rgba(0,0,0,0.3)]
                   "
                 >
-                  <PremiumIcon name="question" className="h-3.5 w-3.5" />
+                  <PremiumIcon
+                    name="question"
+                    className="h-3.5 w-3.5"
+                  />
                 </span>
 
                 <span className="min-w-0 flex-1">
@@ -1252,10 +1249,7 @@ function FaqSection() {
 function FinalCtaSection() {
   return (
     <section className="bg-[#050505] px-4 py-10 sm:px-5 sm:py-14 lg:px-6">
-      <div
-        data-sk-reveal
-        className="sk-reveal sk-white-bevel mx-auto max-w-6xl overflow-hidden rounded-[34px] border border-white bg-white p-6 text-black shadow-[0_24px_0_-17px_rgba(255,255,255,0.85),0_36px_100px_rgba(0,0,0,0.48)] sm:p-9"
-      >
+      <div data-sk-reveal className="sk-reveal sk-white-bevel mx-auto max-w-6xl overflow-hidden rounded-[34px] border border-white bg-white p-6 text-black shadow-[0_24px_0_-17px_rgba(255,255,255,0.85),0_36px_100px_rgba(0,0,0,0.48)] sm:p-9">
         <div className="grid gap-6 lg:grid-cols-[1fr_auto] lg:items-center">
           <div>
             <div className="text-[10px] font-black uppercase tracking-[0.22em] text-black/42">
@@ -1265,8 +1259,7 @@ function FinalCtaSection() {
               Stay independent. Keep the right people informed.
             </h2>
             <p className="mt-4 max-w-2xl text-[13px] font-semibold leading-relaxed text-black/58 sm:text-[14px]">
-              Download StayKnown, build your approved circle, and prepare your
-              safety settings before you need them.
+              Download StayKnown, build your approved circle, and prepare your safety settings before you need them.
             </p>
           </div>
 
@@ -1298,8 +1291,7 @@ function SiteFooter() {
             </div>
 
             <p className="mt-5 max-w-[34ch] text-[12px] font-semibold leading-relaxed text-white/42">
-              StayKnown helps people share safety context with approved contacts
-              during Visits, check-ins, SOS, and other intentional safety flows.
+              StayKnown helps people share safety context with approved contacts during Visits, check-ins, SOS, and other intentional safety flows.
             </p>
           </div>
 
@@ -1544,6 +1536,7 @@ export default function StayKnownHomePage() {
             inset 0 -5px 12px rgba(0, 0, 0, 0.08) !important;
         }
 
+
         .sk-reveal {
           opacity: 0;
           transform: translateY(14px);
@@ -1591,16 +1584,13 @@ export default function StayKnownHomePage() {
             </span>
           </a>
 
-          <nav
-            className="hidden items-center gap-1 lg:flex"
-            aria-label="Homepage sections"
-          >
+          <nav className="hidden items-center gap-1 lg:flex" aria-label="Homepage sections">
             {[
-              ["How it works", "#how-it-works"],
+              ["How it works", "/how-it-works"],
               ["Demo", "#guided-demo"],
-              ["Features", "#app-preview"],
-              ["Plans", "#plans"],
-              ["Trust", "#trust"],
+              ["Features", "/features"],
+              ["Plans", "/plans"],
+              ["Trust", "/trust-safety"],
               ["FAQ", "#faq"],
             ].map(([label, href]) => (
               <a

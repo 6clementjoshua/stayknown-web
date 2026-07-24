@@ -25,7 +25,7 @@ function absoluteUrl(path: string): string {
  * without making the website load the images any earlier.
  */
 const homepageImages = [
-  "/og-stayknown.png",
+  "/hero/visit-live-sos.png",
   "/hero/stayknown-safe-journey-bus.png",
   "/hero/stayknown-family-farewell.png",
   "/hero/get-safe-hints.png",
@@ -55,6 +55,43 @@ const coreRoutes: PublicRoute[] = [
     changeFrequency: "weekly",
     priority: 1,
     images: homepageImages,
+  },
+  {
+    path: "/how-it-works",
+    lastModified: HOMEPAGE_UPDATE,
+    changeFrequency: "weekly",
+    priority: 0.95,
+    images: [
+      absoluteUrl("/hero/visit-live-sos.png"),
+      absoluteUrl("/hero/contact-approval.png"),
+      absoluteUrl("/hero/live-map.png"),
+      absoluteUrl("/hero/sos-activated.png"),
+      absoluteUrl("/hero/end-visit-verify.png"),
+    ],
+  },
+  {
+    path: "/features",
+    lastModified: HOMEPAGE_UPDATE,
+    changeFrequency: "weekly",
+    priority: 0.94,
+    images: [
+      absoluteUrl("/hero/visit-live.png"),
+      absoluteUrl("/hero/sos-activated.png"),
+      absoluteUrl("/hero/contact-approval.png"),
+      absoluteUrl("/hero/secure-chat-biometric.png"),
+      absoluteUrl("/hero/vpn-safety-gate.png"),
+    ],
+  },
+  {
+    path: "/plans",
+    lastModified: HOMEPAGE_UPDATE,
+    changeFrequency: "weekly",
+    priority: 0.93,
+    images: [
+      absoluteUrl("/hero/promax-shell.png"),
+      absoluteUrl("/hero/contact-approval.png"),
+      absoluteUrl("/hero/sos-activated.png"),
+    ],
   },
   {
     path: "/donate",
@@ -103,9 +140,17 @@ const policyAndTrustRoutes: PublicRoute[] = [
   },
   {
     path: "/trust-safety",
-    lastModified: PREVIOUS_CONTENT_UPDATE,
-    changeFrequency: "monthly",
-    priority: 0.85,
+    lastModified: HOMEPAGE_UPDATE,
+    changeFrequency: "weekly",
+    priority: 0.92,
+    images: [
+      absoluteUrl("/hero/contact-approval.png"),
+      absoluteUrl("/hero/live-map.png"),
+      absoluteUrl("/hero/sos-activated.png"),
+      absoluteUrl("/hero/secure-chat-biometric.png"),
+      absoluteUrl("/hero/vpn-safety-gate.png"),
+      absoluteUrl("/hero/safety-gallery.png"),
+    ],
   },
   {
     path: "/verification-policy",
@@ -320,7 +365,11 @@ const learnRoutes: PublicRoute[] = [
   },
 ];
 
-const publicRoutes = [...coreRoutes, ...policyAndTrustRoutes, ...learnRoutes];
+const publicRoutes = [
+  ...coreRoutes,
+  ...policyAndTrustRoutes,
+  ...learnRoutes,
+];
 
 export default function sitemap(): MetadataRoute.Sitemap {
   return publicRoutes.map(

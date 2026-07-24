@@ -1,0 +1,683 @@
+StayKnown website project structure report
+Generated: 2026-07-24 10:42:43
+Project root: C:\Users\suppo\stayknown-web
+
+==========================================================================================
+ROOT-LEVEL ITEMS
+==========================================================================================
+[DIR]  .git
+[DIR]  .next
+[DIR]  .vercel
+[DIR]  .vscode
+[DIR]  app
+[DIR]  components
+[DIR]  lib
+[DIR]  node_modules
+[DIR]  public
+[DIR]  scripts
+[DIR]  src
+[DIR]  supabase
+[FILE] .env.local
+[FILE] .gitignore
+[FILE] .vercelignore
+[FILE] eslint.config.mjs
+[FILE] favicon.ico
+[FILE] global.d.ts
+[FILE] next.config.ts
+[FILE] next-env.d.ts
+[FILE] package.json
+[FILE] package-lock.json
+[FILE] postcss.config.mjs
+[FILE] print-stayknown-project-structure-fixed.ps1
+[FILE] README.md
+[FILE] README.txt
+[FILE] stayknown-project-structure.txt
+[FILE] tsconfig.json
+[FILE] tsconfig.tsbuildinfo
+
+==========================================================================================
+RELEVANT PROJECT TREE
+==========================================================================================
+
+### app
+  [DIR]  app\about
+    [FILE] app\about\page.tsx
+  [DIR]  app\abuse
+    [FILE] app\abuse\page.tsx
+  [DIR]  app\acceptable-use
+    [FILE] app\acceptable-use\page.tsx
+  [DIR]  app\api
+    [DIR]  app\api\chat-map
+      [DIR]  app\api\chat-map\status
+        [FILE] app\api\chat-map\status\route.ts
+    [DIR]  app\api\check-in-image
+      [FILE] app\api\check-in-image\route.ts
+    [DIR]  app\api\contact-approval
+      [DIR]  app\api\contact-approval\act
+        [FILE] app\api\contact-approval\act\route.ts
+      [DIR]  app\api\contact-approval\status
+        [FILE] app\api\contact-approval\status\route.ts
+    [DIR]  app\api\creator-applications
+      [FILE] app\api\creator-applications\route.ts
+    [DIR]  app\api\donations
+      [DIR]  app\api\donations\init
+        [FILE] app\api\donations\init\route.ts
+      [DIR]  app\api\donations\verify
+        [FILE] app\api\donations\verify\route.ts
+    [DIR]  app\api\live
+      [DIR]  app\api\live\advisory
+        [DIR]  app\api\live\advisory\send
+          [FILE] app\api\live\advisory\send\route.ts
+      [DIR]  app\api\live\consent
+        [FILE] app\api\live\consent\route.ts
+      [DIR]  app\api\live\nearby
+        [FILE] app\api\live\nearby\route.ts
+      [DIR]  app\api\live\seed
+        [FILE] app\api\live\seed\route.ts
+      [DIR]  app\api\live\stream
+        [FILE] app\api\live\stream\route.ts
+    [DIR]  app\api\mail-console
+      [DIR]  app\api\mail-console\footer-policy
+        [FILE] app\api\mail-console\footer-policy\route.ts
+      [DIR]  app\api\mail-console\logout
+        [FILE] app\api\mail-console\logout\route.ts
+      [DIR]  app\api\mail-console\request-login
+        [FILE] app\api\mail-console\request-login\route.ts
+      [DIR]  app\api\mail-console\resend-webhook
+        [FILE] app\api\mail-console\resend-webhook\route.ts
+      [DIR]  app\api\mail-console\save-draft
+        [FILE] app\api\mail-console\save-draft\route.ts
+      [DIR]  app\api\mail-console\send
+        [FILE] app\api\mail-console\send\route.ts
+      [DIR]  app\api\mail-console\template
+        [FILE] app\api\mail-console\template\route.ts
+      [DIR]  app\api\mail-console\unsubscribe
+        [FILE] app\api\mail-console\unsubscribe\route.ts
+    [DIR]  app\api\minor-signup
+      [DIR]  app\api\minor-signup\act
+        [FILE] app\api\minor-signup\act\route.ts
+      [DIR]  app\api\minor-signup\cancel
+        [FILE] app\api\minor-signup\cancel\route.ts
+      [DIR]  app\api\minor-signup\complete-after-auth
+        [FILE] app\api\minor-signup\complete-after-auth\route.ts
+      [DIR]  app\api\minor-signup\recover-approved
+        [FILE] app\api\minor-signup\recover-approved\route.ts
+      [DIR]  app\api\minor-signup\start
+        [FILE] app\api\minor-signup\start\route.ts
+      [DIR]  app\api\minor-signup\status
+        [FILE] app\api\minor-signup\status\route.ts
+    [DIR]  app\api\missed-im-safe-response
+      [DIR]  app\api\missed-im-safe-response\act
+        [FILE] app\api\missed-im-safe-response\act\route.ts
+      [DIR]  app\api\missed-im-safe-response\avatar
+        [FILE] app\api\missed-im-safe-response\avatar\route.ts
+    [DIR]  app\api\stayknown-logo
+      [FILE] app\api\stayknown-logo\route.ts
+    [DIR]  app\api\support-submission
+      [FILE] app\api\support-submission\route.ts
+    [DIR]  app\api\threat-alert-image
+      [FILE] app\api\threat-alert-image\route.ts
+  [DIR]  app\billing
+    [DIR]  app\billing\paystack
+      [DIR]  app\billing\paystack\callback
+        [FILE] app\billing\paystack\callback\page.tsx
+  [DIR]  app\billing-policy
+    [FILE] app\billing-policy\page.tsx
+  [DIR]  app\chat-map
+    [FILE] app\chat-map\chat-map-client.tsx
+    [FILE] app\chat-map\page.tsx
+  [DIR]  app\check-in
+    [FILE] app\check-in\check-in-client.tsx
+    [FILE] app\check-in\page.tsx
+  [DIR]  app\contact
+    [FILE] app\contact\page.tsx
+  [DIR]  app\contact-approval
+    [FILE] app\contact-approval\contact-approval-client.tsx
+    [FILE] app\contact-approval\page.tsx
+  [DIR]  app\contact-consent
+    [FILE] app\contact-consent\page.tsx
+  [DIR]  app\creator-apply
+    [FILE] app\creator-apply\page.tsx
+  [DIR]  app\creator-policy
+    [FILE] app\creator-policy\page.tsx
+  [DIR]  app\donate
+    [FILE] app\donate\page.tsx
+    [DIR]  app\donate\verify
+      [FILE] app\donate\verify\page.tsx
+  [DIR]  app\donor-policy
+    [FILE] app\donor-policy\page.tsx
+  [DIR]  app\emergency
+    [FILE] app\emergency\page.tsx
+  [FILE] app\favicon.ico
+  [FILE] app\globals.css
+  [DIR]  app\guardian-consent
+    [FILE] app\guardian-consent\page.tsx
+  [DIR]  app\help-center
+    [FILE] app\help-center\page.tsx
+  [DIR]  app\law
+    [FILE] app\law\page.tsx
+  [FILE] app\layout.tsx
+  [DIR]  app\learn
+    [DIR]  app\learn\chat
+      [FILE] app\learn\chat\page.tsx
+    [DIR]  app\learn\contact-approval
+      [FILE] app\learn\contact-approval\page.tsx
+    [DIR]  app\learn\end-sos-verify
+      [FILE] app\learn\end-sos-verify\page.tsx
+    [DIR]  app\learn\end-visit-verify
+      [FILE] app\learn\end-visit-verify\page.tsx
+    [DIR]  app\learn\family-safety
+      [FILE] app\learn\family-safety\page.tsx
+    [DIR]  app\learn\get-safe-guidance
+      [FILE] app\learn\get-safe-guidance\page.tsx
+    [DIR]  app\learn\language-aware-chat
+      [FILE] app\learn\language-aware-chat\page.tsx
+    [DIR]  app\learn\live-map
+      [FILE] app\learn\live-map\page.tsx
+    [DIR]  app\learn\manual-capture
+      [FILE] app\learn\manual-capture\page.tsx
+    [DIR]  app\learn\promax-shell
+      [FILE] app\learn\promax-shell\page.tsx
+    [DIR]  app\learn\safe-journey
+      [FILE] app\learn\safe-journey\page.tsx
+    [DIR]  app\learn\safety-gallery
+      [FILE] app\learn\safety-gallery\page.tsx
+    [DIR]  app\learn\secure-chat-passcode
+      [FILE] app\learn\secure-chat-passcode\page.tsx
+    [DIR]  app\learn\secure-chat-protection
+      [FILE] app\learn\secure-chat-protection\page.tsx
+    [DIR]  app\learn\sos
+      [FILE] app\learn\sos\page.tsx
+    [DIR]  app\learn\stories-profile-trust
+      [FILE] app\learn\stories-profile-trust\page.tsx
+    [DIR]  app\learn\verification
+      [FILE] app\learn\verification\page.tsx
+    [DIR]  app\learn\verified-stop
+      [FILE] app\learn\verified-stop\page.tsx
+    [DIR]  app\learn\visit-live
+      [FILE] app\learn\visit-live\page.tsx
+    [DIR]  app\learn\visit-live-sos
+      [FILE] app\learn\visit-live-sos\page.tsx
+    [DIR]  app\learn\vpn-safety
+      [FILE] app\learn\vpn-safety\page.tsx
+  [DIR]  app\live
+    [FILE] app\live\live-access.ts
+    [FILE] app\live\live-client.tsx
+    [FILE] app\live\live-types.ts
+    [FILE] app\live\page.tsx
+  [DIR]  app\location-safety
+    [FILE] app\location-safety\page.tsx
+  [DIR]  app\mail-auth
+    [DIR]  app\mail-auth\callback
+      [FILE] app\mail-auth\callback\route.ts
+  [DIR]  app\mail-console
+    [DIR]  app\mail-console\footer-policies
+      [FILE] app\mail-console\footer-policies\page.tsx
+    [DIR]  app\mail-console\logs
+      [FILE] app\mail-console\logs\page.tsx
+    [FILE] app\mail-console\page.tsx
+    [DIR]  app\mail-console\send
+      [FILE] app\mail-console\send\page.tsx
+    [DIR]  app\mail-console\templates
+      [FILE] app\mail-console\templates\page.tsx
+  [DIR]  app\mail-login
+    [FILE] app\mail-login\page.tsx
+  [FILE] app\manifest.ts
+  [DIR]  app\minors
+    [FILE] app\minors\page.tsx
+  [DIR]  app\minor-signup-approval
+    [FILE] app\minor-signup-approval\minor-signup-approval-client.tsx
+    [FILE] app\minor-signup-approval\page.tsx
+  [DIR]  app\missed-im-safe-response
+    [FILE] app\missed-im-safe-response\missed-im-safe-response-client.tsx
+    [FILE] app\missed-im-safe-response\page.tsx
+  [FILE] app\page.tsx
+  [DIR]  app\privacy
+    [FILE] app\privacy\page.tsx
+  [DIR]  app\retention
+    [FILE] app\retention\page.tsx
+  [FILE] app\robots.ts
+  [DIR]  app\safety
+    [FILE] app\safety\page.tsx
+  [DIR]  app\security
+    [FILE] app\security\page.tsx
+  [FILE] app\sitemap.ts
+  [DIR]  app\submit-feature
+    [FILE] app\submit-feature\page.tsx
+  [DIR]  app\submit-request
+    [FILE] app\submit-request\page.tsx
+  [DIR]  app\terms
+    [FILE] app\terms\page.tsx
+  [DIR]  app\threat-alert-map
+    [FILE] app\threat-alert-map\page.tsx
+    [FILE] app\threat-alert-map\ThreatAlertMapClient.tsx
+  [DIR]  app\threat-alert-response
+    [FILE] app\threat-alert-response\page.tsx
+  [DIR]  app\trust-safety
+    [FILE] app\trust-safety\page.tsx
+  [DIR]  app\unsubscribe
+    [FILE] app\unsubscribe\page.tsx
+  [DIR]  app\verification-policy
+    [FILE] app\verification-policy\page.tsx
+
+### src
+  [DIR]  src\app
+    [DIR]  src\app\api
+      [DIR]  src\app\api\billing-region
+        [FILE] src\app\api\billing-region\route.ts
+    [FILE] src\app\apple-icon.tsx
+    [DIR]  src\app\features
+      [FILE] src\app\features\page.tsx
+    [DIR]  src\app\how-it-works
+      [FILE] src\app\how-it-works\page.tsx
+    [FILE] src\app\icon.tsx
+    [DIR]  src\app\icons
+      [DIR]  src\app\icons\stayknown-192
+        [FILE] src\app\icons\stayknown-192\route.ts
+      [DIR]  src\app\icons\stayknown-512
+        [FILE] src\app\icons\stayknown-512\route.ts
+      [DIR]  src\app\icons\stayknown-maskable-512
+        [FILE] src\app\icons\stayknown-maskable-512\route.ts
+    [FILE] src\app\layout.tsx
+    [FILE] src\app\manifest.ts
+    [FILE] src\app\opengraph-image.tsx
+    [DIR]  src\app\plans
+      [FILE] src\app\plans\page.tsx
+    [FILE] src\app\sitemap.ts
+    [DIR]  src\app\trust-safety
+      [FILE] src\app\trust-safety\page.tsx
+    [FILE] src\app\twitter-image.tsx
+  [DIR]  src\components
+    [FILE] src\components\FeaturesExperience.tsx
+    [FILE] src\components\HowItWorksExperience.tsx
+    [FILE] src\components\PlansExperience.tsx
+    [FILE] src\components\StayKnownHomePage.tsx
+    [FILE] src\components\TrustSafetyExperience.tsx
+  [DIR]  src\lib
+    [FILE] src\lib\stayknown-billing-region.ts
+    [FILE] src\lib\stayknown-billing-types.ts
+    [FILE] src\lib\stayknown-icon.tsx
+    [FILE] src\lib\stayknown-social-image.tsx
+
+### components
+  [FILE] components\HeroSlider.tsx
+  [FILE] components\MailConsoleSendForm.tsx
+  [FILE] components\StayKnownActionMenu.tsx
+  [FILE] components\StayKnownHomePage.tsx
+  [FILE] components\StayKnownHowItWorks.tsx
+
+### lib
+  [FILE] lib\mailConsoleAdmin.ts
+  [FILE] lib\mailConsoleServerAuth.ts
+  [FILE] lib\mailConsoleSupabase.ts
+  [FILE] lib\mailConsoleUnsubscribe.ts
+  [FILE] lib\stayknown-home-content.ts
+
+### public
+  [DIR]  public\.well-known
+  [FILE] public\6logo.png
+  [FILE] public\apple-touch-icon-180x180.png
+  [FILE] public\favicon.png
+  [FILE] public\favicon-32x32.png
+  [FILE] public\favicon-96x96.png
+  [DIR]  public\hero
+    [FILE] public\hero\6-clement-joshua-official-logo.png
+    [FILE] public\hero\chat-stickers-voice.png
+    [FILE] public\hero\chat-translation.png
+    [FILE] public\hero\contact-approval.png
+    [FILE] public\hero\end-sos-verify.png
+    [FILE] public\hero\end-visit-verify.png
+    [FILE] public\hero\get-safe-hints.png
+    [FILE] public\hero\live-map.png
+    [FILE] public\hero\manual-capture.png
+    [FILE] public\hero\promax-shell.png
+    [FILE] public\hero\safety-gallery.png
+    [FILE] public\hero\secure-chat-biometric.png
+    [FILE] public\hero\secure-chat-passcode.png
+    [FILE] public\hero\sos-activated.png
+    [FILE] public\hero\sos-active.png
+    [FILE] public\hero\sos-idle.png
+    [FILE] public\hero\sos-live-idle.png
+    [FILE] public\hero\stayknown-family-farewell.png
+    [FILE] public\hero\stay-known-logo.png
+    [FILE] public\hero\stayknown-safe-journey-bus.png
+    [FILE] public\hero\stories-profile.png
+    [FILE] public\hero\verification.png
+    [FILE] public\hero\visit-live.png
+    [FILE] public\hero\visit-live-sos.png
+    [FILE] public\hero\vpn-safety-gate.png
+
+==========================================================================================
+IMPORTANT FILE LOCATIONS
+==========================================================================================
+app\about\page.tsx
+app\abuse\page.tsx
+app\acceptable-use\page.tsx
+app\api\chat-map\status\route.ts
+app\api\check-in-image\route.ts
+app\api\contact-approval\act\route.ts
+app\api\contact-approval\status\route.ts
+app\api\creator-applications\route.ts
+app\api\donations\init\route.ts
+app\api\donations\verify\route.ts
+app\api\live\advisory\send\route.ts
+app\api\live\consent\route.ts
+app\api\live\nearby\route.ts
+app\api\live\seed\route.ts
+app\api\live\stream\route.ts
+app\api\mail-console\footer-policy\route.ts
+app\api\mail-console\logout\route.ts
+app\api\mail-console\request-login\route.ts
+app\api\mail-console\resend-webhook\route.ts
+app\api\mail-console\save-draft\route.ts
+app\api\mail-console\send\route.ts
+app\api\mail-console\template\route.ts
+app\api\mail-console\unsubscribe\route.ts
+app\api\minor-signup\act\route.ts
+app\api\minor-signup\cancel\route.ts
+app\api\minor-signup\complete-after-auth\route.ts
+app\api\minor-signup\recover-approved\route.ts
+app\api\minor-signup\start\route.ts
+app\api\minor-signup\status\route.ts
+app\api\missed-im-safe-response\act\route.ts
+app\api\missed-im-safe-response\avatar\route.ts
+app\api\stayknown-logo\route.ts
+app\api\support-submission\route.ts
+app\api\threat-alert-image\route.ts
+app\billing\paystack\callback\page.tsx
+app\billing-policy\page.tsx
+app\chat-map\page.tsx
+app\check-in\page.tsx
+app\contact\page.tsx
+app\contact-approval\page.tsx
+app\contact-consent\page.tsx
+app\creator-apply\page.tsx
+app\creator-policy\page.tsx
+app\donate\page.tsx
+app\donate\verify\page.tsx
+app\donor-policy\page.tsx
+app\emergency\page.tsx
+app\guardian-consent\page.tsx
+app\help-center\page.tsx
+app\law\page.tsx
+app\layout.tsx
+app\learn\chat\page.tsx
+app\learn\contact-approval\page.tsx
+app\learn\end-sos-verify\page.tsx
+app\learn\end-visit-verify\page.tsx
+app\learn\family-safety\page.tsx
+app\learn\get-safe-guidance\page.tsx
+app\learn\language-aware-chat\page.tsx
+app\learn\live-map\page.tsx
+app\learn\manual-capture\page.tsx
+app\learn\promax-shell\page.tsx
+app\learn\safe-journey\page.tsx
+app\learn\safety-gallery\page.tsx
+app\learn\secure-chat-passcode\page.tsx
+app\learn\secure-chat-protection\page.tsx
+app\learn\sos\page.tsx
+app\learn\stories-profile-trust\page.tsx
+app\learn\verification\page.tsx
+app\learn\verified-stop\page.tsx
+app\learn\visit-live\page.tsx
+app\learn\visit-live-sos\page.tsx
+app\learn\vpn-safety\page.tsx
+app\live\page.tsx
+app\location-safety\page.tsx
+app\mail-auth\callback\route.ts
+app\mail-console\footer-policies\page.tsx
+app\mail-console\logs\page.tsx
+app\mail-console\page.tsx
+app\mail-console\send\page.tsx
+app\mail-console\templates\page.tsx
+app\mail-login\page.tsx
+app\manifest.ts
+app\minors\page.tsx
+app\minor-signup-approval\page.tsx
+app\missed-im-safe-response\page.tsx
+app\page.tsx
+app\privacy\page.tsx
+app\retention\page.tsx
+app\safety\page.tsx
+app\security\page.tsx
+app\sitemap.ts
+app\submit-feature\page.tsx
+app\submit-request\page.tsx
+app\terms\page.tsx
+app\threat-alert-map\page.tsx
+app\threat-alert-response\page.tsx
+app\trust-safety\page.tsx
+app\unsubscribe\page.tsx
+app\verification-policy\page.tsx
+components\StayKnownHomePage.tsx
+components\StayKnownHowItWorks.tsx
+lib\stayknown-home-content.ts
+src\app\api\billing-region\route.ts
+src\app\features\page.tsx
+src\app\how-it-works\page.tsx
+src\app\icons\stayknown-192\route.ts
+src\app\icons\stayknown-512\route.ts
+src\app\icons\stayknown-maskable-512\route.ts
+src\app\layout.tsx
+src\app\manifest.ts
+src\app\plans\page.tsx
+src\app\sitemap.ts
+src\app\trust-safety\page.tsx
+src\components\FeaturesExperience.tsx
+src\components\HowItWorksExperience.tsx
+src\components\PlansExperience.tsx
+src\components\StayKnownHomePage.tsx
+src\components\TrustSafetyExperience.tsx
+src\lib\stayknown-billing-region.ts
+src\lib\stayknown-billing-types.ts
+src\lib\stayknown-icon.tsx
+src\lib\stayknown-social-image.tsx
+
+==========================================================================================
+APP DIRECTORY CHECK
+==========================================================================================
+app exists: True
+src\app exists: True
+components exists: True
+src\components exists: True
+lib exists: True
+src\lib exists: True
+
+==========================================================================================
+TSCONFIG.JSON
+==========================================================================================
+{
+  "compilerOptions": {
+    "target": "ES2017",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "react-jsx",
+    "incremental": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "paths": {
+      "@/*": ["./*"]
+    }
+  },
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    "**/*.d.ts",
+    ".next/types/**/*.ts",
+    ".next/dev/types/**/*.ts",
+    "**/*.mts"
+  ],
+  "exclude": [
+    "node_modules",
+    "supabase/functions/**"
+  ]
+}
+
+==========================================================================================
+PACKAGE.JSON
+==========================================================================================
+{
+  "name": "stayknown-web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.108.2",
+    "dotenv": "^17.4.2",
+    "framer-motion": "^12.34.3",
+    "lucide-react": "^0.575.0",
+    "mapbox-gl": "^3.21.0",
+    "maplibre-gl": "^5.23.0",
+    "next": "16.1.6",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "svix": "^1.96.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.1.6",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}
+
+==========================================================================================
+NEXT CONFIG FILES
+==========================================================================================
+
+### next.config.ts
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  async redirects() {
+    return [
+      {
+        source: "/:path*",
+        has: [
+          {
+            type: "host",
+            value: "stay-known.com",
+          },
+        ],
+        destination: "https://www.stay-known.com/:path*",
+        permanent: true,
+      },
+    ];
+  },
+
+  async headers() {
+    const csp = [
+      "default-src 'self'",
+      "base-uri 'self'",
+      "object-src 'none'",
+      "frame-ancestors 'none'",
+      "img-src 'self' data: blob: https://api.mapbox.com https://*.tiles.mapbox.com https://*.mapbox.com https://api.tomtom.com https://*.api.tomtom.com https://*.tomtom.com",
+      "font-src 'self' data: https://api.mapbox.com https://api.tomtom.com https://*.tomtom.com",
+      "style-src 'self' 'unsafe-inline' https://api.mapbox.com https://api.tomtom.com https://*.tomtom.com",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' blob: https://api.mapbox.com https://events.mapbox.com https://api.tomtom.com https://*.tomtom.com",
+      "connect-src 'self' https://api.mapbox.com https://events.mapbox.com https://*.tiles.mapbox.com https://*.mapbox.com https://api.tomtom.com https://*.api.tomtom.com https://*.tomtom.com",
+      "worker-src 'self' blob:",
+      "child-src 'self' blob:",
+      "manifest-src 'self'",
+      "upgrade-insecure-requests",
+    ].join("; ");
+
+    return [
+      {
+        source: "/(.*)",
+        headers: [
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "X-Frame-Options", value: "DENY" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          {
+            key: "Permissions-Policy",
+            value: "camera=(), microphone=(), geolocation=()",
+          },
+          { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
+          {
+            key: "Strict-Transport-Security",
+            value: "max-age=31536000; includeSubDomains; preload",
+          },
+          { key: "Content-Security-Policy", value: csp },
+        ],
+      },
+    ];
+  },
+};
+
+module.exports = nextConfig;
+
+==========================================================================================
+ALIAS IMPORTS IN RELEVANT CODE
+==========================================================================================
+app\api\mail-console\footer-policy\route.ts:2: import { MAIL_CONSOLE_COOKIE } from "@/lib/mailConsoleServerAuth";
+app\api\mail-console\footer-policy\route.ts:6: } from "@/lib/mailConsoleAdmin";
+app\api\mail-console\logout\route.ts:2: import { MAIL_CONSOLE_COOKIE } from "@/lib/mailConsoleServerAuth";
+app\api\mail-console\request-login\route.ts:3: import { createMailConsoleLoginToken } from "@/lib/mailConsoleServerAuth";
+app\api\mail-console\save-draft\route.ts:3: import { MAIL_CONSOLE_COOKIE } from "@/lib/mailConsoleServerAuth";
+app\api\mail-console\save-draft\route.ts:4: import { requireMailConsoleAdmin } from "@/lib/mailConsoleAdmin";
+app\api\mail-console\send\route.ts:4: import { getMailConsoleSiteUrl } from "@/lib/mailConsoleAdmin";
+app\api\mail-console\send\route.ts:5: import { createUnsubscribeToken } from "@/lib/mailConsoleUnsubscribe";
+app\api\mail-console\send\route.ts:9: } from "@/lib/mailConsoleServerAuth";
+app\api\mail-console\template\route.ts:2: import { MAIL_CONSOLE_COOKIE } from "@/lib/mailConsoleServerAuth";
+app\api\mail-console\template\route.ts:6: } from "@/lib/mailConsoleAdmin";
+app\api\mail-console\unsubscribe\route.ts:2: import { getMailConsoleAdminClient } from "@/lib/mailConsoleAdmin";
+app\api\mail-console\unsubscribe\route.ts:3: import { verifyUnsubscribeToken } from "@/lib/mailConsoleUnsubscribe";
+app\creator-apply\page.tsx:6: import StayKnownActionMenu from "@/components/StayKnownActionMenu";
+app\donate\verify\page.tsx:5: import StayKnownActionMenu from "@/components/StayKnownActionMenu";
+app\donate\page.tsx:6: import StayKnownActionMenu from "@/components/StayKnownActionMenu";
+app\mail-auth\callback\route.ts:6: } from "@/lib/mailConsoleServerAuth";
+app\mail-console\footer-policies\page.tsx:5: import { MAIL_CONSOLE_COOKIE } from "@/lib/mailConsoleServerAuth";
+app\mail-console\footer-policies\page.tsx:6: import { requireMailConsoleAdmin } from "@/lib/mailConsoleAdmin";
+app\mail-console\logs\page.tsx:5: import { MAIL_CONSOLE_COOKIE } from "@/lib/mailConsoleServerAuth";
+app\mail-console\logs\page.tsx:6: import { requireMailConsoleAdmin } from "@/lib/mailConsoleAdmin";
+app\mail-console\send\page.tsx:4: import MailConsoleSendForm from "@/components/MailConsoleSendForm";
+app\mail-console\send\page.tsx:8: } from "@/lib/mailConsoleServerAuth";
+app\mail-console\templates\page.tsx:5: import { MAIL_CONSOLE_COOKIE } from "@/lib/mailConsoleServerAuth";
+app\mail-console\templates\page.tsx:6: import { requireMailConsoleAdmin } from "@/lib/mailConsoleAdmin";
+app\mail-console\page.tsx:9: } from "@/lib/mailConsoleServerAuth";
+app\page.tsx:2: import StayKnownHomePage from "@/components/StayKnownHomePage";
+app\page.tsx:3: import { HOME_FAQS } from "@/lib/stayknown-home-content";
+src\app\api\billing-region\route.ts:2: import { resolveBillingRegionFromHeaders } from "@/lib/stayknown-billing-region";
+src\app\features\page.tsx:2: import FeaturesExperience from "@/components/FeaturesExperience";
+src\app\how-it-works\page.tsx:2: import HowItWorksExperience from "@/components/HowItWorksExperience";
+src\app\icons\stayknown-192\route.ts:1: import { createStayKnownIcon } from "@/lib/stayknown-icon";
+src\app\icons\stayknown-512\route.ts:1: import { createStayKnownIcon } from "@/lib/stayknown-icon";
+src\app\icons\stayknown-maskable-512\route.ts:1: import { createStayKnownIcon } from "@/lib/stayknown-icon";
+src\app\plans\page.tsx:3: import PlansExperience from "@/components/PlansExperience";
+src\app\plans\page.tsx:4: import { resolveBillingRegionFromHeaders } from "@/lib/stayknown-billing-region";
+src\app\trust-safety\page.tsx:2: import TrustSafetyExperience from "@/components/TrustSafetyExperience";
+src\app\apple-icon.tsx:1: import { createStayKnownIcon } from "@/lib/stayknown-icon";
+src\app\icon.tsx:1: import { createStayKnownIcon } from "@/lib/stayknown-icon";
+src\app\opengraph-image.tsx:1: import { createStayKnownSocialImage } from "@/lib/stayknown-social-image";
+src\app\twitter-image.tsx:1: import { createStayKnownSocialImage } from "@/lib/stayknown-social-image";
+src\components\PlansExperience.tsx:18: import type { BillingRegionSnapshot } from "@/lib/stayknown-billing-types";
+src\components\StayKnownHomePage.tsx:5: import HeroSlider, { type HeroSlide } from "@/components/HeroSlider";
+src\components\StayKnownHomePage.tsx:6: import StayKnownActionMenu from "@/components/StayKnownActionMenu";
+src\components\StayKnownHomePage.tsx:7: import StayKnownHowItWorks from "@/components/StayKnownHowItWorks";
+src\components\StayKnownHomePage.tsx:8: import { HOME_FAQS } from "@/lib/stayknown-home-content";
+components\StayKnownHomePage.tsx:5: import HeroSlider, { type HeroSlide } from "@/components/HeroSlider";
+components\StayKnownHomePage.tsx:6: import StayKnownActionMenu from "@/components/StayKnownActionMenu";
+components\StayKnownHomePage.tsx:7: import StayKnownHowItWorks from "@/components/StayKnownHowItWorks";
+components\StayKnownHomePage.tsx:8: import { HOME_FAQS } from "@/lib/stayknown-home-content";
+lib\mailConsoleAdmin.ts:2: import { verifyMailConsoleSessionToken } from "@/lib/mailConsoleServerAuth";

@@ -390,7 +390,6 @@ export async function createStayKnownSocialImage({
               style={{
                 position: "relative",
                 objectFit: "contain",
-                filter: "drop-shadow(0 34px 55px rgba(0,0,0,0.76))",
               }}
             />
 

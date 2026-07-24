@@ -45,12 +45,13 @@ const ANDROID_PACKAGE = "com.stayknown.app";
 const GOOGLE_PLAY_URL =
   "https://play.google.com/store/apps/details?id=com.stayknown.app";
 
-const DEFAULT_TITLE = "StayKnown: Consent-First Personal Safety, Visits & SOS";
+const DEFAULT_TITLE =
+  "StayKnown: Consent-First Personal Safety, Visits & SOS";
 
 const DEFAULT_DESCRIPTION =
   "StayKnown is a consent-first personal safety app for Android with active Visits, LIVE sharing, I’M SAFE check-ins, SOS alerts, approved contacts and secure chat.";
 
-const OG_IMAGE = "/og-stayknown.png";
+const OG_IMAGE = "/hero/visit-live-sos.png";
 const LOGO_IMAGE = "/6logo.png";
 
 const GOOGLE_SITE_VERIFICATION =
@@ -131,43 +132,12 @@ export const metadata: Metadata = {
     description: DEFAULT_DESCRIPTION,
     siteName: APP_NAME,
     locale: "en_NG",
-    images: [
-      {
-        url: OG_IMAGE,
-        width: 1200,
-        height: 630,
-        alt: "StayKnown consent-first personal safety app",
-        type: "image/png",
-      },
-    ],
   },
 
   twitter: {
     card: "summary_large_image",
     title: DEFAULT_TITLE,
     description: DEFAULT_DESCRIPTION,
-    images: [
-      {
-        url: OG_IMAGE,
-        alt: "StayKnown consent-first personal safety app",
-      },
-    ],
-  },
-
-  icons: {
-    icon: [
-      {
-        url: "/favicon.png",
-        type: "image/png",
-      },
-    ],
-    shortcut: "/favicon.png",
-    apple: [
-      {
-        url: "/apple-touch-icon.png",
-        type: "image/png",
-      },
-    ],
   },
 
   appleWebApp: {

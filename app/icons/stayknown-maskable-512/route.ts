@@ -3,9 +3,9 @@ import { createStayKnownIcon } from "@/lib/stayknown-icon";
 export const runtime = "nodejs";
 export const dynamic = "force-static";
 
-export function GET() {
+export async function GET() {
   return createStayKnownIcon({
-    size: 192,
-    maskable: false,
+    size: 512,
+    maskable: true,
   });
 }

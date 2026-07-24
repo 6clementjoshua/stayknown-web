@@ -229,7 +229,7 @@ const PILLARS: readonly FeaturePillar[] = [
     secondaryImageAlt: "StayKnown language-aware chat screen",
     tone: "neutral",
     icon: "chat",
-    learnHref: "/learn/secure-chat-biometric",
+    learnHref: "/learn/secure-chat-protection",
     highlights: [
       "Protected chat entry",
       "Translation-aware messages",
@@ -277,7 +277,7 @@ const PILLARS: readonly FeaturePillar[] = [
     secondaryImageAlt: "StayKnown premium plan-aware app shell",
     tone: "safe",
     icon: "shield",
-    learnHref: "/learn/vpn-safety-gate",
+    learnHref: "/learn/vpn-safety",
     highlights: [
       "VPN reliability gate",
       "Sensitive-screen protection",
@@ -1038,7 +1038,7 @@ function CapacityBridge() {
 
         <div className="mt-7 flex flex-col items-center justify-center gap-3 sm:flex-row">
           <Link
-            href="/#plans"
+            href="/plans"
             className="inline-flex h-10 items-center gap-2 rounded-[14px] border border-white bg-white px-4 text-[10px] font-black text-black shadow-[0_12px_28px_rgba(0,0,0,0.38),inset_0_1px_0_rgba(255,255,255,1),inset_0_-5px_12px_rgba(0,0,0,0.09)] transition hover:-translate-y-px hover:border-white/25 hover:bg-black hover:text-white"
           >
             Compare full plans
@@ -1121,7 +1121,7 @@ export default function FeaturesExperience() {
               How it works
             </Link>
             <Link
-              href="/#plans"
+              href="/plans"
               className="sk-feature-nav-link text-[9px] font-black uppercase tracking-[0.13em] text-white/52 transition hover:text-white"
             >
               Plans

@@ -1206,7 +1206,7 @@ function FinalCallToAction() {
         <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
           <DownloadButton className="w-full max-w-[210px] sm:w-auto" />
           <Link
-            href="/#plans"
+            href="/plans"
             className="inline-flex h-10 w-full max-w-[210px] items-center justify-center gap-2 rounded-[14px] border border-black/[0.18] bg-white px-4 text-[10px] font-black text-black shadow-[inset_0_1px_0_rgba(255,255,255,1)] transition hover:-translate-y-px hover:border-black hover:bg-black hover:text-white sm:w-auto"
           >
             Compare plans
@@ -1303,7 +1303,7 @@ export default function HowItWorksExperience() {
               Journey
             </a>
             <Link
-              href="/#plans"
+              href="/plans"
               className="sk-how-nav-link text-[9px] font-black uppercase tracking-[0.13em] text-white/52 transition hover:text-white"
             >
               Plans

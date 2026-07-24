@@ -2,13 +2,13 @@ import { createStayKnownIcon } from "@/lib/stayknown-icon";
 
 export const runtime = "nodejs";
 export const size = {
-  width: 180,
-  height: 180,
+  width: 512,
+  height: 512,
 };
 export const contentType = "image/png";
 
-export default function AppleIcon() {
+export default async function Icon() {
   return createStayKnownIcon({
-    size: 180,
+    size: 512,
   });
 }

@@ -23,29 +23,24 @@ export default function manifest(): MetadataRoute.Manifest {
 
     categories: ["lifestyle", "utilities"],
 
-    /*
-     * These existing assets are safe temporary fallbacks.
-     *
-     * Do not label favicon.png as both 192x192 and 512x512 unless the
-     * actual file dimensions match those values. Once dedicated install
-     * icons exist, replace these entries with:
-     *
-     * /icons/stayknown-192.png
-     * /icons/stayknown-512.png
-     * /icons/stayknown-maskable-512.png
-     */
     icons: [
       {
-        src: "/favicon.png",
-        sizes: "any",
+        src: "/icons/stayknown-192",
+        sizes: "192x192",
         type: "image/png",
         purpose: "any",
       },
       {
-        src: "/apple-touch-icon.png",
-        sizes: "any",
+        src: "/icons/stayknown-512",
+        sizes: "512x512",
         type: "image/png",
         purpose: "any",
+      },
+      {
+        src: "/icons/stayknown-maskable-512",
+        sizes: "512x512",
+        type: "image/png",
+        purpose: "maskable",
       },
     ],
 
@@ -53,21 +48,23 @@ export default function manifest(): MetadataRoute.Manifest {
       {
         name: "How StayKnown Works",
         short_name: "How It Works",
-        description: "Open the interactive StayKnown safety-flow presentation.",
-        url: "/#guided-demo",
+        description:
+          "Open the interactive StayKnown safety-flow presentation.",
+        url: "/how-it-works",
       },
       {
         name: "Explore StayKnown Features",
         short_name: "Features",
         description:
           "Explore Visits, LIVE sharing, SOS, approved contacts, and secure communication.",
-        url: "/#app-preview",
+        url: "/features",
       },
       {
         name: "StayKnown Plans",
         short_name: "Plans",
-        description: "Compare Starter, Pro, and Pro Max safety capacity.",
-        url: "/#plans",
+        description:
+          "Compare Starter, Pro, and Pro Max safety capacity.",
+        url: "/plans",
       },
       {
         name: "StayKnown Help Center",

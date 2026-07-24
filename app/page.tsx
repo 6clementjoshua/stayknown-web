@@ -6,7 +6,8 @@ const SITE_URL = "https://www.stay-known.com";
 const GOOGLE_PLAY_URL =
   "https://play.google.com/store/apps/details?id=com.stayknown.app";
 
-const TITLE = "StayKnown Personal Safety App | Visits, LIVE Sharing & SOS";
+const TITLE =
+  "StayKnown Personal Safety App | Visits, LIVE Sharing & SOS";
 
 const DESCRIPTION =
   "StayKnown is a consent-first Android safety app for active Visits, LIVE sharing, I’M SAFE check-ins, SOS alerts, approved contacts, and secure chat.";

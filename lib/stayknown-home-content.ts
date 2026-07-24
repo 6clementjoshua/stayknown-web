@@ -20,8 +20,7 @@ export const HOME_FAQS: readonly HomeFaq[] = [
       "StayKnown can create a missed-check-in notice for the relevant trusted people based on the configured safety flow, helping them understand that confirmation was expected but was not received.",
   },
   {
-    question:
-      "Does StayKnown replace police, ambulance, or emergency services?",
+    question: "Does StayKnown replace police, ambulance, or emergency services?",
     answer:
       "No. StayKnown helps users alert trusted contacts and share safety context. It does not guarantee professional dispatch and should not replace contacting the appropriate local emergency service.",
   },
