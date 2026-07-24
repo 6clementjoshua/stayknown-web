@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useEffect, useState } from "react";
 import HeroSlider, { type HeroSlide } from "../components/HeroSlider";
 import StayKnownActionMenu from "@/components/StayKnownActionMenu";
+import StayKnownHowItWorks from "@/components/StayKnownHowItWorks";
 
 const GOOGLE_PLAY_URL =
   "https://play.google.com/store/apps/details?id=com.stayknown.app";
@@ -32,17 +33,6 @@ type IconName =
   | "privacy"
   | "proof"
   | "arrow";
-
-type DemoFlow = {
-  id: string;
-  label: string;
-  eyebrow: string;
-  title: string;
-  body: string;
-  contactView: string;
-  image: string;
-  alt: string;
-};
 
 type FooterLink = {
   label: string;
@@ -216,53 +206,6 @@ const APP_SLIDES: HeroSlide[] = [
     title: "Stories + Profile Trust",
     teaser:
       "Stories, avatars, names, and profile surfaces help users recognize who they are connecting with before conversations begin.",
-  },
-];
-
-const DEMO_FLOWS: DemoFlow[] = [
-  {
-    id: "visit",
-    label: "Start a Visit",
-    eyebrow: "1 · User starts the session",
-    title: "A safety session begins with the user’s intent.",
-    body: "The user chooses the destination and trusted recipients, reviews the safety guidance, and starts a Visit only when they are ready.",
-    contactView:
-      "Approved contacts receive the Visit context instead of an unexplained location dot.",
-    image: "/hero/visit-live.png",
-    alt: "StayKnown active Visit and LIVE protection screen",
-  },
-  {
-    id: "live",
-    label: "Share LIVE",
-    eyebrow: "2 · Access is tied to the session",
-    title: "LIVE location is shared only through an authorized flow.",
-    body: "The map remains connected to the active Visit or SOS session and carries privacy notices, session context, and access boundaries.",
-    contactView:
-      "The recipient understands why access exists, whose session it belongs to, and what the current safety state means.",
-    image: "/hero/live-map.png",
-    alt: "StayKnown live map for an approved contact",
-  },
-  {
-    id: "sos",
-    label: "Activate SOS",
-    eyebrow: "3 · Urgent escalation",
-    title: "The interface changes clearly when SOS is active.",
-    body: "StayKnown moves into a high-clarity emergency state and sends the available safety context to the user’s configured responders.",
-    contactView:
-      "Recipients receive an urgent alert with context so they can verify, contact the person, or seek appropriate help.",
-    image: "/hero/sos-activated.png",
-    alt: "StayKnown SOS active state",
-  },
-  {
-    id: "finish",
-    label: "End Safely",
-    eyebrow: "4 · Deliberate completion",
-    title: "Protection does not end through an accidental tap.",
-    body: "Visit and SOS completion can require stronger confirmation so an active safety flow ends with the user’s deliberate action.",
-    contactView:
-      "Trusted people receive a clearer ending state instead of being left unsure whether protection stopped unexpectedly.",
-    image: "/hero/end-sos-verify.png",
-    alt: "StayKnown verified SOS ending flow",
   },
 ];
 
@@ -773,128 +716,6 @@ function HowItWorksSection() {
               ) : null}
             </article>
           ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function GuidedDemoSection() {
-  const [selectedId, setSelectedId] = useState(DEMO_FLOWS[0]?.id ?? "visit");
-  const selected =
-    DEMO_FLOWS.find((flow) => flow.id === selectedId) ?? DEMO_FLOWS[0];
-
-  if (!selected) return null;
-
-  return (
-    <section id="guided-demo" className="relative overflow-hidden bg-black">
-      <div className="pointer-events-none absolute right-[-180px] top-1/2 h-[520px] w-[520px] -translate-y-1/2 rounded-full bg-white/[0.045] blur-[120px]" />
-
-      <div className="relative mx-auto max-w-6xl px-4 py-16 sm:px-5 sm:py-20 lg:px-6 lg:py-24">
-        <SectionHeading
-          eyebrow="Interactive product preview"
-          title="Tap through a real StayKnown safety journey."
-          body="This guided website preview uses the current StayKnown app screens. The full browser simulation will be expanded step by step without replacing the existing Learn More pages."
-        />
-
-        <div className="mt-10 grid gap-5 lg:grid-cols-[0.9fr_1.1fr] lg:items-stretch">
-          <div data-sk-reveal className="sk-reveal flex flex-col gap-3">
-            {DEMO_FLOWS.map((flow) => {
-              const active = flow.id === selected.id;
-
-              return (
-                <button
-                  key={flow.id}
-                  type="button"
-                  onClick={() => setSelectedId(flow.id)}
-                  className={`group min-h-[78px] rounded-[21px] border px-4 py-3 text-left transition duration-250 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/35 ${
-                    active
-                      ? "border-white/30 bg-white text-black shadow-[0_18px_0_-13px_rgba(255,255,255,0.86),0_24px_60px_rgba(0,0,0,0.44)]"
-                      : "border-white/[0.1] bg-white/[0.045] text-white hover:border-white/[0.18] hover:bg-white/[0.07]"
-                  }`}
-                  aria-pressed={active}
-                >
-                  <span className="flex items-center justify-between gap-4">
-                    <span>
-                      <span
-                        className={`block text-[10px] font-black uppercase tracking-[0.2em] ${
-                          active ? "text-black/45" : "text-white/38"
-                        }`}
-                      >
-                        {flow.eyebrow}
-                      </span>
-                      <span className="mt-2 block text-[17px] font-black tracking-[-0.035em]">
-                        {flow.label}
-                      </span>
-                    </span>
-                    <span
-                      className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-[11px] border ${
-                        active
-                          ? "border-black/[0.08] bg-black/[0.045] shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]"
-                          : "border-white/[0.1] bg-white/[0.045]"
-                      }`}
-                    >
-                      <PremiumIcon name="arrow" className="h-4 w-4" />
-                    </span>
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-
-          <div
-            data-sk-reveal
-            className="sk-reveal sk-glass-bevel relative overflow-hidden rounded-[34px] border border-white/[0.13] bg-[#080808] p-4 shadow-[0_32px_100px_rgba(0,0,0,0.55)] sm:p-6"
-          >
-            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_22%_0%,rgba(255,255,255,0.11),transparent_45%)]" />
-
-            <div className="relative grid min-h-full gap-6 md:grid-cols-[0.76fr_1.24fr] md:items-center">
-              <div className="mx-auto w-full max-w-[250px]">
-                <div className="relative aspect-[9/19.5] overflow-hidden rounded-[34px] border-[7px] border-[#151515] bg-black shadow-[inset_0_0_0_1px_rgba(255,255,255,0.11),0_28px_80px_rgba(0,0,0,0.62)]">
-                  <div className="absolute left-1/2 top-2 z-10 h-4 w-20 -translate-x-1/2 rounded-full bg-black/90" />
-                  <Image
-                    key={selected.image}
-                    src={selected.image}
-                    alt={selected.alt}
-                    fill
-                    sizes="(max-width: 767px) 250px, 22vw"
-                    className="object-cover"
-                  />
-                  <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.14),transparent_28%)]" />
-                </div>
-              </div>
-
-              <div aria-live="polite">
-                <div className="text-[10px] font-black uppercase tracking-[0.22em] text-white/40">
-                  {selected.eyebrow}
-                </div>
-                <h3 className="sk-sharp-type mt-3 text-[30px] font-black leading-[0.98] tracking-[-0.055em] text-white sm:text-[36px]">
-                  {selected.title}
-                </h3>
-                <p className="mt-4 text-[13px] font-semibold leading-relaxed text-white/62 sm:text-[14px]">
-                  {selected.body}
-                </p>
-
-                <div className="mt-5 rounded-[22px] border border-white/[0.1] bg-white/[0.045] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
-                  <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.18em] text-white/42">
-                    <PremiumIcon name="family" className="h-4 w-4" />
-                    What trusted contacts understand
-                  </div>
-                  <p className="mt-3 text-[13px] font-semibold leading-relaxed text-white/72">
-                    {selected.contactView}
-                  </p>
-                </div>
-
-                <a
-                  href="/learn/safe-journey"
-                  className="mt-5 inline-flex h-10 items-center gap-2 rounded-[14px] border border-white/90 bg-white px-4 text-[11px] font-black !text-black shadow-[0_12px_28px_rgba(0,0,0,0.34),inset_0_1px_0_rgba(255,255,255,1),inset_0_-5px_12px_rgba(0,0,0,0.08)] transition hover:-translate-y-px hover:border-white/25 hover:bg-[#111111] hover:!text-white active:translate-y-0 visited:!text-black focus:!text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
-                >
-                  Open the full Learn More flow
-                  <PremiumIcon name="arrow" className="h-4 w-4" />
-                </a>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
     </section>
@@ -1697,7 +1518,7 @@ export default function Page() {
       <TrustRibbon />
       <StayKnownIntroSection />
       <HowItWorksSection />
-      <GuidedDemoSection />
+      <StayKnownHowItWorks />
       <AudienceSection />
       <AppPreviewSection />
       <PlansSection />
