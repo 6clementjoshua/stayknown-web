@@ -124,8 +124,6 @@ export const metadata: Metadata = {
     date: false,
   },
 
-  manifest: "/site.webmanifest",
-
   openGraph: {
     type: "website",
     url: SITE_URL,
