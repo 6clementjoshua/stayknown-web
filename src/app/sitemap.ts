@@ -83,6 +83,17 @@ const coreRoutes: PublicRoute[] = [
     ],
   },
   {
+    path: "/plans",
+    lastModified: HOMEPAGE_UPDATE,
+    changeFrequency: "weekly",
+    priority: 0.93,
+    images: [
+      absoluteUrl("/hero/promax-shell.png"),
+      absoluteUrl("/hero/contact-approval.png"),
+      absoluteUrl("/hero/sos-activated.png"),
+    ],
+  },
+  {
     path: "/donate",
     lastModified: PREVIOUS_CONTENT_UPDATE,
     changeFrequency: "weekly",
