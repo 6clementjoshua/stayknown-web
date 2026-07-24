@@ -1,0 +1,23 @@
+STAYKNOWN PREMIUM FLOW VALIDATION
+
+Package architecture:
+- app/
+- components/
+- lib/
+- scripts/
+- No src/ directory
+
+Validated:
+- 29 TypeScript / TSX files parsed successfully
+- New audience components type-checked with strict local stubs
+- Accessibility, Status, About, and Press components type-checked
+- Homepage integration type-checked
+- Sitemap type-checked
+- No old #18B88A / #0E8F70 premium accents remain
+- Mint accents use #8FF3D0 and #0B7A62
+- Global white-button black-text fallback included
+- Required image paths match the confirmed public/hero inventory
+
+The included PowerShell audit performs the final authoritative check inside
+the real StayKnown project with its installed Next.js, React, Framer Motion,
+and TypeScript dependencies, then runs npm run build.

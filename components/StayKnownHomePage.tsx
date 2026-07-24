@@ -214,44 +214,57 @@ const APP_SLIDES: HeroSlide[] = [
 ];
 
 /*
- * Homepage tabs currently wired as anchors:
- * #how-it-works, #guided-demo, #app-preview, #plans, #trust, and #faq.
- *
- * Public routes reserved for the next implementation stages:
+ * Premium public route flow completed:
+ * /how-it-works, /features, /watch, /plans, /trust-safety,
  * /students, /travel-rides, /families-guardians, /accessibility,
  * /status, /about, and /press-updates.
  *
- * Do not link those reserved routes until their page files exist.
+ * Homepage section anchors remain available for the shorter in-page experience.
  */
 const FOOTER_GROUPS: Array<{ title: string; links: FooterLink[] }> = [
   {
-    title: "Learn",
+    title: "Explore",
     links: [
       { label: "How StayKnown Works", href: "/how-it-works" },
       { label: "Watch StayKnown", href: "/watch" },
       { label: "Product Features", href: "/features" },
       { label: "Plans & Pricing", href: "/plans" },
-      { label: "Safe Journey", href: "/learn/safe-journey" },
-      { label: "Family Safety", href: "/learn/family-safety" },
-      { label: "Location & Live Safety", href: "/location-safety" },
-      { label: "Verification Policy", href: "/verification-policy" },
-    ],
-  },
-  {
-    title: "Safety",
-    links: [
-      { label: "Safety & Anti-Stalking", href: "/safety" },
       { label: "Trust & Safety", href: "/trust-safety" },
-      { label: "Contact Consent", href: "/contact-consent" },
-      { label: "Emergency Disclaimer", href: "/emergency" },
-      { label: "Abuse Reporting", href: "/abuse" },
     ],
   },
   {
-    title: "Families",
+    title: "People",
     links: [
+      { label: "Students", href: "/students" },
+      { label: "Travel & Rides", href: "/travel-rides" },
+      { label: "Families & Guardians", href: "/families-guardians" },
       { label: "Child Safety & Minor Use", href: "/minors" },
       { label: "Guardian Consent", href: "/guardian-consent" },
+      { label: "Accessibility", href: "/accessibility" },
+    ],
+  },
+  {
+    title: "Safety & Support",
+    links: [
+      { label: "Safety & Anti-Stalking", href: "/safety" },
+      { label: "Contact Consent", href: "/contact-consent" },
+      { label: "Location & Live Safety", href: "/location-safety" },
+      { label: "Emergency Disclaimer", href: "/emergency" },
+      { label: "Abuse Reporting", href: "/abuse" },
+      { label: "Help Center", href: "/help-center" },
+      { label: "Public Status", href: "/status" },
+    ],
+  },
+  {
+    title: "Company",
+    links: [
+      { label: "About StayKnown", href: "/about" },
+      { label: "Press & Updates", href: "/press-updates" },
+      { label: "Contact", href: "/contact" },
+      { label: "Submit Request", href: "/submit-request" },
+      { label: "Submit Feature", href: "/submit-feature" },
+      { label: "Creator Apply", href: "/creator-apply" },
+      { label: "Donate", href: "/donate" },
     ],
   },
   {
@@ -742,18 +755,21 @@ function AudienceSection() {
       title: "Students and young adults",
       body: "Late study, campus movement, parties, new accommodation, and independent life without constant tracking calls.",
       action: "Share a Visit only when it matters.",
+      href: "/students",
     },
     {
       icon: "travel" as const,
       title: "Travelers and ride users",
       body: "Unfamiliar routes, ride-hailing, airport movement, work trips, visits, and destinations that deserve extra safety context.",
       action: "Keep trusted people informed until arrival.",
+      href: "/travel-rides",
     },
     {
       icon: "family" as const,
       title: "Families and guardians",
       body: "Support teens and young adults while preserving independence, approval, guardian consent, and visible privacy boundaries.",
       action: "Care without invisible surveillance.",
+      href: "/families-guardians",
     },
   ];
 
@@ -787,6 +803,13 @@ function AudienceSection() {
                 <div className="mt-5 border-t border-white/[0.08] pt-4 text-[12px] font-black text-white/76">
                   {audience.action}
                 </div>
+                <a
+                  href={audience.href}
+                  className="mt-4 inline-flex h-9 items-center gap-2 rounded-[13px] border border-white/[0.15] bg-black px-3.5 text-[10px] font-black text-white/68 transition hover:border-white hover:bg-white hover:text-black"
+                >
+                  Explore this safety path
+                  <PremiumIcon name="arrow" className="h-3.5 w-3.5" />
+                </a>
               </div>
             </article>
           ))}
@@ -1295,7 +1318,7 @@ function SiteFooter() {
             </p>
           </div>
 
-          <div className="grid grid-cols-2 gap-x-5 gap-y-8 sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-x-5 gap-y-8 sm:grid-cols-3 lg:grid-cols-5">
             {FOOTER_GROUPS.map((group) => (
               <div key={group.title}>
                 <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40">
@@ -1306,8 +1329,12 @@ function SiteFooter() {
                     <li key={link.href}>
                       <a
                         href={link.href}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                        target={link.href.startsWith("http") ? "_blank" : undefined}
+                        rel={
+                          link.href.startsWith("http")
+                            ? "noopener noreferrer"
+                            : undefined
+                        }
                         className="inline-flex min-h-8 items-center text-[12px] font-semibold leading-snug text-white/58 transition hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/35"
                       >
                         {link.label}
