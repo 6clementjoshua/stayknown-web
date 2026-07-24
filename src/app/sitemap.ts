@@ -70,6 +70,19 @@ const coreRoutes: PublicRoute[] = [
     ],
   },
   {
+    path: "/features",
+    lastModified: HOMEPAGE_UPDATE,
+    changeFrequency: "weekly",
+    priority: 0.94,
+    images: [
+      absoluteUrl("/hero/visit-live.png"),
+      absoluteUrl("/hero/sos-activated.png"),
+      absoluteUrl("/hero/contact-approval.png"),
+      absoluteUrl("/hero/secure-chat-biometric.png"),
+      absoluteUrl("/hero/vpn-safety-gate.png"),
+    ],
+  },
+  {
     path: "/donate",
     lastModified: PREVIOUS_CONTENT_UPDATE,
     changeFrequency: "weekly",

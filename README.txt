@@ -1,22 +1,24 @@
-STAYKNOWN HOW-IT-WORKS PACKAGE
+STAYKNOWN FEATURES PACKAGE
 
 Place:
-- src/app/how-it-works/page.tsx
-- src/components/HowItWorksExperience.tsx
-- src/app/sitemap.ts
+- src/app/features/page.tsx
+- src/components/FeaturesExperience.tsx
 - src/components/StayKnownHomePage.tsx
+- src/app/sitemap.ts
 
-The updated homepage component wires the existing How It Works navigation tab
-to /how-it-works.
+The homepage Features navigation now opens /features.
+The homepage Learn footer now includes How StayKnown Works and Product Features.
+The sitemap now includes /features and its key product images.
 
-The updated sitemap adds /how-it-works and its key app images.
-
-Required existing public assets:
+Required existing assets:
 - public/6logo.png
-- public/hero/contact-approval.png
-- public/hero/visit-live-sos.png
+- public/hero/visit-live.png
 - public/hero/live-map.png
-- public/hero/manual-capture.png
-- public/hero/get-safe-hints.png
 - public/hero/sos-activated.png
-- public/hero/end-visit-verify.png
+- public/hero/end-sos-verify.png
+- public/hero/contact-approval.png
+- public/hero/verification.png
+- public/hero/secure-chat-biometric.png
+- public/hero/chat-translation.png
+- public/hero/vpn-safety-gate.png
+- public/hero/promax-shell.png
