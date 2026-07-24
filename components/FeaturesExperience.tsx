@@ -339,10 +339,10 @@ const ALL_CAPABILITIES = [
 function toneStyles(tone: FeatureTone) {
   if (tone === "safe") {
     return {
-      text: "text-[#18b88a]",
-      border: "border-[#18b88a]/58",
-      dot: "bg-[#18b88a]",
-      glow: "shadow-[0_0_26px_rgba(24,184,138,0.24)]",
+      text: "text-[#8ff3d0]",
+      border: "border-[#8ff3d0]/58",
+      dot: "bg-[#8ff3d0]",
+      glow: "shadow-[0_0_26px_rgba(143,243,208,0.24)]",
     };
   }
 
@@ -915,7 +915,7 @@ function CapabilityIndex() {
                 }}
                 className="flex min-h-12 items-center gap-3 rounded-[18px] border border-black/[0.13] bg-white px-4 shadow-[inset_0_1px_0_rgba(255,255,255,1)]"
               >
-                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[10px] border border-[#0e8f70]/45 text-[#0e8f70]">
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[10px] border border-[#0b7a62]/45 text-[#0b7a62]">
                   <FeatureIconView name="check" className="h-3.5 w-3.5" />
                 </span>
                 <span className="text-[10.5px] font-black text-black/70">
@@ -947,26 +947,61 @@ function CapacityBridge() {
     {
       name: "Starter",
       line: "Core safety access",
-      metrics: ["1 approved contact", "Visits", "Twice-daily I’M SAFE"],
+      summary:
+        "Begin with the essential StayKnown safety model and practise the core Visit and check-in flow.",
+      metrics: [
+        "1 approved contact",
+        "Start and end Visits",
+        "Destination and Visit history",
+        "Twice-daily I’M SAFE",
+        "Basic emergency-contact and safety flows",
+        "Core safety map and navigation",
+        "Basic account, profile, and safety-proof access",
+      ],
     },
     {
       name: "Pro",
       line: "Full safety system",
+      summary:
+        "Unlock LIVE Visit protection, the complete SOS system, expanded trusted-contact capacity, and communication.",
       metrics: [
+        "Everything included in Starter",
         "3 approved contacts",
         "6 SOS contacts",
-        "3 responders",
-        "1 Gallery photo",
+        "3 SOS responders",
+        "LIVE location sharing during Visits",
+        "Full SOS system",
+        "Emergency phrase and escalation-timing controls",
+        "SOS history and responder management",
+        "1 Safety Gallery photo",
+        "Rich Visit context, guidance, and verification",
+        "Chat access and basic translation",
+        "Story posting",
+        "Premium Pro font collection",
+        "Contact restriction control",
       ],
     },
     {
       name: "Pro Max",
       line: "Complete premium access",
+      summary:
+        "Use StayKnown at its highest safety, communication, destination, and personalization capacity.",
       metrics: [
+        "Everything included in Pro",
         "6 approved contacts",
         "10 SOS contacts",
-        "6 responders",
-        "2 Gallery photos",
+        "6 SOS responders",
+        "Priority SOS responder system",
+        "Up to 2 Safety Gallery photos",
+        "Full advanced chat system",
+        "Full translation support",
+        "Advanced chat personalization",
+        "Full story creation",
+        "Full destination intelligence",
+        "Premium personalization",
+        "Full designer font library",
+        "Advanced restrict and block controls",
+        "Highest StayKnown safety-feature capacity",
       ],
     },
   ];
@@ -978,62 +1013,81 @@ function CapacityBridge() {
       <div className="relative mx-auto max-w-6xl px-4 sm:px-5 lg:px-6">
         <div className="mx-auto max-w-4xl text-center">
           <div className="text-[9px] font-black uppercase tracking-[0.28em] text-white/38">
-            Capacity without confusion
+            Exact plan catalogue
           </div>
           <h2 className="mt-4 text-[40px] font-black leading-[0.94] tracking-[-0.068em] text-white sm:text-[52px] md:text-[60px]">
-            The plan changes capacity. The consent boundary does not.
+            The same Starter, Pro, and Pro Max access shown on the Plans page.
           </h2>
-          <p className="mx-auto mt-5 max-w-[67ch] text-[13px] font-semibold leading-relaxed text-white/55 sm:text-[14px]">
-            Starter, Pro, and Pro Max provide different contact, SOS, responder,
-            Gallery, communication, and personalization capacity. None of them
-            turns StayKnown into permanent tracking.
+          <p className="mx-auto mt-5 max-w-[69ch] text-[13px] font-semibold leading-relaxed text-white/55 sm:text-[14px]">
+            These entitlements now match the authoritative Plans page exactly.
+            Plan capacity changes, but the consent boundary never becomes
+            permanent tracking.
           </p>
         </div>
 
         <div className="mt-9 grid gap-3 lg:grid-cols-3">
-          {plans.map((plan, index) => (
-            <motion.article
-              key={plan.name}
-              initial={{ opacity: 0, y: 14 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, amount: 0.3 }}
-              transition={{
-                duration: 0.42,
-                delay: index * 0.07,
-                ease: [0.22, 1, 0.36, 1],
-              }}
-              className={`rounded-[26px] border bg-black p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.065)] ${
-                plan.name === "Pro"
-                  ? "border-[#18b88a]/52 shadow-[0_0_30px_rgba(24,184,138,0.11),inset_0_1px_0_rgba(255,255,255,0.065)]"
-                  : "border-white/[0.12]"
-              }`}
-            >
-              <div className="text-[8px] font-black uppercase tracking-[0.18em] text-white/32">
-                {plan.line}
-              </div>
-              <h3 className="mt-3 text-[28px] font-black tracking-[-0.055em] text-white">
-                {plan.name}
-              </h3>
-              <div className="mt-5 space-y-2.5">
-                {plan.metrics.map((metric) => (
-                  <div
-                    key={metric}
-                    className="flex items-center gap-3 border-t border-white/[0.09] pt-2.5 text-[10.5px] font-bold text-white/58"
-                  >
-                    <FeatureIconView
-                      name="check"
-                      className={`h-3.5 w-3.5 ${
-                        plan.name === "Pro"
-                          ? "text-[#18b88a]"
-                          : "text-white/48"
-                      }`}
-                    />
-                    {metric}
+          {plans.map((plan, index) => {
+            const featured = plan.name === "Pro";
+
+            return (
+              <motion.article
+                key={plan.name}
+                initial={{ opacity: 0, y: 14 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, amount: 0.2 }}
+                transition={{
+                  duration: 0.42,
+                  delay: index * 0.07,
+                  ease: [0.22, 1, 0.36, 1],
+                }}
+                className={`relative overflow-hidden rounded-[26px] border bg-black p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.065)] ${
+                  featured
+                    ? "border-[#8ff3d0]/52 shadow-[0_0_30px_rgba(143,243,208,0.11),inset_0_1px_0_rgba(255,255,255,0.065)]"
+                    : "border-white/[0.12]"
+                }`}
+              >
+                <div className="pointer-events-none absolute inset-x-5 top-0 h-px bg-white/[0.14]" />
+
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="text-[8px] font-black uppercase tracking-[0.18em] text-white/32">
+                      {plan.line}
+                    </div>
+                    <h3 className="mt-3 text-[28px] font-black tracking-[-0.055em] text-white">
+                      {plan.name}
+                    </h3>
                   </div>
-                ))}
-              </div>
-            </motion.article>
-          ))}
+
+                  {featured ? (
+                    <span className="inline-flex min-h-7 items-center rounded-full border border-[#8ff3d0]/45 bg-black px-2.5 text-[8px] font-black uppercase tracking-[0.12em] text-[#8ff3d0]">
+                      Recommended
+                    </span>
+                  ) : null}
+                </div>
+
+                <p className="mt-4 text-[10.5px] font-semibold leading-relaxed text-white/48">
+                  {plan.summary}
+                </p>
+
+                <div className="mt-5 space-y-2.5">
+                  {plan.metrics.map((metric) => (
+                    <div
+                      key={metric}
+                      className="flex items-start gap-3 border-t border-white/[0.09] pt-2.5 text-[10.5px] font-bold leading-relaxed text-white/58"
+                    >
+                      <FeatureIconView
+                        name="check"
+                        className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${
+                          featured ? "text-[#8ff3d0]" : "text-white/48"
+                        }`}
+                      />
+                      <span>{metric}</span>
+                    </div>
+                  ))}
+                </div>
+              </motion.article>
+            );
+          })}
         </div>
 
         <div className="mt-7 flex flex-col items-center justify-center gap-3 sm:flex-row">
@@ -1041,7 +1095,7 @@ function CapacityBridge() {
             href="/plans"
             className="inline-flex h-10 items-center gap-2 rounded-[14px] border border-white bg-white px-4 text-[10px] font-black text-black shadow-[0_12px_28px_rgba(0,0,0,0.38),inset_0_1px_0_rgba(255,255,255,1),inset_0_-5px_12px_rgba(0,0,0,0.09)] transition hover:-translate-y-px hover:border-white/25 hover:bg-black hover:text-white"
           >
-            Compare full plans
+            Compare pricing and plans
             <FeatureIconView name="arrow" className="h-3.5 w-3.5" />
           </Link>
           <DownloadButton />
@@ -1138,8 +1192,8 @@ export default function FeaturesExperience() {
 
         <div className="relative mx-auto grid min-h-[730px] max-w-6xl items-center gap-10 px-4 py-14 sm:px-5 lg:grid-cols-[1.03fr_0.97fr] lg:px-6 lg:py-20">
           <div>
-            <div className="inline-flex min-h-8 items-center gap-2 rounded-full border border-[#18b88a]/46 bg-black px-3 text-[8px] font-black uppercase tracking-[0.18em] text-[#18b88a] shadow-[0_0_24px_rgba(24,184,138,0.13)]">
-              <span className="h-1.5 w-1.5 rounded-full bg-[#18b88a] shadow-[0_0_12px_rgba(24,184,138,0.72)]" />
+            <div className="inline-flex min-h-8 items-center gap-2 rounded-full border border-[#8ff3d0]/46 bg-black px-3 text-[8px] font-black uppercase tracking-[0.18em] text-[#8ff3d0] shadow-[0_0_24px_rgba(143,243,208,0.13)]">
+              <span className="h-1.5 w-1.5 rounded-full bg-[#8ff3d0] shadow-[0_0_12px_rgba(143,243,208,0.72)]" />
               Complete safety platform
             </div>
 
@@ -1233,9 +1287,9 @@ export default function FeaturesExperience() {
                 repeat: Infinity,
                 ease: "easeInOut",
               }}
-              className="absolute bottom-[5%] left-1/2 z-20 flex -translate-x-1/2 items-center gap-2 rounded-full border border-[#18b88a]/45 bg-black px-3 py-2 text-[#18b88a] shadow-[0_0_28px_rgba(24,184,138,0.16)]"
+              className="absolute bottom-[5%] left-1/2 z-20 flex -translate-x-1/2 items-center gap-2 rounded-full border border-[#8ff3d0]/45 bg-black px-3 py-2 text-[#8ff3d0] shadow-[0_0_28px_rgba(143,243,208,0.16)]"
             >
-              <span className="h-2 w-2 rounded-full bg-[#18b88a]" />
+              <span className="h-2 w-2 rounded-full bg-[#8ff3d0]" />
               <span className="text-[8px] font-black uppercase tracking-[0.15em]">
                 Connected capability system
               </span>

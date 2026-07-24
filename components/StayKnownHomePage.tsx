@@ -218,7 +218,6 @@ const APP_SLIDES: HeroSlide[] = [
  * #how-it-works, #guided-demo, #app-preview, #plans, #trust, and #faq.
  *
  * Public routes reserved for the next implementation stages:
- * /watch,
  * /students, /travel-rides, /families-guardians, /accessibility,
  * /status, /about, and /press-updates.
  *
@@ -229,6 +228,7 @@ const FOOTER_GROUPS: Array<{ title: string; links: FooterLink[] }> = [
     title: "Learn",
     links: [
       { label: "How StayKnown Works", href: "/how-it-works" },
+      { label: "Watch StayKnown", href: "/watch" },
       { label: "Product Features", href: "/features" },
       { label: "Plans & Pricing", href: "/plans" },
       { label: "Safe Journey", href: "/learn/safe-journey" },
@@ -1587,7 +1587,7 @@ export default function StayKnownHomePage() {
           <nav className="hidden items-center gap-1 lg:flex" aria-label="Homepage sections">
             {[
               ["How it works", "/how-it-works"],
-              ["Demo", "#guided-demo"],
+              ["Watch", "/watch"],
               ["Features", "/features"],
               ["Plans", "/plans"],
               ["Trust", "/trust-safety"],

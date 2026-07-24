@@ -83,6 +83,23 @@ const coreRoutes: PublicRoute[] = [
     ],
   },
   {
+    path: "/watch",
+    lastModified: HOMEPAGE_UPDATE,
+    changeFrequency: "weekly",
+    priority: 0.93,
+    images: [
+      absoluteUrl("/hero/stayknown-safe-journey-bus.png"),
+      absoluteUrl("/hero/contact-approval.png"),
+      absoluteUrl("/hero/visit-live-sos.png"),
+      absoluteUrl("/hero/live-map.png"),
+      absoluteUrl("/hero/manual-capture.png"),
+      absoluteUrl("/hero/get-safe-hints.png"),
+      absoluteUrl("/hero/sos-activated.png"),
+      absoluteUrl("/hero/secure-chat-biometric.png"),
+      absoluteUrl("/hero/end-visit-verify.png"),
+    ],
+  },
+  {
     path: "/plans",
     lastModified: HOMEPAGE_UPDATE,
     changeFrequency: "weekly",

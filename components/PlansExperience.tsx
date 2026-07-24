@@ -601,7 +601,7 @@ function PlanCard({
       }}
       className={`relative overflow-hidden rounded-[30px] border p-5 shadow-[0_30px_82px_rgba(0,0,0,0.56),inset_0_1px_0_rgba(255,255,255,0.08)] sm:p-6 ${
         isPro
-          ? "border-[#18b88a]/62 bg-black shadow-[0_0_38px_rgba(24,184,138,0.13),0_30px_82px_rgba(0,0,0,0.56),inset_0_1px_0_rgba(255,255,255,0.08)]"
+          ? "border-[#8ff3d0]/62 bg-black shadow-[0_0_38px_rgba(143,243,208,0.13),0_30px_82px_rgba(0,0,0,0.56),inset_0_1px_0_rgba(255,255,255,0.08)]"
           : "border-white/[0.13] bg-black"
       }`}
     >
@@ -612,7 +612,7 @@ function PlanCard({
           <span
             className={`flex h-10 w-10 items-center justify-center rounded-[13px] border bg-black ${
               isPro
-                ? "border-[#18b88a]/58 text-[#18b88a] shadow-[0_0_24px_rgba(24,184,138,0.18)]"
+                ? "border-[#8ff3d0]/58 text-[#8ff3d0] shadow-[0_0_24px_rgba(143,243,208,0.18)]"
                 : isProMax
                   ? "border-white/48 text-white shadow-[0_0_20px_rgba(255,255,255,0.14)]"
                   : "border-white/[0.16] text-white/62"
@@ -622,7 +622,7 @@ function PlanCard({
           </span>
 
           {plan.featured ? (
-            <span className="inline-flex min-h-7 items-center rounded-full border border-[#18b88a]/48 bg-black px-2.5 text-[8px] font-black uppercase tracking-[0.14em] text-[#18b88a]">
+            <span className="inline-flex min-h-7 items-center rounded-full border border-[#8ff3d0]/48 bg-black px-2.5 text-[8px] font-black uppercase tracking-[0.14em] text-[#8ff3d0]">
               Recommended
             </span>
           ) : null}
@@ -664,7 +664,7 @@ function PlanCard({
                 {period === "yearly" &&
                 monthlyEquivalent !== null &&
                 savings !== null ? (
-                  <div className="mt-2 text-[9px] font-black text-[#18b88a]">
+                  <div className="mt-2 text-[9px] font-black text-[#8ff3d0]">
                     {formatPrice(monthlyEquivalent, price!.currency)} monthly
                     equivalent · Save {formatPrice(savings, price!.currency)}
                   </div>
@@ -684,7 +684,7 @@ function PlanCard({
               key={capacity}
               className={`inline-flex min-h-7 items-center rounded-full border bg-black px-2.5 text-[8.5px] font-black ${
                 isPro
-                  ? "border-[#18b88a]/35 text-white/68"
+                  ? "border-[#8ff3d0]/35 text-white/68"
                   : "border-white/[0.11] text-white/55"
               }`}
             >
@@ -704,7 +704,7 @@ function PlanCard({
               <span
                 className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border bg-black ${
                   isPro
-                    ? "border-[#18b88a]/42 text-[#18b88a]"
+                    ? "border-[#8ff3d0]/42 text-[#8ff3d0]"
                     : "border-white/[0.13] text-white/48"
                 }`}
               >
@@ -738,7 +738,7 @@ function BillingRouteBar({
   return (
     <div className="mx-auto flex max-w-4xl flex-col items-center justify-between gap-3 rounded-[22px] border border-white/[0.12] bg-black px-4 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_16px_40px_rgba(0,0,0,0.42)] sm:flex-row">
       <div className="flex min-w-0 items-center gap-3">
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[12px] border border-[#18b88a]/48 bg-black text-[#18b88a] shadow-[0_0_24px_rgba(24,184,138,0.15)]">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[12px] border border-[#8ff3d0]/48 bg-black text-[#8ff3d0] shadow-[0_0_24px_rgba(143,243,208,0.15)]">
           <PlanIconView name="globe" className="h-4 w-4" />
         </span>
         <div className="min-w-0">
@@ -872,7 +872,7 @@ function ComparisonSection() {
                         key={planId}
                         className={`px-1 text-center text-[8.5px] font-black leading-snug sm:text-[9.5px] ${
                           planId === "pro"
-                            ? "text-[#0e8f70]"
+                            ? "text-[#0b7a62]"
                             : unavailable
                               ? "text-black/28"
                               : "text-black/58"
@@ -1033,8 +1033,8 @@ export default function PlansExperience({
 
         <div className="relative mx-auto grid min-h-[700px] max-w-6xl items-center gap-10 px-4 py-14 sm:px-5 lg:grid-cols-[1.05fr_0.95fr] lg:px-6 lg:py-20">
           <div>
-            <div className="inline-flex min-h-8 items-center gap-2 rounded-full border border-[#18b88a]/46 bg-black px-3 text-[8px] font-black uppercase tracking-[0.18em] text-[#18b88a] shadow-[0_0_24px_rgba(24,184,138,0.13)]">
-              <span className="h-1.5 w-1.5 rounded-full bg-[#18b88a] shadow-[0_0_12px_rgba(24,184,138,0.72)]" />
+            <div className="inline-flex min-h-8 items-center gap-2 rounded-full border border-[#8ff3d0]/46 bg-black px-3 text-[8px] font-black uppercase tracking-[0.18em] text-[#8ff3d0] shadow-[0_0_24px_rgba(143,243,208,0.13)]">
+              <span className="h-1.5 w-1.5 rounded-full bg-[#8ff3d0] shadow-[0_0_12px_rgba(143,243,208,0.72)]" />
               IP-resolved pricing
             </div>
 
@@ -1123,9 +1123,9 @@ export default function PlansExperience({
                 repeat: Infinity,
                 ease: "easeInOut",
               }}
-              className="absolute bottom-[5%] left-1/2 z-20 flex -translate-x-1/2 items-center gap-2 rounded-full border border-[#18b88a]/45 bg-black px-3 py-2 text-[#18b88a] shadow-[0_0_28px_rgba(24,184,138,0.16)]"
+              className="absolute bottom-[5%] left-1/2 z-20 flex -translate-x-1/2 items-center gap-2 rounded-full border border-[#8ff3d0]/45 bg-black px-3 py-2 text-[#8ff3d0] shadow-[0_0_28px_rgba(143,243,208,0.16)]"
             >
-              <span className="h-2 w-2 rounded-full bg-[#18b88a]" />
+              <span className="h-2 w-2 rounded-full bg-[#8ff3d0]" />
               <span className="text-[8px] font-black uppercase tracking-[0.15em]">
                 Capacity without permanent tracking
               </span>
@@ -1190,7 +1190,7 @@ export default function PlansExperience({
           </div>
 
           {period === "yearly" ? (
-            <div className="mt-3 text-center text-[9px] font-black text-[#18b88a]">
+            <div className="mt-3 text-center text-[9px] font-black text-[#8ff3d0]">
               Save up to {formatPrice(
                 bestSavings,
                 region.currencyCode,

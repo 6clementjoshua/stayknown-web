@@ -237,10 +237,10 @@ const CONSENT_STATES = [
 function toneClass(tone: StageTone) {
   if (tone === "safe") {
     return {
-      text: "text-[#18b88a]",
-      border: "border-[#18b88a]/55",
-      background: "bg-[#18b88a]",
-      shadow: "shadow-[0_0_26px_rgba(24,184,138,0.30)]",
+      text: "text-[#8ff3d0]",
+      border: "border-[#8ff3d0]/55",
+      background: "bg-[#8ff3d0]",
+      shadow: "shadow-[0_0_26px_rgba(143,243,208,0.30)]",
     };
   }
 
@@ -506,9 +506,9 @@ function HeroDeviceStack() {
           repeat: reduceMotion ? 0 : Infinity,
           ease: "easeInOut",
         }}
-        className="absolute bottom-[5%] left-1/2 z-20 flex -translate-x-1/2 items-center gap-2 rounded-full border border-[#18b88a]/45 bg-black px-3 py-2 text-[#18b88a] shadow-[0_0_28px_rgba(24,184,138,0.18)]"
+        className="absolute bottom-[5%] left-1/2 z-20 flex -translate-x-1/2 items-center gap-2 rounded-full border border-[#8ff3d0]/45 bg-black px-3 py-2 text-[#8ff3d0] shadow-[0_0_28px_rgba(143,243,208,0.18)]"
       >
-        <span className="h-2 w-2 rounded-full bg-[#18b88a] shadow-[0_0_14px_rgba(24,184,138,0.72)]" />
+        <span className="h-2 w-2 rounded-full bg-[#8ff3d0] shadow-[0_0_14px_rgba(143,243,208,0.72)]" />
         <span className="text-[8px] font-black uppercase tracking-[0.16em]">
           User-controlled safety session
         </span>
@@ -1033,7 +1033,7 @@ function ConsentArchitecture() {
                             ? "border-[#d7353d]/55 text-[#d7353d] shadow-[0_0_22px_rgba(215,53,61,0.18)]"
                             : isClosed
                               ? "border-black/[0.18] text-black"
-                              : "border-[#0e8f70]/50 text-[#0e8f70] shadow-[0_0_22px_rgba(14,143,112,0.14)]"
+                              : "border-[#0b7a62]/50 text-[#0b7a62] shadow-[0_0_22px_rgba(11,122,98,0.14)]"
                         }`}
                       >
                         <StageIcon
@@ -1055,7 +1055,7 @@ function ConsentArchitecture() {
                           ? "text-[#d7353d]"
                           : isClosed
                             ? "text-black/48"
-                            : "text-[#0e8f70]"
+                            : "text-[#0b7a62]"
                       }`}
                     >
                       {state.status}
@@ -1326,8 +1326,8 @@ export default function HowItWorksExperience() {
 
         <div className="relative mx-auto grid min-h-[720px] max-w-6xl items-center gap-8 px-4 py-14 sm:px-5 lg:grid-cols-[1.02fr_0.98fr] lg:px-6 lg:py-20">
           <div>
-            <div className="inline-flex min-h-8 items-center gap-2 rounded-full border border-[#18b88a]/45 bg-black px-3 text-[8px] font-black uppercase tracking-[0.18em] text-[#18b88a] shadow-[0_0_24px_rgba(24,184,138,0.13)]">
-              <span className="h-1.5 w-1.5 rounded-full bg-[#18b88a] shadow-[0_0_12px_rgba(24,184,138,0.72)]" />
+            <div className="inline-flex min-h-8 items-center gap-2 rounded-full border border-[#8ff3d0]/45 bg-black px-3 text-[8px] font-black uppercase tracking-[0.18em] text-[#8ff3d0] shadow-[0_0_24px_rgba(143,243,208,0.13)]">
+              <span className="h-1.5 w-1.5 rounded-full bg-[#8ff3d0] shadow-[0_0_12px_rgba(143,243,208,0.72)]" />
               Consent-first safety
             </div>
 

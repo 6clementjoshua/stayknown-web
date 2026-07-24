@@ -443,10 +443,10 @@ const POLICY_LINKS = [
 function accentStyles(accent: Accent) {
   if (accent === "safe") {
     return {
-      text: "text-[#18b88a]",
-      border: "border-[#18b88a]/58",
-      dot: "bg-[#18b88a]",
-      shadow: "shadow-[0_0_28px_rgba(24,184,138,0.22)]",
+      text: "text-[#8ff3d0]",
+      border: "border-[#8ff3d0]/58",
+      dot: "bg-[#8ff3d0]",
+      shadow: "shadow-[0_0_28px_rgba(143,243,208,0.22)]",
     };
   }
 
@@ -700,9 +700,9 @@ function TrustShieldHero() {
         initial={reduceMotion ? false : { opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: reduceMotion ? 0 : 0.5, delay: 0.3 }}
-        className="absolute bottom-[6%] left-1/2 z-20 flex -translate-x-1/2 items-center gap-2 rounded-full border border-[#18b88a]/48 bg-black px-3 py-2 text-[#18b88a] shadow-[0_0_28px_rgba(24,184,138,0.17)]"
+        className="absolute bottom-[6%] left-1/2 z-20 flex -translate-x-1/2 items-center gap-2 rounded-full border border-[#8ff3d0]/48 bg-black px-3 py-2 text-[#8ff3d0] shadow-[0_0_28px_rgba(143,243,208,0.17)]"
       >
-        <span className="h-2 w-2 rounded-full bg-[#18b88a] shadow-[0_0_12px_rgba(24,184,138,0.68)]" />
+        <span className="h-2 w-2 rounded-full bg-[#8ff3d0] shadow-[0_0_12px_rgba(143,243,208,0.68)]" />
         <span className="text-[8px] font-black uppercase tracking-[0.15em]">
           Consent · context · accountability
         </span>
@@ -1014,7 +1014,7 @@ function AccessBoundaryLab() {
                 <span
                   className={`flex h-11 w-11 items-center justify-center rounded-[14px] border bg-white ${
                     activeState.accent === "safe"
-                      ? "border-[#0e8f70]/48 text-[#0e8f70] shadow-[0_0_24px_rgba(14,143,112,0.14)]"
+                      ? "border-[#0b7a62]/48 text-[#0b7a62] shadow-[0_0_24px_rgba(11,122,98,0.14)]"
                       : activeState.accent === "danger"
                         ? "border-[#d7353d]/55 text-[#d7353d] shadow-[0_0_26px_rgba(215,53,61,0.16)]"
                         : "border-black/[0.17] text-black"
@@ -1033,7 +1033,7 @@ function AccessBoundaryLab() {
               <div
                 className={`mt-2 text-[9px] font-black uppercase tracking-[0.15em] ${
                   activeState.accent === "safe"
-                    ? "text-[#0e8f70]"
+                    ? "text-[#0b7a62]"
                     : activeState.accent === "danger"
                       ? "text-[#d7353d]"
                       : "text-black/43"
@@ -1228,7 +1228,7 @@ function ReportingNavigator() {
               <span
                 className={`flex h-11 w-11 items-center justify-center rounded-[14px] border bg-white ${
                   activeRoute.accent === "safe"
-                    ? "border-[#0e8f70]/48 text-[#0e8f70] shadow-[0_0_24px_rgba(14,143,112,0.14)]"
+                    ? "border-[#0b7a62]/48 text-[#0b7a62] shadow-[0_0_24px_rgba(11,122,98,0.14)]"
                     : activeRoute.accent === "danger"
                       ? "border-[#d7353d]/55 text-[#d7353d] shadow-[0_0_26px_rgba(215,53,61,0.16)]"
                       : "border-black/[0.17] text-black"
@@ -1413,8 +1413,8 @@ export default function TrustSafetyExperience() {
 
         <div className="relative mx-auto grid min-h-[720px] max-w-6xl items-center gap-10 px-4 py-14 sm:px-5 lg:grid-cols-[1.05fr_0.95fr] lg:px-6 lg:py-20">
           <div>
-            <div className="inline-flex min-h-8 items-center gap-2 rounded-full border border-[#18b88a]/46 bg-black px-3 text-[8px] font-black uppercase tracking-[0.18em] text-[#18b88a] shadow-[0_0_24px_rgba(24,184,138,0.13)]">
-              <span className="h-1.5 w-1.5 rounded-full bg-[#18b88a] shadow-[0_0_12px_rgba(24,184,138,0.72)]" />
+            <div className="inline-flex min-h-8 items-center gap-2 rounded-full border border-[#8ff3d0]/46 bg-black px-3 text-[8px] font-black uppercase tracking-[0.18em] text-[#8ff3d0] shadow-[0_0_24px_rgba(143,243,208,0.13)]">
+              <span className="h-1.5 w-1.5 rounded-full bg-[#8ff3d0] shadow-[0_0_12px_rgba(143,243,208,0.72)]" />
               Consent-first protection
             </div>
 
