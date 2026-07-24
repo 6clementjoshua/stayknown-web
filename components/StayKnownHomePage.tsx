@@ -606,7 +606,7 @@ function TrustRibbon() {
           {items.map(([icon, label], index) => (
             <div
               key={label}
-              className="
+              className={`
                 relative flex min-h-[68px] items-center gap-3 rounded-[18px]
                 border border-white/[0.1] bg-black px-4 text-left
                 text-[11px] font-black tracking-[-0.01em] text-white/70
@@ -614,7 +614,7 @@ function TrustRibbon() {
                 sm:text-[12px]
                 lg:min-h-[82px] lg:justify-center lg:rounded-none
                 lg:border-0 lg:px-3 lg:text-center lg:shadow-none
-              "
+              `}
             >
               <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[13px] border border-white/[0.12] bg-[linear-gradient(145deg,rgba(255,255,255,0.12),rgba(255,255,255,0.025))] shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_10px_24px_rgba(0,0,0,0.38)]">
                 <PremiumIcon name={icon} className="h-4 w-4 text-white/88" />
@@ -1204,28 +1204,28 @@ function FaqSection() {
             <details
               key={faq.question}
               data-sk-reveal
-              className="
+              className={`
                 sk-reveal group overflow-hidden rounded-[22px] border
                 border-white/[0.1] bg-white/[0.035]
                 shadow-[inset_0_1px_0_rgba(255,255,255,0.055)]
                 transition open:border-white/[0.16] open:bg-white/[0.055]
-              "
+              `}
             >
               <summary
-                className="
+                className={`
                   flex min-h-14 cursor-pointer list-none items-center gap-3
                   px-4 py-3 text-left marker:hidden sm:px-5
                   [&::-webkit-details-marker]:hidden
-                "
+              `}
               >
                 <span
-                  className="
+                  className={`
                     flex h-8 w-8 shrink-0 items-center justify-center
                     rounded-[11px] border border-white/[0.11]
                     bg-[linear-gradient(145deg,rgba(255,255,255,0.11),rgba(255,255,255,0.025))]
                     text-white/68
                     shadow-[inset_0_1px_0_rgba(255,255,255,0.09),0_8px_18px_rgba(0,0,0,0.3)]
-                  "
+              `}
                 >
                   <PremiumIcon
                     name="question"
@@ -1244,13 +1244,13 @@ function FaqSection() {
 
                 <span
                   aria-hidden="true"
-                  className="
+                  className={`
                     flex h-7 w-7 shrink-0 items-center justify-center
                     rounded-full border border-white/[0.1] bg-white/[0.035]
                     text-[16px] font-semibold text-white/48 transition
                     group-open:rotate-45 group-open:border-white/[0.18]
                     group-open:bg-white/[0.08] group-open:text-white
-                  "
+              `}
                 >
                   +
                 </span>
@@ -1267,11 +1267,11 @@ function FaqSection() {
 
         <div
           data-sk-reveal
-          className="
+          className={`
             sk-reveal mx-auto mt-5 flex max-w-4xl flex-col items-center
             justify-between gap-3 rounded-[20px] border border-white/[0.09]
             bg-white/[0.03] px-4 py-3 text-center sm:flex-row sm:text-left
-          "
+              `}
         >
           <p className="text-[10.5px] font-semibold leading-relaxed text-white/48">
             More onboarding, account, Visit, SOS, payment, and troubleshooting
@@ -1280,14 +1280,14 @@ function FaqSection() {
 
           <a
             href="/help-center"
-            className="
+            className={`
               inline-flex min-h-9 shrink-0 items-center gap-2 rounded-[13px]
               border border-white/[0.12] bg-white/[0.05] px-3.5 text-[9px]
               font-black uppercase tracking-[0.12em] text-white/68 transition
               hover:border-white/[0.22] hover:bg-white/[0.1] hover:text-white
               focus-visible:outline-none focus-visible:ring-2
               focus-visible:ring-white/35
-            "
+              `}
           >
             Open Help Center
             <PremiumIcon name="arrow" className="h-3.5 w-3.5" />
@@ -1679,7 +1679,7 @@ export default function StayKnownHomePage() {
               <a
                 key={`mobile-${href}`}
                 href={href}
-                className="
+                className={`
                   inline-flex min-h-8 items-center justify-center rounded-[11px]
                   border border-white/[0.09] bg-black px-2 text-center
                   text-[8.5px] font-black leading-tight text-white/58
@@ -1687,7 +1687,7 @@ export default function StayKnownHomePage() {
                   transition hover:border-white/[0.2] hover:bg-white/[0.06]
                   hover:text-white focus-visible:outline-none
                   focus-visible:ring-2 focus-visible:ring-white/35
-                "
+              `}
               >
                 {label}
               </a>

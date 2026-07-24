@@ -1,40 +1,32 @@
-STAYKNOWN FINAL MOBILE NAVIGATION AND SAFETY-TAG FIX
+STAYKNOWN TURBOPACK CLASSNAME FINAL FIX
 
 Extract into the confirmed root-based StayKnown website project.
 
-FILE
+REPLACE
 components/StayKnownHomePage.tsx
 
-FIXES
-1. Mobile homepage tabs
-   - How it works
-   - Watch
-   - Features
-   - Plans
-   - Trust
-   - FAQ
+CAUSE
+The mobile navigation patch used a multiline quoted JSX attribute:
 
-   All six now display below the main mobile header in a compact two-row grid.
-   On small tablets they display in a single six-column row.
+className="
+  ...
+"
 
-2. FAQ mobile anchor
-   The FAQ section now uses responsive scroll margin so its heading does not
-   disappear behind the taller sticky mobile header.
+Turbopack transformed that into an invalid JavaScript string and stopped with:
+Expected ',', got 'ident'
 
-3. Safety tags below the first hero slide
-   - Approved contacts only
-   - User-started sessions
-   - No hidden tracking
-   - Access ends with the flow
-   - Emergency-ready context
+FIX
+All eight multiline quoted className attributes in the homepage were converted
+to valid JSX template-literal attributes:
 
-   These now stack vertically on mobile with a connected flow line, matching
-   the vertical progression used by the How StayKnown Works presentation.
-   The five-column desktop presentation remains intact.
+className={`
+  ...
+`}
 
-NO OTHER CHANGES
-- No routes were removed.
-- No text was changed.
-- No plan or billing logic was changed.
-- No desktop navigation was removed.
-- No src/ directory is included.
+This includes:
+- Mobile homepage tab rail
+- Vertical safety-tag stack
+- Existing FAQ cards and controls
+
+No route, text, plan, billing, metadata, or layout flow was otherwise changed.
+No src/ folder is included.
