@@ -266,6 +266,17 @@ const DEMO_FLOWS: DemoFlow[] = [
   },
 ];
 
+/*
+ * Homepage tabs currently wired as anchors:
+ * #how-it-works, #guided-demo, #app-preview, #plans, and #trust.
+ *
+ * Public routes reserved for the next implementation stages:
+ * /how-it-works, /features, /plans, /safety-trust, /watch,
+ * /students, /travel-rides, /families-guardians, /accessibility,
+ * /status, /about, and /press-updates.
+ *
+ * Do not link those reserved routes until their page files exist.
+ */
 const FOOTER_GROUPS: Array<{ title: string; links: FooterLink[] }> = [
   {
     title: "Learn",
@@ -407,27 +418,28 @@ function GooglePlayDownloadButton({ className = "" }: { className?: string }) {
       rel="noopener noreferrer"
       aria-label="Download StayKnown on Google Play"
       className={`
-        sk-google-play-button group inline-flex min-h-[52px] min-w-[184px]
-        items-center justify-center gap-3 rounded-[18px]
-        border border-white/90 bg-white px-5 py-2.5
-        !text-black shadow-[0_16px_0_-10px_rgba(255,255,255,0.85),0_20px_55px_rgba(0,0,0,0.38)]
+        sk-google-play-button group relative inline-flex h-11 min-w-[166px]
+        items-center justify-center gap-2.5 overflow-hidden rounded-[15px]
+        border border-white/90 bg-white px-4
+        shadow-[0_12px_30px_rgba(0,0,0,0.34),inset_0_1px_0_rgba(255,255,255,1),inset_0_-5px_12px_rgba(0,0,0,0.08)]
         transition duration-200
-        hover:-translate-y-0.5 hover:border-white hover:bg-white hover:!text-black
-        active:translate-y-0 active:scale-[0.985] active:bg-white active:!text-black
-        visited:!text-black focus:!text-black
+        hover:-translate-y-px hover:border-white/24 hover:bg-[#111111]
+        active:translate-y-0 active:scale-[0.985]
         focus-visible:outline-none focus-visible:ring-2
-        focus-visible:ring-white/45 ${className}
+        focus-visible:ring-white/40 ${className}
       `}
     >
-      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] border border-black/[0.06] bg-[linear-gradient(145deg,#ffffff,#ececec)] shadow-[inset_0_1px_0_rgba(255,255,255,1),0_7px_14px_rgba(0,0,0,0.10)]">
+      <span className="pointer-events-none absolute inset-x-4 top-0 h-px bg-white/95 transition group-hover:bg-white/22" />
+
+      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[9px] border border-black/[0.06] bg-[linear-gradient(145deg,#ffffff,#ececec)] shadow-[inset_0_1px_0_rgba(255,255,255,1),0_5px_11px_rgba(0,0,0,0.10)]">
         <GooglePlayMark />
       </span>
 
       <span className="flex flex-col items-start leading-none">
-        <span className="sk-google-play-kicker text-[8px] font-black uppercase tracking-[0.16em]">
+        <span className="sk-google-play-kicker text-[7px] font-black uppercase tracking-[0.16em]">
           Get it on
         </span>
-        <span className="sk-google-play-label mt-1 text-[14px] font-black tracking-[-0.035em]">
+        <span className="sk-google-play-label mt-1 text-[12.5px] font-black tracking-[-0.035em]">
           Google Play
         </span>
       </span>
@@ -544,7 +556,7 @@ function CinematicHeroSection({ slides }: { slides: CinematicHeroSlide[] }) {
             <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
               <a
                 href={activeSlide.href}
-                className="sk-white-bevel inline-flex min-h-12 items-center justify-center rounded-[18px] border border-white bg-white px-6 text-[13px] font-black tracking-[-0.01em] !text-black transition duration-200 hover:-translate-y-0.5 hover:!text-black active:translate-y-0 active:scale-[0.99] active:!text-black visited:!text-black focus:!text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+                className="sk-white-bevel inline-flex h-10 items-center justify-center rounded-[15px] border border-white bg-white px-5 text-[11px] font-black tracking-[-0.01em] !text-black transition duration-200 hover:-translate-y-px hover:border-white/25 hover:bg-[#111111] hover:!text-white active:translate-y-0 active:scale-[0.99] active:!text-white visited:!text-black focus:!text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
               >
                 Learn More
               </a>
@@ -554,7 +566,7 @@ function CinematicHeroSection({ slides }: { slides: CinematicHeroSlide[] }) {
 
             <a
               href="#guided-demo"
-              className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-full px-1 text-[12px] font-black text-white/72 transition hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/35"
+              className="mt-4 inline-flex min-h-9 items-center gap-2 rounded-full px-1 text-[11px] font-black text-white/72 transition hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/35"
             >
               Preview how a safety session works
               <PremiumIcon name="arrow" className="h-4 w-4" />
@@ -566,14 +578,14 @@ function CinematicHeroSection({ slides }: { slides: CinematicHeroSlide[] }) {
                   key={slide.id}
                   type="button"
                   onClick={() => setActiveIndex(index)}
-                  className="group flex h-11 w-11 items-center justify-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+                  className="group flex h-9 w-9 items-center justify-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
                   aria-label={`Show StayKnown hero slide ${index + 1}`}
                   aria-pressed={index === activeIndex}
                 >
                   <span
                     className={`block h-2.5 rounded-full transition-all duration-300 ${
                       index === activeIndex
-                        ? "w-8 bg-white shadow-[0_0_18px_rgba(255,255,255,0.34)]"
+                        ? "w-7 bg-white shadow-[0_0_14px_rgba(255,255,255,0.28)]"
                         : "w-2.5 bg-white/35 group-hover:bg-white/65"
                     }`}
                   />
@@ -583,7 +595,7 @@ function CinematicHeroSection({ slides }: { slides: CinematicHeroSlide[] }) {
               <button
                 type="button"
                 onClick={() => setIsPaused((current) => !current)}
-                className="ml-1 inline-flex min-h-11 items-center rounded-full border border-white/12 bg-white/[0.06] px-4 text-[10px] font-black uppercase tracking-[0.16em] text-white/68 transition hover:border-white/20 hover:bg-white/[0.1] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+                className="ml-1 inline-flex h-9 items-center rounded-full border border-white/12 bg-white/[0.06] px-3 text-[9px] font-black uppercase tracking-[0.16em] text-white/68 transition hover:border-white/20 hover:bg-white/[0.1] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
                 aria-label={
                   isPaused ? "Resume hero slides" : "Pause hero slides"
                 }
@@ -795,7 +807,7 @@ function GuidedDemoSection() {
                   key={flow.id}
                   type="button"
                   onClick={() => setSelectedId(flow.id)}
-                  className={`group min-h-[92px] rounded-[24px] border p-4 text-left transition duration-250 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/35 ${
+                  className={`group min-h-[78px] rounded-[21px] border px-4 py-3 text-left transition duration-250 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/35 ${
                     active
                       ? "border-white/30 bg-white text-black shadow-[0_18px_0_-13px_rgba(255,255,255,0.86),0_24px_60px_rgba(0,0,0,0.44)]"
                       : "border-white/[0.1] bg-white/[0.045] text-white hover:border-white/[0.18] hover:bg-white/[0.07]"
@@ -816,7 +828,7 @@ function GuidedDemoSection() {
                       </span>
                     </span>
                     <span
-                      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] border ${
+                      className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-[11px] border ${
                         active
                           ? "border-black/[0.08] bg-black/[0.045] shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]"
                           : "border-white/[0.1] bg-white/[0.045]"
@@ -875,7 +887,7 @@ function GuidedDemoSection() {
 
                 <a
                   href="/learn/safe-journey"
-                  className="mt-5 inline-flex min-h-12 items-center gap-2 rounded-[17px] border border-white/90 bg-white px-5 text-[12px] font-black !text-black shadow-[0_16px_0_-12px_rgba(255,255,255,0.85),0_18px_45px_rgba(0,0,0,0.38)] transition hover:-translate-y-0.5 hover:!text-black active:translate-y-0 visited:!text-black focus:!text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+                  className="mt-5 inline-flex h-10 items-center gap-2 rounded-[14px] border border-white/90 bg-white px-4 text-[11px] font-black !text-black shadow-[0_12px_28px_rgba(0,0,0,0.34),inset_0_1px_0_rgba(255,255,255,1),inset_0_-5px_12px_rgba(0,0,0,0.08)] transition hover:-translate-y-px hover:border-white/25 hover:bg-[#111111] hover:!text-white active:translate-y-0 visited:!text-black focus:!text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
                 >
                   Open the full Learn More flow
                   <PremiumIcon name="arrow" className="h-4 w-4" />
@@ -965,7 +977,7 @@ function AppPreviewSection() {
         </div>
 
         <div data-sk-reveal className="sk-reveal mt-7 flex justify-center">
-          <GooglePlayDownloadButton className="w-full max-w-[230px] sm:w-auto" />
+          <GooglePlayDownloadButton className="w-full max-w-[205px] sm:w-auto" />
         </div>
       </div>
     </section>
@@ -976,40 +988,75 @@ function PlansSection() {
   const plans = [
     {
       name: "Starter",
-      kicker: "Begin free",
-      monthly: "Free",
-      annual: "Core safety access",
+      kicker: "Core safety access",
       featured: false,
-      features: [
+      pricePrimary: "Free",
+      priceSecondary: "No paid subscription required",
+      capacities: [
         "1 approved contact",
-        "Core Visit and I’M SAFE access",
-        "Basic safety proof",
+        "Core Visit access",
+        "Twice-daily I’M SAFE",
+      ],
+      features: [
+        "Start and end Visits",
+        "Add a destination and review Visit history",
+        "Twice-daily I’M SAFE check-ins",
+        "Basic emergency-contact and safety flows",
+        "Core safety map and navigation",
+        "Basic account, profile, and safety-proof access",
       ],
     },
     {
       name: "Pro",
-      kicker: "Expanded protection",
-      monthly: "₦9,999 / month",
-      annual: "₦99,999 yearly · Global $14.99 / month or $149.99 yearly",
-      featured: false,
-      features: [
+      kicker: "Full safety system",
+      featured: true,
+      pricePrimary: "Nigeria · ₦9,999 monthly",
+      priceSecondary:
+        "₦99,999 yearly · Global $14.99 monthly or $149.99 yearly",
+      capacities: [
         "3 approved contacts",
-        "Up to 6 SOS contacts",
-        "1 Safety Gallery allocation",
-        "Expanded safety tools",
+        "6 SOS contacts",
+        "3 SOS responders",
+        "1 Gallery photo",
+      ],
+      features: [
+        "Everything included in Starter",
+        "LIVE location sharing during Visits",
+        "Full SOS system",
+        "Emergency phrase and escalation-timing controls",
+        "SOS history and responder management",
+        "Rich Visit context, destination guidance, and verification",
+        "Chat access and basic translation",
+        "Story posting",
+        "Premium Pro font collection",
+        "Contact restriction control",
       ],
     },
     {
       name: "Pro Max",
-      kicker: "Highest capacity",
-      monthly: "₦14,999 / month",
-      annual: "₦149,999 yearly · Global $24.99 / month or $249.99 yearly",
-      featured: true,
-      features: [
+      kicker: "Complete premium access",
+      featured: false,
+      pricePrimary: "Nigeria · ₦14,999 monthly",
+      priceSecondary:
+        "₦149,999 yearly · Global $24.99 monthly or $249.99 yearly",
+      capacities: [
         "6 approved contacts",
-        "Up to 10 SOS contacts",
-        "2 Safety Gallery allocations",
-        "Highest capacity and personalization",
+        "10 SOS contacts",
+        "6 SOS responders",
+        "Up to 2 Gallery photos",
+      ],
+      features: [
+        "Everything included in Pro",
+        "Priority SOS responder system",
+        "Full advanced chat system",
+        "Full translation support",
+        "Advanced chat personalization",
+        "Full story creation",
+        "Full destination intelligence",
+        "Premium personalization",
+        "Full designer font library",
+        "Advanced restrict and block controls",
+        "Highest StayKnown safety-feature capacity",
       ],
     },
   ];
@@ -1021,8 +1068,8 @@ function PlansSection() {
       <div className="relative mx-auto max-w-6xl px-4 py-16 sm:px-5 sm:py-20 lg:px-6 lg:py-24">
         <SectionHeading
           eyebrow="Plans and pricing"
-          title="Know what is available before opening the Play Store."
-          body="StayKnown presents Starter, Pro, and Pro Max openly. Final billing currency and payment availability are confirmed inside the app before checkout."
+          title="See the real StayKnown capacity before opening the Play Store."
+          body="The website now reflects the same Starter, Pro, and Pro Max entitlements used by the app. Final currency, provider, and checkout availability are confirmed inside StayKnown."
         />
 
         <div className="mt-10 grid gap-4 lg:grid-cols-3">
@@ -1030,40 +1077,66 @@ function PlansSection() {
             <article
               key={plan.name}
               data-sk-reveal
-              className={`sk-reveal relative overflow-hidden rounded-[32px] border p-5 shadow-[0_28px_80px_rgba(0,0,0,0.45)] sm:p-6 ${
+              className={`sk-reveal sk-plan-card group relative overflow-hidden rounded-[30px] border p-5 shadow-[0_24px_66px_rgba(0,0,0,0.40),inset_0_1px_0_rgba(255,255,255,0.07)] transition duration-300 hover:-translate-y-1 sm:p-6 ${
                 plan.featured
-                  ? "border-white/85 bg-white text-black"
-                  : "border-white/[0.11] bg-black text-white"
+                  ? "border-white/80 bg-white text-black hover:border-white hover:shadow-[0_28px_72px_rgba(0,0,0,0.46),inset_0_1px_0_rgba(255,255,255,1)]"
+                  : "border-white/[0.11] bg-black text-white hover:border-white/[0.2] hover:bg-white/[0.035]"
               }`}
             >
               <div
                 className={`pointer-events-none absolute inset-0 ${
                   plan.featured
                     ? "bg-[radial-gradient(circle_at_14%_0%,rgba(255,255,255,1),transparent_46%)]"
-                    : "bg-[radial-gradient(circle_at_14%_0%,rgba(255,255,255,0.1),transparent_46%)]"
+                    : "bg-[radial-gradient(circle_at_14%_0%,rgba(255,255,255,0.10),transparent_46%)]"
                 }`}
               />
 
               <div className="relative flex h-full flex-col">
-                <div
-                  className={`text-[10px] font-black uppercase tracking-[0.22em] ${
-                    plan.featured ? "text-black/44" : "text-white/40"
-                  }`}
-                >
-                  {plan.kicker}
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div
+                      className={`text-[9px] font-black uppercase tracking-[0.21em] ${
+                        plan.featured ? "text-black/44" : "text-white/40"
+                      }`}
+                    >
+                      {plan.kicker}
+                    </div>
+                    <h3 className="sk-sharp-type mt-2 text-[29px] font-black tracking-[-0.06em]">
+                      {plan.name}
+                    </h3>
+                  </div>
+
+                  {plan.featured ? (
+                    <span className="inline-flex h-7 items-center rounded-full border border-black/[0.08] bg-black/[0.045] px-2.5 text-[8px] font-black uppercase tracking-[0.16em] text-black/62">
+                      Recommended
+                    </span>
+                  ) : null}
                 </div>
-                <h3 className="sk-sharp-type mt-3 text-[31px] font-black tracking-[-0.06em]">
-                  {plan.name}
-                </h3>
-                <div className="mt-5 text-[20px] font-black tracking-[-0.04em]">
-                  {plan.monthly}
+
+                <div className="mt-5 text-[16px] font-black tracking-[-0.035em]">
+                  {plan.pricePrimary}
                 </div>
                 <div
-                  className={`mt-2 min-h-[42px] text-[11px] font-bold leading-relaxed ${
+                  className={`mt-2 min-h-[42px] text-[10.5px] font-bold leading-relaxed ${
                     plan.featured ? "text-black/52" : "text-white/46"
                   }`}
                 >
-                  {plan.annual}
+                  {plan.priceSecondary}
+                </div>
+
+                <div className="mt-5 flex flex-wrap gap-1.5">
+                  {plan.capacities.map((capacity) => (
+                    <span
+                      key={capacity}
+                      className={`inline-flex min-h-7 items-center rounded-full border px-2.5 text-[9px] font-black ${
+                        plan.featured
+                          ? "border-black/[0.08] bg-black/[0.04] text-black/66"
+                          : "border-white/[0.1] bg-white/[0.045] text-white/64"
+                      }`}
+                    >
+                      {capacity}
+                    </span>
+                  ))}
                 </div>
 
                 <div
@@ -1072,20 +1145,20 @@ function PlansSection() {
                   }`}
                 />
 
-                <ul className="space-y-3">
+                <ul className="space-y-2.5">
                   {plan.features.map((feature) => (
                     <li
                       key={feature}
-                      className="flex items-start gap-3 text-[13px] font-bold leading-relaxed"
+                      className="flex items-start gap-2.5 text-[11.5px] font-bold leading-relaxed"
                     >
                       <span
-                        className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border ${
+                        className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${
                           plan.featured
                             ? "border-black/[0.08] bg-black/[0.045]"
                             : "border-white/[0.12] bg-white/[0.05]"
                         }`}
                       >
-                        <PremiumIcon name="check" className="h-3.5 w-3.5" />
+                        <PremiumIcon name="check" className="h-3 w-3" />
                       </span>
                       <span
                         className={
@@ -1098,15 +1171,21 @@ function PlansSection() {
                   ))}
                 </ul>
 
-                <GooglePlayDownloadButton
-                  className={`mt-7 w-full ${plan.featured ? "border-black/[0.08] shadow-[0_16px_0_-12px_rgba(0,0,0,0.2),0_18px_45px_rgba(0,0,0,0.16)]" : ""}`}
-                />
+                <div className="mt-auto pt-7">
+                  <GooglePlayDownloadButton
+                    className={`w-full ${
+                      plan.featured
+                        ? "border-black/[0.10] hover:border-black/20"
+                        : ""
+                    }`}
+                  />
+                </div>
               </div>
             </article>
           ))}
         </div>
 
-        <p className="mx-auto mt-6 max-w-3xl text-center text-[11px] font-semibold leading-relaxed text-white/38">
+        <p className="mx-auto mt-6 max-w-3xl text-center text-[10.5px] font-semibold leading-relaxed text-white/38">
           Prices may vary by billing region and payment provider. Paid plans do
           not guarantee official emergency response. StayKnown does not replace
           local emergency services.
@@ -1181,7 +1260,7 @@ function TrustSection() {
                 href={card.href}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="mt-5 inline-flex min-h-11 items-center gap-2 text-[12px] font-black text-white/78 transition hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/35"
+                className="mt-5 inline-flex min-h-9 items-center gap-2 text-[11px] font-black text-white/78 transition hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/35"
               >
                 {card.link}
                 <PremiumIcon name="arrow" className="h-4 w-4" />
@@ -1255,7 +1334,7 @@ function FinalCtaSection() {
             </p>
           </div>
 
-          <GooglePlayDownloadButton className="w-full border-black/[0.08] shadow-[0_16px_0_-12px_rgba(0,0,0,0.18),0_18px_45px_rgba(0,0,0,0.16)] sm:w-auto" />
+          <GooglePlayDownloadButton className="w-full border-black/[0.10] sm:w-auto" />
         </div>
       </div>
     </section>
@@ -1461,9 +1540,7 @@ export default function Page() {
         .sk-google-play-button,
         .sk-google-play-button:link,
         .sk-google-play-button:visited,
-        .sk-google-play-button:hover,
-        .sk-google-play-button:focus,
-        .sk-google-play-button:active {
+        .sk-google-play-button:focus {
           color: #000000 !important;
           -webkit-text-fill-color: #000000 !important;
         }
@@ -1471,19 +1548,64 @@ export default function Page() {
         .sk-google-play-button .sk-google-play-kicker {
           color: rgba(0, 0, 0, 0.56) !important;
           -webkit-text-fill-color: rgba(0, 0, 0, 0.56) !important;
+          transition: color 180ms ease;
+        }
+
+        .sk-google-play-button .sk-google-play-label {
+          color: #000000 !important;
+          -webkit-text-fill-color: #000000 !important;
+          transition: color 180ms ease;
+        }
+
+        .sk-google-play-button:hover,
+        .sk-google-play-button:active {
+          color: #ffffff !important;
+          -webkit-text-fill-color: #ffffff !important;
         }
 
         .sk-google-play-button:hover .sk-google-play-kicker,
-        .sk-google-play-button:focus .sk-google-play-kicker {
-          color: rgba(0, 0, 0, 0.68) !important;
-          -webkit-text-fill-color: rgba(0, 0, 0, 0.68) !important;
+        .sk-google-play-button:active .sk-google-play-kicker {
+          color: rgba(255, 255, 255, 0.58) !important;
+          -webkit-text-fill-color: rgba(255, 255, 255, 0.58) !important;
         }
 
-        .sk-google-play-button .sk-google-play-label,
         .sk-google-play-button:hover .sk-google-play-label,
-        .sk-google-play-button:focus .sk-google-play-label {
-          color: #000000 !important;
-          -webkit-text-fill-color: #000000 !important;
+        .sk-google-play-button:active .sk-google-play-label {
+          color: #ffffff !important;
+          -webkit-text-fill-color: #ffffff !important;
+        }
+
+        /*
+         * The app-preview controls are owned by HeroSlider.tsx. These scoped
+         * overrides keep the complete component API intact while making every
+         * control on this homepage more restrained and premium.
+         */
+        #app-preview button[aria-label="Previous StayKnown screen"],
+        #app-preview button[aria-label="Next StayKnown screen"] {
+          width: 38px !important;
+          height: 38px !important;
+          min-width: 38px !important;
+          min-height: 38px !important;
+        }
+
+        #app-preview button[aria-label="Pause automatic slide movement"],
+        #app-preview button[aria-label="Resume automatic slide movement"],
+        #app-preview button[aria-controls="stayknown-slide-browser"] {
+          min-height: 36px !important;
+          padding-left: 12px !important;
+          padding-right: 12px !important;
+          font-size: 10px !important;
+        }
+
+        #app-preview a[aria-label^="Learn more about"] {
+          min-height: 40px !important;
+          padding-left: 18px !important;
+          padding-right: 18px !important;
+          font-size: 11px !important;
+          box-shadow:
+            0 12px 28px rgba(0, 0, 0, 0.32),
+            inset 0 1px 0 rgba(255, 255, 255, 1),
+            inset 0 -5px 12px rgba(0, 0, 0, 0.08) !important;
         }
 
         .sk-reveal {
@@ -1514,14 +1636,14 @@ export default function Page() {
       `}</style>
 
       <header className="sticky top-0 z-50 border-b border-white/[0.08] bg-black/82 backdrop-blur-2xl">
-        <div className="mx-auto flex min-h-[76px] max-w-6xl items-center justify-between gap-3 px-4 sm:px-5 lg:px-6">
+        <div className="mx-auto flex min-h-[68px] max-w-6xl items-center justify-between gap-3 px-4 sm:px-5 lg:px-6">
           <a
             href="#top"
-            className="inline-flex min-h-12 items-center gap-3 rounded-[16px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/35"
+            className="inline-flex min-h-10 items-center gap-2.5 rounded-[14px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/35"
             aria-label="StayKnown homepage"
           >
-            <span className="sk-logo-bevel flex h-10 w-10 items-center justify-center rounded-[15px] border border-white/[0.16] bg-[linear-gradient(145deg,rgba(255,255,255,0.16),rgba(255,255,255,0.035))] shadow-[inset_0_1px_0_rgba(255,255,255,0.18),0_12px_26px_rgba(0,0,0,0.42)]">
-              <Image src="/6logo.png" alt="" width={22} height={22} priority />
+            <span className="sk-logo-bevel flex h-9 w-9 items-center justify-center rounded-[13px] border border-white/[0.16] bg-[linear-gradient(145deg,rgba(255,255,255,0.16),rgba(255,255,255,0.035))] shadow-[inset_0_1px_0_rgba(255,255,255,0.18),0_12px_26px_rgba(0,0,0,0.42)]">
+              <Image src="/6logo.png" alt="" width={20} height={20} priority />
             </span>
             <span>
               <span className="block text-[12px] font-black tracking-[0.22em] text-white">
@@ -1547,7 +1669,7 @@ export default function Page() {
               <a
                 key={href}
                 href={href}
-                className="inline-flex min-h-11 items-center rounded-full px-4 text-[11px] font-black text-white/58 transition hover:bg-white/[0.06] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/35"
+                className="inline-flex min-h-9 items-center rounded-full px-3 text-[10px] font-black text-white/58 transition hover:bg-white/[0.06] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/35"
               >
                 {label}
               </a>
@@ -1559,7 +1681,7 @@ export default function Page() {
               href={GOOGLE_PLAY_URL}
               target="_blank"
               rel="noopener noreferrer"
-              className="hidden min-h-11 items-center rounded-[15px] border border-white/85 bg-white px-4 text-[11px] font-black !text-black shadow-[0_12px_0_-9px_rgba(255,255,255,0.9),0_14px_32px_rgba(0,0,0,0.32)] transition hover:-translate-y-0.5 hover:!text-black active:translate-y-0 visited:!text-black focus:!text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 sm:inline-flex"
+              className="hidden h-9 items-center rounded-[13px] border border-white/85 bg-white px-3.5 text-[10px] font-black !text-black shadow-[0_10px_24px_rgba(0,0,0,0.30),inset_0_1px_0_rgba(255,255,255,1),inset_0_-4px_10px_rgba(0,0,0,0.08)] transition hover:-translate-y-px hover:border-white/25 hover:bg-[#111111] hover:!text-white active:translate-y-0 visited:!text-black focus:!text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 sm:inline-flex"
             >
               Download
             </a>
