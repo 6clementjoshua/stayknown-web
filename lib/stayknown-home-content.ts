@@ -25,6 +25,11 @@ export const HOME_FAQS: readonly HomeFaq[] = [
       "No. StayKnown helps users alert trusted contacts and share safety context. It does not guarantee professional dispatch and should not replace contacting the appropriate local emergency service.",
   },
   {
+    question: "Does StayKnown include secure chat and translation?",
+    answer:
+      "Yes. StayKnown Chat supports communication between approved contacts, protected chat entry where supported, language-aware translated messages, voice notes, media, stickers, and other expressive formats. Chat remains connected to the wider approved-contact and safety experience.",
+  },
+  {
     question: "Does StayKnown have a free plan?",
     answer:
       "Yes. Starter provides core safety access, one approved contact, Visits, twice-daily I’M SAFE check-ins, and basic emergency and safety-proof flows. Pro and Pro Max increase capacity and unlock advanced features.",

@@ -33,6 +33,9 @@ type IconName =
   | "shield"
   | "privacy"
   | "proof"
+  | "chat"
+  | "language"
+  | "voice"
   | "question"
   | "arrow";
 
@@ -237,6 +240,7 @@ const FOOTER_GROUPS: Array<{ title: string; links: FooterLink[] }> = [
       { label: "How StayKnown Works", href: "/how-it-works" },
       { label: "Watch StayKnown", href: "/watch" },
       { label: "Product Features", href: "/features" },
+      { label: "Secure Chat", href: "/learn/chat" },
       { label: "Plans & Pricing", href: "/plans" },
       { label: "Trust & Safety", href: "/trust-safety" },
     ],
@@ -345,6 +349,25 @@ function PremiumIcon({ name, className = "" }: { name: IconName; className?: str
       "M7 3h8l4 4v14H7z",
       "M15 3v5h5",
       "m10 15 1.5 1.5L15 13",
+    ],
+    chat: [
+      "M4 5h16v11H9l-5 4V5Z",
+      "M8 9h8",
+      "M8 12h6",
+    ],
+    language: [
+      "M4 5h8",
+      "M8 3v2",
+      "M5 8c1.5 3 3.8 5.2 7 6.5",
+      "M11 8c-.8 2.2-2.3 4.1-4.5 5.6",
+      "m14 19 3.2-8 3.3 8",
+      "M15.3 16h4",
+    ],
+    voice: [
+      "M9 4a3 3 0 0 1 6 0v7a3 3 0 0 1-6 0V4Z",
+      "M5 10a7 7 0 0 0 14 0",
+      "M12 17v4",
+      "M8 21h8",
     ],
     question: [
       "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z",
@@ -596,37 +619,35 @@ function TrustRibbon() {
     ["visit", "User-started sessions"],
     ["privacy", "No hidden tracking"],
     ["check", "Access ends with the flow"],
+    ["chat", "Secure chat & translation"],
     ["sos", "Emergency-ready context"],
   ] as const;
 
   return (
-    <section className="relative z-20 border-y border-white/[0.08] bg-black">
+    <section
+      aria-label="StayKnown safety and communication principles"
+      className="relative z-20 border-y border-white/[0.08] bg-black"
+    >
       <div className="mx-auto max-w-6xl px-4 py-4 sm:px-5 lg:px-6 lg:py-0">
-        <div className="grid grid-cols-1 gap-2 lg:grid-cols-5 lg:gap-px lg:bg-white/[0.08] lg:px-px">
-          {items.map(([icon, label], index) => (
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6 lg:gap-px lg:bg-white/[0.08] lg:px-px">
+          {items.map(([icon, label]) => (
             <div
               key={label}
               className={`
-                relative flex min-h-[68px] items-center gap-3 rounded-[18px]
-                border border-white/[0.1] bg-black px-4 text-left
-                text-[11px] font-black tracking-[-0.01em] text-white/70
+                relative flex min-h-[82px] flex-col items-center justify-center
+                gap-2 rounded-[18px] border border-white/[0.1] bg-black px-2.5
+                text-center text-[9.5px] font-black leading-tight
+                tracking-[-0.01em] text-white/70
                 shadow-[inset_0_1px_0_rgba(255,255,255,0.045)]
-                sm:text-[12px]
-                lg:min-h-[82px] lg:justify-center lg:rounded-none
-                lg:border-0 lg:px-3 lg:text-center lg:shadow-none
+                sm:min-h-[86px] sm:px-3 sm:text-[10.5px]
+                lg:min-h-[82px] lg:flex-row lg:gap-2.5 lg:rounded-none
+                lg:border-0 lg:px-3 lg:text-[11px] lg:shadow-none
               `}
             >
               <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[13px] border border-white/[0.12] bg-[linear-gradient(145deg,rgba(255,255,255,0.12),rgba(255,255,255,0.025))] shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_10px_24px_rgba(0,0,0,0.38)]">
                 <PremiumIcon name={icon} className="h-4 w-4 text-white/88" />
               </span>
               <span>{label}</span>
-
-              {index < items.length - 1 ? (
-                <span
-                  aria-hidden="true"
-                  className="absolute -bottom-2 left-[33px] h-2 w-px bg-white/[0.2] lg:hidden"
-                />
-              ) : null}
             </div>
           ))}
         </div>
@@ -773,6 +794,236 @@ function HowItWorksSection() {
   );
 }
 
+
+type ChatMode = "secure" | "translation" | "expression";
+
+function ChatAwarenessSection() {
+  const [activeMode, setActiveMode] = useState<ChatMode>("secure");
+
+  const modes = {
+    secure: {
+      icon: "privacy" as const,
+      label: "Protected entry",
+      eyebrow: "Secure approved-contact chat",
+      title:
+        "Private safety conversations stay connected to people you approved.",
+      body:
+        "StayKnown Chat is designed around recognizable approved contacts. Supported biometric or device-level protection can add another barrier before private conversations open.",
+      image: "/hero/secure-chat-biometric.png",
+      imageAlt:
+        "StayKnown secure chat screen with biometric or device protection",
+      points: [
+        "Chat access is connected to approved StayKnown relationships.",
+        "Protected entry can use supported biometric or device-level security.",
+        "Identity and safety recognition remain visible around communication.",
+      ],
+      href: "/learn/secure-chat-protection",
+      hrefLabel: "Secure chat protection",
+    },
+    translation: {
+      icon: "language" as const,
+      label: "Translation",
+      eyebrow: "Language-aware communication",
+      title:
+        "Trusted people can understand messages across language differences.",
+      body:
+        "StayKnown supports recipient language preferences and translated message handling, helping safety and everyday communication remain clearer across multilingual relationships.",
+      image: "/hero/chat-translation.png",
+      imageAlt: "StayKnown language-aware translated chat screen",
+      points: [
+        "Recipients can use their selected supported chat language.",
+        "Translation helps safety messages remain understandable.",
+        "Language choice is part of the account communication experience.",
+      ],
+      href: "/learn/language-aware-chat",
+      hrefLabel: "Language-aware chat",
+    },
+    expression: {
+      icon: "voice" as const,
+      label: "Voice & media",
+      eyebrow: "Richer communication",
+      title:
+        "Voice notes, media, stickers, and stories make trusted communication more human.",
+      body:
+        "StayKnown Chat supports expressive communication around safety and everyday connection, including voice notes, media, stickers, and other supported message formats.",
+      image: "/hero/chat-stickers-voice.png",
+      imageAlt:
+        "StayKnown chat screen showing voice notes, stickers, and media",
+      points: [
+        "Voice notes help when typing is inconvenient.",
+        "Media and expressive content add useful communication context.",
+        "Chat remains part of the approved-contact safety system.",
+      ],
+      href: "/learn/chat",
+      hrefLabel: "Explore StayKnown Chat",
+    },
+  } satisfies Record<
+    ChatMode,
+    {
+      icon: IconName;
+      label: string;
+      eyebrow: string;
+      title: string;
+      body: string;
+      image: string;
+      imageAlt: string;
+      points: readonly string[];
+      href: string;
+      hrefLabel: string;
+    }
+  >;
+
+  const active = modes[activeMode];
+
+  return (
+    <section
+      id="chat-awareness"
+      aria-labelledby="chat-awareness-title"
+      className="relative overflow-hidden bg-black"
+    >
+      <div className="pointer-events-none absolute left-1/2 top-1/2 h-[720px] w-[1080px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/[0.04]" />
+      <div className="pointer-events-none absolute left-[8%] top-[18%] h-48 w-48 rounded-full bg-[#8ff3d0]/[0.045] blur-[85px]" />
+
+      <div className="relative mx-auto max-w-6xl px-4 py-16 sm:px-5 sm:py-20 lg:px-6 lg:py-24">
+        <div className="mx-auto max-w-4xl text-center">
+          <div className="text-[10px] font-black uppercase tracking-[0.28em] text-[#8ff3d0]">
+            Safety-aware communication
+          </div>
+          <h2
+            id="chat-awareness-title"
+            className="sk-sharp-type mt-4 text-[34px] font-black leading-[0.98] tracking-[-0.065em] text-white sm:text-[46px] md:text-[56px]"
+          >
+            StayKnown is also a secure communication experience for approved
+            contacts.
+          </h2>
+          <p className="mx-auto mt-5 max-w-[72ch] text-[14px] font-semibold leading-relaxed text-white/62 sm:text-[15px] md:text-[16px]">
+            Chat connects protected entry, recognizable people, language-aware
+            messages, voice, media, and everyday communication to the same
+            approved-contact safety layer.
+          </p>
+        </div>
+
+        <div className="mt-9 flex flex-wrap justify-center gap-2">
+          {(Object.keys(modes) as ChatMode[]).map((mode) => {
+            const item = modes[mode];
+            const selected = mode === activeMode;
+
+            return (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => setActiveMode(mode)}
+                aria-pressed={selected}
+                className={`inline-flex min-h-10 items-center gap-2 rounded-[14px] border px-3.5 text-[9px] font-black uppercase tracking-[0.11em] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8ff3d0]/45 ${
+                  selected
+                    ? "border-white bg-white text-black shadow-[0_10px_26px_rgba(0,0,0,0.38),inset_0_1px_0_rgba(255,255,255,1)]"
+                    : "border-white/[0.13] bg-black text-white/52 hover:border-white/[0.28] hover:text-white"
+                }`}
+              >
+                <PremiumIcon name={item.icon} className="h-3.5 w-3.5" />
+                {item.label}
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="mt-6 grid overflow-hidden rounded-[34px] border border-white/[0.13] bg-[#050505] shadow-[0_38px_112px_rgba(0,0,0,0.72),inset_0_1px_0_rgba(255,255,255,0.075)] lg:grid-cols-[0.92fr_1.08fr]">
+          <div className="relative min-h-[520px] overflow-hidden border-b border-white/[0.09] lg:min-h-[680px] lg:border-b-0 lg:border-r">
+            <div className="pointer-events-none absolute left-1/2 top-1/2 h-[340px] w-[340px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/[0.075]" />
+            <div className="pointer-events-none absolute left-1/2 top-1/2 h-[450px] w-[450px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/[0.04]" />
+
+            <div
+              key={activeMode}
+              className="sk-chat-device-enter absolute inset-0 flex items-center justify-center"
+            >
+              <Image
+                src={active.image}
+                alt={active.imageAlt}
+                width={430}
+                height={880}
+                quality={90}
+                className="relative z-10 h-auto w-[230px] object-contain drop-shadow-[0_38px_82px_rgba(0,0,0,0.9)] sm:w-[270px]"
+              />
+
+              <div className="absolute right-[8%] top-[18%] hidden w-[145px] rotate-[8deg] opacity-38 sm:block">
+                <Image
+                  src={
+                    activeMode === "secure"
+                      ? "/hero/chat-translation.png"
+                      : "/hero/secure-chat-biometric.png"
+                  }
+                  alt=""
+                  width={300}
+                  height={620}
+                  className="h-auto w-full object-contain drop-shadow-[0_28px_64px_rgba(0,0,0,0.82)]"
+                />
+              </div>
+            </div>
+
+            <div className="absolute bottom-5 left-1/2 z-20 flex -translate-x-1/2 items-center gap-2 rounded-full border border-[#8ff3d0]/45 bg-black px-3 py-2 text-[#8ff3d0] shadow-[0_0_26px_rgba(143,243,208,0.14)]">
+              <span className="h-2 w-2 rounded-full bg-[#8ff3d0]" />
+              <span className="whitespace-nowrap text-[8px] font-black uppercase tracking-[0.15em]">
+                Approved-contact communication
+              </span>
+            </div>
+          </div>
+
+          <div
+            key={`${activeMode}-copy`}
+            className="sk-chat-copy-enter flex min-h-[600px] flex-col p-5 sm:p-7 lg:min-h-[680px] lg:p-9"
+          >
+            <div className="text-[9px] font-black uppercase tracking-[0.22em] text-[#8ff3d0]">
+              {active.eyebrow}
+            </div>
+            <h3 className="sk-sharp-type mt-4 max-w-[15ch] text-[35px] font-black leading-[0.96] tracking-[-0.062em] text-white sm:text-[44px] lg:text-[49px]">
+              {active.title}
+            </h3>
+            <p className="mt-5 max-w-[61ch] text-[13px] font-semibold leading-relaxed text-white/58 sm:text-[14px]">
+              {active.body}
+            </p>
+
+            <div className="mt-7 grid gap-3">
+              {active.points.map((point, index) => (
+                <div
+                  key={point}
+                  className={`flex items-start gap-3 rounded-[19px] border bg-black p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.045)] ${
+                    index === 0
+                      ? "border-[#8ff3d0]/42"
+                      : "border-white/[0.11]"
+                  }`}
+                >
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[10px] border border-[#8ff3d0]/40 text-[#8ff3d0]">
+                    <PremiumIcon name="check" className="h-3.5 w-3.5" />
+                  </span>
+                  <span className="text-[11.5px] font-semibold leading-relaxed text-white/62 sm:text-[12.5px]">
+                    {point}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-auto flex flex-wrap gap-2.5 pt-7">
+              <a
+                href={active.href}
+                className="inline-flex h-10 items-center gap-2 rounded-[14px] border border-white bg-white px-4 text-[10px] font-black text-black shadow-[0_10px_26px_rgba(0,0,0,0.36),inset_0_1px_0_rgba(255,255,255,1)] transition hover:-translate-y-px hover:bg-black hover:text-white"
+              >
+                {active.hrefLabel}
+                <PremiumIcon name="arrow" className="h-3.5 w-3.5" />
+              </a>
+              <a
+                href="/features"
+                className="inline-flex h-10 items-center gap-2 rounded-[14px] border border-white/[0.15] bg-black px-4 text-[10px] font-black text-white/66 transition hover:border-white hover:text-white"
+              >
+                Full feature atlas
+                <PremiumIcon name="arrow" className="h-3.5 w-3.5" />
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
 
 function AudienceSection() {
   const audiences = [
@@ -1606,16 +1857,52 @@ export default function StayKnownHomePage() {
           transform: translateY(0);
         }
 
+        .sk-chat-device-enter {
+          animation: sk-chat-device-enter 520ms cubic-bezier(0.22, 1, 0.36, 1)
+            both;
+        }
+
+        .sk-chat-copy-enter {
+          animation: sk-chat-copy-enter 460ms cubic-bezier(0.22, 1, 0.36, 1)
+            both;
+        }
+
+        @keyframes sk-chat-device-enter {
+          from {
+            opacity: 0;
+            transform: translate3d(-14px, 14px, 0) scale(0.965)
+              rotate(-1.5deg);
+          }
+          to {
+            opacity: 1;
+            transform: translate3d(0, 0, 0) scale(1) rotate(0);
+          }
+        }
+
+        @keyframes sk-chat-copy-enter {
+          from {
+            opacity: 0;
+            transform: translate3d(18px, 0, 0);
+          }
+          to {
+            opacity: 1;
+            transform: translate3d(0, 0, 0);
+          }
+        }
+
         @media (prefers-reduced-motion: reduce) {
           html {
             scroll-behavior: auto;
           }
 
           .sk-reveal,
-          .sk-reveal.is-visible {
+          .sk-reveal.is-visible,
+          .sk-chat-device-enter,
+          .sk-chat-copy-enter {
             opacity: 1;
             transform: none;
             transition: none;
+            animation: none;
           }
         }
       `}</style>
@@ -1702,6 +1989,7 @@ export default function StayKnownHomePage() {
       <StayKnownIntroSection />
       <HowItWorksSection />
       <StayKnownHowItWorks />
+      <ChatAwarenessSection />
       <AudienceSection />
       <AppPreviewSection />
       <PlansSection />

@@ -7,10 +7,10 @@ const GOOGLE_PLAY_URL =
   "https://play.google.com/store/apps/details?id=com.stayknown.app";
 
 const TITLE =
-  "StayKnown Personal Safety App | Visits, LIVE Sharing & SOS";
+  "StayKnown Safety & Secure Chat App | LIVE Visits, I’M SAFE & SOS";
 
 const DESCRIPTION =
-  "StayKnown is a consent-first Android safety app for active Visits, LIVE sharing, I’M SAFE check-ins, SOS alerts, approved contacts, and secure chat.";
+  "StayKnown is a consent-first Android safety and secure chat app for approved contacts, active Visits, LIVE sharing, I’M SAFE check-ins, SOS, protected chat entry, translation, voice notes, and media.";
 
 export const metadata: Metadata = {
   title: TITLE,
@@ -29,6 +29,13 @@ export const metadata: Metadata = {
     "I'M SAFE check-in",
     "SOS alerts",
     "approved contacts",
+    "secure chat app",
+    "approved contact messaging",
+    "biometric protected chat",
+    "language translation chat",
+    "multilingual safety communication",
+    "voice note messaging",
+    "private safety conversations",
     "student safety app",
     "travel safety app",
     "ride-hailing safety",
@@ -74,6 +81,7 @@ function buildHomepageJsonLd() {
   const webpageId = `${SITE_URL}/#homepage`;
   const productId = `${SITE_URL}/#android-application`;
   const faqId = `${SITE_URL}/#homepage-faq`;
+  const chatId = `${SITE_URL}/#secure-chat-capabilities`;
 
   const offers = [
     {
@@ -182,6 +190,11 @@ function buildHomepageJsonLd() {
         about: {
           "@id": productId,
         },
+        keywords:
+          "personal safety app, secure chat app, approved contacts, LIVE Visit sharing, I’M SAFE check-ins, SOS alerts, biometric protected chat, multilingual message translation, voice notes",
+        hasPart: {
+          "@id": chatId,
+        },
         primaryImageOfPage: {
           "@type": "ImageObject",
           url: absoluteUrl("/hero/visit-live-sos.png"),
@@ -202,7 +215,19 @@ function buildHomepageJsonLd() {
         applicationSubCategory: "Personal Safety",
         downloadUrl: GOOGLE_PLAY_URL,
         installUrl: GOOGLE_PLAY_URL,
-        image: absoluteUrl("/hero/visit-live-sos.png"),
+        image: [
+          absoluteUrl("/hero/visit-live-sos.png"),
+          absoluteUrl("/hero/secure-chat-biometric.png"),
+          absoluteUrl("/hero/chat-translation.png"),
+          absoluteUrl("/hero/chat-stickers-voice.png"),
+        ],
+        screenshot: [
+          absoluteUrl("/hero/visit-live-sos.png"),
+          absoluteUrl("/hero/secure-chat-biometric.png"),
+          absoluteUrl("/hero/chat-translation.png"),
+          absoluteUrl("/hero/chat-stickers-voice.png"),
+        ],
+        softwareHelp: absoluteUrl("/help-center"),
         brand: {
           "@type": "Brand",
           name: "StayKnown",
@@ -220,7 +245,10 @@ function buildHomepageJsonLd() {
           "I'M SAFE check-ins",
           "SOS alerts to trusted contacts",
           "Approved-contact safety access",
-          "Secure chat and translation",
+          "Secure chat between approved contacts",
+          "Supported biometric or device-protected chat entry",
+          "Language-aware message translation",
+          "Voice notes, media, stickers, and expressive messaging",
           "Safety evidence and recognition",
         ],
         audience: [
@@ -238,6 +266,58 @@ function buildHomepageJsonLd() {
           },
         ],
         offers,
+      },
+      {
+        "@type": "ItemList",
+        "@id": chatId,
+        name: "StayKnown secure chat capabilities",
+        description:
+          "Approved-contact communication features available within the StayKnown safety and communication platform.",
+        url: `${SITE_URL}/#chat-awareness`,
+        numberOfItems: 5,
+        itemListOrder: "https://schema.org/ItemListOrderAscending",
+        itemListElement: [
+          {
+            "@type": "ListItem",
+            position: 1,
+            name: "Approved-contact chat",
+            description:
+              "Chat communication is connected to recognizable approved StayKnown relationships.",
+            url: absoluteUrl("/learn/chat"),
+          },
+          {
+            "@type": "ListItem",
+            position: 2,
+            name: "Protected chat entry",
+            description:
+              "Supported biometric or device-level protection can add a barrier before private conversations open.",
+            url: absoluteUrl("/learn/secure-chat-protection"),
+          },
+          {
+            "@type": "ListItem",
+            position: 3,
+            name: "Language-aware translation",
+            description:
+              "Recipient language preferences and translated message handling support multilingual communication.",
+            url: absoluteUrl("/learn/language-aware-chat"),
+          },
+          {
+            "@type": "ListItem",
+            position: 4,
+            name: "Voice notes and media",
+            description:
+              "Supported voice notes, media, stickers, and expressive formats add communication context.",
+            url: absoluteUrl("/learn/chat"),
+          },
+          {
+            "@type": "ListItem",
+            position: 5,
+            name: "Safety-aware communication",
+            description:
+              "Chat remains part of the wider approved-contact, recognition, and personal safety system.",
+            url: absoluteUrl("/features"),
+          },
+        ],
       },
       {
         "@type": "FAQPage",
