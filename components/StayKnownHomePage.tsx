@@ -43,6 +43,15 @@ type FooterLink = {
   href: string;
 };
 
+const HOME_NAV_ITEMS = [
+  ["How it works", "/how-it-works"],
+  ["Watch", "/watch"],
+  ["Features", "/features"],
+  ["Plans", "/plans"],
+  ["Trust", "/trust-safety"],
+  ["FAQ", "#faq"],
+] as const;
+
 const STORY_SLIDES: CinematicHeroSlide[] = [
   {
     id: "safe-journey-bus",
@@ -592,18 +601,35 @@ function TrustRibbon() {
 
   return (
     <section className="relative z-20 border-y border-white/[0.08] bg-black">
-      <div className="mx-auto grid max-w-6xl grid-cols-2 gap-px bg-white/[0.08] px-px sm:grid-cols-3 lg:grid-cols-5">
-        {items.map(([icon, label]) => (
-          <div
-            key={label}
-            className="flex min-h-[82px] items-center justify-center gap-2.5 bg-black px-3 text-center text-[11px] font-black tracking-[-0.01em] text-white/70 sm:text-[12px]"
-          >
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[13px] border border-white/[0.12] bg-[linear-gradient(145deg,rgba(255,255,255,0.12),rgba(255,255,255,0.025))] shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_10px_24px_rgba(0,0,0,0.38)]">
-              <PremiumIcon name={icon} className="h-4 w-4 text-white/88" />
-            </span>
-            <span>{label}</span>
-          </div>
-        ))}
+      <div className="mx-auto max-w-6xl px-4 py-4 sm:px-5 lg:px-6 lg:py-0">
+        <div className="grid grid-cols-1 gap-2 lg:grid-cols-5 lg:gap-px lg:bg-white/[0.08] lg:px-px">
+          {items.map(([icon, label], index) => (
+            <div
+              key={label}
+              className="
+                relative flex min-h-[68px] items-center gap-3 rounded-[18px]
+                border border-white/[0.1] bg-black px-4 text-left
+                text-[11px] font-black tracking-[-0.01em] text-white/70
+                shadow-[inset_0_1px_0_rgba(255,255,255,0.045)]
+                sm:text-[12px]
+                lg:min-h-[82px] lg:justify-center lg:rounded-none
+                lg:border-0 lg:px-3 lg:text-center lg:shadow-none
+              "
+            >
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[13px] border border-white/[0.12] bg-[linear-gradient(145deg,rgba(255,255,255,0.12),rgba(255,255,255,0.025))] shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_10px_24px_rgba(0,0,0,0.38)]">
+                <PremiumIcon name={icon} className="h-4 w-4 text-white/88" />
+              </span>
+              <span>{label}</span>
+
+              {index < items.length - 1 ? (
+                <span
+                  aria-hidden="true"
+                  className="absolute -bottom-2 left-[33px] h-2 w-px bg-white/[0.2] lg:hidden"
+                />
+              ) : null}
+            </div>
+          ))}
+        </div>
       </div>
     </section>
   );
@@ -1160,7 +1186,10 @@ function TrustSection() {
 
 function FaqSection() {
   return (
-    <section id="faq" className="relative overflow-hidden bg-black">
+    <section
+      id="faq"
+      className="relative scroll-mt-[150px] overflow-hidden bg-black lg:scroll-mt-[82px]"
+    >
       <div className="pointer-events-none absolute left-1/2 top-1/2 h-[520px] w-[920px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/[0.03] blur-[140px]" />
 
       <div className="relative mx-auto max-w-5xl px-4 py-16 sm:px-5 sm:py-20 lg:px-6 lg:py-24">
@@ -1300,7 +1329,7 @@ function SiteFooter() {
         <div className="grid gap-9 lg:grid-cols-[1.15fr_2.85fr]">
           <div>
             <div className="inline-flex items-center gap-3">
-              <span className="sk-logo-bevel flex h-11 w-11 items-center justify-center rounded-[16px] border border-white/[0.16] bg-[linear-gradient(145deg,rgba(255,255,255,0.15),rgba(255,255,255,0.035))] shadow-[inset_0_1px_0_rgba(255,255,255,0.18),0_15px_30px_rgba(0,0,0,0.42)]">
+              <span className="flex h-11 w-11 items-center justify-center rounded-[16px] border border-white bg-white shadow-[0_12px_28px_rgba(0,0,0,0.40),inset_0_1px_0_rgba(255,255,255,1),inset_0_-5px_12px_rgba(0,0,0,0.09)]">
                 <Image src="/6logo.png" alt="" width={24} height={24} />
               </span>
               <span>
@@ -1598,7 +1627,7 @@ export default function StayKnownHomePage() {
             className="inline-flex min-h-10 items-center gap-2.5 rounded-[14px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/35"
             aria-label="StayKnown homepage"
           >
-            <span className="sk-logo-bevel flex h-9 w-9 items-center justify-center rounded-[13px] border border-white/[0.16] bg-[linear-gradient(145deg,rgba(255,255,255,0.16),rgba(255,255,255,0.035))] shadow-[inset_0_1px_0_rgba(255,255,255,0.18),0_12px_26px_rgba(0,0,0,0.42)]">
+            <span className="flex h-9 w-9 items-center justify-center rounded-[13px] border border-white bg-white shadow-[0_10px_24px_rgba(0,0,0,0.36),inset_0_1px_0_rgba(255,255,255,1),inset_0_-4px_10px_rgba(0,0,0,0.09)]">
               <Image src="/6logo.png" alt="" width={20} height={20} priority />
             </span>
             <span>
@@ -1611,15 +1640,11 @@ export default function StayKnownHomePage() {
             </span>
           </a>
 
-          <nav className="hidden items-center gap-1 lg:flex" aria-label="Homepage sections">
-            {[
-              ["How it works", "/how-it-works"],
-              ["Watch", "/watch"],
-              ["Features", "/features"],
-              ["Plans", "/plans"],
-              ["Trust", "/trust-safety"],
-              ["FAQ", "#faq"],
-            ].map(([label, href]) => (
+          <nav
+            className="hidden items-center gap-1 lg:flex"
+            aria-label="Homepage sections"
+          >
+            {HOME_NAV_ITEMS.map(([label, href]) => (
               <a
                 key={href}
                 href={href}
@@ -1643,6 +1668,31 @@ export default function StayKnownHomePage() {
               <StayKnownActionMenu />
             </div>
           </div>
+        </div>
+
+        <div className="border-t border-white/[0.07] px-3 pb-2 pt-2 lg:hidden">
+          <nav
+            className="mx-auto grid max-w-2xl grid-cols-3 gap-1 sm:grid-cols-6"
+            aria-label="Mobile homepage sections"
+          >
+            {HOME_NAV_ITEMS.map(([label, href]) => (
+              <a
+                key={`mobile-${href}`}
+                href={href}
+                className="
+                  inline-flex min-h-8 items-center justify-center rounded-[11px]
+                  border border-white/[0.09] bg-black px-2 text-center
+                  text-[8.5px] font-black leading-tight text-white/58
+                  shadow-[inset_0_1px_0_rgba(255,255,255,0.045)]
+                  transition hover:border-white/[0.2] hover:bg-white/[0.06]
+                  hover:text-white focus-visible:outline-none
+                  focus-visible:ring-2 focus-visible:ring-white/35
+                "
+              >
+                {label}
+              </a>
+            ))}
+          </nav>
         </div>
       </header>
 
