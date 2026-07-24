@@ -1,44 +1,59 @@
 /* app/globals.css */
 
-/* ✅ Tailwind v4 single-import flow */
+/* Tailwind v4 single-import flow. */
 @import "tailwindcss";
 
 /* =====================================================
-   ROOT TOKENS (premium dark)
+   STAYKNOWN DESIGN TOKENS
+   Premium monochrome surfaces with restrained depth.
 ===================================================== */
 
 :root {
-  --bg: #000;
+  --bg: #000000;
+  --bgRaised: #050505;
+  --bgSoft: #0a0a0a;
 
-  --fg: rgba(255, 255, 255, 0.94);
+  --fg: rgba(255, 255, 255, 0.96);
+  --fgStrong: #ffffff;
   --muted: rgba(255, 255, 255, 0.72);
-  --muted2: rgba(255, 255, 255, 0.50);
+  --muted2: rgba(255, 255, 255, 0.52);
+  --muted3: rgba(255, 255, 255, 0.36);
 
-  --stroke: rgba(255, 255, 255, 0.12);
-  --strokeSoft: rgba(255, 255, 255, 0.08);
+  --stroke: rgba(255, 255, 255, 0.14);
+  --strokeSoft: rgba(255, 255, 255, 0.085);
+  --strokeFaint: rgba(255, 255, 255, 0.055);
 
-  --panel: rgba(255, 255, 255, 0.06);
-  --panelSoft: rgba(255, 255, 255, 0.035);
+  --panel: rgba(255, 255, 255, 0.066);
+  --panelSoft: rgba(255, 255, 255, 0.034);
+  --panelStrong: rgba(255, 255, 255, 0.092);
 
-  --accent: rgba(255, 255, 255, 0.9);
+  --accent: rgba(255, 255, 255, 0.94);
+  --focusRing: rgba(255, 255, 255, 0.72);
+
+  --shadowDeep: 0 30px 90px rgba(0, 0, 0, 0.66);
+  --shadowLifted: 0 18px 52px rgba(0, 0, 0, 0.48);
+  --innerHighlight: inset 0 1px 0 rgba(255, 255, 255, 0.13);
+  --innerShade: inset 0 -1px 0 rgba(0, 0, 0, 0.42);
 
   /* Sheet / light panel */
-  --sheet: rgba(255, 255, 255, 0.96);
-  --sheet2: rgba(255, 255, 255, 0.92);
-  --sheetStroke: rgba(0, 0, 0, 0.08);
-  --sheetInk: rgba(0, 0, 0, 0.9);
+  --sheet: rgba(255, 255, 255, 0.985);
+  --sheet2: rgba(244, 244, 244, 0.96);
+  --sheetStroke: rgba(0, 0, 0, 0.09);
+  --sheetInk: rgba(0, 0, 0, 0.92);
+  --sheetMuted: rgba(0, 0, 0, 0.62);
+
+  color-scheme: dark;
 }
 
-/* ✅ Tailwind v4 theme mapping (optional but nice) */
 @theme inline {
   --color-background: var(--bg);
   --color-foreground: var(--fg);
   --font-sans: var(--font-space), var(--font-inter), ui-sans-serif, system-ui,
-    -apple-system, Segoe UI, Roboto, Arial;
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
 }
 
 /* =====================================================
-   GLOBAL BASE (stable + premium)
+   GLOBAL BASE
 ===================================================== */
 
 *,
@@ -47,94 +62,188 @@
   box-sizing: border-box;
 }
 
-html,
+html {
+  min-width: 320px;
+  min-height: 100%;
+  scroll-behavior: smooth;
+  background: var(--bg);
+  scrollbar-gutter: stable;
+}
+
 body {
-  height: 100%;
+  min-width: 320px;
+  min-height: 100%;
+  margin: 0;
+  overflow-x: hidden;
   background: var(--bg);
   color: var(--fg);
 
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  text-rendering: geometricPrecision;
+  text-rendering: optimizeLegibility;
 
-  font-family: var(--font-space), var(--font-inter),
-    ui-sans-serif, system-ui, -apple-system,
-    Segoe UI, Roboto, Arial;
+  font-family: var(--font-space), var(--font-inter), ui-sans-serif, system-ui,
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+  font-optical-sizing: auto;
+  font-synthesis: none;
 }
 
-html {
-  scroll-behavior: smooth;
+@supports (overflow: clip) {
+  body {
+    overflow-x: clip;
+  }
+}
+
+::selection {
+  background: rgba(255, 255, 255, 0.9);
+  color: #000000;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+button,
+[role="button"],
+a {
+  touch-action: manipulation;
+}
+
+button:not(:disabled),
+[role="button"]:not([aria-disabled="true"]) {
+  cursor: pointer;
+}
+
+button:disabled,
+[aria-disabled="true"] {
+  cursor: not-allowed;
+}
+
+img,
+picture,
+svg,
+canvas,
+video {
+  display: block;
+  max-width: 100%;
+}
+
+img,
+video {
+  height: auto;
+}
+
+audio {
+  width: 100%;
+  max-width: 100%;
+}
+
+video {
+  background: #030303;
 }
 
 * {
   -webkit-tap-highlight-color: transparent;
 }
 
-img {
-  image-rendering: -webkit-optimize-contrast;
-}
-
 /* =====================================================
-   FOCUS (don’t kill focus — replace with premium ring)
+   ACCESSIBLE FOCUS
+   Preserve keyboard visibility without leaving mouse rings.
 ===================================================== */
 
-:focus {
+:focus:not(:focus-visible) {
   outline: none;
 }
 
 :focus-visible {
-  outline: 2px solid rgba(255, 255, 255, 0.28);
-  outline-offset: 3px;
+  outline: 2px solid var(--focusRing);
+  outline-offset: 4px;
+}
+
+:where(a, button, input, textarea, select, summary, [role="button"]):focus-visible {
   border-radius: 12px;
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.075);
 }
 
 /* =====================================================
-   TYPOGRAPHY HELPERS
+   TYPOGRAPHY
 ===================================================== */
 
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  margin-block: 0;
+  color: var(--fgStrong);
+  text-wrap: balance;
+}
+
+p {
+  text-wrap: pretty;
+}
+
 .display {
-  font-family: var(--font-space), var(--font-inter),
-    ui-sans-serif, system-ui;
-  letter-spacing: -0.03em;
+  font-family: var(--font-space), var(--font-inter), ui-sans-serif, system-ui,
+    sans-serif;
+  font-weight: 900;
+  letter-spacing: -0.045em;
+  line-height: 0.98;
 }
 
 .policy-title {
   font-weight: 900;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.035em;
+  line-height: 1;
+  text-wrap: balance;
 }
 
 .policy-subtitle {
   color: var(--muted2);
-  font-weight: 600;
+  font-weight: 650;
   font-size: 12px;
+  line-height: 1.55;
 }
 
 .policy-h2 {
+  color: var(--fgStrong);
   font-weight: 900;
-  font-size: 17px;
-  letter-spacing: -0.01em;
+  font-size: clamp(17px, 2vw, 19px);
+  letter-spacing: -0.025em;
+  line-height: 1.2;
 }
 
 .policy-h3 {
+  color: var(--fg);
   font-weight: 800;
   font-size: 14px;
-  color: var(--fg);
+  letter-spacing: -0.01em;
+  line-height: 1.3;
 }
 
 .policy-p {
+  color: var(--muted);
   font-weight: 600;
   font-size: 13px;
-  line-height: 1.65;
-  color: var(--muted);
+  line-height: 1.72;
 }
 
 .policy-list {
   margin-left: 1.25rem;
+  padding-left: 0.35rem;
   list-style: disc;
+  color: var(--muted);
   font-weight: 600;
   font-size: 13px;
-  line-height: 1.6;
-  color: var(--muted);
+  line-height: 1.68;
+}
+
+.policy-list li + li {
+  margin-top: 0.45rem;
 }
 
 .scroll-offset {
@@ -151,34 +260,71 @@ a:visited {
   text-decoration: none;
 }
 
-a:hover {
-  color: rgba(255, 255, 255, 0.92);
+@media (hover: hover) {
+  a:hover {
+    color: rgba(255, 255, 255, 0.96);
+  }
 }
 
 .link {
   text-decoration: underline;
   text-underline-offset: 4px;
-  text-decoration-color: rgba(255, 255, 255, 0.2);
+  text-decoration-thickness: 1px;
+  text-decoration-color: rgba(255, 255, 255, 0.24);
 }
 
-.link:hover {
-  text-decoration-color: rgba(255, 255, 255, 0.4);
+@media (hover: hover) {
+  .link:hover {
+    text-decoration-color: rgba(255, 255, 255, 0.58);
+  }
 }
 
 /* =====================================================
-   GLASS CARD
+   SHARED PREMIUM SURFACES
 ===================================================== */
 
-.card {
+.card,
+.sk-surface {
+  position: relative;
+  isolation: isolate;
   border-radius: 28px;
   border: 1px solid var(--strokeSoft);
-  background: linear-gradient(180deg, var(--panel), var(--panelSoft));
-  backdrop-filter: blur(18px) saturate(1.08);
+  background:
+    radial-gradient(circle at 18% 0%, rgba(255, 255, 255, 0.075), transparent 42%),
+    linear-gradient(180deg, var(--panel), var(--panelSoft));
   -webkit-backdrop-filter: blur(18px) saturate(1.08);
+  backdrop-filter: blur(18px) saturate(1.08);
+  box-shadow: var(--shadowDeep), var(--innerHighlight), var(--innerShade);
+}
 
-  box-shadow:
-    0 30px 90px rgba(0, 0, 0, 0.65),
-    0 1px 0 rgba(255, 255, 255, 0.08) inset;
+.card::after,
+.sk-surface::after {
+  position: absolute;
+  inset: 1px;
+  z-index: -1;
+  border-radius: inherit;
+  background: linear-gradient(
+    145deg,
+    rgba(255, 255, 255, 0.045),
+    transparent 34%,
+    transparent 70%,
+    rgba(255, 255, 255, 0.018)
+  );
+  pointer-events: none;
+  content: "";
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .card,
+  .sk-surface {
+    background: #0b0b0b;
+  }
+}
+
+.sk-surface-soft {
+  border: 1px solid var(--strokeFaint);
+  background: rgba(255, 255, 255, 0.03);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
 /* =====================================================
@@ -187,107 +333,162 @@ a:hover {
 
 .policy-divider {
   height: 1px;
-  background: linear-gradient(to right,
-      transparent,
-      rgba(255, 255, 255, 0.08),
-      transparent);
   margin: 28px 0;
+  border: 0;
+  background: linear-gradient(
+    to right,
+    transparent,
+    rgba(255, 255, 255, 0.1),
+    transparent
+  );
 }
 
 /* =====================================================
    PREMIUM PILLS
 ===================================================== */
 
-.pill {
+.pill,
+.pill-soft {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
   border-radius: 999px;
-  padding: 6px 14px;
   font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.2px;
-
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  background: linear-gradient(180deg,
-      rgba(255, 255, 255, 0.07),
-      rgba(255, 255, 255, 0.04));
-
-  color: rgba(255, 255, 255, 0.82);
-
-  box-shadow:
-    0 6px 18px rgba(0, 0, 0, 0.45),
-    inset 0 1px 0 rgba(255, 255, 255, 0.15);
-
+  font-weight: 750;
+  line-height: 1;
+  white-space: nowrap;
   transition:
-    background 160ms ease,
-    border-color 160ms ease,
-    transform 120ms ease,
-    box-shadow 160ms ease;
+    transform 140ms ease,
+    background 180ms ease,
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    color 180ms ease;
 }
 
-.pill:hover {
-  background: linear-gradient(180deg,
-      rgba(255, 255, 255, 0.10),
-      rgba(255, 255, 255, 0.05));
-  border-color: rgba(255, 255, 255, 0.25);
-  transform: translateY(-1px);
-}
-
-.pill:active {
-  transform: translateY(1px) scale(0.98);
+.pill {
+  padding: 7px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.145);
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.085),
+    rgba(255, 255, 255, 0.042)
+  );
+  color: rgba(255, 255, 255, 0.86);
+  box-shadow:
+    0 8px 22px rgba(0, 0, 0, 0.42),
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.35);
 }
 
 .pill-soft {
-  border-radius: 999px;
-  padding: 6px 12px;
-  font-size: 12px;
-  font-weight: 700;
-
+  padding: 7px 12px;
   border: 1px solid var(--strokeSoft);
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(255, 255, 255, 0.042);
   color: var(--muted);
 }
 
-.pill-soft:hover {
-  background: rgba(255, 255, 255, 0.07);
-  color: var(--fg);
+@media (hover: hover) {
+  .pill:hover,
+  .pill-soft:hover {
+    transform: translateY(-1px);
+    border-color: rgba(255, 255, 255, 0.24);
+    background: linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.12),
+      rgba(255, 255, 255, 0.055)
+    );
+    color: var(--fgStrong);
+  }
+}
+
+.pill:active,
+.pill-soft:active {
+  transform: translateY(1px) scale(0.985);
 }
 
 /* =====================================================
    BUTTONS
 ===================================================== */
 
-.btn {
+.btn,
+.btnPrimary {
+  position: relative;
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
   border-radius: 999px;
   padding: 10px 18px;
-  font-weight: 800;
-  letter-spacing: 0.2px;
-
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.06);
-  color: rgba(255, 255, 255, 0.9);
-
+  overflow: hidden;
+  font-weight: 850;
+  letter-spacing: -0.01em;
+  line-height: 1;
   transition:
-    transform 120ms ease,
+    transform 140ms ease,
     background 180ms ease,
-    border-color 180ms ease;
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    color 180ms ease;
 }
 
-.btn:hover {
-  background: rgba(255, 255, 255, 0.09);
-  border-color: rgba(255, 255, 255, 0.18);
-}
-
-.btn:active {
-  transform: translateY(1px) scale(0.98);
+.btn {
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.09),
+    rgba(255, 255, 255, 0.045)
+  );
+  color: rgba(255, 255, 255, 0.94);
+  box-shadow:
+    0 12px 30px rgba(0, 0, 0, 0.38),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.34);
 }
 
 .btnPrimary {
-  background: rgba(255, 255, 255, 0.94);
-  color: #000;
-  border-color: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.92);
+  background: linear-gradient(180deg, #ffffff, #ececec);
+  color: #000000;
+  box-shadow:
+    0 16px 38px rgba(0, 0, 0, 0.38),
+    inset 0 1px 0 rgba(255, 255, 255, 1),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.1);
 }
 
-.btnPrimary:hover {
-  background: #fff;
+@media (hover: hover) {
+  .btn:hover {
+    transform: translateY(-1px);
+    border-color: rgba(255, 255, 255, 0.23);
+    background: linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.13),
+      rgba(255, 255, 255, 0.06)
+    );
+  }
+
+  .btnPrimary:hover {
+    transform: translateY(-1px);
+    background: #ffffff;
+    box-shadow:
+      0 20px 46px rgba(0, 0, 0, 0.46),
+      inset 0 1px 0 rgba(255, 255, 255, 1),
+      inset 0 -1px 0 rgba(0, 0, 0, 0.08);
+  }
+}
+
+.btn:active,
+.btnPrimary:active {
+  transform: translateY(1px) scale(0.985);
+}
+
+.btn:disabled,
+.btnPrimary:disabled,
+.btn[aria-disabled="true"],
+.btnPrimary[aria-disabled="true"] {
+  opacity: 0.46;
+  transform: none;
+  box-shadow: none;
 }
 
 /* =====================================================
@@ -297,26 +498,28 @@ a:hover {
 .callout {
   border-radius: 20px;
   border: 1px solid var(--strokeSoft);
-  background: rgba(255, 255, 255, 0.035);
+  background:
+    radial-gradient(circle at 12% 0%, rgba(255, 255, 255, 0.055), transparent 44%),
+    rgba(255, 255, 255, 0.035);
   padding: 16px;
-
   box-shadow:
-    0 10px 35px rgba(0, 0, 0, 0.4),
-    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    0 12px 36px rgba(0, 0, 0, 0.38),
+    inset 0 1px 0 rgba(255, 255, 255, 0.085);
 }
 
 .callout-title {
-  font-weight: 900;
-  font-size: 13px;
-  color: var(--fg);
   margin-bottom: 6px;
+  color: var(--fgStrong);
+  font-weight: 850;
+  font-size: 13px;
+  letter-spacing: -0.01em;
 }
 
 .callout-text {
+  color: var(--muted);
   font-size: 13px;
   font-weight: 600;
-  line-height: 1.6;
-  color: var(--muted);
+  line-height: 1.65;
 }
 
 /* =====================================================
@@ -325,16 +528,55 @@ a:hover {
 
 .bevelSheet {
   border-radius: 26px;
-  background: linear-gradient(180deg, var(--sheet), var(--sheet2));
   border: 1px solid var(--sheetStroke);
-
-  box-shadow:
-    0 28px 80px rgba(0, 0, 0, 0.35),
-    0 10px 30px rgba(0, 0, 0, 0.18),
-    0 1px 0 rgba(255, 255, 255, 0.85) inset,
-    0 -1px 0 rgba(0, 0, 0, 0.06) inset;
-
+  background:
+    radial-gradient(circle at 18% 0%, rgba(255, 255, 255, 0.98), transparent 44%),
+    linear-gradient(180deg, var(--sheet), var(--sheet2));
   color: var(--sheetInk);
+  box-shadow:
+    0 30px 82px rgba(0, 0, 0, 0.38),
+    0 10px 30px rgba(0, 0, 0, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.075);
+}
+
+.bevelSheet :where(p, li) {
+  color: var(--sheetMuted);
+}
+
+/* =====================================================
+   MEDIA FOUNDATIONS
+   Used later by the click-to-load video and audio surfaces.
+===================================================== */
+
+.sk-media-frame {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--strokeSoft);
+  border-radius: 28px;
+  background: #050505;
+  box-shadow:
+    0 28px 80px rgba(0, 0, 0, 0.56),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.sk-media-frame iframe,
+.sk-media-frame video {
+  display: block;
+  width: 100%;
+  border: 0;
+  background: #000000;
+}
+
+.sk-media-frame iframe {
+  aspect-ratio: 16 / 9;
+}
+
+.sk-media-facade {
+  min-height: 220px;
+  background:
+    radial-gradient(circle at 50% 38%, rgba(255, 255, 255, 0.08), transparent 42%),
+    linear-gradient(180deg, #0d0d0d, #030303);
 }
 
 /* =====================================================
@@ -342,21 +584,22 @@ a:hover {
 ===================================================== */
 
 .small {
-  font-size: 12px;
-  line-height: 1.45;
   color: var(--muted);
+  font-size: 12px;
   font-weight: 600;
+  line-height: 1.5;
 }
 
 .tm {
+  margin-left: 1px;
   font-size: 0.62em;
   vertical-align: super;
-  margin-left: 1px;
   opacity: 0.9;
 }
 
 /* =====================================================
    PREMIUM HOVER FLICKER
+   Preserved for existing flows that explicitly use it.
 ===================================================== */
 
 @keyframes sk-flicker {
@@ -366,27 +609,33 @@ a:hover {
   }
 
   35% {
-    filter: brightness(1.12);
+    filter: brightness(1.1);
   }
 
   55% {
-    filter: brightness(0.96);
+    filter: brightness(0.98);
   }
 
   70% {
-    filter: brightness(1.15);
+    filter: brightness(1.12);
   }
 
   100% {
-    filter: brightness(1.05);
+    filter: brightness(1.045);
     transform: translateY(-1px);
   }
 }
 
-.hover-flicker:hover {
-  animation: sk-flicker 420ms ease-out both;
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .hover-flicker:hover {
+    animation: sk-flicker 420ms ease-out both;
+  }
 }
 
+/* =====================================================
+   MAPLIBRE + EXISTING SAFETY MOTION
+   All selectors below are preserved for current map flows.
+===================================================== */
 .maplibregl-map,
 .maplibregl-canvas-container,
 .maplibregl-canvas {
@@ -669,5 +918,73 @@ a:hover {
 
   [data-sk-nearby-card] {
     transition-duration: 1ms !important;
+  }
+}
+/* =====================================================
+   GLOBAL REDUCED-MOTION SAFETY
+===================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
+}
+
+/* =====================================================
+   HIGH-CONTRAST AND PRINT SUPPORT
+===================================================== */
+
+@media (forced-colors: active) {
+  .card,
+  .sk-surface,
+  .callout,
+  .pill,
+  .pill-soft,
+  .btn,
+  .btnPrimary,
+  .bevelSheet,
+  .sk-media-frame {
+    border: 1px solid CanvasText;
+    background: Canvas;
+    color: CanvasText;
+    box-shadow: none;
+  }
+}
+
+@media print {
+  :root {
+    color-scheme: light;
+  }
+
+  html,
+  body {
+    background: #ffffff !important;
+    color: #111111 !important;
+  }
+
+  .policy-title,
+  .policy-h2,
+  .policy-h3,
+  .policy-p,
+  .policy-list,
+  .policy-subtitle {
+    color: #111111 !important;
+  }
+
+  .card,
+  .callout,
+  .bevelSheet {
+    border: 1px solid #d7d7d7 !important;
+    background: #ffffff !important;
+    box-shadow: none !important;
   }
 }
