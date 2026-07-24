@@ -1,0 +1,11 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.stayknown.app",
+      "sha256_cert_fingerprints":
+        ["1B:31:64:86:16:F4:1E:D7:72:BF:9A:33:A9:F9:95:39:46:BA:1C:1F:EA:B3:0D:8A:C9:CD:CF:59:03:8F:D7:01"]
+    }
+  }
+]
