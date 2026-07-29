@@ -51,6 +51,18 @@ type SeedResp = {
   active_advisory?: AdvisorySnapshot | null;
   nearby_presence_enabled?: boolean;
   nearby_presence_radius_meters?: number | null;
+
+  /**
+   * Upgrade Master File Record capability handshake.
+   *
+   * These flags keep this client backward-compatible while the new LIVE
+   * status, unified response, and Practice Mode routes are deployed.
+   */
+  status_endpoint_enabled?: boolean;
+  response_endpoint_enabled?: boolean;
+  practice_endpoint_enabled?: boolean;
+  is_practice?: boolean;
+
   error?: string;
   detail?: string;
 };
@@ -86,6 +98,65 @@ type AdvisorySnapshot = {
   safe_at?: string | null;
 };
 
+type LiveTransportState =
+  | "idle"
+  | "connecting"
+  | "streaming"
+  | "polling"
+  | "reconnecting"
+  | "offline"
+  | "ended"
+  | "error";
+
+type LiveResponseAction = {
+  wire: string;
+  label: string;
+  compact_label?: string;
+  critical?: boolean;
+  enabled?: boolean;
+};
+
+type LiveResponseOpportunity = {
+  id: string;
+  profile: string;
+  title?: string;
+  message?: string;
+  state?: string;
+  actions: LiveResponseAction[];
+};
+
+type RoadmapLiveStatus = {
+  ok: boolean;
+  session_id?: string;
+  generated_at?: string;
+  ended?: boolean;
+  is_practice?: boolean;
+
+  phase?: string;
+  status_label?: string;
+  status_message?: string;
+
+  connection_state?: string;
+  connection_label?: string;
+  delivery_health?: string;
+  delivery_label?: string;
+
+  response_endpoint_enabled?: boolean;
+  practice_endpoint_enabled?: boolean;
+  response_opportunity?: LiveResponseOpportunity | null;
+
+  observations?: Array<{
+    id?: string;
+    title?: string;
+    message?: string;
+    severity?: string;
+    authoritative?: boolean;
+  }>;
+
+  error?: string;
+  detail?: string;
+};
+
 const INITIAL_VIEW_ZOOM = 14.1;
 const FALLBACK_CENTER: [number, number] = [8.3349, 4.5736];
 const FALLBACK_ZOOM = 12.8;
@@ -93,6 +164,11 @@ const MOVE_FOLLOW_THRESHOLD_METERS = 28;
 const MAP_LOAD_TIMEOUT_MS = 16000;
 const MAP_AUTO_RETRY_LIMIT = 2;
 const MAP_RETRY_DELAY_MS = 900;
+const SEED_REQUEST_TIMEOUT_MS = 7000;
+const POLL_INTERVAL_MS = 4000;
+const STATUS_REFRESH_MIN_MS = 2500;
+const STREAM_RECONNECT_BASE_MS = 1200;
+const STREAM_RECONNECT_MAX_MS = 30000;
 const NEARBY_APPROVED_CONTACT_DEFAULT_RADIUS_METERS = 5000;
 const NEARBY_CARD_AUTO_CLOSE_MS = 5000;
 const NEARBY_CARD_WIDTH_PX = 230;
@@ -116,10 +192,6 @@ function distanceMeters(
 
   const c = 2 * Math.atan2(Math.sqrt(aa), Math.sqrt(1 - aa));
   return R * c;
-}
-
-function formatCoords(lat: number, lng: number) {
-  return `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
 }
 
 function locationQuality(accuracy?: number) {
@@ -158,9 +230,59 @@ function locationQuality(accuracy?: number) {
   };
 }
 
-function googleMapsHref(lat?: number, lng?: number) {
-  if (typeof lat !== "number" || typeof lng !== "number") return "";
-  return `https://www.google.com/maps?q=${lat},${lng}`;
+function publicRequestError(status: number, fallback: string) {
+  if (status === 401 || status === 403) {
+    return "This signed LIVE access is no longer authorized.";
+  }
+
+  if (status === 410) {
+    return "This LIVE Visit link expired or the Visit has ended.";
+  }
+
+  if (status === 429) {
+    return "Too many requests were received. Please wait briefly and retry.";
+  }
+
+  if (status >= 500) {
+    return "StayKnown could not verify the LIVE Visit right now.";
+  }
+
+  return fallback;
+}
+
+function safeStatusText(value: unknown, fallback = "") {
+  if (typeof value !== "string") return fallback;
+
+  return (
+    value
+      .replace(/[\u0000-\u001F\u007F]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 180) || fallback
+  );
+}
+
+function reconnectDelayMs(failureCount: number) {
+  const exponent = Math.max(0, Math.min(6, failureCount - 1));
+  return Math.min(
+    STREAM_RECONNECT_MAX_MS,
+    STREAM_RECONNECT_BASE_MS * 2 ** exponent,
+  );
+}
+
+function shouldAttachTomTomKey(resourceUrl: string, styleUrl: string) {
+  try {
+    const resource = new URL(resourceUrl, window.location.href);
+    const style = new URL(styleUrl, window.location.href);
+
+    return (
+      resource.origin === style.origin ||
+      resource.hostname === "api.tomtom.com" ||
+      resource.hostname.endsWith(".tomtom.com")
+    );
+  } catch {
+    return false;
+  }
 }
 
 function formatLiveTime(v?: string) {
@@ -1058,12 +1180,16 @@ export default function LiveClient({ access }: { access: LiveAccessProps }) {
   const nearbyInitialFitDoneRef = React.useRef(false);
 
   const eventSourceRef = React.useRef<EventSource | null>(null);
-  const reconnectTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(
-    null,
-  );
-  const pollTimerRef = React.useRef<ReturnType<typeof setInterval> | null>(
-    null,
-  );
+  const reconnectTimerRef = React.useRef<number | null>(null);
+  const pollTimerRef = React.useRef<number | null>(null);
+  const pollInFlightRef = React.useRef(false);
+  const streamFailureCountRef = React.useRef(0);
+  const sessionEndedRef = React.useRef(false);
+  const statusFetchAbortRef = React.useRef<AbortController | null>(null);
+  const lastStatusRefreshAtRef = React.useRef(0);
+  const statusEndpointEnabledRef = React.useRef(false);
+  const responseEndpointEnabledRef = React.useRef(false);
+  const practiceEndpointEnabledRef = React.useRef(false);
   const bootedRef = React.useRef(false);
   const hasCenteredRef = React.useRef(false);
   const lastPointRef = React.useRef<{ lat: number; lng: number } | null>(null);
@@ -1074,8 +1200,6 @@ export default function LiveClient({ access }: { access: LiveAccessProps }) {
   const [renderMode, setRenderMode] = React.useState<RenderMode>("map");
   const [sosActive, setSosActive] = React.useState(false);
   const [placeLabel, setPlaceLabel] = React.useState("Preparing last session…");
-  const [coordsLabel, setCoordsLabel] = React.useState("");
-  const [mapHref, setMapHref] = React.useState("");
   const [lastUpdatedLabel, setLastUpdatedLabel] = React.useState(
     "Waiting for update…",
   );
@@ -1121,18 +1245,34 @@ export default function LiveClient({ access }: { access: LiveAccessProps }) {
   const [activeAdvisory, setActiveAdvisory] =
     React.useState<AdvisorySnapshot | null>(null);
 
+  const [transportState, setTransportState] =
+    React.useState<LiveTransportState>("idle");
+  const [transportMessage, setTransportMessage] = React.useState(
+    "Preparing secure LIVE connection…",
+  );
+  const [deliveryHealthLabel, setDeliveryHealthLabel] =
+    React.useState("Not verified");
+  const [roadmapStatusLabel, setRoadmapStatusLabel] = React.useState("");
+  const [roadmapStatusMessage, setRoadmapStatusMessage] = React.useState("");
+  const [practiceMode, setPracticeMode] = React.useState(false);
+  const [responseOpportunity, setResponseOpportunity] =
+    React.useState<LiveResponseOpportunity | null>(null);
+  const [responseSending, setResponseSending] = React.useState(false);
+  const [responseError, setResponseError] = React.useState("");
+  const [responseRecordedLabel, setResponseRecordedLabel] = React.useState("");
+
   const signedQuery = React.useMemo(() => accessQuery(access), [access]);
 
   const stopPolling = React.useCallback(() => {
-    if (pollTimerRef.current) {
-      clearInterval(pollTimerRef.current);
+    if (pollTimerRef.current !== null) {
+      window.clearTimeout(pollTimerRef.current);
       pollTimerRef.current = null;
     }
   }, []);
 
   const clearReconnect = React.useCallback(() => {
-    if (reconnectTimerRef.current) {
-      clearTimeout(reconnectTimerRef.current);
+    if (reconnectTimerRef.current !== null) {
+      window.clearTimeout(reconnectTimerRef.current);
       reconnectTimerRef.current = null;
     }
   }, []);
@@ -1143,6 +1283,222 @@ export default function LiveClient({ access }: { access: LiveAccessProps }) {
     } catch {}
     eventSourceRef.current = null;
   }, []);
+
+  const applyRoadmapStatus = React.useCallback(
+    (snapshot: RoadmapLiveStatus) => {
+      if (!snapshot || snapshot.ok !== true) return;
+
+      const ended = snapshot.ended === true;
+      const nextPractice = snapshot.is_practice === true;
+
+      setPracticeMode(nextPractice);
+      practiceEndpointEnabledRef.current =
+        snapshot.practice_endpoint_enabled === true ||
+        practiceEndpointEnabledRef.current;
+      responseEndpointEnabledRef.current =
+        snapshot.response_endpoint_enabled === true ||
+        responseEndpointEnabledRef.current;
+
+      setRoadmapStatusLabel(
+        safeStatusText(snapshot.status_label, ended ? "Visit ended" : ""),
+      );
+      setRoadmapStatusMessage(safeStatusText(snapshot.status_message, ""));
+      setDeliveryHealthLabel(
+        safeStatusText(
+          snapshot.delivery_label || snapshot.delivery_health,
+          "Not verified",
+        ),
+      );
+
+      const opportunity = snapshot.response_opportunity;
+      if (
+        opportunity &&
+        typeof opportunity.id === "string" &&
+        Array.isArray(opportunity.actions)
+      ) {
+        const actions = opportunity.actions
+          .filter(
+            (action) =>
+              action &&
+              typeof action.wire === "string" &&
+              action.wire.trim().length > 0 &&
+              typeof action.label === "string" &&
+              action.label.trim().length > 0,
+          )
+          .slice(0, 4)
+          .map((action) => ({
+            ...action,
+            wire: action.wire.trim().slice(0, 80),
+            label: action.label.trim().slice(0, 60),
+            compact_label: safeStatusText(action.compact_label, ""),
+          }));
+
+        setResponseOpportunity({
+          ...opportunity,
+          id: opportunity.id.trim().slice(0, 160),
+          profile: safeStatusText(opportunity.profile, "visit_response"),
+          title: safeStatusText(opportunity.title, "Contact response"),
+          message: safeStatusText(opportunity.message, ""),
+          state: safeStatusText(opportunity.state, ""),
+          actions,
+        });
+      } else {
+        setResponseOpportunity(null);
+      }
+
+      sessionEndedRef.current = ended;
+
+      if (ended) {
+        setTransportState("ended");
+        setTransportMessage("This LIVE Visit has ended.");
+      }
+    },
+    [],
+  );
+
+  const refreshRoadmapStatus = React.useCallback(
+    async ({ force = false }: { force?: boolean } = {}) => {
+      if (!statusEndpointEnabledRef.current) return;
+
+      const now = Date.now();
+      if (
+        !force &&
+        now - lastStatusRefreshAtRef.current < STATUS_REFRESH_MIN_MS
+      ) {
+        return;
+      }
+
+      lastStatusRefreshAtRef.current = now;
+      statusFetchAbortRef.current?.abort();
+
+      const controller = new AbortController();
+      statusFetchAbortRef.current = controller;
+      const timeout = window.setTimeout(
+        () => controller.abort(),
+        SEED_REQUEST_TIMEOUT_MS,
+      );
+
+      try {
+        const response = await fetch(`/api/live/status?${signedQuery}`, {
+          cache: "no-store",
+          signal: controller.signal,
+        });
+        const result = (await response
+          .json()
+          .catch(() => ({}))) as RoadmapLiveStatus;
+
+        if (controller.signal.aborted) return;
+
+        if (!response.ok || result.ok !== true) {
+          if (response.status === 404 || response.status === 501) {
+            statusEndpointEnabledRef.current = false;
+          }
+          return;
+        }
+
+        applyRoadmapStatus(result);
+      } catch {
+        // Seed/stream remain authoritative fallbacks while status is unavailable.
+      } finally {
+        window.clearTimeout(timeout);
+      }
+    },
+    [applyRoadmapStatus, signedQuery],
+  );
+
+  const recordUnifiedResponse = React.useCallback(
+    async (action: LiveResponseAction) => {
+      if (
+        responseSending ||
+        status === "ended" ||
+        action.enabled === false ||
+        !responseOpportunity
+      ) {
+        return;
+      }
+
+      if (!consentId) {
+        setResponseError(
+          "Your recorded safety-use consent is missing. Reopen the signed map link.",
+        );
+        return;
+      }
+
+      const isPracticeAction = practiceMode;
+      if (
+        isPracticeAction
+          ? !practiceEndpointEnabledRef.current
+          : !responseEndpointEnabledRef.current
+      ) {
+        setResponseError(
+          isPracticeAction
+            ? "The protected Practice Mode response route is not active yet."
+            : "This signed LIVE response is not available yet.",
+        );
+        return;
+      }
+
+      setResponseSending(true);
+      setResponseError("");
+      setResponseRecordedLabel("");
+
+      try {
+        const endpoint = isPracticeAction
+          ? "/api/live/practice"
+          : "/api/live/response";
+
+        const response = await fetch(endpoint, {
+          method: "POST",
+          cache: "no-store",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ...access,
+            consent_id: consentId,
+            action: isPracticeAction ? "record_response" : undefined,
+            response_opportunity_id: responseOpportunity.id,
+            response_profile: responseOpportunity.profile,
+            response_kind: action.wire,
+            is_practice: isPracticeAction,
+          }),
+        });
+
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok || result?.ok !== true) {
+          throw new Error(
+            publicRequestError(
+              response.status,
+              "StayKnown could not record this response.",
+            ),
+          );
+        }
+
+        setResponseRecordedLabel(
+          safeStatusText(
+            result?.label || result?.message,
+            `${action.label} recorded`,
+          ),
+        );
+        await refreshRoadmapStatus({ force: true });
+      } catch (error) {
+        setResponseError(
+          error instanceof Error
+            ? error.message
+            : "StayKnown could not record this response.",
+        );
+      } finally {
+        setResponseSending(false);
+      }
+    },
+    [
+      access,
+      consentId,
+      practiceMode,
+      refreshRoadmapStatus,
+      responseOpportunity,
+      responseSending,
+      status,
+    ],
+  );
 
   const recordAccessDecision = React.useCallback(
     async (decision: "accepted" | "declined") => {
@@ -1164,8 +1520,9 @@ export default function LiveClient({ access }: { access: LiveAccessProps }) {
         const result = await response.json().catch(() => ({}));
         if (!response.ok || result?.ok !== true) {
           throw new Error(
-            String(
-              result?.error || "StayKnown could not record this decision.",
+            publicRequestError(
+              response.status,
+              "StayKnown could not record this decision.",
             ),
           );
         }
@@ -1216,23 +1573,38 @@ export default function LiveClient({ access }: { access: LiveAccessProps }) {
     setAdvisoryError("");
 
     try {
-      const response = await fetch("/api/live/advisory/send", {
+      if (practiceMode && !practiceEndpointEnabledRef.current) {
+        throw new Error(
+          "The protected Practice Mode guidance route is not active yet.",
+        );
+      }
+
+      const endpoint = practiceMode
+        ? "/api/live/practice"
+        : "/api/live/advisory/send";
+
+      const response = await fetch(endpoint, {
         method: "POST",
         cache: "no-store",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...access,
           consent_id: consentId,
+          action: practiceMode ? "send_advisory" : undefined,
           message_kind: selectedAdvisoryKind,
           custom_message:
             selectedAdvisoryKind === "custom" ? customAdvisoryMessage : "",
+          is_practice: practiceMode,
         }),
       });
 
       const result = await response.json().catch(() => ({}));
       if (!response.ok || result?.ok !== true) {
         throw new Error(
-          String(result?.error || "StayKnown could not send this guidance."),
+          publicRequestError(
+            response.status,
+            "StayKnown could not send this guidance.",
+          ),
         );
       }
 
@@ -1254,6 +1626,7 @@ export default function LiveClient({ access }: { access: LiveAccessProps }) {
     canSendAdvisory,
     consentId,
     customAdvisoryMessage,
+    practiceMode,
     selectedAdvisoryKind,
     status,
   ]);
@@ -1648,8 +2021,6 @@ export default function LiveClient({ access }: { access: LiveAccessProps }) {
               ? "Live location available"
               : "Approximate live area";
       setPlaceLabel(cleanPlace);
-      setCoordsLabel(formatCoords(lat, lng));
-      setMapHref(googleMapsHref(lat, lng));
       setLastUpdatedLabel(formatLiveTime(createdAt));
       setAccuracyLabel(quality.label);
       setStatus(nextStatus);
@@ -1686,6 +2057,13 @@ export default function LiveClient({ access }: { access: LiveAccessProps }) {
       setCanSendAdvisory(seed.can_send_advisory === true);
       setActiveAdvisory(seed.active_advisory ?? null);
 
+      statusEndpointEnabledRef.current = seed.status_endpoint_enabled === true;
+      responseEndpointEnabledRef.current =
+        seed.response_endpoint_enabled === true;
+      practiceEndpointEnabledRef.current =
+        seed.practice_endpoint_enabled === true;
+      setPracticeMode(seed.is_practice === true);
+
       const nearbyEnabled =
         seed.nearby_presence_enabled === true && seed.ended !== true;
       const nearbyRadius = Number(seed.nearby_presence_radius_meters);
@@ -1695,6 +2073,7 @@ export default function LiveClient({ access }: { access: LiveAccessProps }) {
         : NEARBY_APPROVED_CONTACT_DEFAULT_RADIUS_METERS;
       if (seed.active_advisory) setPanelMode("sent");
 
+      sessionEndedRef.current = seed.ended === true;
       setSosActive(seed.ended ? false : Boolean(seed.sos_active));
       setStatus(seed.ended ? "ended" : "live");
 
@@ -1713,12 +2092,22 @@ export default function LiveClient({ access }: { access: LiveAccessProps }) {
           nextVisitorAvatarUrl,
           nextVisitorName,
         );
+
+        const authoritativeLocationLabel = safeStatusText(
+          seed.location_label,
+          "",
+        );
+        if (authoritativeLocationLabel) {
+          setAccuracyLabel(authoritativeLocationLabel);
+        }
       } else {
         setPlaceLabel(
           seed.ended ? "Last known location" : "Waiting for first live update…",
         );
-        setCoordsLabel("");
-        setMapHref("");
+      }
+
+      if (statusEndpointEnabledRef.current) {
+        void refreshRoadmapStatus();
       }
 
       if (seed.ended) {
@@ -1739,6 +2128,7 @@ export default function LiveClient({ access }: { access: LiveAccessProps }) {
       clearReconnect,
       closeStream,
       refreshNearbyApprovedContacts,
+      refreshRoadmapStatus,
       removeNearbyMarkers,
       stopPolling,
     ],
@@ -1846,43 +2236,105 @@ export default function LiveClient({ access }: { access: LiveAccessProps }) {
 
     async function fetchSeed() {
       const ac = new AbortController();
-      const timeout = setTimeout(() => ac.abort(), 7000);
+      const timeout = window.setTimeout(
+        () => ac.abort(),
+        SEED_REQUEST_TIMEOUT_MS,
+      );
 
-      const seedRes = await fetch(`/api/live/seed?${signedQuery}`, {
-        cache: "no-store",
-        signal: ac.signal,
-      });
+      try {
+        const seedRes = await fetch(`/api/live/seed?${signedQuery}`, {
+          cache: "no-store",
+          signal: ac.signal,
+        });
 
-      const seed = (await seedRes.json()) as SeedResp;
-      clearTimeout(timeout);
+        const seed = (await seedRes.json().catch(() => ({}))) as SeedResp;
 
-      if (!seed?.ok) {
-        throw new Error(seed?.error || "seed_failed");
+        if (!seedRes.ok || !seed?.ok) {
+          throw new Error(
+            publicRequestError(
+              seedRes.status,
+              "StayKnown could not load this LIVE Visit.",
+            ),
+          );
+        }
+
+        if (closed) return null;
+        return seed;
+      } finally {
+        window.clearTimeout(timeout);
       }
-
-      if (closed) return null;
-      return seed;
     }
 
     const startPolling = () => {
       stopPolling();
 
-      pollTimerRef.current = setInterval(async () => {
+      const poll = async () => {
+        if (closed) return;
+
+        if (typeof navigator !== "undefined" && navigator.onLine === false) {
+          setTransportState("offline");
+          setTransportMessage(
+            "Your browser is offline. The last verified location remains visible.",
+          );
+          pollTimerRef.current = window.setTimeout(poll, POLL_INTERVAL_MS);
+          return;
+        }
+
+        if (pollInFlightRef.current) {
+          pollTimerRef.current = window.setTimeout(poll, POLL_INTERVAL_MS);
+          return;
+        }
+
+        pollInFlightRef.current = true;
+        setTransportState("polling");
+        setTransportMessage(
+          "LIVE stream is unavailable; StayKnown is checking securely.",
+        );
+
         try {
           const seed = await fetchSeed();
           if (!seed || closed) return;
           syncFromSeed(seed);
-        } catch {}
-      }, 3000);
+          await refreshRoadmapStatus();
+        } catch {
+          // Keep the last verified state visible and retry with no overlap.
+        } finally {
+          pollInFlightRef.current = false;
+          if (!closed && !sessionEndedRef.current) {
+            pollTimerRef.current = window.setTimeout(poll, POLL_INTERVAL_MS);
+          }
+        }
+      };
+
+      pollTimerRef.current = window.setTimeout(poll, 0);
     };
 
     const connectStream = () => {
-      if (closed) return;
+      if (closed || sessionEndedRef.current) return;
+
+      if (typeof navigator !== "undefined" && navigator.onLine === false) {
+        setTransportState("offline");
+        setTransportMessage(
+          "Your browser is offline. The last verified location remains visible.",
+        );
+        startPolling();
+        return;
+      }
 
       closeStream();
+      clearReconnect();
+      setTransportState("connecting");
+      setTransportMessage("Connecting to the secure LIVE stream…");
 
       const ev = new EventSource(`/api/live/stream?${signedQuery}`);
       eventSourceRef.current = ev;
+
+      ev.onopen = () => {
+        streamFailureCountRef.current = 0;
+        setTransportState("streaming");
+        setTransportMessage("Secure LIVE updates are connected.");
+        stopPolling();
+      };
 
       ev.onmessage = async (msg) => {
         try {
@@ -1891,10 +2343,18 @@ export default function LiveClient({ access }: { access: LiveAccessProps }) {
           if (data.type === "ka") return;
 
           if (data.type === "ready") {
+            setTransportState("streaming");
+            setTransportMessage("Secure LIVE updates are connected.");
             if (data.nearby_presence_enabled === true) {
               nearbyPresenceEnabledRef.current = true;
               void refreshNearbyApprovedContacts();
             }
+            void refreshRoadmapStatus({ force: true });
+            return;
+          }
+
+          if (data.type === "status_refresh") {
+            void refreshRoadmapStatus({ force: true });
             return;
           }
 
@@ -1904,6 +2364,9 @@ export default function LiveClient({ access }: { access: LiveAccessProps }) {
           }
 
           if (data.type === "location") {
+            sessionEndedRef.current = data.ended === true;
+            setTransportState("streaming");
+            setTransportMessage("Secure LIVE updates are connected.");
             if (typeof data.lat === "number" && typeof data.lng === "number") {
               applyPoint(
                 data.lat,
@@ -1918,6 +2381,8 @@ export default function LiveClient({ access }: { access: LiveAccessProps }) {
               nearbyPresenceEnabledRef.current = false;
               removeNearbyMarkers();
               setStatus("ended");
+              setTransportState("ended");
+              setTransportMessage("This LIVE Visit has ended.");
               setSosActive(false);
               clearReconnect();
               closeStream();
@@ -1941,6 +2406,7 @@ export default function LiveClient({ access }: { access: LiveAccessProps }) {
           }
 
           if (data.type === "ended") {
+            sessionEndedRef.current = true;
             try {
               const seed = await fetchSeed();
               if (seed && !closed) {
@@ -1952,6 +2418,8 @@ export default function LiveClient({ access }: { access: LiveAccessProps }) {
             }
             nearbyPresenceEnabledRef.current = false;
             removeNearbyMarkers();
+            setTransportState("ended");
+            setTransportMessage("This LIVE Visit has ended.");
             clearReconnect();
             closeStream();
             stopPolling();
@@ -1961,8 +2429,24 @@ export default function LiveClient({ access }: { access: LiveAccessProps }) {
 
       ev.onerror = () => {
         closeStream();
-        if (closed) return;
-        reconnectTimerRef.current = setTimeout(connectStream, 1200);
+        if (closed || sessionEndedRef.current) return;
+
+        streamFailureCountRef.current += 1;
+        const delay = reconnectDelayMs(streamFailureCountRef.current);
+
+        setTransportState(
+          typeof navigator !== "undefined" && navigator.onLine === false
+            ? "offline"
+            : "reconnecting",
+        );
+        setTransportMessage(
+          typeof navigator !== "undefined" && navigator.onLine === false
+            ? "Your browser is offline. The last verified location remains visible."
+            : "LIVE stream interrupted. StayKnown is using secure fallback checks.",
+        );
+
+        startPolling();
+        reconnectTimerRef.current = window.setTimeout(connectStream, delay);
       };
     };
 
@@ -2031,12 +2515,15 @@ export default function LiveClient({ access }: { access: LiveAccessProps }) {
             pitchWithRotate: false,
             trackResize: true,
             fadeDuration: 0,
-            transformRequest: (url) => ({
-              url,
-              headers: {
-                "TomTom-Api-Key": tomtomKey,
-              },
-            }),
+            transformRequest: (url) =>
+              shouldAttachTomTomKey(url, tomtomStyleUrl)
+                ? {
+                    url,
+                    headers: {
+                      "TomTom-Api-Key": tomtomKey,
+                    },
+                  }
+                : { url },
           });
 
           mapRef.current = map;
@@ -2131,7 +2618,7 @@ export default function LiveClient({ access }: { access: LiveAccessProps }) {
           removeNearbyMarkers();
 
           if (attempt < MAP_AUTO_RETRY_LIMIT) {
-            setMapLoadError("Reloading map…");
+            setMapLoadError("Reloading the secure map…");
             await new Promise((r) => setTimeout(r, MAP_RETRY_DELAY_MS));
             continue;
           }
@@ -2148,11 +2635,18 @@ export default function LiveClient({ access }: { access: LiveAccessProps }) {
       syncFromSeed(seed);
 
       if (!seed.ended) {
+        setTransportState("polling");
+        setTransportMessage(
+          "Map preview is limited; StayKnown is checking for secure updates.",
+        );
         startPolling();
       }
     }
 
     async function boot() {
+      setTransportState("connecting");
+      setTransportMessage("Verifying the secure LIVE Visit…");
+
       try {
         const seed = await fetchSeed();
         if (!seed) return;
@@ -2181,20 +2675,45 @@ export default function LiveClient({ access }: { access: LiveAccessProps }) {
         } catch (fallbackError) {
           if (closed) return;
           setStatus("error");
+          setTransportState("error");
+          setTransportMessage("Secure LIVE updates are unavailable right now.");
           setMapLoadError(
             fallbackError instanceof Error
               ? fallbackError.message
-              : "Unable to open the live view right now.",
+              : "Unable to open the LIVE view right now.",
           );
         }
       }
     }
+
+    const handleOffline = () => {
+      setTransportState("offline");
+      setTransportMessage(
+        "Your browser is offline. The last verified location remains visible.",
+      );
+      closeStream();
+      startPolling();
+    };
+
+    const handleOnline = () => {
+      if (closed || sessionEndedRef.current) return;
+      streamFailureCountRef.current = 0;
+      clearReconnect();
+      connectStream();
+      void refreshRoadmapStatus({ force: true });
+    };
+
+    window.addEventListener("offline", handleOffline);
+    window.addEventListener("online", handleOnline);
 
     void boot();
 
     return () => {
       closed = true;
       bootedRef.current = false;
+      window.removeEventListener("offline", handleOffline);
+      window.removeEventListener("online", handleOnline);
+      statusFetchAbortRef.current?.abort();
       poiFetchAbortRef.current?.abort();
       clearReconnect();
       closeStream();
@@ -2220,6 +2739,7 @@ export default function LiveClient({ access }: { access: LiveAccessProps }) {
     closeNearbyMarkerCard,
     positionNearbyMarkerCard,
     refreshNearbyApprovedContacts,
+    refreshRoadmapStatus,
     removeNearbyMarkers,
   ]);
 
@@ -2266,9 +2786,26 @@ export default function LiveClient({ access }: { access: LiveAccessProps }) {
         ? `${visitorName} received the guidance and says they are leaving now.`
         : "The guidance was delivered. StayKnown will show the visitor’s response here.";
 
+  const transportLabel =
+    transportState === "streaming"
+      ? "LIVE connected"
+      : transportState === "polling"
+        ? "Fallback checks"
+        : transportState === "reconnecting"
+          ? "Reconnecting"
+          : transportState === "offline"
+            ? "Offline"
+            : transportState === "ended"
+              ? "Ended"
+              : transportState === "error"
+                ? "Unavailable"
+                : "Connecting";
+
   const compactInfoRows = [
     { label: "Updated", value: lastUpdatedLabel },
     { label: "Accuracy", value: accuracyLabel },
+    { label: "Connection", value: transportLabel },
+    { label: "Delivery", value: deliveryHealthLabel },
     { label: "Destination", value: destinationLabel },
     { label: "Expected stay", value: expectedDurationLabel },
   ].filter((item) => item.value && item.value !== "—");
@@ -2278,7 +2815,6 @@ export default function LiveClient({ access }: { access: LiveAccessProps }) {
     .join(" • ");
 
   const detailInfoRows = [
-    { label: "Coordinates", value: coordsLabel },
     { label: "Visit started", value: visitStartedLabel },
     { label: "Destination address", value: destinationAddressLabel },
     { label: "Purpose", value: purposeLabel },
@@ -2745,6 +3281,73 @@ export default function LiveClient({ access }: { access: LiveAccessProps }) {
               ))}
             </div>
           ) : null}
+
+          {roadmapStatusLabel || roadmapStatusMessage ? (
+            <div
+              className={`mt-2 rounded-[14px] border px-2.5 py-2 ${insetSurface}`}
+            >
+              <div
+                className={`text-[7px] font-black uppercase tracking-[0.16em] ${mutedText}`}
+              >
+                {roadmapStatusLabel || "Safety status"}
+              </div>
+              {roadmapStatusMessage ? (
+                <div
+                  className={`mt-1 text-[8.5px] font-semibold leading-[1.45] ${cardText}`}
+                >
+                  {roadmapStatusMessage}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+
+          {responseOpportunity && responseOpportunity.actions.length > 0 ? (
+            <div className={`mt-2 rounded-[15px] border p-2.5 ${insetSurface}`}>
+              <div
+                className={`text-[7px] font-black uppercase tracking-[0.17em] ${mutedText}`}
+              >
+                {responseOpportunity.title || "Contact response"}
+              </div>
+              {responseOpportunity.message ? (
+                <div
+                  className={`mt-1 text-[8.3px] font-semibold leading-[1.45] ${mutedText}`}
+                >
+                  {responseOpportunity.message}
+                </div>
+              ) : null}
+              <div className="mt-2 grid grid-cols-3 gap-1.5">
+                {responseOpportunity.actions.map((action) => (
+                  <button
+                    key={action.wire}
+                    type="button"
+                    disabled={
+                      responseSending ||
+                      action.enabled === false ||
+                      status === "ended"
+                    }
+                    onClick={() => void recordUnifiedResponse(action)}
+                    className={`min-h-8 rounded-full border px-2 text-[7.5px] font-black transition active:scale-[0.99] disabled:opacity-35 ${
+                      action.critical
+                        ? "border-red-300/70 bg-red-50 text-red-700"
+                        : `${insetSurface} ${cardText}`
+                    }`}
+                  >
+                    {action.compact_label || action.label}
+                  </button>
+                ))}
+              </div>
+              {responseRecordedLabel ? (
+                <div className="mt-2 text-center text-[8px] font-black text-emerald-600">
+                  {responseRecordedLabel}
+                </div>
+              ) : null}
+              {responseError ? (
+                <div className="mt-2 text-center text-[8px] font-bold text-red-500">
+                  {responseError}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
         </div>
 
         {canSendAdvisory && status !== "ended" ? (
@@ -2912,16 +3515,6 @@ export default function LiveClient({ access }: { access: LiveAccessProps }) {
                 {browserHint ||
                   "The full map preview is unavailable in this browser."}
               </div>
-              {mapHref ? (
-                <a
-                  href={mapHref}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="mt-4 inline-flex h-10 items-center justify-center rounded-full bg-black px-5 text-[10px] font-black text-white"
-                >
-                  Open location
-                </a>
-              ) : null}
             </div>
           </section>
         </div>
@@ -2958,6 +3551,33 @@ export default function LiveClient({ access }: { access: LiveAccessProps }) {
             >
               {mapLoadError}
             </span>
+          </div>
+        </div>
+      ) : null}
+
+      {!mapLoadError &&
+      transportState !== "streaming" &&
+      transportState !== "idle" &&
+      transportState !== "ended" ? (
+        <div className="absolute left-1/2 top-[120px] z-20 max-w-[calc(100%-28px)] -translate-x-1/2">
+          <div
+            className={`rounded-full border px-3 py-2 shadow-md backdrop-blur-xl ${
+              transportState === "offline" || transportState === "error"
+                ? "border-red-200 bg-red-50/92 text-red-650"
+                : "border-white/75 bg-white/78 text-black/62"
+            }`}
+          >
+            <span className="block max-w-[420px] truncate text-[9px] font-black tracking-[0.04em]">
+              {transportMessage}
+            </span>
+          </div>
+        </div>
+      ) : null}
+
+      {practiceMode ? (
+        <div className="absolute left-4 top-4 z-50">
+          <div className="rounded-full border border-amber-300/60 bg-amber-50/94 px-3 py-2 text-[8px] font-black uppercase tracking-[0.16em] text-amber-800 shadow-lg backdrop-blur-xl">
+            Practice Mode • no real alert or location dispatch
           </div>
         </div>
       ) : null}
