@@ -1913,7 +1913,7 @@ export default function StayKnownHomePage() {
       `}</style>
 
       <header className="sticky top-0 z-50 border-b border-white/[0.08] bg-black/82 backdrop-blur-2xl">
-        <div className="relative mx-auto flex min-h-[68px] w-full max-w-none items-center justify-between gap-3 px-3 sm:px-4 lg:pl-6 lg:pr-1">
+        <div className="mx-auto flex min-h-[68px] w-full max-w-none items-center justify-between gap-3 px-3 sm:px-4 lg:pl-6 lg:pr-1">
           <a
             href="#top"
             className="inline-flex min-h-10 items-center gap-2.5 rounded-[14px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/35"
@@ -1933,7 +1933,7 @@ export default function StayKnownHomePage() {
           </a>
 
           <nav
-            className="absolute left-1/2 hidden -translate-x-1/2 items-center gap-1 lg:flex"
+            className="hidden items-center gap-1 lg:flex"
             aria-label="Homepage sections"
           >
             {HOME_NAV_ITEMS.map(([label, href]) => (
