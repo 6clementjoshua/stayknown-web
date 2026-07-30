@@ -6,8 +6,6 @@ import HeroSlider, { type HeroSlide } from "@/components/HeroSlider";
 import StayKnownActionMenu from "@/components/StayKnownActionMenu";
 import StayKnownHowItWorks from "@/components/StayKnownHowItWorks";
 import { HOME_FAQS } from "@/lib/stayknown-home-content";
-import StayKnownRecognitionPill from "@/components/StayKnownRecognitionPill";
-import StayKnownSocialLinks from "@/components/StayKnownSocialLinks";
 
 const GOOGLE_PLAY_URL =
   "https://play.google.com/store/apps/details?id=com.stayknown.app";
@@ -275,7 +273,6 @@ const FOOTER_GROUPS: Array<{ title: string; links: FooterLink[] }> = [
     links: [
       { label: "About StayKnown", href: "/about" },
       { label: "Press & Updates", href: "/press-updates" },
-      { label: "Google Play Recognition", href: "/recognition/google-play-indie-corner" },
       { label: "Contact", href: "/contact" },
       { label: "Submit Request", href: "/submit-request" },
       { label: "Submit Feature", href: "/submit-feature" },
@@ -1599,7 +1596,6 @@ function SiteFooter() {
             <p className="mt-5 max-w-[34ch] text-[12px] font-semibold leading-relaxed text-white/42">
               StayKnown helps people share safety context with approved contacts during Visits, check-ins, SOS, and other intentional safety flows.
             </p>
-            <StayKnownSocialLinks className="mt-5" />
           </div>
 
           <div className="grid grid-cols-2 gap-x-5 gap-y-8 sm:grid-cols-3 lg:grid-cols-5">
@@ -1985,7 +1981,6 @@ export default function StayKnownHomePage() {
             ))}
           </nav>
         </div>
-              <StayKnownRecognitionPill />
       </header>
 
       <div id="top" />
