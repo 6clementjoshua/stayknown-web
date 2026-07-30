@@ -3,6 +3,7 @@ import type { MetadataRoute } from "next";
 const SITE_URL = "https://www.stay-known.com";
 const PREVIOUS_CONTENT_UPDATE = "2026-05-31";
 const HOMEPAGE_UPDATE = "2026-07-24";
+const ACCOUNT_CLOSURE_UPDATE = "2026-07-27";
 
 type SitemapEntry = MetadataRoute.Sitemap[number];
 type ChangeFrequency = NonNullable<SitemapEntry["changeFrequency"]>;
@@ -29,7 +30,6 @@ const homepageImages = [
   "/hero/stayknown-safe-journey-bus.png",
   "/hero/stayknown-family-farewell.png",
   "/hero/get-safe-hints.png",
-  "/hero/visit-live-sos.png",
   "/hero/visit-live.png",
   "/hero/live-map.png",
   "/hero/promax-shell.png",
@@ -48,7 +48,7 @@ const homepageImages = [
   "/hero/stories-profile.png",
 ].map(absoluteUrl);
 
-const coreRoutes: PublicRoute[] = [
+const coreRoutes: readonly PublicRoute[] = [
   {
     path: "/",
     lastModified: HOMEPAGE_UPDATE,
@@ -209,7 +209,7 @@ const coreRoutes: PublicRoute[] = [
   },
 ];
 
-const policyAndTrustRoutes: PublicRoute[] = [
+const policyAndTrustRoutes: readonly PublicRoute[] = [
   {
     path: "/privacy",
     lastModified: PREVIOUS_CONTENT_UPDATE,
@@ -219,6 +219,12 @@ const policyAndTrustRoutes: PublicRoute[] = [
   {
     path: "/terms",
     lastModified: PREVIOUS_CONTENT_UPDATE,
+    changeFrequency: "monthly",
+    priority: 0.9,
+  },
+  {
+    path: "/account-closure",
+    lastModified: ACCOUNT_CLOSURE_UPDATE,
     changeFrequency: "monthly",
     priority: 0.9,
   },
@@ -334,7 +340,7 @@ const policyAndTrustRoutes: PublicRoute[] = [
   },
 ];
 
-const learnRoutes: PublicRoute[] = [
+const learnRoutes: readonly PublicRoute[] = [
   /*
    * These two routes already power the cinematic homepage Learn More flow
    * but were missing from the previous static XML sitemap.
@@ -455,26 +461,36 @@ const learnRoutes: PublicRoute[] = [
   },
 ];
 
-const publicRoutes = [
+const publicRoutes: readonly PublicRoute[] = [
   ...coreRoutes,
   ...policyAndTrustRoutes,
   ...learnRoutes,
 ];
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  return publicRoutes.map(
-    ({
-      path,
-      lastModified,
-      changeFrequency,
-      priority,
-      images,
-    }): SitemapEntry => ({
-      url: absoluteUrl(path),
+  const uniqueRoutes = new Map<string, PublicRoute>();
+
+  for (const route of publicRoutes) {
+    uniqueRoutes.set(absoluteUrl(route.path), route);
+  }
+
+  return Array.from(uniqueRoutes.entries()).map(
+    ([
+      url,
+      {
+        lastModified,
+        changeFrequency,
+        priority,
+        images,
+      },
+    ]): SitemapEntry => ({
+      url,
       ...(lastModified ? { lastModified } : {}),
       changeFrequency,
       priority,
-      ...(images?.length ? { images } : {}),
+      ...(images?.length
+        ? { images: Array.from(new Set(images)) }
+        : {}),
     }),
   );
 }

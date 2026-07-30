@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type {
+  LiveLocationQuality,
   LivePresenceState,
   NearbyApprovedContactPresence,
   NearbyApprovedContactsResponse,
@@ -137,7 +138,13 @@ function normalizePresenceState(value: unknown): LivePresenceState | null {
   return null;
 }
 
-function locationQuality(accuracy: number | null) {
+type LocationQualitySnapshot = {
+  location_quality: LiveLocationQuality;
+  location_is_exact: boolean;
+  location_is_approximate: boolean;
+};
+
+function locationQuality(accuracy: number | null): LocationQualitySnapshot {
   if (accuracy == null || !Number.isFinite(accuracy) || accuracy <= 0) {
     return {
       location_quality: "unknown",
@@ -148,7 +155,7 @@ function locationQuality(accuracy: number | null) {
 
   if (accuracy <= 80) {
     return {
-      location_quality: "precise",
+      location_quality: "exact",
       location_is_exact: true,
       location_is_approximate: false,
     };
@@ -163,7 +170,7 @@ function locationQuality(accuracy: number | null) {
   }
 
   return {
-    location_quality: "broad",
+    location_quality: "coarse",
     location_is_exact: false,
     location_is_approximate: true,
   };
