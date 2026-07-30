@@ -225,7 +225,7 @@ export default function OpenGraphImage() {
                   fontWeight: 900,
                 }}
               >
-                Audience enforced
+                Selected audience
               </div>
             </div>
           </div>

@@ -40,7 +40,7 @@ const MODES: readonly {
     label: "Trusted Circle",
     shortLabel: "Circle",
     description:
-      "A separate multi-member conversation with Lead authority, consent, roles, and audience controls.",
+      "A separate multi-member conversation with a clear Circle Lead role, consent, member responsibilities, and audience controls.",
   },
   {
     id: "permissions",

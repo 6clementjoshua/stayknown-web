@@ -1,97 +1,57 @@
-STAYKNOWN CHAT WEBSITE ADDITION
-================================
+STAYKNOWN CHAT WEBSITE ADDITION — PUBLIC COPY CORRECTED
+=========================================================
 
-PURPOSE
--------
-This package adds to the existing StayKnown website without replacing existing
-pages or removing existing homepage sections.
+This package adds the interactive Chat experience without removing existing
+homepage sections or public routes.
 
-It adds:
-  - an interactive animated Chat demo on the homepage;
+It includes:
+  - the complete latest StayKnownHomePage.tsx with corrected visitor copy;
+  - an animated interactive Chat demo on the homepage;
   - a dedicated /chat page;
-  - approved-contact direct Chat explanation;
-  - Trusted Circle consent, roles, invitations and selective audiences;
+  - Trusted Circle consent, roles, invitations and selected audiences;
   - translation, voice, media, files, stickers and deliberate location sharing;
-  - explicit privacy, history and emergency limitations;
-  - route metadata, canonical URL, Open Graph, X/Twitter metadata;
-  - WebPage, SoftwareApplication, BreadcrumbList, ItemList, HowTo and FAQ JSON-LD;
-  - dedicated generated social images;
-  - /chat in app/sitemap.ts;
-  - a homepage footer route to Chat & Trusted Circles.
+  - canonical metadata, Open Graph, X/Twitter metadata and rich JSON-LD;
+  - /chat in app/sitemap.ts.
 
-FILES
------
-Brand-new files:
-  components/StayKnownChatDemo.tsx
-  components/StayKnownChatExperience.tsx
-  lib/stayknown-chat-content.ts
-  app/chat/page.tsx
-  app/chat/opengraph-image.tsx
-  app/chat/twitter-image.tsx
-  apply-stayknown-chat-website.mjs
+The full replacement homepage is included at:
 
-Existing files patched by the installer:
-  components/StayKnownHomePage.tsx
-  app/sitemap.ts
-
-The installer creates timestamped backups under:
-  .stayknown-backups/chat-website-<timestamp>/
+  FULL-REPLACEMENT/components/StayKnownHomePage.tsx
 
 INSTALL FROM WINDOWS POWERSHELL
 -------------------------------
-1. Copy the ZIP into the StayKnown website project root.
-2. Open PowerShell in that project root.
-3. Run:
+Copy the ZIP into:
 
-   Expand-Archive .\stayknown-chat-website-addition.zip -DestinationPath . -Force
-   node .\apply-stayknown-chat-website.mjs
-   npm run build
+  C:\Users\suppo\stayknown-web
+
+Then run:
+
+  Expand-Archive .\stayknown-chat-website-public-copy-v2.zip -DestinationPath . -Force
+  node .\apply-stayknown-chat-website.mjs
+  npm run build
+
+The installer creates timestamped backups, adds the Chat section and sitemap
+entry, and replaces only the identified public-copy phrases. It leaves
+unrelated homepage sections and routes untouched.
 
 LOCAL PREVIEW
 -------------
-Run:
-
-   npm run dev
+  npm run dev
 
 Open:
+  http://localhost:3000
+  http://localhost:3000/chat
+  http://localhost:3000/sitemap.xml
 
-   http://localhost:3000
-   http://localhost:3000/chat
-   http://localhost:3000/sitemap.xml
+Confirm that no visitor-facing text says:
+  - “the homepage now”;
+  - “current app build”;
+  - “staged rollout”;
+  - “coordinated availability”;
+  - “server-side audience rules”.
 
-DEPLOYMENT CHECK
-----------------
-After the production build passes, deploy through the same provider/workflow
-already used by stay-known.com. Confirm:
-  - the homepage demo renders on mobile and desktop;
-  - /chat loads directly and after a refresh;
-  - /sitemap.xml contains https://www.stay-known.com/chat;
-  - the homepage footer contains Chat & Trusted Circles;
-  - reduced-motion mode stops non-essential animations;
-  - no existing public route was removed.
-
-FLUTTER APK BUILD AFTER WEBSITE WORK
-------------------------------------
-From the StayKnown Flutter project root:
-
-   flutter clean
-   flutter pub get
-   dart format lib
-   flutter analyze
-   flutter build apk --release
-
-Release APK output:
-
-   build\app\outputs\flutter-apk\app-release.apk
-
-Install on a USB-connected Android device:
-
-   adb devices
-   adb install -r .\build\app\outputs\flutter-apk\app-release.apk
-
-Remove the test app from the device after testing:
-
-   adb uninstall com.stayknown.app
-
-IMPORTANT: uninstalling removes the app and its local app data from that device.
-Do not uninstall a Play Store build containing data you need to keep.
+DEVICE-ADMISSION SQL
+--------------------
+The device-admission activation SQL is separate from this website package.
+Do not enable it merely because the website builds. Enable it only after the
+compatible Flutter app and Edge Function are released and tested for the users
+who will be affected.

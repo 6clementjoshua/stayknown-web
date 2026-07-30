@@ -28,7 +28,7 @@ const ATLAS = {
     points: [
       "Opening a profile does not silently grant private Chat.",
       "The conversation remains isolated from any later Trusted Circle.",
-      "Read, delivery, presence, mute, privacy, and account routing remain person-aware.",
+      "Read, delivery, presence, mute, privacy, and notifications remain connected to the correct person and account.",
     ],
   },
   circle: {
@@ -36,7 +36,7 @@ const ATLAS = {
     eyebrow: "Consent-governed multi-member communication",
     title: "Group participation is a permission flow, not an instant add button.",
     body:
-      "A Trusted Circle is created beside the founding private conversation—not on top of it. Lead authority, required member consent, candidate acceptance, roles, selective audiences, and separate history protect everyone involved.",
+      "A Trusted Circle is created beside the founding private conversation—not on top of it. A clear Circle Lead role, required member consent, candidate acceptance, member responsibilities, selective audiences, and separate history protect everyone involved.",
     image: "/hero/chat-translation.png",
     imageAlt: "StayKnown multilingual Chat interface representing Trusted Circle communication",
     points: [
@@ -54,7 +54,7 @@ const ATLAS = {
     image: "/hero/chat-stickers-voice.png",
     imageAlt: "StayKnown voice notes, stickers, and media Chat interface",
     points: [
-      "Occasional attachments use user-selected system pickers.",
+      "You choose each attachment through your phone’s photo or file picker.",
       "Location remains a separate, deliberate share action.",
       "Message audience rules also apply to attachments and previews.",
     ],
@@ -68,7 +68,7 @@ const ATLAS = {
     image: "/hero/contact-approval.png",
     imageAlt: "StayKnown consent-based approved contact interface",
     points: [
-      "Circle membership does not create emergency-contact or SOS authority.",
+      "Circle membership does not create emergency-contact or SOS access.",
       "Safety and location actions remain separate from ordinary membership.",
       "Urgent situations still require the appropriate local emergency service.",
     ],
@@ -449,9 +449,9 @@ export default function StayKnownChatExperience() {
       <section id="roles" className="border-y border-white/[0.08] bg-[#050505] py-16 sm:py-20 lg:py-24">
         <div className="mx-auto max-w-7xl px-4 sm:px-5 lg:px-6">
           <SectionHeading
-            eyebrow="Roles and authority"
-            title="Every management power has a visible owner."
-            body="StayKnown avoids a vague Admin label. The Circle Lead remains accountable, Stewards receive only delegated capabilities, and Members keep the boundaries they accepted."
+            eyebrow="Circle roles and responsibilities"
+            title="Every Circle responsibility has a clear owner."
+            body="The Circle Lead remains responsible for the Circle, Stewards help only with assigned tasks, and Members keep the boundaries they accepted."
           />
 
           <div className="mt-10 grid gap-4 lg:grid-cols-3">
@@ -507,13 +507,13 @@ export default function StayKnownChatExperience() {
             <div className="grid gap-6 p-6 sm:p-8 lg:grid-cols-[1fr_0.8fr] lg:items-center">
               <div>
                 <div className="text-[9px] font-black uppercase tracking-[0.2em] text-black/42">
-                  Coordinated availability
+                  Plans and availability
                 </div>
                 <h3 className="mt-3 text-balance text-[32px] font-black leading-[0.98] tracking-[-0.055em] sm:text-[40px]">
-                  Trusted Circle access can depend on plan, eligibility, and staged rollout.
+                  The StayKnown app shows the Chat features available to your account.
                 </h3>
                 <p className="mt-4 text-[12.5px] font-semibold leading-relaxed text-black/58">
-                  Direct Chat, plan entitlements, Circle capacity, invitation eligibility, and advanced controls are verified by the app. Website explanations describe the safety model; the current app build remains the authority for availability.
+                  Direct Chat, Trusted Circle access, member capacity, invitation eligibility, and advanced controls can vary by plan and account eligibility. Open StayKnown to see your current options.
                 </p>
               </div>
               <div className="flex flex-col gap-2">
@@ -523,7 +523,7 @@ export default function StayKnownChatExperience() {
                   rel="noopener noreferrer"
                   className="inline-flex h-11 items-center justify-center gap-2 rounded-[15px] border border-black bg-black px-5 text-[10px] font-black uppercase tracking-[0.09em] text-white transition hover:-translate-y-px hover:bg-white hover:text-black"
                 >
-                  Check current app availability
+                  Open StayKnown on Google Play
                   <ArrowIcon />
                 </a>
                 <Link
@@ -544,7 +544,7 @@ export default function StayKnownChatExperience() {
           <SectionHeading
             eyebrow="Chat questions answered"
             title="Understand the boundary before depending on the conversation."
-            body="These answers explain direct Chat authority, Trusted Circle consent, selective audiences, location, history separation, plans, and StayKnown’s emergency limitations."
+            body="These answers explain who can start direct Chat, how Trusted Circle consent works, who sees selected messages, how location is shared, how histories stay separate, and what StayKnown does not replace."
           />
 
           <div className="mt-9 grid gap-3">

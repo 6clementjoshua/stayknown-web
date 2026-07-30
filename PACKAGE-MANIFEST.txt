@@ -1,28 +1,16 @@
-STAYKNOWN CHAT WEBSITE ADDITION — PACKAGE MANIFEST
+STAYKNOWN CHAT WEBSITE ADDITION — PUBLIC COPY CORRECTED
 Generated: 2026-07-30
 
-Brand-new project files:
-  app/chat/page.tsx
-  app/chat/opengraph-image.tsx
-  app/chat/twitter-image.tsx
-  components/StayKnownChatDemo.tsx
-  components/StayKnownChatExperience.tsx
-  lib/stayknown-chat-content.ts
-
-Installer/support files:
-  apply-stayknown-chat-website.mjs
-  README-STAYKNOWN-CHAT-WEBSITE.txt
-
-Existing files patched safely by installer:
-  components/StayKnownHomePage.tsx
-  app/sitemap.ts
+Full homepage replacement:
+  FULL-REPLACEMENT/components/StayKnownHomePage.tsx
 
 SHA-256:
-2f67368f8ad856f83c2ee31e3d9ce1dbd9e863b3490efe370b1d4642dbdbb57c  README-STAYKNOWN-CHAT-WEBSITE.txt
-fe4eeeae37a6f1c83ee3a9c631578dd776f1ef115554778c61717219810e7d94  app/chat/opengraph-image.tsx
-f18ee716234b5da1d345dcfbf9bb40909f7195262a6cb26ec980f5a7985aefc2  app/chat/page.tsx
+d7577bf4b7c1794942ce49c8743280e42f137cd696d482187671f20e8d3ac38c  FULL-REPLACEMENT/components/StayKnownHomePage.tsx
+6b0e020f7a0424b859d86ddd601ab9f8f761f4cc067ca33df7502ff641e710bb  README-STAYKNOWN-CHAT-WEBSITE.txt
+ce2fcb4561f8ad8e47982bbedbc470919e1753c2831f753f979f8b08ec26cd18  app/chat/opengraph-image.tsx
+53ef409659c16a5516de2662be831e2a655946ef550690ea87a99ace700103ae  app/chat/page.tsx
 404034ef1ad482937463353ef4cda2282f80199692b61b09747111a8c116bf2f  app/chat/twitter-image.tsx
-d3e15046b6e17589cc75ff441fff6abf929fff5d9f29b47eaf32199c05133629  apply-stayknown-chat-website.mjs
-0e9b90facc52140f81080e9e606f57320d96b48c476edcd8f7a3aa26e6c6c973  components/StayKnownChatDemo.tsx
-9b9b5988cce83571c920d186c5aa446793beb381d32cacd6583a22057c50fac5  components/StayKnownChatExperience.tsx
-1a842e0a19c500b411453cf4faa360c4a96d1f217b9037fc25265d88cbc255b0  lib/stayknown-chat-content.ts
+48fe38e85e6380a47237980a5d6dca0eced295770a2c92ec265cde5e42891b81  apply-stayknown-chat-website.mjs
+5ef673aa095ffb987f596f549695df057a1574d8463a5b824e4909112225bdf0  components/StayKnownChatDemo.tsx
+662ef3d062bb5c05bda67b01386b5c968ccd16451a54752bec06c8b006a53d8b  components/StayKnownChatExperience.tsx
+0354e745e0ab2c0c12e82b48722c060d0b5177fc08f7d9d3a34f6b13048ce7e3  lib/stayknown-chat-content.ts

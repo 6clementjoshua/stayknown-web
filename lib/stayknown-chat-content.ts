@@ -27,7 +27,7 @@ export const STAYKNOWN_CHAT_FLOW_STEPS: readonly StayKnownChatFlowStep[] = [
     id: "control",
     eyebrow: "3 · Control",
     title: "Control who can receive a message.",
-    body: "In a Trusted Circle, a sender can use Everyone or select specific members. The sender and Circle Lead remain included, and the server enforces the audience.",
+    body: "In a Trusted Circle, a sender can use Everyone or select specific members. The sender and Circle Lead remain included, and StayKnown keeps delivery limited to the selected people.",
     note: "Members outside the selected audience do not receive the message or its notification preview.",
   },
   {
@@ -65,7 +65,7 @@ export const TRUSTED_CIRCLE_CONSENT_STEPS = [
   {
     number: "04",
     title: "Required members approve or decline",
-    body: "The candidate invitation is released only after the required existing-member consent is complete.",
+    body: "The candidate invitation is sent only after the required existing-member consent is complete.",
   },
   {
     number: "05",
@@ -77,18 +77,18 @@ export const TRUSTED_CIRCLE_CONSENT_STEPS = [
 export const TRUSTED_CIRCLE_ROLES = [
   {
     role: "Circle Lead",
-    label: "Founding authority",
-    body: "The first successful visible-message sender in the founding direct conversation becomes the immutable Lead when the Circle is created. The Lead approves invitations, controls rules, manages roles and permissions, removes members, and closes or transfers the Circle.",
+    label: "Circle founder",
+    body: "The person who begins the founding direct conversation becomes the Circle Lead when the Circle is created. The Lead reviews invitations, manages rules and roles, removes members, and can close or transfer the Circle.",
   },
   {
     role: "Circle Steward",
-    label: "Delegated capability",
-    body: "A Steward receives only the specific capabilities the Lead grants, such as helping with description or pins. Steward status does not silently inherit every Lead power.",
+    label: "Trusted support role",
+    body: "A Steward can help with only the responsibilities the Lead grants, such as updating the description or managing pins. Becoming a Steward does not give every Lead permission.",
   },
   {
     role: "Circle Member",
-    label: "Consented participant",
-    body: "A Member can participate only after the required Circle consent and invitation flow. Membership does not automatically create direct Chat, emergency-contact, SOS-contact, or location access.",
+    label: "Approved participant",
+    body: "A Member joins only after the required Circle consent and invitation steps. Membership does not automatically create direct Chat, emergency-contact, SOS-contact, or location access.",
   },
 ] as const;
 
@@ -97,8 +97,8 @@ export const STAYKNOWN_CHAT_BOUNDARIES = [
   "No conversion of an old one-to-one thread into a multi-member history.",
   "No automatic location sharing because someone is a Chat or Circle member.",
   "No automatic direct Chat relationship between every Circle participant.",
-  "No broad device-media scan for occasional attachments; the user chooses files through system pickers.",
-  "No silent permission expansion: Circle Lead and Steward capabilities remain explicit and auditable.",
+  "No automatic scan of personal photos or files; the user chooses each attachment.",
+  "Circle Lead and Steward responsibilities stay clearly defined.",
 ] as const;
 
 export const STAYKNOWN_CHAT_FAQS = [
@@ -120,7 +120,7 @@ export const STAYKNOWN_CHAT_FAQS = [
   {
     question: "Can a Circle message be visible to selected people only?",
     answer:
-      "Yes. The sender may choose specific members. The sender and Circle Lead remain included, and StayKnown’s server-side audience rules control delivery, replies, reactions, attachments, receipts, and notification previews.",
+      "Yes. The sender may choose specific members. The sender and Circle Lead remain included, and StayKnown keeps the message, replies, reactions, attachments, receipts, and previews limited to the chosen audience.",
   },
   {
     question: "Does joining a Circle share my location?",
@@ -135,7 +135,7 @@ export const STAYKNOWN_CHAT_FAQS = [
   {
     question: "Which plans include Trusted Circle Chat?",
     answer:
-      "Trusted Circle creation and participation are designed for StayKnown Pro and Pro Max, subject to account eligibility and coordinated feature availability. Capacity and advanced controls depend on the active plan.",
+      "Trusted Circle features are designed for eligible StayKnown Pro and Pro Max accounts. The StayKnown app shows the current availability, capacity, and controls for each account.",
   },
   {
     question: "Does StayKnown replace emergency services?",

@@ -116,6 +116,30 @@ function patchHomepage(source) {
     }
   }
 
+  const publicCopyReplacements = {
+  "title: \"ProMax MainShell\",": "title: \"Pro Max Home Experience\",",
+  "\"A premium, plan-aware navigation shell built for fast access to safety, contacts, chat, profile, and high-value actions.\",": "\"A premium home experience with fast access to safety, contacts, Chat, profile, and essential actions.\",",
+  "\"The SOS surface stays simple and readable, helping users understand when SOS is available and when it is not active.\",": "\"The SOS screen stays simple and readable, helping users understand when SOS is ready and when protection is active.\",",
+  "\"Emergency contacts and SOS responders use approval flows so safety access remains intentional, trusted, and auditable.\",": "\"Emergency contacts and SOS responders use approval steps so safety access remains intentional, trusted, and clear.\",",
+  "\"Stories, avatars, names, and profile surfaces help users recognize who they are connecting with before conversations begin.\",": "\"Stories, avatars, names, and profile details help users recognize who they are connecting with before conversations begin.\",",
+  "title: \"Build your trusted circle\",": "title: \"Choose your approved contacts\",",
+  "body: \"Add and approve the people who may receive safety information.\",": "body: \"Choose and approve the people who may receive your safety information.\",",
+  "body=\"Explore the real StayKnown product surfaces already available across safety, consent, communication, verification, and emergency flows.\"": "body=\"Explore StayKnown across safety, consent, communication, verification, and emergency support.\"",
+  "body=\"The website now reflects the same Starter, Pro, and Pro Max entitlements used by the app. Final currency, provider, and checkout availability are confirmed inside StayKnown.\"": "body=\"Choose Starter, Pro, or Pro Max based on the number of trusted people and safety tools you need. Final currency, provider, and checkout availability are confirmed inside StayKnown.\"",
+  "body: \"StayKnown’s public rules address stalking, harassment, luring, unauthorized monitoring, abuse, and unsafe use.\",": "body: \"StayKnown’s safety policies address stalking, harassment, luring, unauthorized monitoring, abuse, and unsafe use.\",",
+  "body: \"A dedicated disclosure route gives security researchers and users a responsible path for reporting concerns.\",": "body: \"A dedicated security disclosure page gives researchers and users a responsible way to report concerns.\",",
+  "eyebrow=\"Trust made discoverable\"": "eyebrow=\"Trust and responsibility\"",
+  "title=\"The strongest StayKnown policies should not remain hidden in the footer.\"": "title=\"Clear policies for safer, more respectful use.\"",
+  "body=\"The homepage now points visitors directly to privacy, consent, anti-stalking, emergency, child-safety, billing, and security documentation while preserving every existing policy page.\"": "body=\"Explore StayKnown’s privacy, consent, anti-stalking, emergency, child-safety, billing, and security commitments before relying on the service.\"",
+  "Download StayKnown, build your approved circle, and prepare your safety settings before you need them.": "Download StayKnown, choose your approved contacts, and prepare your safety settings before you need them."
+};
+
+  for (const [internalCopy, visitorCopy] of Object.entries(
+    publicCopyReplacements,
+  )) {
+    updated = updated.replaceAll(internalCopy, visitorCopy);
+  }
+
   return updated;
 }
 

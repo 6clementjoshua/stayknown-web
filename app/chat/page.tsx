@@ -178,9 +178,9 @@ function buildChatJsonLd() {
           "Voice notes, photos, videos, files, audio, stickers, and deliberate location sharing",
           "Trusted Circle member consent",
           "Circle Lead, Circle Steward, and Circle Member roles",
-          "Selective message audiences enforced by server-side permissions",
+          "Selected-recipient privacy for Trusted Circle messages",
           "Separate direct and Trusted Circle histories",
-          "Account-aware notification routing",
+          "Notifications that open the correct conversation",
         ],
         audience: {
           "@type": "PeopleAudience",
