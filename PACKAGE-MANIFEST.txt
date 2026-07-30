@@ -1,0 +1,28 @@
+STAYKNOWN CHAT WEBSITE ADDITION — PACKAGE MANIFEST
+Generated: 2026-07-30
+
+Brand-new project files:
+  app/chat/page.tsx
+  app/chat/opengraph-image.tsx
+  app/chat/twitter-image.tsx
+  components/StayKnownChatDemo.tsx
+  components/StayKnownChatExperience.tsx
+  lib/stayknown-chat-content.ts
+
+Installer/support files:
+  apply-stayknown-chat-website.mjs
+  README-STAYKNOWN-CHAT-WEBSITE.txt
+
+Existing files patched safely by installer:
+  components/StayKnownHomePage.tsx
+  app/sitemap.ts
+
+SHA-256:
+2f67368f8ad856f83c2ee31e3d9ce1dbd9e863b3490efe370b1d4642dbdbb57c  README-STAYKNOWN-CHAT-WEBSITE.txt
+fe4eeeae37a6f1c83ee3a9c631578dd776f1ef115554778c61717219810e7d94  app/chat/opengraph-image.tsx
+f18ee716234b5da1d345dcfbf9bb40909f7195262a6cb26ec980f5a7985aefc2  app/chat/page.tsx
+404034ef1ad482937463353ef4cda2282f80199692b61b09747111a8c116bf2f  app/chat/twitter-image.tsx
+d3e15046b6e17589cc75ff441fff6abf929fff5d9f29b47eaf32199c05133629  apply-stayknown-chat-website.mjs
+0e9b90facc52140f81080e9e606f57320d96b48c476edcd8f7a3aa26e6c6c973  components/StayKnownChatDemo.tsx
+9b9b5988cce83571c920d186c5aa446793beb381d32cacd6583a22057c50fac5  components/StayKnownChatExperience.tsx
+1a842e0a19c500b411453cf4faa360c4a96d1f217b9037fc25265d88cbc255b0  lib/stayknown-chat-content.ts
