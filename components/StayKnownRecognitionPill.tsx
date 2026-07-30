@@ -44,20 +44,23 @@ function ArrowIcon() {
 
 export default function StayKnownRecognitionPill() {
   return (
-    <div className="border-t border-white/[0.07] bg-black px-3 py-2 sm:px-5">
+    <div className="border-t border-white/[0.07] bg-black px-3 py-1.5 sm:px-5">
       <a
         href="/recognition/google-play-indie-corner"
         aria-label="Read about StayKnown's Google Play Indie Corner nomination"
-        className="sk-recognition-pill group relative mx-auto flex min-h-[44px] w-full max-w-[620px] items-center gap-3 overflow-hidden rounded-[16px] border border-white/90 bg-white px-3.5 py-2 text-black shadow-[0_12px_34px_rgba(0,0,0,0.42),inset_0_1px_0_rgba(255,255,255,1),inset_0_-6px_14px_rgba(0,0,0,0.08)] transition duration-300 hover:-translate-y-px hover:border-white/25 hover:bg-[#101010] hover:text-white active:translate-y-0 active:scale-[0.992] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/45 sm:min-h-[48px] sm:px-4"
+        className="sk-recognition-pill group relative mx-auto flex min-h-[38px] w-full max-w-[620px] items-center gap-2.5 overflow-hidden rounded-full border border-white/90 bg-white px-3 py-[4px] text-black shadow-[0_10px_28px_rgba(0,0,0,0.38),inset_0_1px_0_rgba(255,255,255,1),inset_0_-5px_12px_rgba(0,0,0,0.075)] transition duration-300 hover:-translate-y-px hover:border-white/20 hover:bg-[#101010] hover:text-white active:translate-y-0 active:scale-[0.992] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/45 sm:min-h-[40px] sm:px-3.5"
       >
-        <span className="pointer-events-none absolute inset-x-5 top-0 h-px bg-white" />
-        <span className="sk-recognition-shine pointer-events-none absolute inset-y-0 -left-1/3 w-1/3 rotate-12 bg-[linear-gradient(90deg,transparent,rgba(255,255,255,0.72),transparent)] opacity-0" />
+        <span className="pointer-events-none absolute inset-x-6 top-0 z-[1] h-px bg-white" />
 
-        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[11px] border border-black/[0.07] bg-[linear-gradient(145deg,#ffffff,#e9e9e9)] shadow-[inset_0_1px_0_rgba(255,255,255,1),0_6px_13px_rgba(0,0,0,0.12)]">
+        <span className="sk-recognition-liquid sk-recognition-liquid-one pointer-events-none absolute -left-[16%] top-1/2 h-[46px] w-[48%] -translate-y-1/2 rounded-full bg-[radial-gradient(ellipse_at_center,rgba(0,0,0,0.18),rgba(95,95,95,0.11)_38%,rgba(255,255,255,0)_72%)] blur-[7px]" />
+        <span className="sk-recognition-liquid sk-recognition-liquid-two pointer-events-none absolute -right-[14%] top-1/2 h-[44px] w-[46%] -translate-y-1/2 rounded-full bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.96),rgba(135,135,135,0.14)_42%,rgba(255,255,255,0)_74%)] blur-[6px]" />
+        <span className="sk-recognition-wave pointer-events-none absolute inset-y-0 left-[-34%] w-[72%] rounded-[50%] bg-[linear-gradient(105deg,transparent_0%,rgba(0,0,0,0.06)_30%,rgba(255,255,255,0.82)_50%,rgba(70,70,70,0.09)_68%,transparent_100%)] blur-[2px]" />
+
+        <span className="relative z-10 flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-[12px] border border-black/[0.07] bg-[linear-gradient(145deg,#ffffff,#e9e9e9)] shadow-[inset_0_1px_0_rgba(255,255,255,1),0_5px_11px_rgba(0,0,0,0.12)]">
           <GooglePlayMark />
         </span>
 
-        <span className="min-w-0 flex-1">
+        <span className="relative z-10 min-w-0 flex-1">
           <span className="block truncate text-[10px] font-black uppercase tracking-[0.15em] text-black/52 transition group-hover:text-white/52 sm:text-[10.5px]">
             Recognized by Google Play
           </span>
@@ -66,29 +69,76 @@ export default function StayKnownRecognitionPill() {
           </span>
         </span>
 
-        <span className="hidden rounded-full border border-black/[0.08] bg-black/[0.035] px-2.5 py-1 text-[8px] font-black uppercase tracking-[0.14em] text-black/56 transition group-hover:border-white/[0.14] group-hover:bg-white/[0.06] group-hover:text-white/66 sm:inline-flex">
+        <span className="relative z-10 hidden rounded-full border border-black/[0.08] bg-black/[0.035] px-2.5 py-1 text-[8px] font-black uppercase tracking-[0.14em] text-black/56 transition group-hover:border-white/[0.14] group-hover:bg-white/[0.06] group-hover:text-white/66 sm:inline-flex">
           Our story
         </span>
 
-        <ArrowIcon />
+        <span className="relative z-10 flex">
+          <ArrowIcon />
+        </span>
       </a>
 
       <style jsx>{`
-        .sk-recognition-pill:hover .sk-recognition-shine {
-          animation: sk-recognition-shine 760ms ease-out;
+        .sk-recognition-liquid,
+        .sk-recognition-wave {
+          opacity: 1;
+          transition: opacity 220ms ease;
+          will-change: transform, opacity;
         }
 
-        @keyframes sk-recognition-shine {
-          0% {
-            left: -36%;
-            opacity: 0;
-          }
-          18% {
-            opacity: 0.65;
-          }
+        .sk-recognition-liquid-one {
+          animation: sk-recognition-liquid-one 7.4s ease-in-out infinite;
+        }
+
+        .sk-recognition-liquid-two {
+          animation: sk-recognition-liquid-two 8.6s ease-in-out infinite;
+        }
+
+        .sk-recognition-wave {
+          animation: sk-recognition-wave 6.8s ease-in-out infinite;
+        }
+
+        .sk-recognition-pill:hover .sk-recognition-liquid,
+        .sk-recognition-pill:hover .sk-recognition-wave {
+          opacity: 0;
+          animation-play-state: paused;
+        }
+
+        @keyframes sk-recognition-liquid-one {
+          0%,
           100% {
-            left: 116%;
-            opacity: 0;
+            transform: translate3d(-7%, -50%, 0) scaleX(0.88) scaleY(0.82);
+          }
+          48% {
+            transform: translate3d(116%, -47%, 0) scaleX(1.18) scaleY(1.08);
+          }
+          72% {
+            transform: translate3d(74%, -54%, 0) scaleX(0.94) scaleY(1.2);
+          }
+        }
+
+        @keyframes sk-recognition-liquid-two {
+          0%,
+          100% {
+            transform: translate3d(5%, -50%, 0) scaleX(1.02) scaleY(0.9);
+          }
+          44% {
+            transform: translate3d(-120%, -55%, 0) scaleX(0.9) scaleY(1.16);
+          }
+          74% {
+            transform: translate3d(-68%, -46%, 0) scaleX(1.16) scaleY(0.86);
+          }
+        }
+
+        @keyframes sk-recognition-wave {
+          0%,
+          100% {
+            transform: translate3d(-8%, 0, 0) skewX(-9deg) scaleX(0.86);
+            opacity: 0.38;
+          }
+          50% {
+            transform: translate3d(172%, 0, 0) skewX(7deg) scaleX(1.08);
+            opacity: 0.72;
           }
         }
 
@@ -97,6 +147,16 @@ export default function StayKnownRecognitionPill() {
           .sk-recognition-pill * {
             transition: none !important;
             animation: none !important;
+          }
+
+          .sk-recognition-liquid,
+          .sk-recognition-wave {
+            opacity: 0.22;
+          }
+
+          .sk-recognition-pill:hover .sk-recognition-liquid,
+          .sk-recognition-pill:hover .sk-recognition-wave {
+            opacity: 0;
           }
         }
       `}</style>
