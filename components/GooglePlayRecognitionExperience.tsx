@@ -1,11 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import {
-  type CSSProperties,
-  useEffect,
-  useState,
-} from "react";
+import { type CSSProperties, useEffect, useState } from "react";
 
 import StayKnownSocialLinks from "@/components/StayKnownSocialLinks";
 
@@ -63,82 +59,68 @@ const FEATURE_CARDS = [
   {
     icon: "shield" as const,
     title: "Consent-first safety",
-    body:
-      "Approved contacts, visible access boundaries, and user-started sharing keep protection connected to permission rather than hidden monitoring.",
+    body: "Approved contacts, visible access boundaries, and user-started sharing keep protection connected to permission rather than hidden monitoring.",
     href: "/trust-safety",
   },
   {
     icon: "visit" as const,
     title: "Visit protection",
-    body:
-      "A Visit can carry destination, timing, selected recipients, LIVE context, check-ins, and a deliberate verified finish.",
+    body: "A Visit can carry destination, timing, selected recipients, LIVE context, check-ins, and a deliberate verified finish.",
     href: "/how-it-works",
   },
   {
     icon: "live" as const,
     title: "LIVE context",
-    body:
-      "Approved contacts can understand the active safety state, location confidence, interruptions, resumed updates, and expected next action.",
+    body: "Approved contacts can understand the active safety state, location confidence, interruptions, resumed updates, and expected next action.",
     href: "/learn/live-map",
   },
   {
     icon: "sos" as const,
     title: "SOS escalation",
-    body:
-      "Urgent alerts can carry identity, trusted-contact context, location state, evidence, response actions, and clear active or stopped status.",
+    body: "Urgent alerts can carry identity, trusted-contact context, location state, evidence, response actions, and clear active or stopped status.",
     href: "/learn/sos",
   },
   {
     icon: "check" as const,
     title: "I’M SAFE check-ins",
-    body:
-      "Twice-daily check-ins help a person confirm safety while missed confirmations can trigger the configured trusted-contact response flow.",
+    body: "Twice-daily check-ins help a person confirm safety while missed confirmations can trigger the configured trusted-contact response flow.",
     href: "/features",
   },
   {
     icon: "chat" as const,
     title: "Safety-aware chat",
-    body:
-      "Approved-contact chat brings protected entry, translation, voice, media, safety cards, recognizable profiles, and expressive communication together.",
+    body: "Approved-contact chat brings protected entry, translation, voice, media, safety cards, recognizable profiles, and expressive communication together.",
     href: "/learn/chat",
   },
   {
     icon: "guardian" as const,
     title: "Guardian safeguards",
-    body:
-      "Minor accounts use age-aware onboarding, guardian consent, approval continuity, and transparency instead of quietly treating every user the same.",
+    body: "Minor accounts use age-aware onboarding, guardian consent, approval continuity, and transparency instead of quietly treating every user the same.",
     href: "/families-guardians",
   },
   {
     icon: "device" as const,
     title: "Device security",
-    body:
-      "Device admission, trusted-session controls, biometric protection, broad security context, and account-isolated switching strengthen access protection.",
+    body: "Device admission, trusted-session controls, biometric protection, broad security context, and account-isolated switching strengthen access protection.",
     href: "/security",
   },
   {
     icon: "history" as const,
     title: "Safety history",
-    body:
-      "Visit, SOS, delivery, response, location-confidence, device-health, Practice Mode, and owner-private notes can remain understandable after an event.",
+    body: "Visit, SOS, delivery, response, location-confidence, device-health, Practice Mode, and owner-private notes can remain understandable after an event.",
     href: "/features",
   },
   {
     icon: "delivery" as const,
     title: "Delivery resilience",
-    body:
-      "Weak-network handling, queued safety events, push and email parity, response handoff, and delivery health reduce uncertainty when connectivity changes.",
+    body: "Weak-network handling, queued safety events, push and email parity, response handoff, and delivery health reduce uncertainty when connectivity changes.",
     href: "/status",
   },
 ] as const;
 
 function GooglePlayMark({ className = "" }: { className?: string }) {
   return (
-    <svg
-      viewBox="0 0 512 512"
-      aria-hidden="true"
-      className={className}
-    >
+    <svg viewBox="0 0 512 512" aria-hidden="true" className={className}>
       <path
         d="M96 38.4v435.2c0 17.2 18.8 27.8 33.5 18.8l251.3-153.7L96 38.4z"
         fill="#34A853"
@@ -182,17 +164,9 @@ function PremiumIcon({
       "M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z",
       "M12 12h.01",
     ],
-    sos: [
-      "M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20Z",
-      "M12 7v6",
-      "M12 17h.01",
-    ],
+    sos: ["M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20Z", "M12 7v6", "M12 17h.01"],
     check: ["m5 12 4 4L19 6"],
-    chat: [
-      "M4 5h16v11H9l-5 4V5Z",
-      "M8 9h8",
-      "M8 12h6",
-    ],
+    chat: ["M4 5h16v11H9l-5 4V5Z", "M8 9h8", "M8 12h6"],
     guardian: [
       "M8 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z",
       "M16.5 10a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z",
@@ -203,11 +177,7 @@ function PremiumIcon({
       "M7 2h10a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2Z",
       "M10 18h4",
     ],
-    history: [
-      "M3 12a9 9 0 1 0 3-6.7",
-      "M3 4v5h5",
-      "M12 7v5l3 2",
-    ],
+    history: ["M3 12a9 9 0 1 0 3-6.7", "M3 4v5h5", "M12 7v5l3 2"],
     delivery: [
       "M3 7h12v10H3z",
       "M15 10h3l3 3v4h-6z",
@@ -413,14 +383,19 @@ export default function GooglePlayRecognitionExperience() {
               <PremiumLink href={GOOGLE_PLAY_URL} external light>
                 View StayKnown on Google Play
               </PremiumLink>
-              <PremiumLink href="/features">Explore the feature atlas</PremiumLink>
-              <PremiumLink href="/trust-safety">Read the safety principles</PremiumLink>
+              <PremiumLink href="/features">
+                Explore the feature atlas
+              </PremiumLink>
+              <PremiumLink href="/trust-safety">
+                Read the safety principles
+              </PremiumLink>
             </div>
 
             <p className="mt-5 max-w-[62ch] text-[10px] font-semibold leading-relaxed text-white/36">
               This page describes a nomination and recognition opportunity. It
               does not claim that StayKnown won an award, that Google guarantees
-              the app, or that StayKnown replaces professional emergency services.
+              the app, or that StayKnown replaces professional emergency
+              services.
             </p>
           </div>
 
@@ -473,20 +448,17 @@ export default function GooglePlayRecognitionExperience() {
               {
                 number: "01",
                 title: "Visibility for an independent idea",
-                body:
-                  "A product built outside the largest technology companies can still present a serious mission, deliberate engineering, and a distinct point of view.",
+                body: "A product built outside the largest technology companies can still present a serious mission, deliberate engineering, and a distinct point of view.",
               },
               {
                 number: "02",
                 title: "A reason to explain the difference",
-                body:
-                  "StayKnown is not designed as permanent hidden tracking. Its identity is built around consent, context, recognizable people, and explicit safety flows.",
+                body: "StayKnown is not designed as permanent hidden tracking. Its identity is built around consent, context, recognizable people, and explicit safety flows.",
               },
               {
                 number: "03",
                 title: "A higher standard to maintain",
-                body:
-                  "Recognition increases the obligation to protect privacy, communicate limitations, strengthen reliability, and keep every safety claim honest.",
+                body: "Recognition increases the obligation to protect privacy, communicate limitations, strengthen reliability, and keep every safety claim honest.",
               },
             ].map((item) => (
               <article
@@ -585,14 +557,14 @@ export default function GooglePlayRecognitionExperience() {
                   href={GOOGLE_PLAY_URL}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="group inline-flex min-h-11 items-center justify-center gap-2 rounded-[15px] border border-black bg-black px-4 text-[10px] font-black uppercase tracking-[0.11em] text-white shadow-[0_12px_30px_rgba(0,0,0,0.22)] transition duration-300 hover:-translate-y-1 hover:bg-white hover:text-black"
+                  className="sk-recognition-download-button group inline-flex min-h-11 items-center justify-center gap-2 rounded-[15px] border border-black bg-black px-4 text-[10px] font-black uppercase tracking-[0.11em] shadow-[0_12px_30px_rgba(0,0,0,0.22)] transition duration-300 hover:-translate-y-1 hover:bg-white active:translate-y-0 active:scale-[0.985] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/30"
                 >
                   Download StayKnown
                   <PremiumIcon name="arrow" className="h-3.5 w-3.5" />
                 </a>
                 <a
                   href="/about"
-                  className="group inline-flex min-h-11 items-center justify-center gap-2 rounded-[15px] border border-black/[0.12] bg-black/[0.04] px-4 text-[10px] font-black uppercase tracking-[0.11em] text-black/65 transition duration-300 hover:-translate-y-1 hover:border-black hover:text-black"
+                  className="sk-recognition-about-button group inline-flex min-h-11 items-center justify-center gap-2 rounded-[15px] border border-black/[0.12] bg-black/[0.04] px-4 text-[10px] font-black uppercase tracking-[0.11em] transition duration-300 hover:-translate-y-1 hover:border-black hover:bg-[#d8d8d8] active:translate-y-0 active:scale-[0.985] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/25"
                 >
                   Read the founder story
                   <PremiumIcon name="arrow" className="h-3.5 w-3.5" />
@@ -662,6 +634,30 @@ export default function GooglePlayRecognitionExperience() {
       </footer>
 
       <style jsx global>{`
+        .sk-recognition-download-button,
+        .sk-recognition-download-button:link,
+        .sk-recognition-download-button:visited,
+        .sk-recognition-download-button:focus {
+          color: #ffffff !important;
+          -webkit-text-fill-color: #ffffff !important;
+        }
+
+        .sk-recognition-download-button:hover,
+        .sk-recognition-download-button:active {
+          color: #000000 !important;
+          -webkit-text-fill-color: #000000 !important;
+        }
+
+        .sk-recognition-about-button,
+        .sk-recognition-about-button:link,
+        .sk-recognition-about-button:visited,
+        .sk-recognition-about-button:focus,
+        .sk-recognition-about-button:hover,
+        .sk-recognition-about-button:active {
+          color: #000000 !important;
+          -webkit-text-fill-color: #000000 !important;
+        }
+
         .sk-recognition-enter {
           animation: sk-recognition-enter 720ms cubic-bezier(0.22, 1, 0.36, 1)
             both;
@@ -737,11 +733,7 @@ export default function GooglePlayRecognitionExperience() {
           }
           100% {
             opacity: 0;
-            transform: translate3d(
-                var(--sk-drift),
-                112vh,
-                0
-              )
+            transform: translate3d(var(--sk-drift), 112vh, 0)
               rotate(calc(var(--sk-rotate) + 720deg));
           }
         }
