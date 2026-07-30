@@ -1913,7 +1913,7 @@ export default function StayKnownHomePage() {
       `}</style>
 
       <header className="sticky top-0 z-50 border-b border-white/[0.08] bg-black/82 backdrop-blur-2xl">
-        <div className="mx-auto flex min-h-[68px] w-full max-w-none items-center justify-between gap-3 px-3 sm:px-4 lg:pl-6 lg:pr-1">
+        <div className="mx-auto flex min-h-[68px] max-w-6xl items-center justify-between gap-3 px-4 sm:px-5 lg:px-6">
           <a
             href="#top"
             className="inline-flex min-h-10 items-center gap-2.5 rounded-[14px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/35"
@@ -1947,7 +1947,7 @@ export default function StayKnownHomePage() {
             ))}
           </nav>
 
-          <div className="ml-auto flex shrink-0 items-center gap-1">
+          <div className="flex items-center gap-1">
             <a
               href={GOOGLE_PLAY_URL}
               target="_blank"

@@ -33,11 +33,18 @@ type PublicWebsiteVisitCounterProps = {
 };
 
 function safeCount(value: unknown): string {
-  if (typeof value === "string" && /^\d+$/.test(value.trim())) {
+  if (
+    typeof value === "string" &&
+    /^\d+$/.test(value.trim())
+  ) {
     return value.trim().replace(/^0+(?=\d)/, "");
   }
 
-  if (typeof value === "number" && Number.isFinite(value) && value >= 0) {
+  if (
+    typeof value === "number" &&
+    Number.isFinite(value) &&
+    value >= 0
+  ) {
     return Math.trunc(value).toString();
   }
 
@@ -56,7 +63,11 @@ function safeIsoDate(value: unknown): string | null {
 }
 
 function parseSummary(value: unknown): VisitSummary | null {
-  if (value == null || typeof value !== "object" || Array.isArray(value)) {
+  if (
+    value == null ||
+    typeof value !== "object" ||
+    Array.isArray(value)
+  ) {
     return null;
   }
 
@@ -67,15 +78,21 @@ function parseSummary(value: unknown): VisitSummary | null {
   return {
     totalVisits: safeCount(payload.totalVisits),
     todayVisits: safeCount(payload.todayVisits),
-    trackedPublicRoutes: safeCount(payload.trackedPublicRoutes),
-    recordingStartedAt: safeIsoDate(payload.recordingStartedAt),
+    trackedPublicRoutes: safeCount(
+      payload.trackedPublicRoutes,
+    ),
+    recordingStartedAt: safeIsoDate(
+      payload.recordingStartedAt,
+    ),
     lastRecordedAt: safeIsoDate(payload.lastRecordedAt),
   };
 }
 
 function formatCount(value: string): string {
   try {
-    return new Intl.NumberFormat("en-US").format(BigInt(value));
+    return new Intl.NumberFormat("en-US").format(
+      BigInt(value),
+    );
   } catch {
     return value;
   }
@@ -143,7 +160,10 @@ export function PublicWebsiteVisitTracker() {
   useEffect(() => {
     const path = pathname?.trim();
 
-    if (!path || lastRecordedPathRef.current === path) {
+    if (
+      !path ||
+      lastRecordedPathRef.current === path
+    ) {
       return;
     }
 
@@ -181,7 +201,10 @@ export function PublicWebsiteVisitTracker() {
         const detail = payload as VisitRecordedDetail;
 
         window.dispatchEvent(
-          new CustomEvent<VisitRecordedDetail>(SITE_VISIT_EVENT, { detail }),
+          new CustomEvent<VisitRecordedDetail>(
+            SITE_VISIT_EVENT,
+            { detail },
+          ),
         );
       } catch {
         // Visit counting must never interrupt page navigation or rendering.
@@ -199,7 +222,8 @@ export function PublicWebsiteVisitTracker() {
 export default function PublicWebsiteVisitCounter({
   className = "",
 }: PublicWebsiteVisitCounterProps) {
-  const [summary, setSummary] = useState<VisitSummary | null>(null);
+  const [summary, setSummary] =
+    useState<VisitSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const mountedRef = useRef(true);
@@ -248,7 +272,8 @@ export default function PublicWebsiteVisitCounter({
     };
 
     const handleRecordedVisit = (event: Event) => {
-      const customEvent = event as CustomEvent<VisitRecordedDetail>;
+      const customEvent =
+        event as CustomEvent<VisitRecordedDetail>;
       const detail = customEvent.detail;
 
       if (!detail || !mountedRef.current) return;
@@ -256,26 +281,35 @@ export default function PublicWebsiteVisitCounter({
       setSummary((current) => ({
         totalVisits: safeCount(detail.totalVisits),
         todayVisits: safeCount(detail.todayVisits),
-        trackedPublicRoutes: current?.trackedPublicRoutes ?? "0",
+        trackedPublicRoutes:
+          current?.trackedPublicRoutes ?? "0",
         recordingStartedAt:
           safeIsoDate(detail.recordingStartedAt) ??
           current?.recordingStartedAt ??
           null,
         lastRecordedAt:
-          safeIsoDate(detail.lastRecordedAt) ?? current?.lastRecordedAt ?? null,
+          safeIsoDate(detail.lastRecordedAt) ??
+          current?.lastRecordedAt ??
+          null,
       }));
 
       setLoading(false);
     };
 
     window.addEventListener("focus", handleFocus);
-    window.addEventListener(SITE_VISIT_EVENT, handleRecordedVisit);
+    window.addEventListener(
+      SITE_VISIT_EVENT,
+      handleRecordedVisit,
+    );
 
     return () => {
       mountedRef.current = false;
       window.clearInterval(refreshTimer);
       window.removeEventListener("focus", handleFocus);
-      window.removeEventListener(SITE_VISIT_EVENT, handleRecordedVisit);
+      window.removeEventListener(
+        SITE_VISIT_EVENT,
+        handleRecordedVisit,
+      );
     };
   }, [loadSummary]);
 
@@ -294,22 +328,34 @@ export default function PublicWebsiteVisitCounter({
 
     return () => {
       document.body.style.overflow = previousOverflow;
-      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener(
+        "keydown",
+        handleKeyDown,
+      );
     };
   }, [dialogOpen]);
 
   const formattedTotal = useMemo(
-    () => (summary ? formatCount(summary.totalVisits) : null),
+    () =>
+      summary
+        ? formatCount(summary.totalVisits)
+        : null,
     [summary],
   );
 
   const formattedToday = useMemo(
-    () => (summary ? formatCount(summary.todayVisits) : "0"),
+    () =>
+      summary
+        ? formatCount(summary.todayVisits)
+        : "0",
     [summary],
   );
 
   const formattedRoutes = useMemo(
-    () => (summary ? formatCount(summary.trackedPublicRoutes) : "0"),
+    () =>
+      summary
+        ? formatCount(summary.trackedPublicRoutes)
+        : "0",
     [summary],
   );
 
@@ -317,7 +363,9 @@ export default function PublicWebsiteVisitCounter({
     ? `${formattedTotal} recorded website visits. Open details.`
     : "Recorded website visits. Open details.";
 
-  const closeFromBackdrop = (event: ReactMouseEvent<HTMLDivElement>) => {
+  const closeFromBackdrop = (
+    event: ReactMouseEvent<HTMLDivElement>,
+  ) => {
     if (event.target === event.currentTarget) {
       setDialogOpen(false);
     }
@@ -349,7 +397,9 @@ export default function PublicWebsiteVisitCounter({
             key={formattedTotal ?? "loading"}
             className="sk-visit-count-enter tabular-nums text-[10px] font-black tracking-[-0.015em]"
           >
-            {loading && !formattedTotal ? "—" : (formattedTotal ?? "Visits")}
+            {loading && !formattedTotal
+              ? "—"
+              : formattedTotal ?? "Visits"}
           </span>
 
           <span className="hidden text-[8px] font-black uppercase tracking-[0.11em] text-white/34 sm:inline">
@@ -404,9 +454,10 @@ export default function PublicWebsiteVisitCounter({
                 id="recorded-website-visits-description"
                 className="mt-4 text-[12.5px] font-semibold leading-relaxed text-white/58"
               >
-                This total increases when a public StayKnown page is opened.
-                Repeat openings are included, so the number represents recorded
-                visits rather than a claim about unique individuals.
+                This total increases when a public StayKnown
+                page is opened. Repeat openings are included,
+                so the number represents recorded visits rather
+                than a claim about unique individuals.
               </p>
 
               <div className="mt-6 grid grid-cols-2 gap-3">
@@ -459,15 +510,16 @@ export default function PublicWebsiteVisitCounter({
               </dl>
 
               <div className="mt-4 rounded-[18px] border border-white/[0.09] bg-white/[0.025] p-3.5 text-[10.5px] font-semibold leading-relaxed text-white/42">
-                The public total begins from the activation of this measurement
-                system. It is not padded with estimated history, and no personal
-                identity is displayed by the counter.
+                The public total begins from the activation of
+                this measurement system. It is not padded with
+                estimated history, and no personal identity is
+                displayed by the counter.
               </div>
 
               <button
                 type="button"
                 onClick={() => setDialogOpen(false)}
-                className="mt-5 inline-flex min-h-10 w-full items-center justify-center rounded-[14px] border border-white bg-white px-4 text-[10px] font-black uppercase tracking-[0.12em] text-black shadow-[0_12px_28px_rgba(0,0,0,0.34),inset_0_1px_0_rgba(255,255,255,1)] transition hover:-translate-y-0.5 hover:bg-[#111] hover:text-white active:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+                className="sk-visit-understand-button mt-5 inline-flex min-h-10 w-full items-center justify-center rounded-[14px] border border-white bg-white px-4 text-[10px] font-black uppercase tracking-[0.12em] text-black shadow-[0_12px_28px_rgba(0,0,0,0.34),inset_0_1px_0_rgba(255,255,255,1)] transition hover:-translate-y-0.5 hover:bg-[#111] hover:!text-white active:translate-y-0 active:!text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
               >
                 I understand
               </button>
@@ -477,41 +529,51 @@ export default function PublicWebsiteVisitCounter({
       ) : null}
 
       <style jsx>{`
-        .sk-visit-counter-outline {
-          padding: 1px;
-          background: conic-gradient(
-            from 0deg,
-            rgba(255, 255, 255, 0.1),
-            rgba(255, 255, 255, 0.72),
-            rgba(90, 90, 90, 0.38),
-            rgba(255, 255, 255, 0.16),
-            rgba(255, 255, 255, 0.7),
-            rgba(255, 255, 255, 0.1)
-          );
-          animation: sk-visit-outline-spin 4.8s linear infinite;
+        @property --sk-visit-outline-angle {
+          syntax: "<angle>";
+          inherits: false;
+          initial-value: 0deg;
         }
 
-        .sk-visit-counter-outline::after {
-          content: "";
-          position: absolute;
-          inset: 1px;
-          border-radius: inherit;
-          background: #000;
+        .sk-visit-counter-outline {
+          --sk-visit-outline-angle: 0deg;
+          background: conic-gradient(
+            from var(--sk-visit-outline-angle),
+            rgba(255, 255, 255, 0.2),
+            rgba(170, 170, 170, 0.72),
+            rgba(32, 32, 32, 0.92),
+            rgba(112, 112, 112, 0.62),
+            rgba(255, 255, 255, 0.82),
+            rgba(78, 78, 78, 0.72),
+            rgba(255, 255, 255, 0.2)
+          );
+          animation: sk-visit-outline-spin 9.5s linear infinite;
+          opacity: 1;
+          will-change: --sk-visit-outline-angle;
+        }
+
+        .sk-visit-understand-button:hover,
+        .sk-visit-understand-button:active {
+          color: #ffffff !important;
+          -webkit-text-fill-color: #ffffff !important;
         }
 
         .sk-visit-count-enter {
-          animation: sk-visit-count-enter 340ms cubic-bezier(0.22, 1, 0.36, 1)
-            both;
+          animation: sk-visit-count-enter 340ms
+            cubic-bezier(0.22, 1, 0.36, 1) both;
         }
 
         .sk-visit-dialog-enter {
-          animation: sk-visit-dialog-enter 220ms cubic-bezier(0.22, 1, 0.36, 1)
-            both;
+          animation: sk-visit-dialog-enter 220ms
+            cubic-bezier(0.22, 1, 0.36, 1) both;
         }
 
         @keyframes sk-visit-outline-spin {
+          from {
+            --sk-visit-outline-angle: 0deg;
+          }
           to {
-            transform: rotate(360deg);
+            --sk-visit-outline-angle: 360deg;
           }
         }
 

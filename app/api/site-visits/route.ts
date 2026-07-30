@@ -47,7 +47,22 @@ const BLOCKED_PATH_PREFIXES = [
   "/live",
   "/mail-auth",
   "/mail-console",
+  "/mail-login",
   "/login-callback",
+  "/chat-map",
+  "/check-in",
+  "/contact-approval",
+  "/minor-signup-approval",
+  "/missed-im-safe-response",
+  "/threat-alert-map",
+  "/threat-alert-response",
+  "/billing/paystack/callback",
+  "/donate/verify",
+  "/unsubscribe",
+  "/account-closure/action",
+  "/account-closure/contact-action",
+  "/account-closure/owner-unlock/action",
+  "/account-closure/reactivation/action",
 ] as const;
 
 const responseHeaders: Record<string, string> = {
@@ -62,7 +77,10 @@ const responseHeaders: Record<string, string> = {
   "X-Robots-Tag": "noindex, nofollow, noarchive, nosnippet",
 };
 
-function jsonResponse(body: JsonObject, status = 200): NextResponse {
+function jsonResponse(
+  body: JsonObject,
+  status = 200,
+): NextResponse {
   return NextResponse.json(body, {
     status,
     headers: responseHeaders,
@@ -71,9 +89,11 @@ function jsonResponse(body: JsonObject, status = 200): NextResponse {
 
 function adminClient() {
   const supabaseUrl =
-    process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
+    process.env.NEXT_PUBLIC_SUPABASE_URL ||
+    process.env.SUPABASE_URL;
 
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const serviceRoleKey =
+    process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (!supabaseUrl || !serviceRoleKey) {
     throw new Error("website_visit_counter_not_configured");
@@ -89,7 +109,11 @@ function adminClient() {
 }
 
 function asObject(value: unknown): JsonObject {
-  if (value == null || typeof value !== "object" || Array.isArray(value)) {
+  if (
+    value == null ||
+    typeof value !== "object" ||
+    Array.isArray(value)
+  ) {
     return {};
   }
 
@@ -105,11 +129,18 @@ function firstRpcRow(value: unknown): JsonObject {
 }
 
 function countString(value: unknown): string {
-  if (typeof value === "number" && Number.isFinite(value) && value >= 0) {
+  if (
+    typeof value === "number" &&
+    Number.isFinite(value) &&
+    value >= 0
+  ) {
     return Math.trunc(value).toString();
   }
 
-  if (typeof value === "string" && /^\d+$/.test(value.trim())) {
+  if (
+    typeof value === "string" &&
+    /^\d+$/.test(value.trim())
+  ) {
     return value.trim().replace(/^0+(?=\d)/, "");
   }
 
@@ -132,7 +163,10 @@ function isBlockedPath(pathname: string): boolean {
   const lowerPath = pathname.toLowerCase();
 
   return BLOCKED_PATH_PREFIXES.some((prefix) => {
-    return lowerPath === prefix || lowerPath.startsWith(`${prefix}/`);
+    return (
+      lowerPath === prefix ||
+      lowerPath.startsWith(`${prefix}/`)
+    );
   });
 }
 
@@ -181,15 +215,23 @@ function headerOrigin(value: string | null): string | null {
   }
 }
 
-function isSameOriginBrowserRequest(request: NextRequest): boolean {
+function isSameOriginBrowserRequest(
+  request: NextRequest,
+): boolean {
   const expectedOrigin = request.nextUrl.origin;
   const origin = headerOrigin(request.headers.get("origin"));
   const referer = headerOrigin(request.headers.get("referer"));
-  const fetchSite = (request.headers.get("sec-fetch-site") ?? "")
+  const fetchSite = (
+    request.headers.get("sec-fetch-site") ?? ""
+  )
     .trim()
     .toLowerCase();
 
-  if (fetchSite && fetchSite !== "same-origin" && fetchSite !== "none") {
+  if (
+    fetchSite &&
+    fetchSite !== "same-origin" &&
+    fetchSite !== "none"
+  ) {
     return false;
   }
 
@@ -213,17 +255,27 @@ function isPrefetchRequest(request: NextRequest): boolean {
 }
 
 function isObviousCrawler(request: NextRequest): boolean {
-  const userAgent = (request.headers.get("user-agent") ?? "").trim();
+  const userAgent = (
+    request.headers.get("user-agent") ?? ""
+  ).trim();
 
   if (!userAgent) return true;
 
   return BOT_USER_AGENT_PATTERN.test(userAgent);
 }
 
-function safeLogFailure(operation: string, error: unknown): void {
-  const type = error instanceof Error ? error.name : "UnknownError";
+function safeLogFailure(
+  operation: string,
+  error: unknown,
+): void {
+  const type =
+    error instanceof Error
+      ? error.name
+      : "UnknownError";
 
-  console.error(`SITE_VISITS ${operation}_failed type=${type}`);
+  console.error(
+    `SITE_VISITS ${operation}_failed type=${type}`,
+  );
 }
 
 function summaryPayload(row: VisitSummaryRow): JsonObject {
@@ -231,8 +283,12 @@ function summaryPayload(row: VisitSummaryRow): JsonObject {
     ok: true,
     totalVisits: countString(row.total_visits),
     todayVisits: countString(row.today_visits),
-    trackedPublicRoutes: countString(row.tracked_public_routes),
-    recordingStartedAt: isoDateOrNull(row.recording_started_at),
+    trackedPublicRoutes: countString(
+      row.tracked_public_routes,
+    ),
+    recordingStartedAt: isoDateOrNull(
+      row.recording_started_at,
+    ),
     lastRecordedAt: isoDateOrNull(row.last_recorded_at),
     measurement: "recorded_public_page_openings",
     repeatVisitsIncluded: true,
@@ -240,7 +296,10 @@ function summaryPayload(row: VisitSummaryRow): JsonObject {
   };
 }
 
-function recordPayload(row: VisitRecordRow, path: string): JsonObject {
+function recordPayload(
+  row: VisitRecordRow,
+  path: string,
+): JsonObject {
   return {
     ok: true,
     recorded: true,
@@ -248,7 +307,9 @@ function recordPayload(row: VisitRecordRow, path: string): JsonObject {
     totalVisits: countString(row.total_visits),
     routeVisits: countString(row.route_visits),
     todayVisits: countString(row.today_visits),
-    recordingStartedAt: isoDateOrNull(row.recording_started_at),
+    recordingStartedAt: isoDateOrNull(
+      row.recording_started_at,
+    ),
     lastRecordedAt: isoDateOrNull(row.last_recorded_at),
     measurement: "recorded_public_page_openings",
     repeatVisitsIncluded: true,
@@ -260,16 +321,22 @@ export async function GET(): Promise<NextResponse> {
   try {
     const admin = adminClient();
 
-    const { data, error } = await admin.rpc("get_public_website_visit_summary");
+    const { data, error } = await admin.rpc(
+      "get_public_website_visit_summary",
+    );
 
     if (error) {
-      safeLogFailure("summary_rpc", new Error(error.code || "rpc_error"));
+      safeLogFailure(
+        "summary_rpc",
+        new Error(error.code || "rpc_error"),
+      );
 
       return jsonResponse(
         {
           ok: false,
           code: "summary_unavailable",
-          message: "The recorded visit total is temporarily unavailable.",
+          message:
+            "The recorded visit total is temporarily unavailable.",
         },
         503,
       );
@@ -285,26 +352,33 @@ export async function GET(): Promise<NextResponse> {
       {
         ok: false,
         code: "summary_unavailable",
-        message: "The recorded visit total is temporarily unavailable.",
+        message:
+          "The recorded visit total is temporarily unavailable.",
       },
       503,
     );
   }
 }
 
-export async function POST(request: NextRequest): Promise<NextResponse> {
+export async function POST(
+  request: NextRequest,
+): Promise<NextResponse> {
   if (!isSameOriginBrowserRequest(request)) {
     return jsonResponse(
       {
         ok: false,
         code: "invalid_origin",
-        message: "This visit could not be recorded from the current request.",
+        message:
+          "This visit could not be recorded from the current request.",
       },
       403,
     );
   }
 
-  if (isPrefetchRequest(request) || isObviousCrawler(request)) {
+  if (
+    isPrefetchRequest(request) ||
+    isObviousCrawler(request)
+  ) {
     return jsonResponse(
       {
         ok: true,
@@ -315,7 +389,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     );
   }
 
-  const contentType = (request.headers.get("content-type") ?? "").toLowerCase();
+  const contentType = (
+    request.headers.get("content-type") ?? ""
+  ).toLowerCase();
 
   if (!contentType.includes("application/json")) {
     return jsonResponse(
@@ -333,7 +409,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     10,
   );
 
-  if (Number.isFinite(declaredLength) && declaredLength > MAX_BODY_BYTES) {
+  if (
+    Number.isFinite(declaredLength) &&
+    declaredLength > MAX_BODY_BYTES
+  ) {
     return jsonResponse(
       {
         ok: false,
@@ -359,7 +438,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     );
   }
 
-  if (!rawBody || Buffer.byteLength(rawBody, "utf8") > MAX_BODY_BYTES) {
+  if (
+    !rawBody ||
+    Buffer.byteLength(rawBody, "utf8") >
+      MAX_BODY_BYTES
+  ) {
     return jsonResponse(
       {
         ok: false,
@@ -402,12 +485,18 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
     const admin = adminClient();
 
-    const { data, error } = await admin.rpc("record_public_website_visit", {
-      p_path: path,
-    });
+    const { data, error } = await admin.rpc(
+      "record_public_website_visit",
+      {
+        p_path: path,
+      },
+    );
 
     if (error) {
-      safeLogFailure("record_rpc", new Error(error.code || "rpc_error"));
+      safeLogFailure(
+        "record_rpc",
+        new Error(error.code || "rpc_error"),
+      );
 
       return jsonResponse(
         {
@@ -430,7 +519,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       {
         ok: false,
         code: "recording_unavailable",
-        message: "This page opening could not be added to the total right now.",
+        message:
+          "This page opening could not be added to the total right now.",
       },
       503,
     );
