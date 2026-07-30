@@ -4,7 +4,6 @@ import Image from "next/image";
 import { useEffect, useState } from "react";
 import HeroSlider, { type HeroSlide } from "@/components/HeroSlider";
 import StayKnownActionMenu from "@/components/StayKnownActionMenu";
-import PublicWebsiteVisitCounter from "@/components/PublicWebsiteVisitCounter";
 import StayKnownHowItWorks from "@/components/StayKnownHowItWorks";
 import { HOME_FAQS } from "@/lib/stayknown-home-content";
 import StayKnownRecognitionPill from "@/components/StayKnownRecognitionPill";
@@ -1959,7 +1958,6 @@ export default function StayKnownHomePage() {
             <div className="sk-menu-wrap">
               <StayKnownActionMenu />
             </div>
-            <PublicWebsiteVisitCounter />
           </div>
         </div>
 

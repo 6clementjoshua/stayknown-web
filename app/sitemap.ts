@@ -5,6 +5,7 @@ const PREVIOUS_CONTENT_UPDATE = "2026-05-31";
 const HOMEPAGE_UPDATE = "2026-07-24";
 const ACCOUNT_CLOSURE_UPDATE = "2026-07-27";
 const RECOGNITION_UPDATE = "2026-07-30";
+const WEBSITE_REACH_UPDATE = "2026-07-30";
 
 type SitemapEntry = MetadataRoute.Sitemap[number];
 type ChangeFrequency = NonNullable<SitemapEntry["changeFrequency"]>;
@@ -194,6 +195,12 @@ const coreRoutes: readonly PublicRoute[] = [
       absoluteUrl("/hero/visit-live-sos.png"),
       absoluteUrl("/hero/contact-approval.png"),
     ],
+  },
+  {
+    path: "/website-reach",
+    lastModified: WEBSITE_REACH_UPDATE,
+    changeFrequency: "daily",
+    priority: 0.76,
   },
   {
     path: "/donate",
@@ -489,20 +496,13 @@ export default function sitemap(): MetadataRoute.Sitemap {
   return Array.from(uniqueRoutes.entries()).map(
     ([
       url,
-      {
-        lastModified,
-        changeFrequency,
-        priority,
-        images,
-      },
+      { lastModified, changeFrequency, priority, images },
     ]): SitemapEntry => ({
       url,
       ...(lastModified ? { lastModified } : {}),
       changeFrequency,
       priority,
-      ...(images?.length
-        ? { images: Array.from(new Set(images)) }
-        : {}),
+      ...(images?.length ? { images: Array.from(new Set(images)) } : {}),
     }),
   );
 }

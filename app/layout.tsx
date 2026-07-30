@@ -1,6 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import { Inter, Space_Grotesk } from "next/font/google";
+
+import { PublicWebsiteVisitTracker } from "@/components/PublicWebsiteVisitCounter";
+
 import "./globals.css";
 
 /*
@@ -45,8 +48,11 @@ const ANDROID_PACKAGE = "com.stayknown.app";
 const GOOGLE_PLAY_URL =
   "https://play.google.com/store/apps/details?id=com.stayknown.app";
 
-const DEFAULT_TITLE =
-  "StayKnown: Consent-First Personal Safety, Visits & SOS";
+const TIKTOK_URL = "https://www.tiktok.com/@stayknownapp";
+const X_URL = "https://x.com/stayknownapp";
+const YOUTUBE_URL = "https://www.youtube.com/@stayknownapp";
+
+const DEFAULT_TITLE = "StayKnown: Consent-First Personal Safety, Visits & SOS";
 
 const DEFAULT_DESCRIPTION =
   "StayKnown is a consent-first personal safety app for Android with active Visits, LIVE sharing, I’M SAFE check-ins, SOS alerts, approved contacts and secure chat.";
@@ -234,6 +240,7 @@ function buildGlobalJsonLd() {
           contentUrl: absoluteUrl(OG_IMAGE),
           caption: "StayKnown personal safety app",
         },
+        sameAs: [GOOGLE_PLAY_URL, TIKTOK_URL, X_URL, YOUTUBE_URL],
         knowsAbout: [
           "Consent-first personal safety",
           "Active Visit safety",
@@ -242,6 +249,9 @@ function buildGlobalJsonLd() {
           "Safety check-ins",
           "SOS alerts",
           "Secure safety communication",
+          "Guardian safeguards",
+          "Device and session security",
+          "Safety history",
         ],
       },
       {
@@ -276,6 +286,9 @@ function buildGlobalJsonLd() {
           "Approved-contact safety access",
           "Secure chat and safety context",
           "Safety evidence and recognition",
+          "Guardian safeguards",
+          "Device and session security",
+          "Safety history and delivery health",
         ],
         author: {
           "@id": organizationId,
@@ -341,6 +354,8 @@ export default function RootLayout({
         >
           Skip to main content
         </a>
+
+        <PublicWebsiteVisitTracker />
 
         <div id="main-content" tabIndex={-1} className="min-h-screen">
           {children}
