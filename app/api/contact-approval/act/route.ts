@@ -6,6 +6,8 @@ import { createClient } from "@supabase/supabase-js";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
+const INTERNAL_EDGE_TIMEOUT_MS = 4_000;
+
 type Actor = "owner" | "target";
 type Decision = "approve" | "decline";
 
@@ -86,7 +88,13 @@ function verifySignature(p: {
     .replace(/\//g, "_")
     .replace(/=+$/g, "");
 
-  if (expected !== p.sig) {
+  const expectedBuffer = Buffer.from(expected);
+  const suppliedBuffer = Buffer.from(p.sig);
+
+  if (
+    expectedBuffer.length !== suppliedBuffer.length ||
+    !crypto.timingSafeEqual(expectedBuffer, suppliedBuffer)
+  ) {
     return { ok: false, reason: "bad_signature" as const };
   }
 
@@ -159,7 +167,6 @@ function requestState(row: ApprovalRow) {
 
 function publicApprovalRequest(row: ApprovalRow) {
   return {
-    id: row.id,
     status: row.status ?? null,
     added_type: row.added_type ?? null,
     expires_at: row.expires_at ?? null,
@@ -275,44 +282,73 @@ async function removePendingContact(
   throw new Error("Unsupported added_type for pending contact removal");
 }
 
-async function invokeInternalEdge(
+async function invokeInternalEdgeBestEffort(
   name: string,
   payload: Record<string, unknown>,
-) {
+): Promise<boolean> {
   const baseUrl = (process.env.SUPABASE_FUNCTIONS_URL || "").trim();
   const anonKey = (process.env.SUPABASE_ANON_KEY || "").trim();
   const internalSecret = (process.env.INTERNAL_EDGE_SECRET || "").trim();
 
   if (!baseUrl || !anonKey || !internalSecret) {
-    throw new Error(
-      "Missing edge configuration for approval follow-up notifications.",
-    );
+    console.error("[contact-approval/act] notification configuration missing", {
+      functionName: name,
+    });
+    return false;
   }
 
-  const res = await fetch(`${baseUrl}/${name}`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      apikey: anonKey,
-      Authorization: `Bearer ${anonKey}`,
-      "x-internal-secret": internalSecret,
-    },
-    body: JSON.stringify(payload),
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(
+    () => controller.abort(),
+    INTERNAL_EDGE_TIMEOUT_MS,
+  );
 
-  const json = await res.json().catch(() => ({}));
+  try {
+    const response = await fetch(`${baseUrl}/${name}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: anonKey,
+        Authorization: `Bearer ${anonKey}`,
+        "x-internal-secret": internalSecret,
+      },
+      signal: controller.signal,
+      body: JSON.stringify(payload),
+    });
 
-  if (!res.ok || (json && json.ok === false)) {
-    throw new Error(
-      `Edge ${name} failed: ${
-        json && typeof json.error === "string"
-          ? json.error
-          : `${res.status} ${res.statusText}`
-      }`,
+    const data = await response.json().catch(() => null);
+
+    if (
+      !response.ok ||
+      (data && typeof data === "object" && data.ok === false)
+    ) {
+      console.error("[contact-approval/act] notification side effect failed", {
+        functionName: name,
+        httpStatus: response.status,
+        deliveryState:
+          data && typeof data === "object" && "delivery_state" in data
+            ? String(data.delivery_state || "")
+            : "",
+      });
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error(
+      "[contact-approval/act] notification side effect unavailable",
+      {
+        functionName: name,
+        reason:
+          error instanceof DOMException && error.name === "AbortError"
+            ? "timeout"
+            : "request_failed",
+      },
     );
+    return false;
+  } finally {
+    clearTimeout(timeout);
   }
-
-  return json;
 }
 
 async function loadApprovedContactItem(
@@ -368,6 +404,33 @@ async function loadApprovedContactItem(
   throw new Error("Unsupported added_type");
 }
 
+function logInternalRouteError(error: unknown) {
+  if (error instanceof Error) {
+    console.error("[contact-approval/act] authoritative operation failed", {
+      name: error.name,
+      message: error.message,
+    });
+    return;
+  }
+
+  console.error("[contact-approval/act] authoritative operation failed", {
+    name: "UnknownError",
+  });
+}
+
+function publicServerFailure() {
+  return NextResponse.json(
+    {
+      ok: false,
+      state: "error",
+      code: "contact_approval_temporarily_unavailable",
+      message:
+        "This request could not be completed right now. Please try again shortly.",
+    },
+    { status: 500 },
+  );
+}
+
 export async function POST(req: Request) {
   try {
     const body = await req.json().catch(() => ({}));
@@ -383,6 +446,7 @@ export async function POST(req: Request) {
         {
           ok: false,
           state: "invalid",
+          code: "approval_details_missing",
           message: "This request is missing required approval details.",
         },
         { status: 400 },
@@ -402,6 +466,10 @@ export async function POST(req: Request) {
         {
           ok: false,
           state: verified.reason === "expired" ? "expired" : "invalid",
+          code:
+            verified.reason === "expired"
+              ? "approval_link_expired"
+              : "approval_link_invalid",
           message:
             verified.reason === "expired"
               ? "This request expired for security reasons. Please restart the process."
@@ -455,6 +523,7 @@ export async function POST(req: Request) {
         {
           ok: false,
           state: "invalid",
+          code: "approval_request_not_found",
           message: "This request could not be found.",
         },
         { status: 404 },
@@ -495,7 +564,7 @@ export async function POST(req: Request) {
       }
 
       if (clean((expiredClaim as Record<string, unknown> | null)?.id)) {
-        await invokeInternalEdge("contact_declined_notify", {
+        await invokeInternalEdgeBestEffort("contact_declined_notify", {
           request_id: requestId,
           resolution: "expired",
           actor: "system",
@@ -515,6 +584,7 @@ export async function POST(req: Request) {
       return NextResponse.json({
         ok: false,
         state: "expired",
+        code: "approval_request_expired",
         message:
           "This request expired for security reasons. Please restart the process.",
         request: publicApprovalRequest(row),
@@ -525,6 +595,7 @@ export async function POST(req: Request) {
       return NextResponse.json({
         ok: false,
         state: "declined",
+        code: "approval_request_declined",
         message: "This request was already declined and cannot proceed.",
         request: publicApprovalRequest(row),
       });
@@ -534,6 +605,7 @@ export async function POST(req: Request) {
       return NextResponse.json({
         ok: false,
         state: "already_resolved",
+        code: "approval_request_completed",
         message: "This request was already completed successfully.",
         request: publicApprovalRequest(row),
       });
@@ -548,6 +620,7 @@ export async function POST(req: Request) {
       return NextResponse.json({
         ok: true,
         state: requestState(row),
+        code: "approval_decision_already_recorded",
         message:
           actor === "owner"
             ? "Your decision was already recorded. Waiting for the contact email owner."
@@ -658,7 +731,7 @@ export async function POST(req: Request) {
       const removedPendingContact = await removePendingContact(sb, nextRow);
 
       if (removedPendingContact) {
-        await invokeInternalEdge("contact_declined_notify", {
+        await invokeInternalEdgeBestEffort("contact_declined_notify", {
           request_id: clean(nextRow.id),
           resolution: "declined",
           actor,
@@ -679,6 +752,7 @@ export async function POST(req: Request) {
       return NextResponse.json({
         ok: true,
         state: "declined",
+        code: "approval_request_declined",
         message:
           actor === "owner"
             ? "You declined this request. The email will not be added."
@@ -692,7 +766,7 @@ export async function POST(req: Request) {
       if (finalizedNow) {
         const approvedContact = await loadApprovedContactItem(sb, nextRow);
 
-        await invokeInternalEdge("contact_added_notify", {
+        await invokeInternalEdgeBestEffort("contact_added_notify", {
           adder_user_id: clean(nextRow.requester_id),
           added_type: approvedContact.addedType,
           adder_name: clean(nextRow.requester_name) || "StayKnown User",
@@ -739,6 +813,7 @@ export async function POST(req: Request) {
       return NextResponse.json({
         ok: true,
         state: "fully_approved",
+        code: "approval_request_completed",
         message:
           "Both confirmations are complete. The contact has now been added successfully.",
         request: publicApprovalRequest(
@@ -747,7 +822,11 @@ export async function POST(req: Request) {
       });
     }
 
-    await invokeInternalEdge("contact_approval_progress_notify", {
+    // Approval state is already authoritative at this point. Push/email
+    // progress delivery is a secondary side effect. Missing push registration,
+    // provider failure or an Edge timeout must never turn the recorded
+    // approval into a public failure.
+    await invokeInternalEdgeBestEffort("contact_approval_progress_notify", {
       request_id: clean(nextRow.id),
       completed_actor: actor,
     });
@@ -755,23 +834,15 @@ export async function POST(req: Request) {
     return NextResponse.json({
       ok: true,
       state: "pending_other_party",
+      code: "approval_decision_recorded",
       message:
         actor === "owner"
           ? "Your confirmation has been recorded. The request will complete when the contact email owner also confirms."
           : "Your confirmation has been recorded. The request will complete when the account owner also confirms.",
       request: publicApprovalRequest(nextRow),
     });
-  } catch (e) {
-    return NextResponse.json(
-      {
-        ok: false,
-        state: "error",
-        message:
-          e instanceof Error
-            ? e.message
-            : "This request could not be completed right now.",
-      },
-      { status: 500 },
-    );
+  } catch (error) {
+    logInternalRouteError(error);
+    return publicServerFailure();
   }
 }
