@@ -17,7 +17,7 @@ export const metadata: Metadata = {
   description: DESCRIPTION,
 
   alternates: {
-    canonical: "/",
+    canonical: SITE_URL,
   },
 
   keywords: [
@@ -45,7 +45,7 @@ export const metadata: Metadata = {
 
   openGraph: {
     type: "website",
-    url: "/",
+    url: SITE_URL,
     title: TITLE,
     description: DESCRIPTION,
     siteName: "StayKnown",
