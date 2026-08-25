@@ -11,20 +11,11 @@ type MinorSignupRow = {
   minor_email?: string | null;
   minor_first_name?: string | null;
   minor_last_name?: string | null;
-  minor_gender?: string | null;
-  minor_date_of_birth?: string | null;
   minor_age_years?: number | null;
 
   guardian_email?: string | null;
-  guardian_user_id?: string | null;
   guardian_first_name?: string | null;
   guardian_last_name?: string | null;
-  guardian_entered_first_name?: string | null;
-  guardian_entered_last_name?: string | null;
-  guardian_identity_source?: string | null;
-  guardian_identity_resolved_at?: string | null;
-  guardian_identity_mismatch?: boolean | null;
-  guardian_phone?: string | null;
   guardian_relationship?: string | null;
 
   status?: string | null;
@@ -45,6 +36,20 @@ type MinorSignupRow = {
   updated_at?: string | null;
 };
 
+const PRIVATE_RESPONSE_HEADERS = {
+  "Cache-Control": "no-store, no-cache, must-revalidate, private",
+  Pragma: "no-cache",
+  "Referrer-Policy": "no-referrer",
+  "X-Content-Type-Options": "nosniff",
+};
+
+function json(body: Record<string, unknown>, status = 200) {
+  return NextResponse.json(body, {
+    status,
+    headers: PRIVATE_RESPONSE_HEADERS,
+  });
+}
+
 function admin() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceRole = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -64,6 +69,12 @@ function clean(v: unknown) {
 
 function lower(v: unknown) {
   return clean(v).toLowerCase();
+}
+
+function looksLikeUuid(v: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    v,
+  );
 }
 
 function maskEmail(email?: string | null) {
@@ -137,26 +148,11 @@ function publicRequest(row: MinorSignupRow) {
     minor_email_masked: maskEmail(row.minor_email),
     minor_age_years: row.minor_age_years ?? null,
 
-    // This must use the canonical/resolved guardian name.
-    // If /start resolved the guardian email to a StayKnown profile,
-    // these fields now contain the real account owner name.
+    // Only canonical/resolved guardian identity is public to this polling flow.
+    // Internal guardian account IDs and typed-name audit evidence stay server-side.
     guardian_name: guardianName || "the guardian",
     guardian_email_masked: maskEmail(row.guardian_email),
     guardian_relationship: clean(row.guardian_relationship) || "parent",
-
-    // Identity metadata. The current client can ignore these, but they help
-    // website/debug/admin flows know whether the guardian name was resolved
-    // from a real StayKnown profile or typed by the minor.
-    guardian_identity_source:
-      clean(row.guardian_identity_source) || "typed_by_minor",
-    guardian_identity_mismatch: row.guardian_identity_mismatch === true,
-    guardian_user_id: clean(row.guardian_user_id) || null,
-
-    // Audit-only typed name. Do not display this as the true guardian name.
-    guardian_entered_name: fullName(
-      row.guardian_entered_first_name,
-      row.guardian_entered_last_name,
-    ),
 
     minor_approved: row.minor_approved === true,
     guardian_approved: row.guardian_approved === true,
@@ -179,19 +175,34 @@ export async function GET(req: Request) {
     const url = new URL(req.url);
     const requestId = clean(url.searchParams.get("rid"));
 
-    if (!requestId) {
-      return NextResponse.json(
+    if (!requestId || !looksLikeUuid(requestId)) {
+      return json(
         {
           ok: false,
           state: "invalid",
-          message: "Missing minor signup request id.",
+          message: "Missing or invalid minor signup request id.",
         },
-        { status: 400 },
+        400,
       );
     }
 
     const sb = admin();
 
+    /*
+      Keep this query deliberately narrow.
+
+      The public polling response does NOT need:
+        - guardian_user_id
+        - guardian entered-name audit evidence
+        - guardian identity resolution metadata
+        - guardian phone
+        - minor DOB/gender
+        - consent_snapshot
+        - IP / user-agent / location audit fields
+
+      Those remain in minor_signup_requests for the authoritative server-side
+      consent and safety flows, but are not loaded by this public status route.
+    */
     const { data, error } = await sb
       .from("minor_signup_requests")
       .select(
@@ -201,20 +212,11 @@ export async function GET(req: Request) {
           minor_email,
           minor_first_name,
           minor_last_name,
-          minor_gender,
-          minor_date_of_birth,
           minor_age_years,
 
           guardian_email,
-          guardian_user_id,
           guardian_first_name,
           guardian_last_name,
-          guardian_entered_first_name,
-          guardian_entered_last_name,
-          guardian_identity_source,
-          guardian_identity_resolved_at,
-          guardian_identity_mismatch,
-          guardian_phone,
           guardian_relationship,
 
           status,
@@ -245,29 +247,35 @@ export async function GET(req: Request) {
     const row = (data as MinorSignupRow | null) ?? null;
 
     if (!row?.id) {
-      return NextResponse.json(
+      return json(
         {
           ok: false,
           state: "invalid",
           message: "This minor signup request could not be found.",
         },
-        { status: 404 },
+        404,
       );
     }
 
     const state = requestState(row);
 
+    // Preserve the existing idempotent expiry reconciliation behavior.
     if (state === "expired" && lower(row.status) !== "expired") {
-      await sb
+      const { error: expireError } = await sb
         .from("minor_signup_requests")
         .update({
           status: "expired",
           updated_at: new Date().toISOString(),
         })
-        .eq("id", requestId);
+        .eq("id", requestId)
+        .neq("status", "expired");
+
+      if (expireError) {
+        throw expireError;
+      }
     }
 
-    return NextResponse.json({
+    return json({
       ok: true,
       state,
       request: publicRequest({
@@ -276,16 +284,17 @@ export async function GET(req: Request) {
       }),
     });
   } catch (e) {
-    return NextResponse.json(
+    // Keep operational detail server-side. Never return raw Supabase/database
+    // errors to an unauthenticated polling response.
+    console.error("[minor-signup/status] failed", e);
+
+    return json(
       {
         ok: false,
         state: "error",
-        message:
-          e instanceof Error
-            ? e.message
-            : "Could not read minor signup status right now.",
+        message: "Could not read minor signup status right now.",
       },
-      { status: 500 },
+      500,
     );
   }
 }

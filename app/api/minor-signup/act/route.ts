@@ -50,6 +50,15 @@ type MinorSignupRow = {
   updated_at?: string | null;
 };
 
+type RegisteredGuardianProfile = {
+  id: string;
+  email?: string | null;
+  age_status?: string | null;
+  date_of_birth?: string | null;
+  status?: string | null;
+  deleted_at?: string | null;
+};
+
 function admin() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceRole = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -181,7 +190,13 @@ function verifySignature(p: {
     .replace(/\//g, "_")
     .replace(/=+$/g, "");
 
-  if (expected !== p.sig) {
+  const expectedBuffer = Buffer.from(expected);
+  const suppliedBuffer = Buffer.from(p.sig);
+
+  if (
+    expectedBuffer.length !== suppliedBuffer.length ||
+    !crypto.timingSafeEqual(expectedBuffer, suppliedBuffer)
+  ) {
     return { ok: false, reason: "bad_signature" as const };
   }
 
@@ -242,15 +257,9 @@ function publicRequest(row: MinorSignupRow) {
     guardian_email_masked: maskEmail(row.guardian_email),
     guardian_relationship: clean(row.guardian_relationship) || "parent",
 
-    // Metadata for audit/debug/admin. Do not display entered name as truth.
     guardian_identity_source:
       clean(row.guardian_identity_source) || "typed_by_minor",
     guardian_identity_mismatch: row.guardian_identity_mismatch === true,
-    guardian_user_id: clean(row.guardian_user_id) || null,
-    guardian_entered_name: fullName(
-      row.guardian_entered_first_name,
-      row.guardian_entered_last_name,
-    ),
 
     minor_approved: row.minor_approved === true,
     guardian_approved: row.guardian_approved === true,
@@ -323,6 +332,116 @@ async function loadRequest(
   return (data as MinorSignupRow | null) ?? null;
 }
 
+function actorRecordedDecision(
+  row: MinorSignupRow,
+  actor: Actor,
+): Decision | null {
+  if (actor === "minor") {
+    if (row.minor_approved === true) return "approve";
+    if (row.minor_declined === true) return "decline";
+    return null;
+  }
+
+  if (row.guardian_approved === true) return "approve";
+  if (row.guardian_declined === true) return "decline";
+  return null;
+}
+
+function isAdultDob(dateOnly?: string | null) {
+  const raw = clean(dateOnly);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return false;
+
+  const dob = new Date(`${raw}T00:00:00.000Z`);
+  if (Number.isNaN(dob.getTime())) return false;
+
+  const cutoff = new Date();
+  cutoff.setUTCHours(0, 0, 0, 0);
+  cutoff.setUTCFullYear(cutoff.getUTCFullYear() - 18);
+
+  return dob.getTime() <= cutoff.getTime();
+}
+
+async function validateRegisteredGuardianForApproval(
+  sb: ReturnType<typeof admin>,
+  row: MinorSignupRow,
+) {
+  const guardianUserId = clean(row.guardian_user_id);
+
+  // External/unresolved guardians remain supported by the existing flow.
+  if (!guardianUserId) {
+    return { ok: true as const };
+  }
+
+  const { data, error } = await sb
+    .from("profiles")
+    .select("id,email,age_status,date_of_birth,status,deleted_at")
+    .eq("id", guardianUserId)
+    .maybeSingle();
+
+  if (error) throw error;
+
+  const profile = (data as RegisteredGuardianProfile | null) ?? null;
+
+  if (!profile?.id) {
+    return {
+      ok: false as const,
+      state: "guardian_profile_unavailable",
+      status: 409,
+      message:
+        "The registered StayKnown guardian profile could not be verified.",
+    };
+  }
+
+  const guardianEmail = clean(row.guardian_email).toLowerCase();
+  const profileEmail = clean(profile.email).toLowerCase();
+
+  if (!guardianEmail || !profileEmail || guardianEmail !== profileEmail) {
+    return {
+      ok: false as const,
+      state: "guardian_identity_mismatch",
+      status: 409,
+      message:
+        "The registered guardian account no longer matches this guardian consent request.",
+    };
+  }
+
+  if (
+    clean(profile.deleted_at) ||
+    lower(profile.status || "active") !== "active"
+  ) {
+    return {
+      ok: false as const,
+      state: "guardian_account_unavailable",
+      status: 409,
+      message:
+        "This registered StayKnown account is not currently eligible to act as a guardian.",
+    };
+  }
+
+  const ageStatus = lower(profile.age_status);
+
+  if (ageStatus === "minor") {
+    return {
+      ok: false as const,
+      state: "guardian_must_be_adult",
+      status: 403,
+      message: "A registered StayKnown guardian must be 18 years or older.",
+    };
+  }
+
+  if (ageStatus === "adult" || isAdultDob(profile.date_of_birth)) {
+    return { ok: true as const };
+  }
+
+  return {
+    ok: false as const,
+    state: "guardian_age_unverified",
+    status: 409,
+    message:
+      "This registered guardian account must complete its age information before it can approve a minor signup.",
+  };
+}
+
 async function invokeInternalEdge(
   name: string,
   payload: Record<string, unknown>,
@@ -376,7 +495,7 @@ async function finalizeMinorSignupIfReady(
 
   const now = toIsoNow();
 
-  const { error } = await sb
+  const { data, error } = await sb
     .from("minor_signup_requests")
     .update({
       status: "approved",
@@ -384,26 +503,17 @@ async function finalizeMinorSignupIfReady(
       updated_at: now,
     })
     .eq("id", row.id)
-    .neq("status", "approved");
+    .in("status", ["pending", "minor_approved", "guardian_approved"])
+    .select("id")
+    .maybeSingle();
 
   if (error) throw error;
 
-  /*
-    Important:
-    Do not create the Supabase Auth user inside this route yet unless your current
-    auth flow supports admin-created magic links safely.
-
-    The next step will wire this final approval to your existing "check email"
-    flow. For now, this route safely records approval and optionally calls an
-    Edge function notification if you already have one.
-
-    Later finalization will:
-    - trigger normal magic link/check-email email,
-    - create/update profile fields,
-    - set age_status = minor,
-    - set guardian_consent_status = approved,
-    - add guardian as first approved emergency/trusted contact.
-  */
+  // Another request already finalized this row. Do not send the
+  // approved notification twice.
+  if (!data?.id) {
+    return false;
+  }
 
   await invokeInternalEdge("minor_signup_approved_notify", {
     request_id: row.id,
@@ -429,16 +539,25 @@ async function markDeclined(
 ) {
   const now = toIsoNow();
 
-  const { error } = await sb
+  const { data, error } = await sb
     .from("minor_signup_requests")
     .update({
       status: "declined",
       decided_at: now,
       updated_at: now,
     })
-    .eq("id", row.id);
+    .eq("id", row.id)
+    .in("status", ["pending", "minor_approved", "guardian_approved"])
+    .select("id")
+    .maybeSingle();
 
   if (error) throw error;
+
+  // A concurrent/replayed action already transitioned this request.
+  // Only the request that wins the terminal transition sends the notice.
+  if (!data?.id) {
+    return false;
+  }
 
   await invokeInternalEdge("minor_signup_declined_notify", {
     request_id: row.id,
@@ -452,6 +571,8 @@ async function markDeclined(
     guardian_identity_mismatch: row.guardian_identity_mismatch === true,
     guardian_user_id: clean(row.guardian_user_id) || null,
   });
+
+  return true;
 }
 
 export async function POST(req: Request) {
@@ -517,6 +638,31 @@ export async function POST(req: Request) {
     }
 
     const currentState = requestState(row);
+    const recordedDecision = actorRecordedDecision(row, actor);
+
+    // Repeated clicks/retries for the same already-recorded actor decision
+    // are idempotent. Opposite decisions cannot overwrite the first one.
+    if (recordedDecision) {
+      if (recordedDecision === decision) {
+        return NextResponse.json({
+          ok: true,
+          state: currentState,
+          message: "This confirmation was already recorded.",
+          request: publicRequest(row),
+        });
+      }
+
+      return NextResponse.json(
+        {
+          ok: false,
+          state: "already_resolved",
+          message:
+            "This person already completed their decision for this minor signup request.",
+          request: publicRequest(row),
+        },
+        { status: 409 },
+      );
+    }
 
     if (currentState === "expired") {
       const now = toIsoNow();
@@ -569,6 +715,25 @@ export async function POST(req: Request) {
       });
     }
 
+    if (actor === "guardian" && decision === "approve") {
+      const guardianEligibility = await validateRegisteredGuardianForApproval(
+        sb,
+        row,
+      );
+
+      if (!guardianEligibility.ok) {
+        return NextResponse.json(
+          {
+            ok: false,
+            state: guardianEligibility.state,
+            message: guardianEligibility.message,
+            request: publicRequest(row),
+          },
+          { status: guardianEligibility.status },
+        );
+      }
+    }
+
     const now = toIsoNow();
 
     const patch: Record<string, unknown> = {
@@ -589,8 +754,6 @@ export async function POST(req: Request) {
       } else {
         patch.minor_declined = true;
         patch.minor_approved = false;
-        patch.status = "declined";
-        patch.decided_at = now;
       }
     }
 
@@ -608,17 +771,51 @@ export async function POST(req: Request) {
       } else {
         patch.guardian_declined = true;
         patch.guardian_approved = false;
-        patch.status = "declined";
-        patch.decided_at = now;
       }
     }
 
-    const { error: updateErr } = await sb
+    const actorApprovedColumn =
+      actor === "minor" ? "minor_approved" : "guardian_approved";
+    const actorDeclinedColumn =
+      actor === "minor" ? "minor_declined" : "guardian_declined";
+
+    const { data: actionWrite, error: updateErr } = await sb
       .from("minor_signup_requests")
       .update(patch)
-      .eq("id", requestId);
+      .eq("id", requestId)
+      .in("status", ["pending", "minor_approved", "guardian_approved"])
+      .eq(actorApprovedColumn, false)
+      .eq(actorDeclinedColumn, false)
+      .select("id")
+      .maybeSingle();
 
     if (updateErr) throw updateErr;
+
+    if (!actionWrite?.id) {
+      const latest = (await loadRequest(sb, requestId)) ?? row;
+      const latestDecision = actorRecordedDecision(latest, actor);
+      const latestState = requestState(latest);
+
+      if (latestDecision === decision) {
+        return NextResponse.json({
+          ok: true,
+          state: latestState,
+          message: "This confirmation was already recorded.",
+          request: publicRequest(latest),
+        });
+      }
+
+      return NextResponse.json(
+        {
+          ok: false,
+          state: "already_resolved",
+          message:
+            "This minor signup request changed before this action could be recorded.",
+          request: publicRequest(latest),
+        },
+        { status: 409 },
+      );
+    }
 
     const nextRow = (await loadRequest(sb, requestId)) ?? row;
     const nextState = requestState(nextRow);

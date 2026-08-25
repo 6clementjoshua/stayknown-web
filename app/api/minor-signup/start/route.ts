@@ -27,6 +27,12 @@ type StartBody = {
 };
 
 type GuardianIdentitySource = "stayknown_profile" | "typed_by_minor";
+type GuardianEligibility =
+  | "adult"
+  | "minor"
+  | "age_unverified"
+  | "account_unavailable"
+  | "external_or_unresolved";
 
 type GuardianIdentity = {
   user_id: string | null;
@@ -35,6 +41,7 @@ type GuardianIdentity = {
   display_name: string | null;
   source: GuardianIdentitySource;
   mismatch: boolean;
+  eligibility: GuardianEligibility;
 };
 
 type MinorSignupInsert = {
@@ -75,6 +82,9 @@ type ProfileRow = {
   first_name: string | null;
   last_name: string | null;
   status: string | null;
+  age_status: string | null;
+  date_of_birth: string | null;
+  deleted_at: string | null;
   created_at: string | null;
   updated_at: string | null;
 };
@@ -297,12 +307,14 @@ async function resolveGuardianIdentity(p: {
         first_name,
         last_name,
         status,
+        age_status,
+        date_of_birth,
+        deleted_at,
         created_at,
         updated_at
       `,
     )
     .ilike("email", p.guardianEmail)
-    .eq("status", "active")
     .order("updated_at", { ascending: false, nullsFirst: false })
     .order("created_at", { ascending: false, nullsFirst: false })
     .limit(1);
@@ -322,7 +334,32 @@ async function resolveGuardianIdentity(p: {
       display_name: enteredFullName || null,
       source: "typed_by_minor",
       mismatch: false,
+      eligibility: "external_or_unresolved",
     };
+  }
+
+  const profileStatus = clean(profile.status).toLowerCase();
+  const profileAgeStatus = clean(profile.age_status).toLowerCase();
+  const profileDob = parseDateOnly(profile.date_of_birth);
+  const profileAge = profileDob ? ageFromDateOfBirth(profileDob) : null;
+
+  let eligibility: GuardianEligibility;
+
+  if (profile.deleted_at || profileStatus !== "active") {
+    eligibility = "account_unavailable";
+  } else if (
+    profileAgeStatus === "minor" ||
+    (profileAge !== null && profileAge < 18)
+  ) {
+    // Explicit minor classification or minor DOB always wins.
+    eligibility = "minor";
+  } else if (
+    profileAgeStatus === "adult" ||
+    (profileAge !== null && profileAge >= 18)
+  ) {
+    eligibility = "adult";
+  } else {
+    eligibility = "age_unverified";
   }
 
   const profileFirst = clean(profile.first_name);
@@ -349,6 +386,7 @@ async function resolveGuardianIdentity(p: {
     display_name: resolvedFullName || profileDisplay || null,
     source: "stayknown_profile",
     mismatch,
+    eligibility,
   };
 }
 
@@ -566,6 +604,41 @@ export async function POST(req: Request) {
       enteredFirstName: guardianEnteredFirstName,
       enteredLastName: guardianEnteredLastName,
     });
+
+    if (guardianIdentity.eligibility === "minor") {
+      return NextResponse.json(
+        {
+          ok: false,
+          state: "guardian_must_be_adult",
+          message: "A registered StayKnown guardian must be 18 years or older.",
+        },
+        { status: 403 },
+      );
+    }
+
+    if (guardianIdentity.eligibility === "age_unverified") {
+      return NextResponse.json(
+        {
+          ok: false,
+          state: "guardian_age_unverified",
+          message:
+            "This registered guardian account must complete its age information before it can approve a minor signup.",
+        },
+        { status: 409 },
+      );
+    }
+
+    if (guardianIdentity.eligibility === "account_unavailable") {
+      return NextResponse.json(
+        {
+          ok: false,
+          state: "guardian_account_unavailable",
+          message:
+            "This registered StayKnown account is not currently eligible to act as a guardian.",
+        },
+        { status: 409 },
+      );
+    }
 
     const expiresAt = new Date(
       Date.now() + REQUEST_TTL_HOURS * 60 * 60 * 1000,

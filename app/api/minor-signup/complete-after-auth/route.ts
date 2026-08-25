@@ -20,6 +20,7 @@ type MinorSignupRow = {
   guardian_last_name?: string | null;
   guardian_phone?: string | null;
   guardian_relationship?: string | null;
+  guardian_user_id?: string | null;
 
   status?: string | null;
 
@@ -163,6 +164,7 @@ async function loadMinorRequest(
         guardian_last_name,
         guardian_phone,
         guardian_relationship,
+        guardian_user_id,
 
         status,
 
@@ -309,17 +311,43 @@ async function syncGuardianEmergencyContact(params: {
 
   const name = guardianName(row);
   const relationship = relationshipLabel(row.guardian_relationship);
+  const guardianUserId = clean(row.guardian_user_id) || null;
 
   const existing = await sb
     .from("emergency_contacts")
-    .select("id")
+    .select("id, target_user_id")
     .eq("user_id", uid)
     .eq("email", email)
     .maybeSingle();
 
   if (existing.error) throw existing.error;
 
-  const existingId = (existing.data as { id?: string } | null)?.id;
+  const existingRow = existing.data as {
+    id?: string;
+    target_user_id?: string | null;
+  } | null;
+
+  const existingId = clean(existingRow?.id);
+  const existingTargetUserId = clean(existingRow?.target_user_id);
+
+  /*
+    If the guardian was resolved to an existing StayKnown account by the
+    authoritative minor-signup flow, carry that exact identity into the
+    Emergency relationship. Never silently relink an Emergency row that is
+    already attached to a different registered account.
+
+    When guardianUserId is null the guardian remains external/unresolved and
+    the existing safety-only behavior is preserved.
+  */
+  if (
+    guardianUserId &&
+    existingTargetUserId &&
+    existingTargetUserId !== guardianUserId
+  ) {
+    throw new Error(
+      "Guardian Emergency contact is linked to a different StayKnown account.",
+    );
+  }
 
   if (existingId) {
     const { error } = await sb
@@ -330,6 +358,7 @@ async function syncGuardianEmergencyContact(params: {
         restricted: false,
         blocked: false,
         approval_status: "approved",
+        ...(guardianUserId ? { target_user_id: guardianUserId } : {}),
       })
       .eq("id", existingId)
       .eq("user_id", uid);
@@ -346,6 +375,7 @@ async function syncGuardianEmergencyContact(params: {
     restricted: false,
     blocked: false,
     approval_status: "approved",
+    target_user_id: guardianUserId,
   });
 
   if (error) throw error;

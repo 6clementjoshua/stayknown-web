@@ -529,6 +529,8 @@ export default function MinorSignupApprovalClient({
   const [guardianEmailMasked, setGuardianEmailMasked] = React.useState("");
   const [guardianRelationship, setGuardianRelationship] =
     React.useState("parent/guardian");
+  const [guardianAdultAuthorized, setGuardianAdultAuthorized] =
+    React.useState(false);
 
   const hasSubmittedThisPageRef = React.useRef(false);
   const pollStopRef = React.useRef(false);
@@ -760,6 +762,17 @@ export default function MinorSignupApprovalClient({
 
   async function submitFinalDecision() {
     if (busy) return;
+
+    if (
+      actor === "guardian" &&
+      decision === "approve" &&
+      !guardianAdultAuthorized
+    ) {
+      setMessage(
+        "Please confirm that you are 18 years or older and authorized to act for this minor before approving.",
+      );
+      return;
+    }
 
     hasSubmittedThisPageRef.current = true;
     clearPolling();
@@ -1282,6 +1295,36 @@ export default function MinorSignupApprovalClient({
                           </div>
                         </div>
 
+                        <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-[20px] border border-white/[0.14] bg-white/[0.045] px-4 py-4 transition duration-300 hover:border-white/[0.22] hover:bg-white/[0.06]">
+                          <input
+                            type="checkbox"
+                            checked={guardianAdultAuthorized}
+                            onChange={(event) => {
+                              setGuardianAdultAuthorized(event.target.checked);
+                              if (event.target.checked) {
+                                setMessage("");
+                              }
+                            }}
+                            className="mt-0.5 h-5 w-5 shrink-0 accent-white"
+                            aria-describedby="guardian-adult-authorization-note"
+                          />
+                          <span className="min-w-0">
+                            <span className="block text-[12.5px] font-black leading-5 text-white/86">
+                              I confirm that I am 18 years or older and
+                              authorized to act as this minor’s parent, legal
+                              guardian, caregiver, or authorized trusted adult.
+                            </span>
+                            <span
+                              id="guardian-adult-authorization-note"
+                              className="mt-1.5 block text-[11.5px] font-semibold leading-5 text-white/45"
+                            >
+                              This confirmation supports the consent record.
+                              StayKnown still applies its own server-side
+                              guardian eligibility checks.
+                            </span>
+                          </span>
+                        </label>
+
                         <div className="mt-4 grid gap-2.5">
                           {[
                             "I understand I may become the first trusted safety contact for this minor after approval.",
@@ -1429,7 +1472,12 @@ export default function MinorSignupApprovalClient({
                     <SweepButton
                       tone={decision === "approve" ? "light" : "dark"}
                       onClick={submitFinalDecision}
-                      disabled={busy}
+                      disabled={
+                        busy ||
+                        (actor === "guardian" &&
+                          decision === "approve" &&
+                          !guardianAdultAuthorized)
+                      }
                     >
                       {decision === "approve"
                         ? actor === "minor"

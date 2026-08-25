@@ -79,7 +79,13 @@ function verifySignature(params: URLSearchParams): VerifyOk | VerifyFail {
     .replace(/\//g, "_")
     .replace(/=+$/g, "");
 
-  if (expected !== sig) {
+  const expectedBuffer = Buffer.from(expected);
+  const suppliedBuffer = Buffer.from(sig);
+
+  if (
+    expectedBuffer.length !== suppliedBuffer.length ||
+    !crypto.timingSafeEqual(expectedBuffer, suppliedBuffer)
+  ) {
     return { ok: false, reason: "bad_signature" };
   }
 
@@ -121,7 +127,8 @@ function InvalidState({ reason }: { reason: string }) {
 
           <p className="mt-3 text-[13px] leading-6 text-black/62">
             This minor signup approval link is no longer valid. For privacy and
-            safety, approval links expire quickly and cannot be reused.
+            safety, signed approval links are time-limited and invalid links are
+            rejected.
           </p>
 
           <div className="mt-5 rounded-[22px] border border-black/8 bg-black/[0.03] px-4 py-4 text-left">
