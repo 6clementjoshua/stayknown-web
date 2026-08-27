@@ -168,38 +168,22 @@ export default function UpdatesAdminClient() {
     setNote("");
 
     try {
-      const response = await fetch("/api/admin/updates/request-login", {
-        method: "POST",
-        credentials: "same-origin",
-        cache: "no-store",
-        headers: {
-          "content-type": "application/json",
-          accept: "application/json",
-        },
-        body: JSON.stringify({ email }),
+      const { error } = await sb.auth.signInWithOtp({
+        email,
+        options: { emailRedirectTo: `${location.origin}/admin/updates` },
       });
 
-      const payload = (await response.json().catch(() => ({}))) as {
-        ok?: boolean;
-        message?: string;
-        error?: string;
-      };
-
-      if (!response.ok) {
-        throw new Error(
-          payload.error || `Secure sign-in request failed (${response.status}).`,
-        );
-      }
-
       setNote(
-        payload.message || "Check your email for the secure sign-in link.",
+        error
+          ? error.message
+          : "Check your email for the secure sign-in link.",
       );
     } catch (error) {
       console.error("updates_admin_login_failed", error);
       setNote(
         error instanceof Error
-          ? `Could not request secure sign-in: ${error.message}`
-          : "Could not request secure sign-in. Please retry.",
+          ? `Could not reach secure sign-in: ${error.message}`
+          : "Could not reach secure sign-in. Please retry.",
       );
     } finally {
       setBusy(false);
@@ -779,7 +763,9 @@ function Editor({
         </button>
         <button
           type="button"
-          disabled={busy || issues.some((item: SeoIssue) => item.level === "block")}
+          disabled={
+            busy || issues.some((item: SeoIssue) => item.level === "block")
+          }
           onClick={() => save(post.scheduled_for ? "scheduled" : "published")}
           className="rounded-full bg-white px-5 py-3 text-[10px] font-black text-black transition hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-25"
         >
@@ -895,7 +881,9 @@ function BlockEditor({
             className="input mt-2"
             placeholder="Caption (optional)"
             value={block.caption || ""}
-            onChange={(event) => updateBlock(index, "caption", event.target.value)}
+            onChange={(event) =>
+              updateBlock(index, "caption", event.target.value)
+            }
           />
         </>
       ) : null}
@@ -906,7 +894,9 @@ function BlockEditor({
             className="input mt-3"
             placeholder="Button/link label"
             value={block.label || ""}
-            onChange={(event) => updateBlock(index, "label", event.target.value)}
+            onChange={(event) =>
+              updateBlock(index, "label", event.target.value)
+            }
           />
           <input
             className="input mt-2"
@@ -940,7 +930,11 @@ function BlockEditor({
                 ]}
                 onChange={(value) => updateBlock(index, "weight", value)}
               />
-              <AlignmentControl block={block} index={index} updateBlock={updateBlock} />
+              <AlignmentControl
+                block={block}
+                index={index}
+                updateBlock={updateBlock}
+              />
             </>
           ) : null}
 
@@ -956,7 +950,11 @@ function BlockEditor({
                 ]}
                 onChange={(value) => updateBlock(index, "size", value)}
               />
-              <AlignmentControl block={block} index={index} updateBlock={updateBlock} />
+              <AlignmentControl
+                block={block}
+                index={index}
+                updateBlock={updateBlock}
+              />
             </>
           ) : null}
 
@@ -971,7 +969,11 @@ function BlockEditor({
                 ]}
                 onChange={(value) => updateBlock(index, "size", value)}
               />
-              <AlignmentControl block={block} index={index} updateBlock={updateBlock} />
+              <AlignmentControl
+                block={block}
+                index={index}
+                updateBlock={updateBlock}
+              />
             </>
           ) : null}
 
@@ -986,7 +988,11 @@ function BlockEditor({
                 ]}
                 onChange={(value) => updateBlock(index, "size", value)}
               />
-              <AlignmentControl block={block} index={index} updateBlock={updateBlock} />
+              <AlignmentControl
+                block={block}
+                index={index}
+                updateBlock={updateBlock}
+              />
             </>
           ) : null}
 
@@ -1251,9 +1257,9 @@ function Dashboard({
         </div>
       ) : (
         <p className="mt-8 max-w-xl text-[12px] font-semibold leading-6 text-white/[0.38]">
-          Views reuse StayKnown&apos;s existing privacy-preserving route counter.
-          Likes are stored as aggregate counts with a one-way server HMAC
-          browser token.
+          Views reuse StayKnown&apos;s existing privacy-preserving route
+          counter. Likes are stored as aggregate counts with a one-way server
+          HMAC browser token.
         </p>
       )}
     </div>
