@@ -42,12 +42,7 @@ export async function POST(req: Request) {
           ? input.published_at || now
           : input.published_at || null,
     };
-    delete payload.id;
-  delete payload.imageMeta;
-  payload.scheduled_for =
-    typeof input.scheduled_for === "string" && input.scheduled_for.trim()
-      ? input.scheduled_for.trim()
-      : null;
+    delete payload.imageMeta;
     const sb = adminClient();
     const { data, error } = await sb
       .from("stayknown_updates_posts")
