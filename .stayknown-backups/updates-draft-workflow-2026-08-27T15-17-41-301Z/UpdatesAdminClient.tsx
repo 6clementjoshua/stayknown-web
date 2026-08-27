@@ -127,103 +127,6 @@ function createBlock(type: UpdateBlock["type"]): UpdateBlock | null {
   }
 }
 
-
-type PostListFilter = "all" | "draft" | "published" | "scheduled";
-type AutosaveState = "idle" | "dirty" | "saving" | "saved" | "retrying";
-
-const EDITABLE_POST_KEYS = [
-  "slug",
-  "status",
-  "article_type",
-  "category",
-  "kicker",
-  "title",
-  "summary",
-  "body",
-  "hero_image_url",
-  "image_16_9_url",
-  "image_4_3_url",
-  "image_1_1_url",
-  "hero_alt_text",
-  "author_name",
-  "author_url",
-  "seo_title",
-  "seo_description",
-  "canonical_path",
-  "animation_preset",
-  "featured",
-  "strict_seo",
-  "scheduled_for",
-  "published_at",
-] as const;
-
-function editablePostSnapshot(input: any): string {
-  const output: Record<string, unknown> = {};
-
-  for (const key of EDITABLE_POST_KEYS) {
-    output[key] = input?.[key] ?? null;
-  }
-
-  return JSON.stringify(output);
-}
-
-function hasMeaningfulDraftContent(input: any): boolean {
-  if (!input) return false;
-
-  if (
-    [
-      input.title,
-      input.summary,
-      input.kicker,
-      input.slug,
-      input.hero_image_url,
-      input.image_16_9_url,
-      input.image_4_3_url,
-      input.image_1_1_url,
-      input.seo_title,
-      input.seo_description,
-    ].some((value) => String(value || "").trim())
-  ) {
-    return true;
-  }
-
-  return (Array.isArray(input.body) ? input.body : []).some((block: any) => {
-    if (!block || block.type === "presentation" || block.type === "divider") {
-      return false;
-    }
-
-    return [block.text, block.title, block.label, block.url, block.alt, block.caption]
-      .some((value) => String(value || "").trim());
-  });
-}
-
-function formatAdminDate(value?: string | null): string {
-  if (!value) return "Not saved yet";
-
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "Not saved yet";
-
-  return date.toLocaleString([], {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
-function formatSavedTime(value?: string | null): string {
-  if (!value) return "";
-
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-
-  return date.toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
 export default function UpdatesAdminClient() {
   const [authState, setAuthState] = useState<
     "checking" | "signed-out" | "allowed" | "denied"
@@ -235,16 +138,6 @@ export default function UpdatesAdminClient() {
   const [tab, setTab] = useState("Overview");
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState("");
-  const [postFilter, setPostFilter] = useState<PostListFilter>("all");
-  const [autosaveState, setAutosaveState] = useState<AutosaveState>("idle");
-  const [lastSavedAt, setLastSavedAt] = useState("");
-  const [autosaveError, setAutosaveError] = useState("");
-  const lastSavedSnapshotRef = useRef("");
-  const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const autosaveRetryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
-    null,
-  );
-  const autosaveRevisionRef = useRef(0);
 
   useEffect(() => {
     const url = new URL(window.location.href);
@@ -283,40 +176,6 @@ export default function UpdatesAdminClient() {
         ...(init.headers || {}),
       },
     });
-  }
-
-
-  function clearAutosaveTimers() {
-    if (autosaveTimerRef.current) {
-      clearTimeout(autosaveTimerRef.current);
-      autosaveTimerRef.current = null;
-    }
-
-    if (autosaveRetryTimerRef.current) {
-      clearTimeout(autosaveRetryTimerRef.current);
-      autosaveRetryTimerRef.current = null;
-    }
-  }
-
-  function resetAutosaveTracking() {
-    clearAutosaveTimers();
-    autosaveRevisionRef.current += 1;
-    lastSavedSnapshotRef.current = "";
-    setAutosaveState("idle");
-    setLastSavedAt("");
-    setAutosaveError("");
-  }
-
-  async function refreshPosts() {
-    const response = await api("/api/admin/updates/posts");
-    const payload = await response.json().catch(() => ({}));
-
-    if (!response.ok) {
-      throw new Error(payload.error || "Could not refresh publication posts.");
-    }
-
-    setPosts(payload.posts || []);
-    return payload.posts || [];
   }
 
   async function uploadImage(
@@ -570,256 +429,48 @@ export default function UpdatesAdminClient() {
     return output;
   }
 
-  async function saveDraftSnapshot(
-    draft: any,
-    revision: number,
-    retryOnFailure: boolean,
-  ): Promise<boolean> {
-    if (!draft?.id || draft.status !== "draft") return false;
-
-    const payload = {
-      ...draft,
-      status: "draft",
-      canonical_path: draft.slug
-        ? `/updates/${draft.slug}`
-        : draft.canonical_path || "",
-      imageMeta: {},
-    };
-
-    try {
-      const response = await api(`/api/admin/updates/posts/${draft.id}`, {
-        method: "PUT",
-        body: JSON.stringify(payload),
-      });
-      const result = await response.json().catch(() => ({}));
-
-      if (!response.ok) {
-        throw new Error(result.error || "Draft autosave failed.");
-      }
-
-      const normalized = normalizePost(result.post);
-      lastSavedSnapshotRef.current = editablePostSnapshot(normalized);
-
-      setPosts((current) =>
-        current.map((item) =>
-          item.id === normalized.id ? { ...item, ...normalized } : item,
-        ),
-      );
-
-      if (revision === autosaveRevisionRef.current) {
-        setAutosaveState("saved");
-        setLastSavedAt(
-          normalized.updated_at || result.post?.updated_at || new Date().toISOString(),
-        );
-        setAutosaveError("");
-      }
-
-      return true;
-    } catch (error) {
-      if (revision !== autosaveRevisionRef.current) return false;
-
-      const message =
-        error instanceof Error ? error.message : "Draft autosave failed.";
-
-      setAutosaveState(retryOnFailure ? "retrying" : "dirty");
-      setAutosaveError(
-        retryOnFailure
-          ? `Save not completed. Retrying automatically… ${message}`
-          : message,
-      );
-
-      if (retryOnFailure) {
-        if (autosaveRetryTimerRef.current) {
-          clearTimeout(autosaveRetryTimerRef.current);
-        }
-
-        autosaveRetryTimerRef.current = setTimeout(() => {
-          if (revision !== autosaveRevisionRef.current) return;
-          setAutosaveState("saving");
-          void saveDraftSnapshot(draft, revision, true);
-        }, 5000);
-      }
-
-      return false;
-    }
-  }
-
-  useEffect(() => {
-    if (!allowed || busy || !post.id || post.status !== "draft") return;
-
-    const snapshot = editablePostSnapshot(post);
-
-    if (!lastSavedSnapshotRef.current) {
-      lastSavedSnapshotRef.current = snapshot;
-      setAutosaveState("saved");
-      setLastSavedAt(post.updated_at || post.created_at || "");
-      return;
-    }
-
-    if (snapshot === lastSavedSnapshotRef.current) return;
-
-    clearAutosaveTimers();
-    const revision = ++autosaveRevisionRef.current;
-
-    setAutosaveState("dirty");
-    setAutosaveError("");
-
-    autosaveTimerRef.current = setTimeout(() => {
-      if (revision !== autosaveRevisionRef.current) return;
-      setAutosaveState("saving");
-      void saveDraftSnapshot(post, revision, true);
-    }, 1200);
-
-    return () => {
-      if (autosaveTimerRef.current) {
-        clearTimeout(autosaveTimerRef.current);
-        autosaveTimerRef.current = null;
-      }
-    };
-  }, [allowed, busy, post]);
-
-  useEffect(() => {
-    function protectUnsavedWork(event: BeforeUnloadEvent) {
-      const existingDraftDirty =
-        Boolean(post.id) &&
-        post.status === "draft" &&
-        editablePostSnapshot(post) !== lastSavedSnapshotRef.current;
-
-      const unsavedNewPost = !post.id && hasMeaningfulDraftContent(post);
-
-      if (!existingDraftDirty && !unsavedNewPost) return;
-
-      event.preventDefault();
-      event.returnValue = "";
-    }
-
-    window.addEventListener("beforeunload", protectUnsavedWork);
-    return () => window.removeEventListener("beforeunload", protectUnsavedWork);
-  }, [post]);
-
-  async function safelyLeaveCurrentEditor(): Promise<boolean> {
-    const existingDraftDirty =
-      Boolean(post.id) &&
-      post.status === "draft" &&
-      editablePostSnapshot(post) !== lastSavedSnapshotRef.current;
-
-    if (existingDraftDirty) {
-      clearAutosaveTimers();
-      const revision = ++autosaveRevisionRef.current;
-      setAutosaveState("saving");
-      const saved = await saveDraftSnapshot(post, revision, false);
-
-      if (!saved) {
-        setNote(
-          "StayKnown kept this draft open because the latest changes could not be saved.",
-        );
-        return false;
-      }
-    }
-
-    if (!post.id && hasMeaningfulDraftContent(post)) {
-      return window.confirm(
-        "This new Update has not been saved as a draft yet. Leave it and discard the unsaved content?",
-      );
-    }
-
-    return true;
-  }
-
-  async function openPost(item: any) {
-    if (item?.id === post.id) return;
-
-    if (!(await safelyLeaveCurrentEditor())) return;
-
-    const normalized = normalizePost(item);
-
-    clearAutosaveTimers();
-    autosaveRevisionRef.current += 1;
-    lastSavedSnapshotRef.current = editablePostSnapshot(normalized);
-    setAutosaveState(normalized.status === "draft" ? "saved" : "idle");
-    setLastSavedAt(normalized.updated_at || normalized.created_at || "");
-    setAutosaveError("");
-    setNote("");
-    setPost(normalized);
-  }
-
-  async function startNewUpdate() {
-    if (!(await safelyLeaveCurrentEditor())) return;
-
-    resetAutosaveTracking();
-    setPost(blankPost());
-    setPostFilter("all");
-    setTab("Posts");
-    setNote("");
-  }
-
   async function save(status?: string) {
-    clearAutosaveTimers();
-    autosaveRevisionRef.current += 1;
-
     setBusy(true);
     setNote("");
 
-    try {
-      const meta = await imageMeta();
-      const payload = {
-        ...post,
-        imageMeta: meta,
-        status: status || post.status,
-        canonical_path: post.slug ? `/updates/${post.slug}` : "",
-      };
-      const url = post.id
-        ? `/api/admin/updates/posts/${post.id}`
-        : "/api/admin/updates/posts";
-      const response = await api(url, {
-        method: post.id ? "PUT" : "POST",
-        body: JSON.stringify(payload),
-      });
-      const result = await response.json().catch(() => ({}));
+    const meta = await imageMeta();
+    const payload = {
+      ...post,
+      imageMeta: meta,
+      status: status || post.status,
+      canonical_path: `/updates/${post.slug}`,
+    };
+    const url = post.id
+      ? `/api/admin/updates/posts/${post.id}`
+      : "/api/admin/updates/posts";
+    const response = await api(url, {
+      method: post.id ? "PUT" : "POST",
+      body: JSON.stringify(payload),
+    });
+    const result = await response.json();
 
-      if (!response.ok) {
-        setNote(
-          result.error === "seo_blocked"
-            ? `Publishing blocked: ${(result.issues || [])
-                .filter((item: any) => item.level === "block")
-                .map((item: any) => item.message)
-                .join(" · ")}`
-            : result.error || "Save failed",
-        );
-        return;
-      }
+    setBusy(false);
 
-      const normalized = normalizePost(result.post);
-      lastSavedSnapshotRef.current = editablePostSnapshot(normalized);
-      setPost(normalized);
-      await refreshPosts();
-
-      if (normalized.status === "draft") {
-        setAutosaveState("saved");
-        setLastSavedAt(normalized.updated_at || new Date().toISOString());
-        setAutosaveError("");
-        setNote("Draft saved. Autosave is now active for this Update.");
-      } else {
-        setAutosaveState("idle");
-        setLastSavedAt("");
-        setAutosaveError("");
-        setNote(
-          normalized.status === "published"
-            ? "Published successfully."
-            : "Scheduled successfully.",
-        );
-      }
-    } catch (error) {
-      setNote(error instanceof Error ? error.message : "Save failed");
-    } finally {
-      setBusy(false);
+    if (!response.ok) {
+      setNote(
+        result.error === "seo_blocked"
+          ? `Publishing blocked: ${(result.issues || [])
+              .filter((item: any) => item.level === "block")
+              .map((item: any) => item.message)
+              .join(" · ")}`
+          : result.error || "Save failed",
+      );
+      return;
     }
+
+    setPost(normalizePost(result.post));
+    setPosts(
+      await api("/api/admin/updates/posts")
+        .then((item) => item.json())
+        .then((item) => item.posts || []),
+    );
+    setNote(status === "published" ? "Published successfully." : "Saved.");
   }
-
-  const filteredPosts = posts.filter((item) =>
-    postFilter === "all" ? true : item.status === postFilter,
-  );
-
 
   if (authState === "checking") {
     return (
@@ -902,7 +553,10 @@ export default function UpdatesAdminClient() {
             </span>
             <button
               type="button"
-              onClick={() => void startNewUpdate()}
+              onClick={() => {
+                setPost(blankPost());
+                setTab("Posts");
+              }}
               className="rounded-full bg-white px-4 py-2 text-[10px] font-black text-black transition hover:scale-105 active:scale-95"
             >
               + NEW UPDATE
@@ -935,97 +589,24 @@ export default function UpdatesAdminClient() {
           {tab === "Posts" ? (
             <div className="grid gap-6 xl:grid-cols-[0.34fr_0.66fr]">
               <div className="rounded-[28px] border border-white/[0.1] p-3">
-                <div className="flex items-center justify-between gap-3 px-2 pb-3">
-                  <div>
-                    <div className="text-[9px] font-black uppercase tracking-[0.2em] text-white/[0.3]">
-                      {postFilter === "draft"
-                        ? "Draft Library"
-                        : postFilter === "published"
-                          ? "Published"
-                          : postFilter === "scheduled"
-                            ? "Scheduled"
-                            : "All Posts"}
-                    </div>
-                    <div className="mt-1 text-[8px] font-semibold text-white/[0.25]">
-                      {filteredPosts.length} publication
-                      {filteredPosts.length === 1 ? "" : "s"}
-                    </div>
-                  </div>
+                <div className="px-2 pb-3 text-[9px] font-black uppercase tracking-[0.2em] text-white/[0.3]">
+                  Posts
                 </div>
-
-                <div className="mb-3 flex flex-wrap gap-1.5 px-1">
-                  {(
-                    [
-                      ["all", "All"],
-                      ["draft", "Drafts"],
-                      ["published", "Published"],
-                      ["scheduled", "Scheduled"],
-                    ] as Array<[PostListFilter, string]>
-                  ).map(([value, label]) => (
-                    <button
-                      type="button"
-                      key={value}
-                      onClick={() => setPostFilter(value)}
-                      className={`rounded-full border px-2.5 py-1.5 text-[8px] font-black transition ${
-                        postFilter === value
-                          ? "border-white bg-white text-black"
-                          : "border-white/[0.1] text-white/[0.36] hover:border-white/[0.28] hover:text-white"
-                      }`}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-
-                {filteredPosts.length ? (
-                  filteredPosts.map((item) => {
-                    const image =
-                      item.image_16_9_url ||
-                      item.hero_image_url ||
-                      item.image_4_3_url ||
-                      item.image_1_1_url ||
-                      "";
-
-                    return (
-                      <button
-                        type="button"
-                        key={item.id}
-                        onClick={() => void openPost(item)}
-                        className={`mb-2 w-full overflow-hidden rounded-2xl border text-left transition ${
-                          post.id === item.id
-                            ? "border-white/[0.34] bg-white/[0.05]"
-                            : "border-white/[0.08] hover:border-white/[0.22]"
-                        }`}
-                      >
-                        {image ? (
-                          <div className="aspect-[16/7] w-full overflow-hidden border-b border-white/[0.08] bg-white/[0.03]">
-                            <img
-                              src={image}
-                              alt=""
-                              className="h-full w-full object-cover"
-                            />
-                          </div>
-                        ) : null}
-
-                        <div className="p-3">
-                          <div className="text-[8px] font-black uppercase tracking-[0.12em] text-white/[0.28]">
-                            {item.status} · {item.category}
-                          </div>
-                          <div className="mt-1 text-[12px] font-black leading-tight">
-                            {String(item.title || "").trim() || "Untitled draft"}
-                          </div>
-                          <div className="mt-2 text-[8px] font-semibold text-white/[0.25]">
-                            Last saved {formatAdminDate(item.updated_at || item.created_at)}
-                          </div>
-                        </div>
-                      </button>
-                    );
-                  })
-                ) : (
-                  <div className="rounded-2xl border border-white/[0.08] p-4 text-[9px] font-semibold leading-5 text-white/[0.3]">
-                    No {postFilter === "all" ? "posts" : postFilter} publications yet.
-                  </div>
-                )}
+                {posts.map((item) => (
+                  <button
+                    type="button"
+                    key={item.id}
+                    onClick={() => setPost(normalizePost(item))}
+                    className="mb-2 w-full rounded-2xl border border-white/[0.08] p-3 text-left transition hover:border-white/[0.22]"
+                  >
+                    <div className="text-[9px] font-black uppercase text-white/[0.28]">
+                      {item.status} · {item.category}
+                    </div>
+                    <div className="mt-1 text-[12px] font-black leading-tight">
+                      {item.title}
+                    </div>
+                  </button>
+                ))}
               </div>
 
               <Editor
@@ -1041,9 +622,6 @@ export default function UpdatesAdminClient() {
                 busy={busy}
                 note={note}
                 uploadImage={uploadImage}
-                autosaveState={autosaveState}
-                lastSavedAt={lastSavedAt}
-                autosaveError={autosaveError}
               />
             </div>
           ) : tab === "Media" ? (
@@ -1053,15 +631,7 @@ export default function UpdatesAdminClient() {
           ) : tab === "Settings" ? (
             <AdminSettings api={api} />
           ) : (
-            <Dashboard
-              tab={tab}
-              posts={posts}
-              analytics={analytics}
-              onOpenPosts={(filter) => {
-                setPostFilter(filter);
-                setTab("Posts");
-              }}
-            />
+            <Dashboard tab={tab} posts={posts} analytics={analytics} />
           )}
         </section>
       </div>
@@ -1082,9 +652,6 @@ function Editor({
   busy,
   note,
   uploadImage,
-  autosaveState,
-  lastSavedAt,
-  autosaveError,
 }: any) {
   const presentation = getUpdatePresentation(post.body || []);
   const visible = (post.body || []).filter(
@@ -1093,41 +660,6 @@ function Editor({
 
   return (
     <div className="rounded-[32px] border border-white/[0.1] p-4 sm:p-6">
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.08] pb-4">
-        <div>
-          <div className="text-[8px] font-black uppercase tracking-[0.18em] text-white/[0.28]">
-            {post.id ? `${post.status} publication` : "New publication"}
-          </div>
-          <div className="mt-1 text-[10px] font-semibold text-white/[0.38]">
-            {post.id && post.status === "draft"
-              ? "This draft is stored in StayKnown and can be reopened later."
-              : !post.id
-                ? "Save this once as a draft to activate continuous autosave."
-                : "Published and scheduled items do not autosave as drafts."}
-          </div>
-        </div>
-
-        <div className="rounded-full border border-white/[0.1] px-3 py-2 text-[8px] font-black uppercase tracking-[0.12em] text-white/[0.42]">
-          {!post.id
-            ? "Autosave starts after first save"
-            : post.status !== "draft"
-              ? "Autosave off"
-              : autosaveState === "saving"
-                ? "Saving…"
-                : autosaveState === "retrying"
-                  ? "Save not completed · retrying"
-                  : autosaveState === "dirty"
-                    ? "Changes waiting to save"
-                    : `Saved${lastSavedAt ? ` · ${formatSavedTime(lastSavedAt)}` : ""}`}
-        </div>
-      </div>
-
-      {autosaveError ? (
-        <div className="mb-5 rounded-2xl border border-white/[0.12] bg-white/[0.04] px-4 py-3 text-[9px] font-semibold leading-5 text-white/[0.5]">
-          {autosaveError}
-        </div>
-      ) : null}
-
       <div className="grid gap-4 md:grid-cols-2">
         <Field label="Category">
           <select
@@ -2053,12 +1585,10 @@ function Dashboard({
   tab,
   posts,
   analytics,
-  onOpenPosts,
 }: {
   tab: string;
   posts: any[];
   analytics: any;
-  onOpenPosts: (filter: PostListFilter) => void;
 }) {
   const published = posts.filter((item) => item.status === "published").length;
   const drafts = posts.filter((item) => item.status === "draft").length;
@@ -2073,15 +1603,13 @@ function Dashboard({
       </h1>
       <div className="mt-8 grid gap-3 sm:grid-cols-3">
         {[
-          { count: posts.length, label: "All posts", filter: "all" as const },
-          { count: published, label: "Published", filter: "published" as const },
-          { count: drafts, label: "Drafts", filter: "draft" as const },
-        ].map(({ count, label, filter }) => (
-          <button
-            type="button"
-            key={label}
-            onClick={() => onOpenPosts(filter)}
-            className="rounded-[26px] border border-white/[0.1] p-5 text-left transition hover:border-white/[0.28] hover:bg-white/[0.03] active:scale-[0.99]"
+          [posts.length, "All posts"],
+          [published, "Published"],
+          [drafts, "Drafts"],
+        ].map(([count, label]) => (
+          <div
+            key={String(label)}
+            className="rounded-[26px] border border-white/[0.1] p-5"
           >
             <div className="text-[40px] font-black tracking-[-0.06em]">
               {count}
@@ -2089,10 +1617,7 @@ function Dashboard({
             <div className="text-[9px] font-black uppercase tracking-[0.16em] text-white/[0.3]">
               {label}
             </div>
-            <div className="mt-2 text-[8px] font-semibold text-white/[0.22]">
-              Open {label.toLowerCase()}
-            </div>
-          </button>
+          </div>
         ))}
       </div>
 
