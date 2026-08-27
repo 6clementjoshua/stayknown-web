@@ -1,7 +1,6 @@
 "use client";
 
-import { createClient } from "@supabase/supabase-js";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import {
   ANIMATION_PRESETS,
@@ -12,30 +11,6 @@ import {
   withUpdatePresentation,
 } from "@/lib/stayknown-updates";
 import { inspectSeo, type SeoIssue } from "@/lib/stayknown-updates-seo";
-
-const UPDATES_MEDIA_BUCKET = "stayknown-updates-media";
-const MAX_UPDATES_IMAGE_BYTES = 20 * 1024 * 1024;
-const ACCEPTED_UPDATES_IMAGE_TYPES = [
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-] as const;
-
-const storageBrowserUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const storageBrowserKey =
-  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-const storageBrowser =
-  storageBrowserUrl && storageBrowserKey
-    ? createClient(storageBrowserUrl, storageBrowserKey, {
-        auth: {
-          persistSession: false,
-          autoRefreshToken: false,
-          detectSessionInUrl: false,
-        },
-      })
-    : null;
 
 function blankPost() {
   return {
@@ -176,69 +151,6 @@ export default function UpdatesAdminClient() {
         ...(init.headers || {}),
       },
     });
-  }
-
-  async function uploadImage(
-    file: File,
-    purpose:
-      | "representative-16-9"
-      | "representative-4-3"
-      | "representative-1-1"
-      | "article-body"
-      | "media-library",
-  ): Promise<string> {
-    if (!storageBrowser) {
-      throw new Error("Publication image storage is not configured.");
-    }
-
-    if (!(ACCEPTED_UPDATES_IMAGE_TYPES as readonly string[]).includes(file.type)) {
-      throw new Error("Use a JPEG, PNG or WebP image.");
-    }
-
-    if (file.size <= 0 || file.size > MAX_UPDATES_IMAGE_BYTES) {
-      throw new Error("Each Updates image must be 20 MB or smaller.");
-    }
-
-    const ticketResponse = await api(
-      "/api/admin/updates/media/upload-url",
-      {
-        method: "POST",
-        body: JSON.stringify({
-          filename: file.name,
-          mimeType: file.type,
-          sizeBytes: file.size,
-          purpose,
-        }),
-      },
-    );
-
-    const ticket = (await ticketResponse.json().catch(() => ({}))) as {
-      ok?: boolean;
-      bucket?: string;
-      path?: string;
-      token?: string;
-      publicUrl?: string;
-      error?: string;
-    };
-
-    if (
-      !ticketResponse.ok ||
-      !ticket.path ||
-      !ticket.token ||
-      !ticket.publicUrl
-    ) {
-      throw new Error(ticket.error || "A secure image upload could not be prepared.");
-    }
-
-    const { error: uploadError } = await storageBrowser.storage
-      .from(ticket.bucket || UPDATES_MEDIA_BUCKET)
-      .uploadToSignedUrl(ticket.path, ticket.token, file);
-
-    if (uploadError) {
-      throw new Error(`Image upload failed: ${uploadError.message}`);
-    }
-
-    return ticket.publicUrl;
   }
 
   useEffect(() => {
@@ -621,11 +533,8 @@ export default function UpdatesAdminClient() {
                 save={save}
                 busy={busy}
                 note={note}
-                uploadImage={uploadImage}
               />
             </div>
-          ) : tab === "Media" ? (
-            <MediaLibrary api={api} uploadImage={uploadImage} />
           ) : tab === "SEO" ? (
             <SeoGuide />
           ) : tab === "Settings" ? (
@@ -651,7 +560,6 @@ function Editor({
   save,
   busy,
   note,
-  uploadImage,
 }: any) {
   const presentation = getUpdatePresentation(post.body || []);
   const visible = (post.body || []).filter(
@@ -776,33 +684,19 @@ function Editor({
           </label>
         </div>
 
-        <div className="mt-4 grid gap-3 lg:grid-cols-3">
-          {[
-            ["16:9", "image_16_9_url", "representative-16-9"],
-            ["4:3", "image_4_3_url", "representative-4-3"],
-            ["1:1", "image_1_1_url", "representative-1-1"],
-          ].map(([label, key, purpose]) => (
-            <ImageUploadControl
-              key={key}
-              label={`${label} representative image`}
+        {[
+          ["16:9", "image_16_9_url"],
+          ["4:3", "image_4_3_url"],
+          ["1:1", "image_1_1_url"],
+        ].map(([label, key]) => (
+          <Field key={key} label={`${label} image HTTPS URL`}>
+            <input
+              className="input"
               value={post[key] || ""}
-              purpose={purpose as any}
-              uploadImage={uploadImage}
-              onUploaded={(url: string) => {
-                set(key, url);
-                if (key === "image_16_9_url") {
-                  set("hero_image_url", url);
-                }
-              }}
-              onRemove={() => {
-                set(key, "");
-                if (key === "image_16_9_url") {
-                  set("hero_image_url", "");
-                }
-              }}
+              onChange={(event) => set(key, event.target.value)}
             />
-          ))}
-        </div>
+          </Field>
+        ))}
 
         <Field label="Image alt text">
           <input
@@ -838,7 +732,6 @@ function Editor({
               moveBlock={moveBlock}
               canMoveUp={index > 1}
               canMoveDown={index < post.body.length - 1}
-              uploadImage={uploadImage}
             />
           ),
         )}
@@ -979,7 +872,6 @@ function BlockEditor({
   moveBlock,
   canMoveUp,
   canMoveDown,
-  uploadImage,
 }: any) {
   const textBlock = [
     "paragraph",
@@ -1034,19 +926,15 @@ function BlockEditor({
 
       {block.type === "image" ? (
         <>
-          <div className="mt-3">
-            <ImageUploadControl
-              label="Article image"
-              value={block.url || ""}
-              purpose="article-body"
-              uploadImage={uploadImage}
-              onUploaded={(url: string) => updateBlock(index, "url", url)}
-              onRemove={() => updateBlock(index, "url", "")}
-            />
-          </div>
+          <input
+            className="input mt-3"
+            placeholder="Image HTTPS URL"
+            value={block.url || ""}
+            onChange={(event) => updateBlock(index, "url", event.target.value)}
+          />
           <input
             className="input mt-2"
-            placeholder="Meaningful alt text"
+            placeholder="Alt text"
             value={block.alt || ""}
             onChange={(event) => updateBlock(index, "alt", event.target.value)}
           />
@@ -1343,240 +1231,6 @@ function SeoIssues({ issues }: { issues: SeoIssue[] }) {
           </div>
         ))}
       </div>
-    </div>
-  );
-}
-
-type UpdatesImagePurpose =
-  | "representative-16-9"
-  | "representative-4-3"
-  | "representative-1-1"
-  | "article-body"
-  | "media-library";
-
-function formatBytes(value: number): string {
-  if (!Number.isFinite(value) || value <= 0) return "";
-  if (value < 1024 * 1024) return `${Math.max(1, Math.round(value / 1024))} KB`;
-  return `${(value / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-function ImageUploadControl({
-  label,
-  value,
-  purpose,
-  uploadImage,
-  onUploaded,
-  onRemove,
-}: {
-  label: string;
-  value: string;
-  purpose: UpdatesImagePurpose;
-  uploadImage: (file: File, purpose: UpdatesImagePurpose) => Promise<string>;
-  onUploaded: (url: string) => void;
-  onRemove: () => void;
-}) {
-  const inputRef = useRef<HTMLInputElement | null>(null);
-  const [uploading, setUploading] = useState(false);
-  const [dragging, setDragging] = useState(false);
-  const [message, setMessage] = useState("");
-
-  async function choose(file?: File) {
-    if (!file || uploading) return;
-
-    setUploading(true);
-    setMessage("");
-
-    try {
-      const url = await uploadImage(file, purpose);
-      onUploaded(url);
-      setMessage(`Uploaded ${file.name} · ${formatBytes(file.size)}`);
-    } catch (error) {
-      setMessage(
-        error instanceof Error ? error.message : "Image upload failed.",
-      );
-    } finally {
-      setUploading(false);
-      if (inputRef.current) inputRef.current.value = "";
-    }
-  }
-
-  return (
-    <div className="overflow-hidden rounded-[20px] border border-white/[0.1] bg-black">
-      {value ? (
-        <div className="relative aspect-[16/9] overflow-hidden border-b border-white/[0.08] bg-white/[0.025]">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={value}
-            alt=""
-            className="h-full w-full object-cover"
-            loading="lazy"
-          />
-          <div className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-2 bg-black/75 p-2 backdrop-blur-md">
-            <span className="truncate text-[8px] font-black uppercase tracking-[0.12em] text-white/[0.62]">
-              {label}
-            </span>
-            <button
-              type="button"
-              onClick={onRemove}
-              className="rounded-full border border-white/[0.18] px-2 py-1 text-[8px] font-black text-white/[0.58] hover:bg-white hover:text-black"
-            >
-              Remove
-            </button>
-          </div>
-        </div>
-      ) : null}
-
-      <button
-        type="button"
-        disabled={uploading}
-        onClick={() => inputRef.current?.click()}
-        onDragEnter={(event) => {
-          event.preventDefault();
-          setDragging(true);
-        }}
-        onDragOver={(event) => {
-          event.preventDefault();
-          setDragging(true);
-        }}
-        onDragLeave={(event) => {
-          event.preventDefault();
-          setDragging(false);
-        }}
-        onDrop={(event) => {
-          event.preventDefault();
-          setDragging(false);
-          void choose(event.dataTransfer.files?.[0]);
-        }}
-        className={`block w-full px-4 py-5 text-left transition ${
-          dragging ? "bg-white text-black" : "hover:bg-white/[0.045]"
-        } disabled:opacity-40`}
-      >
-        <div className="text-[9px] font-black">
-          {uploading
-            ? "Uploading image…"
-            : value
-              ? "Replace image"
-              : "Upload image"}
-        </div>
-        <div
-          className={`mt-1 text-[8px] font-semibold leading-4 ${
-            dragging ? "text-black/60" : "text-white/[0.32]"
-          }`}
-        >
-          Drop here or choose from this device · JPEG, PNG or WebP · up to 20 MB
-        </div>
-      </button>
-
-      <input
-        ref={inputRef}
-        type="file"
-        accept="image/jpeg,image/png,image/webp"
-        className="hidden"
-        onChange={(event) => void choose(event.target.files?.[0])}
-      />
-
-      {message ? (
-        <div className="border-t border-white/[0.07] px-3 py-2 text-[8px] font-semibold leading-4 text-white/[0.42]">
-          {message}
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-function MediaLibrary({
-  api,
-  uploadImage,
-}: {
-  api: (path: string, init?: RequestInit) => Promise<Response>;
-  uploadImage: (file: File, purpose: UpdatesImagePurpose) => Promise<string>;
-}) {
-  const [files, setFiles] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [note, setNote] = useState("");
-
-  async function load() {
-    setLoading(true);
-    try {
-      const response = await api("/api/admin/updates/media");
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(payload.error || "Media could not be loaded.");
-      setFiles(payload.files || []);
-    } catch (error) {
-      setNote(error instanceof Error ? error.message : "Media could not be loaded.");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    void load();
-  }, []);
-
-  return (
-    <div>
-      <div className="text-[9px] font-black uppercase tracking-[0.2em] text-white/[0.3]">
-        Media
-      </div>
-      <h1 className="mt-3 text-[48px] font-black tracking-[-0.065em]">
-        Publication images.
-      </h1>
-      <p className="mt-3 max-w-2xl text-[11px] font-semibold leading-5 text-white/[0.38]">
-        Upload once and reuse images across StayKnown Updates. Published assets are public and crawlable so article previews and search engines can read them.
-      </p>
-
-      <div className="mt-7 max-w-xl">
-        <ImageUploadControl
-          label="Media library image"
-          value=""
-          purpose="media-library"
-          uploadImage={uploadImage}
-          onUploaded={() => {
-            setNote("Image added to the publication media library.");
-            void load();
-          }}
-          onRemove={() => {}}
-        />
-      </div>
-
-      {note ? (
-        <div className="mt-4 text-[10px] font-bold text-white/[0.48]">{note}</div>
-      ) : null}
-
-      {loading ? (
-        <div className="mt-8 text-[10px] font-black text-white/[0.3]">Loading media…</div>
-      ) : files.length ? (
-        <div className="mt-8 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {files.map((item) => (
-            <div
-              key={item.path}
-              className="overflow-hidden rounded-[22px] border border-white/[0.1]"
-            >
-              <div className="aspect-[16/9] overflow-hidden bg-white/[0.02]">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={item.publicUrl}
-                  alt=""
-                  className="h-full w-full object-cover"
-                  loading="lazy"
-                />
-              </div>
-              <div className="p-3">
-                <div className="truncate text-[9px] font-black text-white/[0.62]">
-                  {item.name}
-                </div>
-                <div className="mt-1 text-[8px] font-semibold text-white/[0.28]">
-                  {formatBytes(Number(item.size || 0)) || "Publication asset"}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className="mt-8 rounded-[24px] border border-white/[0.08] p-5 text-[10px] font-semibold text-white/[0.32]">
-          No publication images uploaded yet.
-        </div>
-      )}
     </div>
   );
 }
