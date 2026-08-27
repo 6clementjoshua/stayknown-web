@@ -1,4 +1,4 @@
-import type { MetadataRoute } from "next";
+﻿import type { MetadataRoute } from "next";
 
 const SITE_URL = "https://www.stay-known.com";
 const PREVIOUS_CONTENT_UPDATE = "2026-05-31";
@@ -6,6 +6,7 @@ const HOMEPAGE_UPDATE = "2026-07-24";
 const ACCOUNT_CLOSURE_UPDATE = "2026-07-27";
 const RECOGNITION_UPDATE = "2026-07-30";
 const WEBSITE_REACH_UPDATE = "2026-07-30";
+const UPDATES_UPDATE = "2026-08-27";
 
 type SitemapEntry = MetadataRoute.Sitemap[number];
 type ChangeFrequency = NonNullable<SitemapEntry["changeFrequency"]>;
@@ -201,6 +202,12 @@ const coreRoutes: readonly PublicRoute[] = [
     lastModified: WEBSITE_REACH_UPDATE,
     changeFrequency: "daily",
     priority: 0.76,
+  },
+  {
+    path: "/updates",
+    lastModified: UPDATES_UPDATE,
+    changeFrequency: "daily",
+    priority: 0.93,
   },
   {
     path: "/donate",
