@@ -1,5 +1,6 @@
 "use client";
 
+import { createClient } from "@supabase/supabase-js";
 import { useEffect, useMemo, useState } from "react";
 
 import {
@@ -11,6 +12,13 @@ import {
   withUpdatePresentation,
 } from "@/lib/stayknown-updates";
 import { inspectSeo, type SeoIssue } from "@/lib/stayknown-updates-seo";
+
+const supabaseBrowserUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseBrowserKey =
+  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+const sb = createClient(supabaseBrowserUrl!, supabaseBrowserKey!);
 
 function blankPost() {
   return {
@@ -103,9 +111,7 @@ function createBlock(type: UpdateBlock["type"]): UpdateBlock | null {
 }
 
 export default function UpdatesAdminClient() {
-  const [authState, setAuthState] = useState<
-    "checking" | "signed-out" | "allowed" | "denied"
-  >("checking");
+  const [session, setSession] = useState<any>(null);
   const [allowed, setAllowed] = useState(false);
   const [posts, setPosts] = useState<any[]>([]);
   const [analytics, setAnalytics] = useState<any>(null);
@@ -115,85 +121,42 @@ export default function UpdatesAdminClient() {
   const [note, setNote] = useState("");
 
   useEffect(() => {
-    const url = new URL(window.location.href);
-    const authResult = url.searchParams.get("auth");
-
-    if (!authResult) return;
-
-    const messages: Record<string, string> = {
-      "invalid-link":
-        "This publication-admin access link is incomplete. Request a new link.",
-      "expired-or-invalid":
-        "This publication-admin access link has expired or was already used. Request a new link.",
-      "not-authorized":
-        "This email is not authorized for StayKnown Updates & Publication Admin.",
-      "identity-mismatch":
-        "This publication-admin identity does not match the approved administrator record.",
-      unavailable:
-        "Updates & Publication Admin sign-in could not be completed. Request a fresh access link.",
-    };
-
-    if (messages[authResult]) {
-      setNote(messages[authResult]);
-    }
-
-    url.searchParams.delete("auth");
-    window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+    sb.auth.getSession().then(({ data }) => setSession(data.session));
+    const {
+      data: { subscription },
+    } = sb.auth.onAuthStateChange((_event, nextSession) =>
+      setSession(nextSession),
+    );
+    return () => subscription.unsubscribe();
   }, []);
 
   async function api(path: string, init: RequestInit = {}) {
+    const token = (await sb.auth.getSession()).data.session?.access_token;
     return fetch(path, {
       ...init,
-      credentials: "same-origin",
-      cache: "no-store",
       headers: {
         "content-type": "application/json",
+        authorization: `Bearer ${token}`,
         ...(init.headers || {}),
       },
     });
   }
 
   useEffect(() => {
-    let active = true;
+    if (!session) return;
 
-    async function loadAdminSession() {
-      try {
-        const response = await api("/api/admin/updates/session");
+    api("/api/admin/updates/session").then(async (response) => {
+      setAllowed(response.ok);
+      if (!response.ok) return;
 
-        if (!active) return;
-
-        if (!response.ok) {
-          setAllowed(false);
-          setAuthState(response.status === 403 ? "denied" : "signed-out");
-          return;
-        }
-
-        setAllowed(true);
-        setAuthState("allowed");
-
-        const [postsResponse, analyticsResponse] = await Promise.all([
-          api("/api/admin/updates/posts").then((item) => item.json()),
-          api("/api/admin/updates/analytics").then((item) => item.json()),
-        ]);
-
-        if (!active) return;
-
-        setPosts(postsResponse.posts || []);
-        setAnalytics(analyticsResponse);
-      } catch (error) {
-        console.error("updates_admin_session_check_failed", error);
-        if (!active) return;
-        setAllowed(false);
-        setAuthState("signed-out");
-      }
-    }
-
-    void loadAdminSession();
-
-    return () => {
-      active = false;
-    };
-  }, []);
+      const [postsResponse, analyticsResponse] = await Promise.all([
+        api("/api/admin/updates/posts").then((item) => item.json()),
+        api("/api/admin/updates/analytics").then((item) => item.json()),
+      ]);
+      setPosts(postsResponse.posts || []);
+      setAnalytics(analyticsResponse);
+    });
+  }, [session]);
 
   async function login() {
     const email = (
@@ -384,29 +347,19 @@ export default function UpdatesAdminClient() {
     setNote(status === "published" ? "Published successfully." : "Saved.");
   }
 
-  if (authState === "checking") {
-    return (
-      <div className="min-h-screen bg-black px-6 py-20 text-white">
-        <div className="mx-auto max-w-xl text-[13px] font-bold text-white/[0.5]">
-          Checking Updates & Publication Admin access…
-        </div>
-      </div>
-    );
-  }
-
-  if (authState === "signed-out") {
+  if (!session) {
     return (
       <div className="min-h-screen bg-black px-4 py-20 text-white">
         <div className="mx-auto max-w-[430px] rounded-[32px] border border-white/[0.12] bg-white/[0.025] p-7">
           <div className="text-[9px] font-black uppercase tracking-[0.22em] text-white/[0.34]">
-            StayKnown Updates & Publication Admin
+            StayKnown private publishing
           </div>
           <h1 className="mt-3 text-[42px] font-black tracking-[-0.06em]">
             Updates Admin.
           </h1>
           <p className="mt-4 text-[12px] font-semibold leading-6 text-white/[0.48]">
-            Authorized editorial access for StayKnown Updates, newsroom publishing,
-            SEO review, media, analytics and publication controls.
+            Use the same approved Supabase Auth email. Access still requires the
+            Updates admin allowlist.
           </p>
           <input
             id="sk-admin-email"
@@ -420,7 +373,7 @@ export default function UpdatesAdminClient() {
             disabled={busy}
             className="mt-3 w-full rounded-2xl bg-white px-4 py-3 text-[11px] font-black text-black transition hover:scale-[1.01] active:scale-[0.98]"
           >
-            {busy ? "Sending…" : "Email Updates Admin access link"}
+            {busy ? "Sending…" : "Email me a secure sign-in link"}
           </button>
           {note ? (
             <p className="mt-4 text-[11px] font-semibold text-white/[0.5]">
@@ -432,11 +385,11 @@ export default function UpdatesAdminClient() {
     );
   }
 
-  if (authState === "denied" || !allowed) {
+  if (!allowed) {
     return (
       <div className="min-h-screen bg-black px-6 py-20 text-white">
         <div className="mx-auto max-w-xl text-[14px] font-bold">
-          This email is not authorized for StayKnown Updates & Publication Admin.
+          This signed-in email is not authorized for StayKnown Updates.
         </div>
       </div>
     );
