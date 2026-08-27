@@ -129,15 +129,9 @@ function slugify(value: string) {
   return value
     .toLowerCase()
     .normalize("NFKD")
-    .replace(/[\s_]+/g, "-")
-    .replace(/[^a-z0-9-]/g, "")
-    .replace(/-{2,}/g, "-")
-    .replace(/^-+/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")
     .slice(0, 120);
-}
-
-function finalizeSlug(value: string) {
-  return slugify(value).replace(/-+$/g, "");
 }
 
 function normalizePost(input: any) {
@@ -1599,7 +1593,6 @@ function Editor({
           value={post.slug}
           disabled={Boolean(post.id && isPubliclyOpenable(post))}
           onChange={(event) => set("slug", slugify(event.target.value))}
-          onBlur={(event) => set("slug", finalizeSlug(event.target.value))}
         />
         <Hint>
           Canonical: /updates/{post.slug || "your-update"}
