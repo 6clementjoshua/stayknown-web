@@ -25,6 +25,7 @@ function resolveSlug(input: Record<string, unknown>, publishing: boolean): strin
   const requested = stringValue(input.slug);
 
   if (publishing) {
+    // Publication remains strict. inspectSeo() will block a missing/invalid slug.
     return requested;
   }
 
@@ -38,6 +39,7 @@ function resolveSlug(input: Record<string, unknown>, publishing: boolean): strin
     slugBase(stringValue(input.kicker)) ||
     "draft";
 
+  // Drafts need a valid, collision-resistant internal URL key even while incomplete.
   return `${fromContent}-${randomUUID().slice(0, 8)}`;
 }
 
@@ -46,12 +48,25 @@ function nullableTimestamp(value: unknown): string | null {
   return text || null;
 }
 
-export async function PUT(
-  req: Request,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export async function GET(req: Request) {
   try {
-    const { id } = await params;
+    await requireUpdatesAdmin(req);
+
+    const { data, error } = await adminClient()
+      .from("stayknown_updates_posts")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(500);
+
+    if (error) throw error;
+    return Response.json({ posts: data || [] });
+  } catch (e: any) {
+    return Response.json({ error: e.message }, { status: e.status || 500 });
+  }
+}
+
+export async function POST(req: Request) {
+  try {
     const { user } = await requireUpdatesAdmin(req, ["owner", "admin", "editor"]);
     const input = (await req.json()) as Record<string, any>;
     const publishing = ["published", "scheduled"].includes(input.status);
@@ -59,21 +74,8 @@ export async function PUT(
     const canonical = canonicalPath(slug);
 
     const issues = inspectSeo({
-      title: stringValue(input.title),
-      summary: stringValue(input.summary),
+      ...input,
       slug,
-      category: stringValue(input.category),
-      author_name: stringValue(input.author_name) || "StayKnown",
-      body: Array.isArray(input.body) ? input.body : [],
-      hero_alt_text: stringValue(input.hero_alt_text) || null,
-      image_16_9_url: stringValue(input.image_16_9_url) || null,
-      image_4_3_url: stringValue(input.image_4_3_url) || null,
-      image_1_1_url: stringValue(input.image_1_1_url) || null,
-      imageMeta:
-        input.imageMeta && typeof input.imageMeta === "object"
-          ? input.imageMeta
-          : undefined,
-      strict_seo: input.strict_seo !== false,
       canonical_path: canonical,
     });
 
@@ -81,43 +83,42 @@ export async function PUT(
       return Response.json({ error: "seo_blocked", issues }, { status: 422 });
     }
 
+    const now = new Date().toISOString();
     const payload: Record<string, any> = {
       ...input,
       slug,
       canonical_path: canonical,
       scheduled_for: nullableTimestamp(input.scheduled_for),
-      published_at: nullableTimestamp(input.published_at),
+      created_by: user.id,
       updated_by: user.id,
-      updated_at: new Date().toISOString(),
+      updated_at: now,
+      published_at:
+        input.status === "published"
+          ? nullableTimestamp(input.published_at) || now
+          : nullableTimestamp(input.published_at),
     };
 
+    // The database owns post UUID generation; never insert the client's empty placeholder.
     delete payload.id;
-    delete payload.created_at;
-    delete payload.created_by;
     delete payload.imageMeta;
-
-    if (input.status === "published" && !payload.published_at) {
-      payload.published_at = new Date().toISOString();
-    }
 
     const sb = adminClient();
     const { data, error } = await sb
       .from("stayknown_updates_posts")
-      .update(payload)
-      .eq("id", id)
+      .insert(payload)
       .select("*")
       .single();
 
     if (error) throw error;
 
     await sb.from("stayknown_update_audit_log").insert({
-      post_id: id,
+      post_id: data.id,
       actor_user_id: user.id,
-      action: "updated",
+      action: "created",
       details: { status: data.status },
     });
 
-    return Response.json({ post: data, issues });
+    return Response.json({ post: data, issues }, { status: 201 });
   } catch (e: any) {
     return Response.json({ error: e.message }, { status: e.status || 500 });
   }

@@ -59,21 +59,8 @@ export async function PUT(
     const canonical = canonicalPath(slug);
 
     const issues = inspectSeo({
-      title: stringValue(input.title),
-      summary: stringValue(input.summary),
+      ...input,
       slug,
-      category: stringValue(input.category),
-      author_name: stringValue(input.author_name) || "StayKnown",
-      body: Array.isArray(input.body) ? input.body : [],
-      hero_alt_text: stringValue(input.hero_alt_text) || null,
-      image_16_9_url: stringValue(input.image_16_9_url) || null,
-      image_4_3_url: stringValue(input.image_4_3_url) || null,
-      image_1_1_url: stringValue(input.image_1_1_url) || null,
-      imageMeta:
-        input.imageMeta && typeof input.imageMeta === "object"
-          ? input.imageMeta
-          : undefined,
-      strict_seo: input.strict_seo !== false,
       canonical_path: canonical,
     });
 
