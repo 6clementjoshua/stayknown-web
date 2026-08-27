@@ -39,45 +39,32 @@ export function inspectSeo(input: {
   if (!input.title.trim())
     block(
       "title_missing",
-      "Missing headline. Add the public Update headline before publishing.",
+      "Headline is required. Google needs visible, descriptive page content and the structured Article headline is generated from this field.",
     );
   if (!input.slug.match(/^[a-z0-9]+(?:-[a-z0-9]+)*$/))
     block(
       "slug_invalid",
-      "Invalid public URL slug. Use lowercase words separated only by hyphens, for example stayknown-launches-new-feature.",
-    );
-  if (/^draft(?:-|$)/.test(input.slug))
-    block(
-      "slug_temporary",
-      "Temporary draft URL detected. Replace the draft-* slug with the final permanent public URL slug before publishing.",
+      "Use a clean lowercase slug with words separated by hyphens. This becomes the permanent canonical URL.",
     );
   if (!input.summary.trim())
     block(
       "summary_missing",
-      "Missing summary. Add the short public description used in the Updates feed and social/search previews.",
+      "Add a concise human-written summary. It supports the feed, social previews and the page description.",
     );
   if (!input.category.trim())
     block(
       "category_missing",
-      "Missing category. Choose the category this Update belongs to before publishing.",
+      "Choose a publication category so the feed and archive remain understandable.",
     );
   if (!input.author_name.trim())
     block(
       "author_missing",
-      "Missing author/publisher. Add the identity that should appear in Article structured data.",
+      "Add the real publisher/author identity used by Article structured data.",
     );
-  const meaningfulBody = input.body.some((b: any) => {
-    if (!b || b.type === "presentation" || b.type === "divider") return false;
-    if (["image", "video", "audio", "file"].includes(String(b.type)))
-      return !!String(b.url || "").trim();
-    return [b.text, b.title, b.label, b.caption].some(
-      (v: any) => !!String(v || "").trim(),
-    );
-  });
-  if (!meaningfulBody)
+  if (!input.body.length)
     block(
       "body_missing",
-      "Article body is empty. Add at least one real paragraph, heading, callout, image, video, audio, file or link before publishing.",
+      "The article body is empty. A headline-only page must not be published.",
     );
   if (wc < 120)
     warn(
@@ -116,7 +103,7 @@ export function inspectSeo(input: {
       if (!url)
         block(
           `image_${label}_missing`,
-          `Missing ${label} representative image. Upload the ${label} version for this same Update before publishing.`,
+          `Strict SEO is ON: add the ${label} representative image. Google recommends high-resolution 16:9, 4:3 and 1:1 Article images for best results.`,
         );
   } else if (!anyImage)
     warn(
@@ -126,7 +113,7 @@ export function inspectSeo(input: {
   if (anyImage && !input.hero_alt_text?.trim())
     block(
       "alt_missing",
-      "Missing representative-image alt text. Describe what the main Update image shows for accessibility and search context.",
+      "Add accurate image alt text. It improves accessibility and gives search systems useful image context.",
     );
   for (const [label, url, target] of images) {
     if (!url) continue;
@@ -140,9 +127,7 @@ export function inspectSeo(input: {
       if (m.width * m.height < 50000)
         block(
           `image_${label}_small`,
-          `${label} image is ${m.width}×${m.height} (${(
-            m.width * m.height
-          ).toLocaleString()} pixels). Google recommends at least 50,000 pixels for Article representative images.`,
+          `${label} image is ${m.width}×${m.height} (${(m.width * m.height).toLocaleString()} pixels). Google recommends at least 50,000 pixels for Article representative images.`,
         );
       if (!ratio(m.width, m.height, target))
         block(
@@ -159,7 +144,7 @@ export function inspectSeo(input: {
     if (b.type === "image" && (!b.alt || !String(b.alt).trim()))
       block(
         "inline_alt_missing",
-        "An Article Body image is missing alt text. Add meaningful alt text to every body image before publishing.",
+        "Every editorial image block needs meaningful alt text before publication.",
       );
     if (b.type === "link" && b.url && !/^(https:\/\/|\/)/i.test(b.url))
       warn(

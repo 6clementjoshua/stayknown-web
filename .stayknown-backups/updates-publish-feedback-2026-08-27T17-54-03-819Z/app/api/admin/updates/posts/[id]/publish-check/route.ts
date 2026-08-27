@@ -105,9 +105,8 @@ export async function GET(
       });
     }
 
-    const [page, updatesIndex, sitemap, feed, viewsResult] = await Promise.all([
+    const [page, sitemap, feed, viewsResult] = await Promise.all([
       fetchText(publicUrl),
-      fetchText(`${SITE_URL}/updates`),
       fetchText(`${SITE_URL}/updates/sitemap.xml`),
       fetchText(`${SITE_URL}/updates/feed.xml`),
       sb
@@ -118,7 +117,6 @@ export async function GET(
     ]);
 
     const pageHtml = page.text || "";
-    const updatesIndexHtml = updatesIndex.text || "";
     const sitemapXml = sitemap.text || "";
     const feedXml = feed.text || "";
 
@@ -147,12 +145,6 @@ export async function GET(
         .filter(Boolean)
         .every((url: string) => containsUrl(pageHtml, String(url)));
 
-    const updatesIndexReady =
-      updatesIndex.ok &&
-      (updatesIndexHtml.includes(`href="${publicPath}"`) ||
-        containsUrl(updatesIndexHtml, publicUrl) ||
-        updatesIndexHtml.includes(String(post.title || "")));
-
     const sitemapReady = sitemap.ok && containsUrl(sitemapXml, publicUrl);
     const feedReady = feed.ok && containsUrl(feedXml, publicUrl);
 
@@ -169,14 +161,6 @@ export async function GET(
         detail: page.ok
           ? `${publicUrl} returned HTTP ${page.status}.`
           : `${publicUrl} could not be loaded (HTTP ${page.status || "unavailable"}).`,
-      },
-      {
-        key: "updates_index",
-        label: "Main Updates page",
-        ok: updatesIndexReady,
-        detail: updatesIndexReady
-          ? "The published Update appears on /updates and the empty publication state is no longer being served for this post."
-          : "The published Update was not yet found on /updates. Re-check after a few seconds; the public archive must show the post before this verification passes.",
       },
       {
         key: "canonical",

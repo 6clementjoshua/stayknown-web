@@ -223,15 +223,6 @@ type PublicationVerification = {
   checks: PublicationVerificationCheck[];
 };
 
-type PublishFeedbackKind = "checking" | "blocked" | "ready" | "error" | "published";
-
-type PublishFeedback = {
-  kind: PublishFeedbackKind;
-  title: string;
-  detail?: string;
-  issues?: SeoIssue[];
-};
-
 
 const EDITABLE_POST_KEYS = [
   "slug",
@@ -390,38 +381,6 @@ function isPubliclyOpenable(item: any): boolean {
   return false;
 }
 
-function seoIssueFix(issue: SeoIssue): string {
-  const code = String(issue.code || "");
-
-  if (code === "title_missing") return "Enter the Headline field.";
-  if (code === "slug_invalid") return "Set a lowercase URL slug using letters, numbers and hyphens only.";
-  if (code === "slug_temporary") return "Replace the draft-* slug with the final permanent public URL slug.";
-  if (code === "summary_missing") return "Complete the Summary field.";
-  if (code === "category_missing") return "Choose the correct publication Category.";
-  if (code === "author_missing") return "Complete the Author / publisher field.";
-  if (code === "body_missing") return "Add real content in Article Body before publishing.";
-  if (code === "canonical_mismatch") return "Use the canonical path generated from the final slug.";
-  if (code === "alt_missing") return "Add Representative image alt text.";
-  if (code === "inline_alt_missing") return "Find the Article Body image without alt text and describe that image.";
-  if (code.includes("image_16:9_missing")) return "Upload the 16:9 representative image.";
-  if (code.includes("image_4:3_missing")) return "Upload the 4:3 representative image.";
-  if (code.includes("image_1:1_missing")) return "Upload the 1:1 representative image.";
-  if (code.includes("_small")) return "Replace that representative image with a larger image of the same required ratio.";
-  if (code.includes("_ratio")) return "Crop or replace the image so it matches the named representative-image ratio.";
-  if (code.includes("_https")) return "Use a public HTTPS image uploaded through the Updates media uploader.";
-  if (code === "thin_content") return "Consider adding more original information if readers need more context.";
-  if (code === "title_long") return "Shorten the headline if possible while keeping it accurate.";
-  if (code === "description_long") return "Tighten the Summary so the main point appears earlier.";
-  if (code === "description_short") return "Consider making the Summary more descriptive.";
-  if (code === "link_scheme") return "Review the flagged link and use HTTPS or a valid internal / path.";
-
-  return issue.level === "block"
-    ? "Correct this item before publishing."
-    : issue.level === "warning"
-      ? "Review this recommendation before publishing."
-      : "Optional quality guidance.";
-}
-
 export default function UpdatesAdminClient() {
   const [authState, setAuthState] = useState<
     "checking" | "signed-out" | "allowed" | "denied"
@@ -435,8 +394,6 @@ export default function UpdatesAdminClient() {
   const [verification, setVerification] =
     useState<PublicationVerification | null>(null);
   const [verificationBusy, setVerificationBusy] = useState(false);
-  const [publishPreflightBusy, setPublishPreflightBusy] = useState(false);
-  const [publishFeedback, setPublishFeedback] = useState<PublishFeedback | null>(null);
 
   const [analytics, setAnalytics] = useState<any>(null);
   const [post, setPost] = useState<any>(() => blankPost());
@@ -702,7 +659,6 @@ export default function UpdatesAdminClient() {
   const blockers = issues.filter((issue) => issue.level === "block").length;
 
   function set(key: string, value: any) {
-    setPublishFeedback(null);
     setPost((current: any) => ({
       ...current,
       [key]: value,
@@ -713,7 +669,6 @@ export default function UpdatesAdminClient() {
   }
 
   function setPresentation(key: string, value: string) {
-    setPublishFeedback(null);
     setPost((current: any) => ({
       ...current,
       body: withUpdatePresentation(current.body, { [key]: value }),
@@ -721,7 +676,6 @@ export default function UpdatesAdminClient() {
   }
 
   function updateBlock(index: number, key: string, value: string) {
-    setPublishFeedback(null);
     setPost((current: any) => ({
       ...current,
       body: current.body.map((block: any, blockIndex: number) =>
@@ -731,7 +685,6 @@ export default function UpdatesAdminClient() {
   }
 
   function addBlock(type: UpdateBlock["type"]) {
-    setPublishFeedback(null);
     const next = createBlock(type);
     if (!next) return;
     setPost((current: any) => ({
@@ -741,7 +694,6 @@ export default function UpdatesAdminClient() {
   }
 
   function removeBlock(index: number) {
-    setPublishFeedback(null);
     setPost((current: any) => ({
       ...current,
       body: current.body.filter(
@@ -752,7 +704,6 @@ export default function UpdatesAdminClient() {
   }
 
   function moveBlock(index: number, direction: -1 | 1) {
-    setPublishFeedback(null);
     setPost((current: any) => {
       const body = [...current.body] as UpdateBlock[];
       const target = index + direction;
@@ -1067,97 +1018,30 @@ export default function UpdatesAdminClient() {
     }
   }
 
-  async function requestPublish(intent: PublishIntent) {
-    if (busy || publishPreflightBusy) return;
+  function requestPublish(intent: PublishIntent) {
+    if (busy) return;
 
-    setPublishPreflightBusy(true);
-    setPublishIntent(null);
-    setNote("");
-    setPublishFeedback({
-      kind: "checking",
-      title: "Checking publication requirements…",
-      detail: "StayKnown is checking the current editor content before anything can go public.",
-      issues: [],
-    });
-
-    try {
-      if (intent === "scheduled") {
-        const scheduled = post.scheduled_for
-          ? new Date(post.scheduled_for).getTime()
-          : Number.NaN;
-
-        if (!Number.isFinite(scheduled) || scheduled <= Date.now()) {
-          const scheduleIssue: SeoIssue = {
-            level: "block",
-            code: "schedule_invalid",
-            message: "Schedule time is missing or is not in the future.",
-          };
-          setPublishFeedback({
-            kind: "blocked",
-            title: "This Update is not ready to schedule.",
-            detail: "Fix the item below, then tap Review & Schedule again.",
-            issues: [scheduleIssue],
-          });
-          return;
-        }
-      }
-
-      const meta = await imageMeta();
-      const response = await api(
-        `/api/admin/updates/posts/${post.id || "new"}/preflight`,
-        {
-          method: "POST",
-          body: JSON.stringify({
-            ...post,
-            imageMeta: meta,
-            status: intent,
-            canonical_path: post.slug ? `/updates/${post.slug}` : "",
-          }),
-        },
+    if (issues.some((item: SeoIssue) => item.level === "block")) {
+      setNote(
+        "Publishing is blocked until every SEO Quality Gate blocker is cleared.",
       );
-      const result = (await response.json().catch(() => ({}))) as {
-        ok?: boolean;
-        error?: string;
-        issues?: SeoIssue[];
-      };
+      return;
+    }
 
-      if (!response.ok) {
-        throw new Error(result.error || "Publication preflight could not be completed.");
-      }
+    if (intent === "scheduled") {
+      const scheduled = post.scheduled_for
+        ? new Date(post.scheduled_for).getTime()
+        : Number.NaN;
 
-      const checkedIssues = Array.isArray(result.issues) ? result.issues : [];
-      const checkedBlockers = checkedIssues.filter((item) => item.level === "block");
-      const checkedWarnings = checkedIssues.filter((item) => item.level === "warning");
-
-      if (!result.ok || checkedBlockers.length > 0) {
-        setPublishFeedback({
-          kind: "blocked",
-          title: `${checkedBlockers.length} publication blocker${checkedBlockers.length === 1 ? "" : "s"} found.`,
-          detail: "Nothing was published. Fix every BLOCK item below, then run the check again.",
-          issues: checkedIssues,
-        });
+      if (!Number.isFinite(scheduled) || scheduled <= Date.now()) {
+        setNote(
+          "Choose a future schedule time, or clear Schedule to publish immediately.",
+        );
         return;
       }
-
-      setPublishFeedback({
-        kind: "ready",
-        title: "Publication check passed.",
-        detail: checkedWarnings.length
-          ? `${checkedWarnings.length} warning${checkedWarnings.length === 1 ? " remains" : "s remain"}. Warnings do not block publication, but review them before confirming.`
-          : "No publication blockers or warnings were found.",
-        issues: checkedIssues,
-      });
-      setPublishIntent(intent);
-    } catch (error) {
-      setPublishFeedback({
-        kind: "error",
-        title: "Publication check could not be completed.",
-        detail: error instanceof Error ? error.message : "Please retry the publication check.",
-        issues: [],
-      });
-    } finally {
-      setPublishPreflightBusy(false);
     }
+
+    setPublishIntent(intent);
   }
 
   async function save(status?: string): Promise<any | null> {
@@ -1200,25 +1084,14 @@ export default function UpdatesAdminClient() {
       const result = await response.json().catch(() => ({}));
 
       if (!response.ok) {
-        if (result.error === "seo_blocked") {
-          const serverIssues = Array.isArray(result.issues) ? result.issues : [];
-          const serverBlockers = serverIssues.filter((item: SeoIssue) => item.level === "block");
-          setPublishFeedback({
-            kind: "blocked",
-            title: `${serverBlockers.length} publication blocker${serverBlockers.length === 1 ? "" : "s"} found by the final server check.`,
-            detail: "Nothing was published. Fix the BLOCK items below and try again.",
-            issues: serverIssues,
-          });
-          setNote("");
-        } else {
-          setPublishFeedback({
-            kind: "error",
-            title: "Publication was not completed.",
-            detail: result.error || "Save failed",
-            issues: [],
-          });
-          setNote(result.error || "Save failed");
-        }
+        setNote(
+          result.error === "seo_blocked"
+            ? `Publishing blocked: ${(result.issues || [])
+                .filter((item: any) => item.level === "block")
+                .map((item: any) => item.message)
+                .join(" · ")}`
+            : result.error || "Save failed",
+        );
         return null;
       }
 
@@ -1239,12 +1112,6 @@ export default function UpdatesAdminClient() {
         setAutosaveError("");
 
         if (normalized.status === "published") {
-          setPublishFeedback({
-            kind: "published",
-            title: "Published successfully.",
-            detail: "The Update is public. StayKnown is now verifying the main Updates page, article URL, metadata, sitemap, RSS, likes and analytics.",
-            issues: [],
-          });
           setNote("Published. StayKnown is verifying the live publication now…");
           await verifyPublication(normalized.id);
         } else {
@@ -1423,8 +1290,6 @@ export default function UpdatesAdminClient() {
                 verifyPublication={verifyPublication}
                 verification={verification}
                 verificationBusy={verificationBusy}
-                publishPreflightBusy={publishPreflightBusy}
-                publishFeedback={publishFeedback}
               />
             </div>
           ) : tab === "Media" ? (
@@ -1460,7 +1325,6 @@ export default function UpdatesAdminClient() {
           post={post}
           intent={publishIntent}
           blockers={blockers}
-          issues={issues}
           busy={busy}
           onPreview={() => {
             setPublishIntent(null);
@@ -1500,8 +1364,6 @@ function Editor({
   verifyPublication,
   verification,
   verificationBusy,
-  publishPreflightBusy,
-  publishFeedback,
 }: any) {
   const presentation = getUpdatePresentation(post.body || []);
   const visible = (post.body || []).filter(
@@ -1865,7 +1727,10 @@ function Editor({
 
           <button
             type="button"
-            disabled={busy || publishPreflightBusy}
+            disabled={
+              busy ||
+              issues.some((item: SeoIssue) => item.level === "block")
+            }
             onClick={() =>
               requestPublish(
                 post.status === "published"
@@ -1879,15 +1744,13 @@ function Editor({
             }
             className="rounded-full bg-white px-5 py-3 text-[10px] font-black text-black transition hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-25"
           >
-            {publishPreflightBusy
-              ? "CHECKING…"
-              : post.status === "published"
-                ? "Review & Update Live"
-                : post.status === "scheduled"
-                  ? "Review Schedule"
-                  : post.scheduled_for
-                    ? "Review & Schedule"
-                    : "Review & Publish"}
+            {post.status === "published"
+              ? "Review & Update Live"
+              : post.status === "scheduled"
+                ? "Review Schedule"
+                : post.scheduled_for
+                  ? "Review & Schedule"
+                  : "Review & Publish"}
           </button>
 
           {post.id && isPubliclyOpenable(post) ? (
@@ -1902,10 +1765,6 @@ function Editor({
           ) : null}
         </div>
       </section>
-
-      {publishFeedback ? (
-        <PublishFeedbackPanel feedback={publishFeedback} />
-      ) : null}
 
       {note ? (
         <div className="mt-4 text-[11px] font-bold text-white/[0.52]">
@@ -2410,11 +2269,6 @@ function SeoIssues({ issues }: { issues: SeoIssue[] }) {
         pretending every recommendation is a Google requirement.
       </div>
       <div className="mt-4 space-y-2">
-        {issues.length === 0 ? (
-          <div className="rounded-2xl border border-white/[0.12] p-3 text-[10px] font-semibold text-white/[0.55]">
-            No SEO issues detected.
-          </div>
-        ) : null}
         {issues.map((item, index) => (
           <div
             key={`${item.code}-${index}`}
@@ -2426,13 +2280,8 @@ function SeoIssues({ issues }: { issues: SeoIssue[] }) {
                   : "border-white/[0.08] text-white/[0.35]"
             }`}
           >
-            <div>
-              <b className="mr-2 uppercase">{item.level}</b>
-              {item.message}
-            </div>
-            <div className="mt-1 text-[9px] font-black uppercase tracking-[0.08em] text-white/[0.38]">
-              What to do: <span className="normal-case tracking-normal text-white/[0.58]">{seoIssueFix(item)}</span>
-            </div>
+            <b className="mr-2 uppercase">{item.level}</b>
+            {item.message}
           </div>
         ))}
       </div>
@@ -3035,75 +2884,10 @@ function AdminPublicationPreview({ post, onClose }: { post: any; onClose: () => 
 }
 
 
-function PublishFeedbackPanel({ feedback }: { feedback: PublishFeedback }) {
-  const issues = Array.isArray(feedback.issues) ? feedback.issues : [];
-  const blockers = issues.filter((item) => item.level === "block");
-  const warnings = issues.filter((item) => item.level === "warning");
-
-  return (
-    <section
-      className={`mt-4 rounded-[26px] border p-4 ${
-        feedback.kind === "blocked" || feedback.kind === "error"
-          ? "border-white/[0.24] bg-white/[0.06]"
-          : "border-white/[0.12] bg-white/[0.025]"
-      }`}
-      aria-live="polite"
-    >
-      <div className="text-[8px] font-black uppercase tracking-[0.18em] text-white/[0.34]">
-        Publication feedback
-      </div>
-      <div className="mt-2 text-[13px] font-black text-white">{feedback.title}</div>
-      {feedback.detail ? (
-        <div className="mt-2 text-[10px] font-semibold leading-5 text-white/[0.48]">
-          {feedback.detail}
-        </div>
-      ) : null}
-
-      {feedback.kind === "checking" ? (
-        <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-white/[0.08]">
-          <div className="h-full w-1/2 animate-pulse rounded-full bg-white/[0.7]" />
-        </div>
-      ) : null}
-
-      {blockers.length > 0 ? (
-        <div className="mt-4 space-y-2">
-          {blockers.map((item, index) => (
-            <div key={`${item.code}-${index}`} className="rounded-2xl border border-white/[0.16] p-3">
-              <div className="text-[9px] font-black uppercase tracking-[0.12em] text-white">
-                BLOCK · {item.message}
-              </div>
-              <div className="mt-1 text-[9px] font-semibold leading-4 text-white/[0.48]">
-                What to do: {seoIssueFix(item)}
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : null}
-
-      {warnings.length > 0 ? (
-        <details className="mt-4 rounded-2xl border border-white/[0.1] p-3">
-          <summary className="cursor-pointer text-[9px] font-black uppercase tracking-[0.12em] text-white/[0.5]">
-            {warnings.length} warning{warnings.length === 1 ? "" : "s"} to review
-          </summary>
-          <div className="mt-3 space-y-2">
-            {warnings.map((item, index) => (
-              <div key={`${item.code}-${index}`} className="text-[9px] font-semibold leading-4 text-white/[0.42]">
-                <b>WARNING ·</b> {item.message}<br />
-                <span className="text-white/[0.32]">What to do: {seoIssueFix(item)}</span>
-              </div>
-            ))}
-          </div>
-        </details>
-      ) : null}
-    </section>
-  );
-}
-
 function PublishConfirmation({
   post,
   intent,
   blockers,
-  issues,
   busy,
   onPreview,
   onCancel,
@@ -3112,7 +2896,6 @@ function PublishConfirmation({
   post: any;
   intent: PublishIntent;
   blockers: number;
-  issues: SeoIssue[];
   busy: boolean;
   onPreview: () => void;
   onCancel: () => void;
@@ -3134,9 +2917,6 @@ function PublishConfirmation({
     post.image_1_1_url,
   ].filter(Boolean).length;
   const updatingLive = post.id && isPubliclyOpenable(post);
-  const warnings = (Array.isArray(issues) ? issues : []).filter(
-    (item: SeoIssue) => item.level === "warning",
-  );
 
   return (
     <div className="fixed inset-0 z-[120] flex items-center justify-center overflow-y-auto bg-black/90 p-4 backdrop-blur-xl">
@@ -3157,7 +2937,6 @@ function PublishConfirmation({
             ["Headline", post.title || "Untitled"],
             ["Public URL", publicPath],
             ["SEO blockers", String(blockers)],
-            ["SEO warnings", String(warnings.length)],
             ["Representative images", `${representativeCount}/3 ready`],
             [
               intent === "scheduled" ? "Goes public" : "Visibility",
@@ -3205,22 +2984,6 @@ function PublishConfirmation({
             </div>
           </div>
         </div>
-
-        {warnings.length > 0 ? (
-          <div className="mt-5 rounded-[22px] border border-white/[0.1] p-4">
-            <div className="text-[8px] font-black uppercase tracking-[0.16em] text-white/[0.34]">
-              Warnings to review
-            </div>
-            <div className="mt-3 space-y-2">
-              {warnings.map((item: SeoIssue, index: number) => (
-                <div key={`${item.code}-${index}`} className="text-[9px] font-semibold leading-4 text-white/[0.46]">
-                  {item.message}
-                  <div className="text-white/[0.3]">What to do: {seoIssueFix(item)}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        ) : null}
 
         <p className="mt-5 text-[10px] font-semibold leading-5 text-white/[0.4]">
           {intent === "scheduled"
