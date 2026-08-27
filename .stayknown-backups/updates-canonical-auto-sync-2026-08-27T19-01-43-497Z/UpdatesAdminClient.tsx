@@ -143,13 +143,7 @@ function finalizeSlug(value: string) {
 function normalizePost(input: any) {
   const base = blankPost();
   const body = withUpdatePresentation(input?.body || base.body, {});
-  const normalized = { ...base, ...input, body };
-  const slug = String(normalized.slug || "").trim();
-
-  return {
-    ...normalized,
-    canonical_path: slug ? `/updates/${slug}` : "",
-  };
+  return { ...base, ...input, body };
 }
 
 function createBlock(type: UpdateBlock["type"]): UpdateBlock | null {
@@ -715,27 +709,13 @@ export default function UpdatesAdminClient() {
 
   function set(key: string, value: any) {
     setPublishFeedback(null);
-    setPost((current: any) => {
-      const next = {
-        ...current,
-        [key]: value,
-      };
-
-      if (key === "slug") {
-        const nextSlug = String(value || "").trim();
-        next.canonical_path = nextSlug ? `/updates/${nextSlug}` : "";
-      }
-
-      if (key === "title" && !current.id && !current.slug) {
-        const generatedSlug = slugify(String(value || ""));
-        next.slug = generatedSlug;
-        next.canonical_path = generatedSlug
-          ? `/updates/${generatedSlug}`
-          : "";
-      }
-
-      return next;
-    });
+    setPost((current: any) => ({
+      ...current,
+      [key]: value,
+      ...(key === "title" && !current.id && !current.slug
+        ? { slug: slugify(value) }
+        : {}),
+    }));
   }
 
   function setPresentation(key: string, value: string) {
