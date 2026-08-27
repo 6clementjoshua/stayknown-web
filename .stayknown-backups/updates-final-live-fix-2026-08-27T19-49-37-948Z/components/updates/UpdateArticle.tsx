@@ -147,7 +147,7 @@ export function UpdateArticle({
 
               <Link
                 href="/updates"
-                className="rounded-full border border-white/[0.15] px-4 py-2 text-[10px] font-black transition hover:bg-white hover:!text-black"
+                className="rounded-full border border-white/[0.15] px-4 py-2 text-[10px] font-black transition hover:bg-white hover:text-black"
               >
                 Back to Updates
               </Link>

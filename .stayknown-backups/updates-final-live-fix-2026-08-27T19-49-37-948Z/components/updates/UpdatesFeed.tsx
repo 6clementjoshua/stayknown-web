@@ -166,7 +166,9 @@ function SiteFooter() {
                     <li key={link.href}>
                       <a
                         href={link.href}
-                        target={link.href.startsWith("http") ? "_blank" : undefined}
+                        target={
+                          link.href.startsWith("http") ? "_blank" : undefined
+                        }
                         rel={
                           link.href.startsWith("http")
                             ? "noopener noreferrer"
@@ -206,7 +208,6 @@ export function UpdatesFeed({
   totalViews: number;
 }) {
   const [activeFilter, setActiveFilter] = useState<UpdateFilter>("All");
-  const [openingSlug, setOpeningSlug] = useState<string | null>(null);
 
   const filteredPosts = useMemo(
     () => posts.filter((post) => matchesFilter(post, activeFilter)),
@@ -226,22 +227,6 @@ export function UpdatesFeed({
 
   return (
     <main className="min-h-screen bg-black text-white">
-      {openingSlug ? (
-        <div
-          className="fixed inset-x-0 top-0 z-[100] flex h-1.5 items-center overflow-hidden bg-white/[0.14]"
-          role="status"
-          aria-live="polite"
-          aria-label="Opening update"
-        >
-          <div className="h-full w-1/3 animate-[skUpdatesLoad_1s_ease-in-out_infinite] bg-white" />
-        </div>
-      ) : null}
-      <style>{`
-        @keyframes skUpdatesLoad {
-          0% { transform: translateX(-120%); }
-          100% { transform: translateX(420%); }
-        }
-      `}</style>
       <header className="sticky top-0 z-50 border-b border-white/[0.08] bg-black/95 px-4 py-3 backdrop-blur-xl sm:px-6">
         <div className="mx-auto flex max-w-[1160px] items-center justify-between gap-4">
           <Link
@@ -273,8 +258,8 @@ export function UpdatesFeed({
               StayKnown Updates.
             </h1>
             <p className="mt-7 max-w-[620px] text-[14px] font-semibold leading-7 text-white/48">
-              The official public record of what StayKnown is building, changing,
-              releasing and learning across safety technology.
+              The official public record of what StayKnown is building,
+              changing, releasing and learning across safety technology.
             </p>
           </div>
 
@@ -293,7 +278,7 @@ export function UpdatesFeed({
                   aria-pressed={active}
                   className={`shrink-0 rounded-full border px-4 py-2.5 text-[9px] font-black uppercase tracking-[0.15em] transition duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/35 ${
                     active
-                      ? "border-white bg-white !text-black"
+                      ? "border-white bg-white text-black"
                       : "border-white/[0.11] bg-white/[0.025] text-white/42 hover:border-white/[0.24] hover:text-white"
                   }`}
                 >
@@ -321,26 +306,9 @@ export function UpdatesFeed({
                   >
                     <Link
                       href={`/updates/${post.slug}`}
-                      onClick={() => setOpeningSlug(post.slug)}
-                      aria-busy={openingSlug === post.slug}
                       className="block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/35"
                     >
-                      <div className="grid gap-7 md:grid-cols-[220px_1fr] lg:grid-cols-[240px_1fr_.34fr] lg:items-center">
-                        <div className="overflow-hidden rounded-[24px] border border-white/[0.1] bg-white/[0.02]">
-                          {post.image_16_9_url || post.hero_image_url ? (
-                            <img
-                              src={post.image_16_9_url || post.hero_image_url || ""}
-                              alt={post.hero_alt_text || post.title}
-                              loading="lazy"
-                              className="aspect-[16/9] w-full object-cover transition duration-500 group-hover:scale-[1.025]"
-                            />
-                          ) : (
-                            <div className="flex aspect-[16/9] items-center justify-center text-[9px] font-black uppercase tracking-[0.16em] text-white/20">
-                              StayKnown Update
-                            </div>
-                          )}
-                        </div>
-
+                      <div className="grid gap-7 lg:grid-cols-[1fr_.42fr] lg:items-end">
                         <div>
                           <div className="text-[9px] font-black uppercase tracking-[0.2em] text-white/30">
                             {post.category} · {formatDate(post)}
@@ -353,16 +321,9 @@ export function UpdatesFeed({
                           </p>
                         </div>
 
-                        <div className="md:col-start-2 lg:col-start-auto lg:text-right">
-                          <span className="inline-flex items-center gap-2 rounded-full border border-white/[0.14] px-4 py-2.5 text-[10px] font-black transition duration-300 group-hover:bg-white group-hover:!text-black">
-                            {openingSlug === post.slug ? (
-                              <>
-                                <span className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                                Opening…
-                              </>
-                            ) : (
-                              <>Read update ↗</>
-                            )}
+                        <div className="lg:text-right">
+                          <span className="inline-flex rounded-full border border-white/[0.14] px-4 py-2.5 text-[10px] font-black transition duration-300 group-hover:bg-white group-hover:text-black">
+                            Read update ↗
                           </span>
                           <div className="mt-3 text-[9px] font-black text-white/26">
                             ♡ {Number(post.like_count || 0).toLocaleString()}
@@ -386,8 +347,8 @@ export function UpdatesFeed({
                   The record begins with the first published update.
                 </h2>
                 <p className="mt-4 max-w-[560px] text-[12px] font-semibold leading-6 text-white/38">
-                  Official StayKnown product, safety, technology and company updates
-                  will appear here as they are published.
+                  Official StayKnown product, safety, technology and company
+                  updates will appear here as they are published.
                 </p>
               </div>
             </div>

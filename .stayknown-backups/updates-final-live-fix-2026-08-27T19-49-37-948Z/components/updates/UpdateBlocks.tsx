@@ -213,7 +213,7 @@ export function UpdateBlocks({
             <a
               key={index}
               href={block.url}
-              className={`inline-flex rounded-full border border-white/[0.16] font-black transition hover:bg-white hover:!text-black ${
+              className={`inline-flex rounded-full border border-white/[0.16] font-black transition hover:bg-white hover:text-black ${
                 block.size === "compact"
                   ? "px-3.5 py-2 text-[10px]"
                   : "px-4 py-2.5 text-[11px]"

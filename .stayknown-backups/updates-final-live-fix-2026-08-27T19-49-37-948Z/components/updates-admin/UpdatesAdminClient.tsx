@@ -1330,7 +1330,7 @@ export default function UpdatesAdminClient() {
             type="button"
             onClick={login}
             disabled={busy}
-            className="mt-3 w-full rounded-2xl bg-white px-4 py-3 text-[11px] font-black !text-black transition hover:scale-[1.01] active:scale-[0.98]"
+            className="mt-3 w-full rounded-2xl bg-white px-4 py-3 text-[11px] font-black text-black transition hover:scale-[1.01] active:scale-[0.98]"
           >
             {busy ? "Sending…" : "Email Updates Admin access link"}
           </button>
@@ -1356,30 +1356,8 @@ export default function UpdatesAdminClient() {
 
   const tabs = ["Overview", "Posts", "Media", "Analytics", "SEO", "Settings"];
 
-  const globalActivityLabel = publishPreflightBusy
-    ? "CHECKING PUBLICATION…"
-    : verificationBusy
-      ? "VERIFYING LIVE UPDATE…"
-      : autosaveState === "saving"
-        ? "SAVING…"
-        : autosaveState === "retrying"
-          ? "RETRYING SAVE…"
-          : busy
-            ? "WORKING…"
-            : "";
-
   return (
     <main className="min-h-screen bg-black text-white">
-      {globalActivityLabel ? (
-        <div
-          className="fixed inset-x-0 top-0 z-[220] flex items-center justify-center gap-2 border-b border-white/[0.1] bg-black/95 px-4 py-2 text-[8px] font-black uppercase tracking-[0.16em] text-white/60 backdrop-blur-xl"
-          role="status"
-          aria-live="polite"
-        >
-          <span className="h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent" />
-          {globalActivityLabel}
-        </div>
-      ) : null}
       <header className="sticky top-0 z-30 border-b border-white/[0.1] bg-black/[0.9] px-4 py-3 backdrop-blur-xl">
         <div className="mx-auto flex max-w-[1380px] items-center justify-between gap-4">
           <div className="text-[10px] font-black tracking-[0.18em]">
@@ -1400,7 +1378,7 @@ export default function UpdatesAdminClient() {
             <button
               type="button"
               onClick={() => void startNewUpdate()}
-              className="rounded-full bg-white px-4 py-2 text-[10px] font-black !text-black transition hover:scale-105 active:scale-95"
+              className="rounded-full bg-white px-4 py-2 text-[10px] font-black text-black transition hover:scale-105 active:scale-95"
             >
               + NEW UPDATE
             </button>
@@ -1418,7 +1396,7 @@ export default function UpdatesAdminClient() {
                 onClick={() => setTab(item)}
                 className={`mb-1 w-full rounded-xl px-3 py-2.5 text-left text-[10px] font-black transition ${
                   tab === item
-                    ? "bg-white !text-black"
+                    ? "bg-white text-black"
                     : "text-white/[0.42] hover:bg-white/[0.05] hover:text-white"
                 }`}
               >
@@ -1435,7 +1413,7 @@ export default function UpdatesAdminClient() {
                 <button
                   type="button"
                   onClick={() => setTab("Overview")}
-                  className="rounded-full border border-white/[0.12] px-3 py-2 text-[9px] font-black text-white/[0.42] transition hover:bg-white hover:!text-black"
+                  className="rounded-full border border-white/[0.12] px-3 py-2 text-[9px] font-black text-white/[0.42] transition hover:bg-white hover:text-black"
                 >
                   ← BACK TO PUBLICATION LIBRARY
                 </button>
@@ -1443,7 +1421,7 @@ export default function UpdatesAdminClient() {
                   <button
                     type="button"
                     onClick={() => setPreviewPost(normalizePost(post))}
-                    className="rounded-full border border-white/[0.12] px-3 py-2 text-[9px] font-black text-white/[0.42] transition hover:bg-white hover:!text-black"
+                    className="rounded-full border border-white/[0.12] px-3 py-2 text-[9px] font-black text-white/[0.42] transition hover:bg-white hover:text-black"
                   >
                     PREVIEW HERE
                   </button>
@@ -1802,7 +1780,7 @@ function Editor({
               type="button"
               key={type}
               onClick={() => addBlock(type)}
-              className="rounded-full border border-white/[0.12] px-3 py-2 text-[9px] font-black text-white/[0.45] transition hover:bg-white hover:!text-black"
+              className="rounded-full border border-white/[0.12] px-3 py-2 text-[9px] font-black text-white/[0.45] transition hover:bg-white hover:text-black"
             >
               + {label}
             </button>
@@ -1896,7 +1874,7 @@ function Editor({
             type="button"
             disabled={busy}
             onClick={onPreview}
-            className="rounded-full border border-white/[0.16] px-5 py-3 text-[10px] font-black transition hover:bg-white hover:!text-black disabled:opacity-30"
+            className="rounded-full border border-white/[0.16] px-5 py-3 text-[10px] font-black transition hover:bg-white hover:text-black disabled:opacity-30"
           >
             Preview Update
           </button>
@@ -1906,7 +1884,7 @@ function Editor({
               type="button"
               disabled={busy}
               onClick={() => save("draft")}
-              className="rounded-full border border-white/[0.16] px-5 py-3 text-[10px] font-black transition hover:bg-white hover:!text-black disabled:opacity-30"
+              className="rounded-full border border-white/[0.16] px-5 py-3 text-[10px] font-black transition hover:bg-white hover:text-black disabled:opacity-30"
             >
               Save draft
             </button>
@@ -1926,7 +1904,7 @@ function Editor({
                       : "published",
               )
             }
-            className="rounded-full bg-white px-5 py-3 text-[10px] font-black !text-black transition hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-25"
+            className="rounded-full bg-white px-5 py-3 text-[10px] font-black text-black transition hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-25"
           >
             {publishPreflightBusy
               ? "CHECKING…"
@@ -1944,7 +1922,7 @@ function Editor({
               type="button"
               disabled={verificationBusy}
               onClick={() => void verifyPublication(post.id)}
-              className="rounded-full border border-white/[0.16] px-5 py-3 text-[10px] font-black text-white/[0.65] transition hover:bg-white hover:!text-black disabled:opacity-30"
+              className="rounded-full border border-white/[0.16] px-5 py-3 text-[10px] font-black text-white/[0.65] transition hover:bg-white hover:text-black disabled:opacity-30"
             >
               {verificationBusy ? "Checking…" : "Re-check Live Update"}
             </button>
@@ -2398,7 +2376,7 @@ function MiniButton({ label, onClick, disabled = false, danger = false }: any) {
       className={`rounded-full border px-2.5 py-1.5 text-[8px] font-black transition disabled:cursor-not-allowed disabled:opacity-20 ${
         danger
           ? "border-white/[0.12] text-white/[0.38] hover:border-white/[0.3] hover:text-white"
-          : "border-white/[0.1] text-white/[0.42] hover:bg-white hover:!text-black"
+          : "border-white/[0.1] text-white/[0.42] hover:bg-white hover:text-black"
       }`}
     >
       {label}
@@ -2557,7 +2535,7 @@ function RichMediaUploadControl({
               <a href={value} target="_blank" rel="noreferrer" className="text-[8px] font-black text-white/[0.42] underline">OPEN</a>
             </div>
           )}
-          <button type="button" onClick={onRemove} className="mt-2 rounded-full border border-white/[0.14] px-2.5 py-1.5 text-[8px] font-black text-white/[0.45] hover:bg-white hover:!text-black">
+          <button type="button" onClick={onRemove} className="mt-2 rounded-full border border-white/[0.14] px-2.5 py-1.5 text-[8px] font-black text-white/[0.45] hover:bg-white hover:text-black">
             Remove
           </button>
         </div>
@@ -2637,7 +2615,7 @@ function ImageUploadControl({
             <button
               type="button"
               onClick={onRemove}
-              className="rounded-full border border-white/[0.18] px-2 py-1 text-[8px] font-black text-white/[0.58] hover:bg-white hover:!text-black"
+              className="rounded-full border border-white/[0.18] px-2 py-1 text-[8px] font-black text-white/[0.58] hover:bg-white hover:text-black"
             >
               Remove
             </button>
@@ -2667,7 +2645,7 @@ function ImageUploadControl({
           void choose(event.dataTransfer.files?.[0]);
         }}
         className={`block w-full px-4 py-5 text-left transition ${
-          dragging ? "bg-white !text-black" : "hover:bg-white/[0.045]"
+          dragging ? "bg-white text-black" : "hover:bg-white/[0.045]"
         } disabled:opacity-40`}
       >
         <div className="text-[9px] font-black">
@@ -2679,7 +2657,7 @@ function ImageUploadControl({
         </div>
         <div
           className={`mt-1 text-[8px] font-semibold leading-4 ${
-            dragging ? "!text-black/60" : "text-white/[0.32]"
+            dragging ? "text-black/60" : "text-white/[0.32]"
           }`}
         >
           Drop here or choose from this device · JPEG, PNG, WebP{purpose === "article-body" ? " or GIF" : ""} · up to 20 MB
@@ -2775,7 +2753,7 @@ function MediaLibrary({
                   ) : mime.startsWith("image/") ? (
                     <img src={item.publicUrl} alt="" className="h-full w-full object-cover" loading="lazy" />
                   ) : (
-                    <a href={item.publicUrl} target="_blank" rel="noreferrer" className="rounded-full border border-white/[0.14] px-4 py-2 text-[9px] font-black text-white/[0.5] hover:bg-white hover:!text-black">OPEN FILE ↗</a>
+                    <a href={item.publicUrl} target="_blank" rel="noreferrer" className="rounded-full border border-white/[0.14] px-4 py-2 text-[9px] font-black text-white/[0.5] hover:bg-white hover:text-black">OPEN FILE ↗</a>
                   )}
                 </div>
                 <div className="p-3">
@@ -2906,7 +2884,7 @@ function Dashboard({
         <button
           type="button"
           onClick={() => onFilterChange(activeFilter === "deleted" ? null : "deleted")}
-          className={`rounded-full border px-3 py-2 text-[8px] font-black uppercase tracking-[0.12em] transition ${activeFilter === "deleted" ? "border-white bg-white !text-black" : "border-white/[0.1] text-white/[0.34] hover:border-white/[0.28] hover:text-white"}`}
+          className={`rounded-full border px-3 py-2 text-[8px] font-black uppercase tracking-[0.12em] transition ${activeFilter === "deleted" ? "border-white bg-white text-black" : "border-white/[0.1] text-white/[0.34] hover:border-white/[0.28] hover:text-white"}`}
         >
           Recently Deleted · {deletedPosts.length} · 90-day recovery
         </button>
@@ -2920,9 +2898,9 @@ function Dashboard({
               <div className="mt-1 text-[8px] font-semibold text-white/[0.24]">Newest first · {visibleLibrary.length} item{visibleLibrary.length === 1 ? "" : "s"}</div>
             </div>
             <div className="flex flex-wrap gap-2">
-              <button type="button" onClick={() => setSelecting((value) => !value)} className="rounded-full border border-white/[0.1] px-3 py-2 text-[8px] font-black text-white/[0.4] hover:bg-white hover:!text-black">{selecting ? "DONE SELECTING" : "SELECT"}</button>
+              <button type="button" onClick={() => setSelecting((value) => !value)} className="rounded-full border border-white/[0.1] px-3 py-2 text-[8px] font-black text-white/[0.4] hover:bg-white hover:text-black">{selecting ? "DONE SELECTING" : "SELECT"}</button>
               {selecting && visibleLibrary.length ? (
-                <button type="button" onClick={() => setSelected(selected.length === visibleLibrary.length ? [] : visibleLibrary.map((item) => item.id))} className="rounded-full border border-white/[0.1] px-3 py-2 text-[8px] font-black text-white/[0.4] hover:bg-white hover:!text-black">{selected.length === visibleLibrary.length ? "CLEAR ALL" : "SELECT ALL"}</button>
+                <button type="button" onClick={() => setSelected(selected.length === visibleLibrary.length ? [] : visibleLibrary.map((item) => item.id))} className="rounded-full border border-white/[0.1] px-3 py-2 text-[8px] font-black text-white/[0.4] hover:bg-white hover:text-black">{selected.length === visibleLibrary.length ? "CLEAR ALL" : "SELECT ALL"}</button>
               ) : null}
             </div>
           </div>
@@ -2933,7 +2911,7 @@ function Dashboard({
               <div className="flex gap-2">
                 {activeFilter === "deleted" ? (
                   <>
-                    <button type="button" disabled={actionBusy} onClick={() => void perform("restore")} className="rounded-full bg-white px-3 py-2 text-[8px] font-black !text-black disabled:opacity-30">RESTORE SELECTED</button>
+                    <button type="button" disabled={actionBusy} onClick={() => void perform("restore")} className="rounded-full bg-white px-3 py-2 text-[8px] font-black text-black disabled:opacity-30">RESTORE SELECTED</button>
                     <button type="button" disabled={actionBusy} onClick={() => { setConfirmMode("permanent"); setConfirmText(""); }} className="rounded-full border border-white/[0.16] px-3 py-2 text-[8px] font-black text-white/[0.48] disabled:opacity-30">PERMANENT DELETE</button>
                   </>
                 ) : (
@@ -3007,7 +2985,7 @@ function Dashboard({
             <input autoFocus className="input mt-4" value={confirmText} onChange={(event) => setConfirmText(event.target.value)} placeholder={confirmMode === "permanent" ? "PERMANENTLY DELETE" : "DELETE"} />
             <div className="mt-4 flex justify-end gap-2">
               <button type="button" onClick={() => { setConfirmMode(null); setConfirmText(""); }} className="rounded-full border border-white/[0.12] px-4 py-2 text-[9px] font-black text-white/[0.45]">CANCEL</button>
-              <button type="button" disabled={actionBusy || confirmText !== (confirmMode === "permanent" ? "PERMANENTLY DELETE" : "DELETE")} onClick={() => void perform(confirmMode === "permanent" ? "permanent_delete" : "soft_delete")} className="rounded-full bg-white px-4 py-2 text-[9px] font-black !text-black disabled:opacity-25">CONFIRM</button>
+              <button type="button" disabled={actionBusy || confirmText !== (confirmMode === "permanent" ? "PERMANENTLY DELETE" : "DELETE")} onClick={() => void perform(confirmMode === "permanent" ? "permanent_delete" : "soft_delete")} className="rounded-full bg-white px-4 py-2 text-[9px] font-black text-black disabled:opacity-25">CONFIRM</button>
             </div>
           </div>
         </div>
@@ -3023,7 +3001,7 @@ function PublicationMiniCard({ item, selecting, selected, deleted, onToggleSelec
   return (
     <article className="group relative overflow-hidden rounded-[22px] border border-white/[0.09] bg-black transition hover:border-white/[0.22]">
       {selecting ? (
-        <button type="button" onClick={onToggleSelect} className={`absolute left-2 top-2 z-20 flex h-7 w-7 items-center justify-center rounded-full border text-[10px] font-black backdrop-blur-md ${selected ? "border-white bg-white !text-black" : "border-white/[0.25] bg-black/70 text-white"}`}>{selected ? "✓" : ""}</button>
+        <button type="button" onClick={onToggleSelect} className={`absolute left-2 top-2 z-20 flex h-7 w-7 items-center justify-center rounded-full border text-[10px] font-black backdrop-blur-md ${selected ? "border-white bg-white text-black" : "border-white/[0.25] bg-black/70 text-white"}`}>{selected ? "✓" : ""}</button>
       ) : null}
       <button type="button" onClick={selecting ? onToggleSelect : deleted ? onPreview : onEdit} className="block w-full text-left">
         <PublicationPreviewMedia media={media} compact />
@@ -3036,11 +3014,11 @@ function PublicationMiniCard({ item, selecting, selected, deleted, onToggleSelec
       {!selecting ? (
         <div className="flex flex-wrap gap-1.5 border-t border-white/[0.07] p-2">
           {deleted ? (
-            <button type="button" onClick={onRestore} className="rounded-full bg-white px-2.5 py-1.5 text-[7px] font-black !text-black">RESTORE</button>
+            <button type="button" onClick={onRestore} className="rounded-full bg-white px-2.5 py-1.5 text-[7px] font-black text-black">RESTORE</button>
           ) : (
             <>
-              <button type="button" onClick={onPreview} className="rounded-full border border-white/[0.1] px-2.5 py-1.5 text-[7px] font-black text-white/[0.42] hover:bg-white hover:!text-black">PREVIEW HERE</button>
-              {isPubliclyOpenable(item) ? <a href={publicUrl} target="_blank" rel="noreferrer" className="rounded-full border border-white/[0.1] px-2.5 py-1.5 text-[7px] font-black text-white/[0.42] hover:bg-white hover:!text-black">OPEN URL ↗</a> : null}
+              <button type="button" onClick={onPreview} className="rounded-full border border-white/[0.1] px-2.5 py-1.5 text-[7px] font-black text-white/[0.42] hover:bg-white hover:text-black">PREVIEW HERE</button>
+              {isPubliclyOpenable(item) ? <a href={publicUrl} target="_blank" rel="noreferrer" className="rounded-full border border-white/[0.1] px-2.5 py-1.5 text-[7px] font-black text-white/[0.42] hover:bg-white hover:text-black">OPEN URL ↗</a> : null}
               <button type="button" onClick={onDelete} className="rounded-full border border-white/[0.1] px-2.5 py-1.5 text-[7px] font-black text-white/[0.32] hover:border-white/[0.28] hover:text-white">DELETE</button>
             </>
           )}
@@ -3066,7 +3044,7 @@ function AdminPublicationPreview({ post, onClose }: { post: any; onClose: () => 
       <div className="mx-auto max-w-[1050px] overflow-hidden rounded-[30px] border border-white/[0.12] bg-black">
         <div className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-white/[0.08] bg-black/90 p-3 backdrop-blur-xl">
           <div><div className="text-[8px] font-black uppercase tracking-[0.16em] text-white/[0.3]">ADMIN WEB PREVIEW · NOT A PUBLIC ROUTE</div><div className="mt-1 text-[9px] font-semibold text-white/[0.25]">Preview this Update without leaving Publication Admin.</div></div>
-          <div className="flex gap-2">{isPubliclyOpenable(post) ? <a href={`/updates/${post.slug}`} target="_blank" rel="noreferrer" className="rounded-full border border-white/[0.14] px-3 py-2 text-[8px] font-black text-white/[0.45] hover:bg-white hover:!text-black">OPEN UPDATE URL ↗</a> : null}<button type="button" onClick={onClose} className="rounded-full bg-white px-3 py-2 text-[8px] font-black !text-black">CLOSE</button></div>
+          <div className="flex gap-2">{isPubliclyOpenable(post) ? <a href={`/updates/${post.slug}`} target="_blank" rel="noreferrer" className="rounded-full border border-white/[0.14] px-3 py-2 text-[8px] font-black text-white/[0.45] hover:bg-white hover:text-black">OPEN UPDATE URL ↗</a> : null}<button type="button" onClick={onClose} className="rounded-full bg-white px-3 py-2 text-[8px] font-black text-black">CLOSE</button></div>
         </div>
         <article className="px-4 py-10 sm:px-8 sm:py-14">
           <div className="mx-auto max-w-[900px]">
@@ -3282,7 +3260,7 @@ function PublishConfirmation({
             type="button"
             disabled={busy}
             onClick={onPreview}
-            className="rounded-full border border-white/[0.14] px-4 py-2.5 text-[9px] font-black text-white/[0.55] hover:bg-white hover:!text-black disabled:opacity-30"
+            className="rounded-full border border-white/[0.14] px-4 py-2.5 text-[9px] font-black text-white/[0.55] hover:bg-white hover:text-black disabled:opacity-30"
           >
             Preview full Update
           </button>
@@ -3290,7 +3268,7 @@ function PublishConfirmation({
             type="button"
             disabled={busy}
             onClick={onCancel}
-            className="rounded-full border border-white/[0.14] px-4 py-2.5 text-[9px] font-black text-white/[0.55] hover:bg-white hover:!text-black disabled:opacity-30"
+            className="rounded-full border border-white/[0.14] px-4 py-2.5 text-[9px] font-black text-white/[0.55] hover:bg-white hover:text-black disabled:opacity-30"
           >
             Cancel
           </button>
@@ -3298,7 +3276,7 @@ function PublishConfirmation({
             type="button"
             disabled={busy || blockers > 0}
             onClick={() => void onConfirm()}
-            className="rounded-full bg-white px-5 py-2.5 text-[9px] font-black !text-black disabled:opacity-25"
+            className="rounded-full bg-white px-5 py-2.5 text-[9px] font-black text-black disabled:opacity-25"
           >
             {busy
               ? "Working…"
@@ -3342,7 +3320,7 @@ function PublicationVerificationPanel({
             href={result.publicUrl}
             target="_blank"
             rel="noreferrer"
-            className="rounded-full border border-white/[0.14] px-3 py-2 text-[8px] font-black text-white/[0.5] hover:bg-white hover:!text-black"
+            className="rounded-full border border-white/[0.14] px-3 py-2 text-[8px] font-black text-white/[0.5] hover:bg-white hover:text-black"
           >
             OPEN UPDATE URL ↗
           </a>
@@ -3477,7 +3455,7 @@ function AdminSettings({ api }: any) {
         <button
           type="button"
           onClick={add}
-          className="mt-3 rounded-full bg-white px-5 py-3 text-[10px] font-black !text-black transition hover:scale-105 active:scale-95"
+          className="mt-3 rounded-full bg-white px-5 py-3 text-[10px] font-black text-black transition hover:scale-105 active:scale-95"
         >
           Add approved email
         </button>
