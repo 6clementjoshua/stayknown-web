@@ -26,7 +26,7 @@ const nextConfig = {
       "font-src 'self' data: https://api.mapbox.com https://api.tomtom.com https://*.tomtom.com",
       "style-src 'self' 'unsafe-inline' https://api.mapbox.com https://api.tomtom.com https://*.tomtom.com",
       "script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' blob: https://api.mapbox.com https://events.mapbox.com https://api.tomtom.com https://*.tomtom.com",
-      "media-src 'self' https://*.supabase.co https://*.storage.supabase.co; connect-src 'self' https://*.supabase.co https://*.storage.supabase.co https://api.mapbox.com https://events.mapbox.com https://*.tiles.mapbox.com https://*.mapbox.com https://api.tomtom.com https://*.api.tomtom.com https://*.tomtom.com",
+      "connect-src 'self' https://*.supabase.co https://*.storage.supabase.co https://api.mapbox.com https://events.mapbox.com https://*.tiles.mapbox.com https://*.mapbox.com https://api.tomtom.com https://*.api.tomtom.com https://*.tomtom.com",
       "worker-src 'self' blob:",
       "child-src 'self' blob:",
       "manifest-src 'self'",

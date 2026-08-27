@@ -38,13 +38,7 @@ function alignment(align: "left" | "center" | undefined) {
   return align === "center" ? "text-center" : "text-left";
 }
 
-export function UpdateBlocks({
-  blocks,
-  fallbackPosterUrl = "",
-}: {
-  blocks: UpdateBlock[];
-  fallbackPosterUrl?: string;
-}) {
+export function UpdateBlocks({ blocks }: { blocks: UpdateBlock[] }) {
   return (
     <div className="mx-auto max-w-[760px] space-y-7">
       {visibleUpdateBlocks(blocks).map((block, index) => {
@@ -135,72 +129,6 @@ export function UpdateBlocks({
                 </figcaption>
               ) : null}
             </figure>
-          );
-        }
-
-        if (block.type === "video") {
-          return (
-            <figure
-              key={index}
-              className={`py-4 ${imageWidth[block.width || "wide"]}`}
-            >
-              <video
-                src={block.url}
-                poster={block.poster_url || fallbackPosterUrl || undefined}
-                controls
-                playsInline
-                preload="metadata"
-                className="w-full rounded-[28px] border border-white/[0.1] bg-black"
-              />
-              {block.caption ? (
-                <figcaption className="mt-3 text-[10px] font-semibold leading-relaxed text-white/[0.4] sm:text-[11px]">
-                  {block.caption}
-                </figcaption>
-              ) : null}
-            </figure>
-          );
-        }
-
-        if (block.type === "audio") {
-          return (
-            <section
-              key={index}
-              className="rounded-[24px] border border-white/[0.1] bg-white/[0.025] p-4 sm:p-5"
-            >
-              {block.title ? (
-                <div className="mb-3 text-[11px] font-black text-white/[0.72]">
-                  {block.title}
-                </div>
-              ) : null}
-              <audio src={block.url} controls preload="metadata" className="w-full" />
-              {block.caption ? (
-                <p className="mt-3 text-[10px] font-semibold leading-5 text-white/[0.38]">
-                  {block.caption}
-                </p>
-              ) : null}
-            </section>
-          );
-        }
-
-        if (block.type === "file") {
-          return (
-            <a
-              key={index}
-              href={block.url}
-              target="_blank"
-              rel="noreferrer"
-              className="flex items-center justify-between gap-4 rounded-[24px] border border-white/[0.1] bg-white/[0.02] p-4 transition hover:border-white/[0.25] hover:bg-white/[0.045]"
-            >
-              <div>
-                <div className="text-[8px] font-black uppercase tracking-[0.16em] text-white/[0.3]">
-                  Publication file
-                </div>
-                <div className="mt-1 text-[12px] font-black text-white/[0.72]">
-                  {block.label || "Open attached file"}
-                </div>
-              </div>
-              <span className="text-[12px] font-black text-white/[0.42]">↗</span>
-            </a>
           );
         }
 

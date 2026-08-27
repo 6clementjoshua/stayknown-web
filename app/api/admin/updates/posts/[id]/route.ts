@@ -24,13 +24,8 @@ function slugBase(value: string): string {
 function resolveSlug(input: Record<string, unknown>, publishing: boolean): string {
   const requested = stringValue(input.slug);
 
-  if (publishing) {
-    return requested;
-  }
-
-  if (VALID_SLUG.test(requested)) {
-    return requested;
-  }
+  if (publishing) return requested;
+  if (VALID_SLUG.test(requested)) return requested;
 
   const fromContent =
     slugBase(requested) ||
@@ -46,6 +41,27 @@ function nullableTimestamp(value: unknown): string | null {
   return text || null;
 }
 
+function seoInput(input: Record<string, any>, slug: string) {
+  return {
+    title: stringValue(input.title),
+    summary: stringValue(input.summary),
+    slug,
+    category: stringValue(input.category),
+    author_name: stringValue(input.author_name) || "StayKnown",
+    body: Array.isArray(input.body) ? input.body : [],
+    hero_alt_text: stringValue(input.hero_alt_text) || null,
+    image_16_9_url: stringValue(input.image_16_9_url) || null,
+    image_4_3_url: stringValue(input.image_4_3_url) || null,
+    image_1_1_url: stringValue(input.image_1_1_url) || null,
+    imageMeta:
+      input.imageMeta && typeof input.imageMeta === "object"
+        ? input.imageMeta
+        : undefined,
+    strict_seo: input.strict_seo !== false,
+    canonical_path: canonicalPath(slug),
+  };
+}
+
 export async function PUT(
   req: Request,
   { params }: { params: Promise<{ id: string }> },
@@ -57,25 +73,7 @@ export async function PUT(
     const publishing = ["published", "scheduled"].includes(input.status);
     const slug = resolveSlug(input, publishing);
     const canonical = canonicalPath(slug);
-
-    const issues = inspectSeo({
-      title: stringValue(input.title),
-      summary: stringValue(input.summary),
-      slug,
-      category: stringValue(input.category),
-      author_name: stringValue(input.author_name) || "StayKnown",
-      body: Array.isArray(input.body) ? input.body : [],
-      hero_alt_text: stringValue(input.hero_alt_text) || null,
-      image_16_9_url: stringValue(input.image_16_9_url) || null,
-      image_4_3_url: stringValue(input.image_4_3_url) || null,
-      image_1_1_url: stringValue(input.image_1_1_url) || null,
-      imageMeta:
-        input.imageMeta && typeof input.imageMeta === "object"
-          ? input.imageMeta
-          : undefined,
-      strict_seo: input.strict_seo !== false,
-      canonical_path: canonical,
-    });
+    const issues = inspectSeo(seoInput(input, slug));
 
     if (publishing && issues.some((issue) => issue.level === "block")) {
       return Response.json({ error: "seo_blocked", issues }, { status: 422 });
@@ -95,6 +93,9 @@ export async function PUT(
     delete payload.created_at;
     delete payload.created_by;
     delete payload.imageMeta;
+    delete payload.deleted_at;
+    delete payload.delete_after;
+    delete payload.deleted_by;
 
     if (input.status === "published" && !payload.published_at) {
       payload.published_at = new Date().toISOString();
@@ -105,10 +106,17 @@ export async function PUT(
       .from("stayknown_updates_posts")
       .update(payload)
       .eq("id", id)
+      .is("deleted_at", null)
       .select("*")
-      .single();
+      .maybeSingle();
 
     if (error) throw error;
+    if (!data) {
+      return Response.json(
+        { error: "This publication is unavailable or is in Recently Deleted." },
+        { status: 409 },
+      );
+    }
 
     await sb.from("stayknown_update_audit_log").insert({
       post_id: id,

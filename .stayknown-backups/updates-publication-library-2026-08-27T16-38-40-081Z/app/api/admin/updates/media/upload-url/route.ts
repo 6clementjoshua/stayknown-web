@@ -6,38 +6,12 @@ import { requireUpdatesAdmin } from "@/lib/stayknown-updates-auth";
 export const dynamic = "force-dynamic";
 
 const BUCKET = "stayknown-updates-media";
-const MAX_IMAGE_BYTES = 20 * 1024 * 1024;
-const MAX_VIDEO_BYTES = 250 * 1024 * 1024;
-const MAX_AUDIO_BYTES = 100 * 1024 * 1024;
-const MAX_FILE_BYTES = 50 * 1024 * 1024;
-
+const MAX_BYTES = 20 * 1024 * 1024;
 const ALLOWED_MIME_TYPES = new Map<string, string>([
   ["image/jpeg", "jpg"],
   ["image/png", "png"],
   ["image/webp", "webp"],
-  ["image/gif", "gif"],
-  ["video/mp4", "mp4"],
-  ["video/webm", "webm"],
-  ["audio/mpeg", "mp3"],
-  ["audio/mp4", "m4a"],
-  ["audio/aac", "aac"],
-  ["audio/wav", "wav"],
-  ["audio/x-wav", "wav"],
-  ["audio/ogg", "ogg"],
-  ["application/pdf", "pdf"],
-  ["text/plain", "txt"],
-  ["application/msword", "doc"],
-  ["application/vnd.openxmlformats-officedocument.wordprocessingml.document", "docx"],
-  ["application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "xlsx"],
-  ["application/vnd.openxmlformats-officedocument.presentationml.presentation", "pptx"],
 ]);
-
-const REPRESENTATIVE_MIME_TYPES = new Set([
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-]);
-
 const ALLOWED_PURPOSES = new Set([
   "representative-16-9",
   "representative-4-3",
@@ -59,14 +33,7 @@ function safeStem(filename: string): string {
     .replace(/^-+|-+$/g, "")
     .slice(0, 64);
 
-  return stem || "stayknown-update-media";
-}
-
-function maxBytesFor(mimeType: string) {
-  if (mimeType.startsWith("video/")) return MAX_VIDEO_BYTES;
-  if (mimeType.startsWith("audio/")) return MAX_AUDIO_BYTES;
-  if (mimeType.startsWith("image/")) return MAX_IMAGE_BYTES;
-  return MAX_FILE_BYTES;
+  return stem || "stayknown-update-image";
 }
 
 function noStoreJson(body: unknown, init: ResponseInit = {}) {
@@ -90,28 +57,44 @@ export async function POST(req: Request) {
     const sizeBytes = Number(payload?.sizeBytes);
 
     if (!filename || filename.length > 255) {
-      return noStoreJson({ ok: false, error: "Choose a valid media file." }, { status: 400 });
+      return noStoreJson(
+        { ok: false, error: "Choose a valid image file." },
+        { status: 400 },
+      );
     }
 
     const extension = ALLOWED_MIME_TYPES.get(mimeType);
     if (!extension) {
-      return noStoreJson({ ok: false, error: "This publication media type is not supported." }, { status: 415 });
+      return noStoreJson(
+        {
+          ok: false,
+          error: "Use a JPEG, PNG or WebP image.",
+        },
+        { status: 415 },
+      );
+    }
+
+    if (!Number.isFinite(sizeBytes) || sizeBytes <= 0 || sizeBytes > MAX_BYTES) {
+      return noStoreJson(
+        {
+          ok: false,
+          error: "Each Updates image must be 20 MB or smaller.",
+        },
+        { status: 413 },
+      );
     }
 
     if (!ALLOWED_PURPOSES.has(purpose)) {
-      return noStoreJson({ ok: false, error: "This media upload purpose is not supported." }, { status: 400 });
+      return noStoreJson(
+        { ok: false, error: "This image upload purpose is not supported." },
+        { status: 400 },
+      );
     }
 
-    if (purpose.startsWith("representative-") && !REPRESENTATIVE_MIME_TYPES.has(mimeType)) {
-      return noStoreJson({ ok: false, error: "Representative images must be JPEG, PNG or WebP." }, { status: 415 });
-    }
+    const storagePath = `uploads/${Date.now()}-${purpose}-${randomUUID()}-${safeStem(
+      filename,
+    )}.${extension}`;
 
-    const maxBytes = maxBytesFor(mimeType);
-    if (!Number.isFinite(sizeBytes) || sizeBytes <= 0 || sizeBytes > maxBytes) {
-      return noStoreJson({ ok: false, error: `This file exceeds the ${Math.round(maxBytes / (1024 * 1024))} MB limit for its media type.` }, { status: 413 });
-    }
-
-    const storagePath = `uploads/${Date.now()}-${purpose}-${randomUUID()}-${safeStem(filename)}.${extension}`;
     const sb = adminClient();
     const { data: signed, error: signedError } = await sb.storage
       .from(BUCKET)
@@ -121,10 +104,17 @@ export async function POST(req: Request) {
       console.error("updates_media_signed_upload_failed", {
         message: signedError?.message || "missing_upload_token",
       });
-      return noStoreJson({ ok: false, error: "A secure media upload could not be prepared." }, { status: 502 });
+      return noStoreJson(
+        {
+          ok: false,
+          error: "A secure image upload could not be prepared.",
+        },
+        { status: 502 },
+      );
     }
 
-    const publicUrl = sb.storage.from(BUCKET).getPublicUrl(storagePath).data.publicUrl;
+    const publicUrl = sb.storage.from(BUCKET).getPublicUrl(storagePath).data
+      .publicUrl;
 
     return noStoreJson({
       ok: true,
@@ -132,7 +122,7 @@ export async function POST(req: Request) {
       path: storagePath,
       token: signed.token,
       publicUrl,
-      maxBytes,
+      maxBytes: MAX_BYTES,
     });
   } catch (error) {
     const status = Number((error as { status?: number })?.status) || 500;
@@ -145,7 +135,7 @@ export async function POST(req: Request) {
             ? "Sign in to Updates & Publication Admin again."
             : status === 403
               ? "This administrator cannot upload publication media."
-              : "The publication media upload service is temporarily unavailable.",
+              : "The image upload service is temporarily unavailable.",
       },
       { status },
     );

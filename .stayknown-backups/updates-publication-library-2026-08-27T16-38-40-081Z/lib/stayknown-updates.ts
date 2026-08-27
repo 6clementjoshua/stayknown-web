@@ -96,28 +96,6 @@ export type UpdateBlock =
       caption_size?: CaptionSize;
       caption_align?: TextAlign;
     }
-  | {
-      type: "video";
-      url: string;
-      poster_url?: string;
-      caption?: string;
-      mime_type?: string;
-      width?: ImageWidth;
-    }
-  | {
-      type: "audio";
-      url: string;
-      title?: string;
-      caption?: string;
-      mime_type?: string;
-    }
-  | {
-      type: "file";
-      url: string;
-      label?: string;
-      mime_type?: string;
-      size_bytes?: number | string;
-    }
   | { type: "divider" }
   | {
       type: "link";
@@ -154,9 +132,6 @@ export type UpdatePost = {
   published_at: string | null;
   created_at: string;
   updated_at: string;
-  deleted_at?: string | null;
-  delete_after?: string | null;
-  deleted_by?: string | null;
 };
 
 export function getUpdatePresentation(
@@ -220,12 +195,10 @@ export function publicDate(
 export function isPublicPost(
   post: Pick<
     UpdatePost,
-    "status" | "published_at" | "scheduled_for" | "created_at" | "deleted_at"
+    "status" | "published_at" | "scheduled_for" | "created_at"
   >,
   now = Date.now(),
 ) {
-  if (post.deleted_at) return false;
-
   if (post.status === "published") {
     return new Date(post.published_at || post.created_at).getTime() <= now;
   }
@@ -243,7 +216,6 @@ export async function listPublicUpdates(limit = 100): Promise<UpdatePost[]> {
   const { data, error } = await sb
     .from("stayknown_updates_posts")
     .select("*")
-    .is("deleted_at", null)
     .in("status", ["published", "scheduled"])
     .order("created_at", { ascending: false })
     .limit(fetchLimit);
@@ -266,7 +238,6 @@ export async function getPublicUpdate(slug: string): Promise<UpdatePost | null> 
     .from("stayknown_updates_posts")
     .select("*")
     .eq("slug", slug)
-    .is("deleted_at", null)
     .maybeSingle();
 
   if (error) throw error;
@@ -298,9 +269,8 @@ export function wordCount(blocks: UpdateBlock[]) {
   return visibleUpdateBlocks(blocks)
     .map((block) => {
       if ("text" in block) return block.text;
-      if (block.type === "image" || block.type === "video") return block.caption || "";
-      if (block.type === "audio") return `${block.title || ""} ${block.caption || ""}`;
-      if (block.type === "file" || block.type === "link") return block.label || "";
+      if (block.type === "image") return block.caption || "";
+      if (block.type === "link") return block.label;
       return "";
     })
     .join(" ")

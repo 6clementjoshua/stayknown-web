@@ -24,8 +24,13 @@ function slugBase(value: string): string {
 function resolveSlug(input: Record<string, unknown>, publishing: boolean): string {
   const requested = stringValue(input.slug);
 
-  if (publishing) return requested;
-  if (VALID_SLUG.test(requested)) return requested;
+  if (publishing) {
+    return requested;
+  }
+
+  if (VALID_SLUG.test(requested)) {
+    return requested;
+  }
 
   const fromContent =
     slugBase(requested) ||
@@ -41,106 +46,78 @@ function nullableTimestamp(value: unknown): string | null {
   return text || null;
 }
 
-function seoInput(input: Record<string, any>, slug: string) {
-  return {
-    title: stringValue(input.title),
-    summary: stringValue(input.summary),
-    slug,
-    category: stringValue(input.category),
-    author_name: stringValue(input.author_name) || "StayKnown",
-    body: Array.isArray(input.body) ? input.body : [],
-    hero_alt_text: stringValue(input.hero_alt_text) || null,
-    image_16_9_url: stringValue(input.image_16_9_url) || null,
-    image_4_3_url: stringValue(input.image_4_3_url) || null,
-    image_1_1_url: stringValue(input.image_1_1_url) || null,
-    imageMeta:
-      input.imageMeta && typeof input.imageMeta === "object"
-        ? input.imageMeta
-        : undefined,
-    strict_seo: input.strict_seo !== false,
-    canonical_path: canonicalPath(slug),
-  };
-}
-
-export async function GET(req: Request) {
+export async function PUT(
+  req: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
   try {
-    await requireUpdatesAdmin(req);
-
-    const { data, error } = await adminClient()
-      .from("stayknown_updates_posts")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(1000);
-
-    if (error) throw error;
-
-    const rows = data || [];
-    const posts = rows.filter((row: any) => !row.deleted_at);
-    const deletedPosts = rows
-      .filter((row: any) => Boolean(row.deleted_at))
-      .sort(
-        (a: any, b: any) =>
-          new Date(b.deleted_at || 0).getTime() -
-          new Date(a.deleted_at || 0).getTime(),
-      );
-
-    return Response.json({ posts, deletedPosts });
-  } catch (e: any) {
-    return Response.json({ error: e.message }, { status: e.status || 500 });
-  }
-}
-
-export async function POST(req: Request) {
-  try {
+    const { id } = await params;
     const { user } = await requireUpdatesAdmin(req, ["owner", "admin", "editor"]);
     const input = (await req.json()) as Record<string, any>;
     const publishing = ["published", "scheduled"].includes(input.status);
     const slug = resolveSlug(input, publishing);
     const canonical = canonicalPath(slug);
-    const issues = inspectSeo(seoInput(input, slug));
+
+    const issues = inspectSeo({
+      title: stringValue(input.title),
+      summary: stringValue(input.summary),
+      slug,
+      category: stringValue(input.category),
+      author_name: stringValue(input.author_name) || "StayKnown",
+      body: Array.isArray(input.body) ? input.body : [],
+      hero_alt_text: stringValue(input.hero_alt_text) || null,
+      image_16_9_url: stringValue(input.image_16_9_url) || null,
+      image_4_3_url: stringValue(input.image_4_3_url) || null,
+      image_1_1_url: stringValue(input.image_1_1_url) || null,
+      imageMeta:
+        input.imageMeta && typeof input.imageMeta === "object"
+          ? input.imageMeta
+          : undefined,
+      strict_seo: input.strict_seo !== false,
+      canonical_path: canonical,
+    });
 
     if (publishing && issues.some((issue) => issue.level === "block")) {
       return Response.json({ error: "seo_blocked", issues }, { status: 422 });
     }
 
-    const now = new Date().toISOString();
     const payload: Record<string, any> = {
       ...input,
       slug,
       canonical_path: canonical,
       scheduled_for: nullableTimestamp(input.scheduled_for),
-      created_by: user.id,
+      published_at: nullableTimestamp(input.published_at),
       updated_by: user.id,
-      updated_at: now,
-      published_at:
-        input.status === "published"
-          ? nullableTimestamp(input.published_at) || now
-          : nullableTimestamp(input.published_at),
+      updated_at: new Date().toISOString(),
     };
 
     delete payload.id;
+    delete payload.created_at;
+    delete payload.created_by;
     delete payload.imageMeta;
-    delete payload.deleted_at;
-    delete payload.delete_after;
-    delete payload.deleted_by;
+
+    if (input.status === "published" && !payload.published_at) {
+      payload.published_at = new Date().toISOString();
+    }
 
     const sb = adminClient();
     const { data, error } = await sb
       .from("stayknown_updates_posts")
-      .insert(payload)
+      .update(payload)
+      .eq("id", id)
       .select("*")
       .single();
 
     if (error) throw error;
 
     await sb.from("stayknown_update_audit_log").insert({
-      post_id: data.id,
+      post_id: id,
       actor_user_id: user.id,
-      action: "created",
+      action: "updated",
       details: { status: data.status },
     });
 
-    return Response.json({ post: data, issues }, { status: 201 });
+    return Response.json({ post: data, issues });
   } catch (e: any) {
     return Response.json({ error: e.message }, { status: e.status || 500 });
   }

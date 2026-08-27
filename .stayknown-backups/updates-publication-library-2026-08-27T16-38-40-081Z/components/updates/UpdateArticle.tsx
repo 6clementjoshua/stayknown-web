@@ -131,7 +131,7 @@ export function UpdateArticle({
           ) : null}
 
           <div className="mt-14">
-            <UpdateBlocks blocks={post.body || []} fallbackPosterUrl={post.image_16_9_url || post.hero_image_url || ""} />
+            <UpdateBlocks blocks={post.body || []} />
           </div>
 
           <footer className="mx-auto mt-16 max-w-[760px] border-t border-white/[0.1] pt-7">

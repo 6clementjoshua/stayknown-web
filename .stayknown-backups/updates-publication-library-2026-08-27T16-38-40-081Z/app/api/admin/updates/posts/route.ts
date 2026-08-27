@@ -24,8 +24,14 @@ function slugBase(value: string): string {
 function resolveSlug(input: Record<string, unknown>, publishing: boolean): string {
   const requested = stringValue(input.slug);
 
-  if (publishing) return requested;
-  if (VALID_SLUG.test(requested)) return requested;
+  if (publishing) {
+    // Publication remains strict. inspectSeo() will block a missing/invalid slug.
+    return requested;
+  }
+
+  if (VALID_SLUG.test(requested)) {
+    return requested;
+  }
 
   const fromContent =
     slugBase(requested) ||
@@ -33,33 +39,13 @@ function resolveSlug(input: Record<string, unknown>, publishing: boolean): strin
     slugBase(stringValue(input.kicker)) ||
     "draft";
 
+  // Drafts need a valid, collision-resistant internal URL key even while incomplete.
   return `${fromContent}-${randomUUID().slice(0, 8)}`;
 }
 
 function nullableTimestamp(value: unknown): string | null {
   const text = stringValue(value);
   return text || null;
-}
-
-function seoInput(input: Record<string, any>, slug: string) {
-  return {
-    title: stringValue(input.title),
-    summary: stringValue(input.summary),
-    slug,
-    category: stringValue(input.category),
-    author_name: stringValue(input.author_name) || "StayKnown",
-    body: Array.isArray(input.body) ? input.body : [],
-    hero_alt_text: stringValue(input.hero_alt_text) || null,
-    image_16_9_url: stringValue(input.image_16_9_url) || null,
-    image_4_3_url: stringValue(input.image_4_3_url) || null,
-    image_1_1_url: stringValue(input.image_1_1_url) || null,
-    imageMeta:
-      input.imageMeta && typeof input.imageMeta === "object"
-        ? input.imageMeta
-        : undefined,
-    strict_seo: input.strict_seo !== false,
-    canonical_path: canonicalPath(slug),
-  };
 }
 
 export async function GET(req: Request) {
@@ -70,21 +56,10 @@ export async function GET(req: Request) {
       .from("stayknown_updates_posts")
       .select("*")
       .order("created_at", { ascending: false })
-      .limit(1000);
+      .limit(500);
 
     if (error) throw error;
-
-    const rows = data || [];
-    const posts = rows.filter((row: any) => !row.deleted_at);
-    const deletedPosts = rows
-      .filter((row: any) => Boolean(row.deleted_at))
-      .sort(
-        (a: any, b: any) =>
-          new Date(b.deleted_at || 0).getTime() -
-          new Date(a.deleted_at || 0).getTime(),
-      );
-
-    return Response.json({ posts, deletedPosts });
+    return Response.json({ posts: data || [] });
   } catch (e: any) {
     return Response.json({ error: e.message }, { status: e.status || 500 });
   }
@@ -97,7 +72,25 @@ export async function POST(req: Request) {
     const publishing = ["published", "scheduled"].includes(input.status);
     const slug = resolveSlug(input, publishing);
     const canonical = canonicalPath(slug);
-    const issues = inspectSeo(seoInput(input, slug));
+
+    const issues = inspectSeo({
+      title: stringValue(input.title),
+      summary: stringValue(input.summary),
+      slug,
+      category: stringValue(input.category),
+      author_name: stringValue(input.author_name) || "StayKnown",
+      body: Array.isArray(input.body) ? input.body : [],
+      hero_alt_text: stringValue(input.hero_alt_text) || null,
+      image_16_9_url: stringValue(input.image_16_9_url) || null,
+      image_4_3_url: stringValue(input.image_4_3_url) || null,
+      image_1_1_url: stringValue(input.image_1_1_url) || null,
+      imageMeta:
+        input.imageMeta && typeof input.imageMeta === "object"
+          ? input.imageMeta
+          : undefined,
+      strict_seo: input.strict_seo !== false,
+      canonical_path: canonical,
+    });
 
     if (publishing && issues.some((issue) => issue.level === "block")) {
       return Response.json({ error: "seo_blocked", issues }, { status: 422 });
@@ -118,11 +111,9 @@ export async function POST(req: Request) {
           : nullableTimestamp(input.published_at),
     };
 
+    // The database owns post UUID generation; never insert the client's empty placeholder.
     delete payload.id;
     delete payload.imageMeta;
-    delete payload.deleted_at;
-    delete payload.delete_after;
-    delete payload.deleted_by;
 
     const sb = adminClient();
     const { data, error } = await sb

@@ -21,21 +21,25 @@ export async function GET(req: Request) {
 
     const sb = adminClient();
     const { data, error } = await sb.storage.from(BUCKET).list("uploads", {
-      limit: 200,
+      limit: 100,
       offset: 0,
       sortBy: { column: "created_at", order: "desc" },
     });
 
     if (error) {
       console.error("updates_media_list_failed", error);
-      return noStoreJson({ ok: false, error: "Publication media could not be loaded." }, { status: 502 });
+      return noStoreJson(
+        { ok: false, error: "Publication media could not be loaded." },
+        { status: 502 },
+      );
     }
 
     const files = (data || [])
       .filter((item) => Boolean(item.name) && !item.name.endsWith("/"))
       .map((item) => {
         const path = `uploads/${item.name}`;
-        const publicUrl = sb.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
+        const publicUrl = sb.storage.from(BUCKET).getPublicUrl(path).data
+          .publicUrl;
 
         return {
           name: item.name,
