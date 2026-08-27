@@ -3,7 +3,6 @@ import { createClient } from "@supabase/supabase-js";
 export const SITE_URL = (
   process.env.NEXT_PUBLIC_SITE_URL || "https://www.stay-known.com"
 ).replace(/\/$/, "");
-
 export const UPDATE_CATEGORIES = [
   "Product",
   "Safety & Trust",
@@ -12,7 +11,6 @@ export const UPDATE_CATEGORIES = [
   "Release",
   "Recognition",
 ] as const;
-
 export const ANIMATION_PRESETS = [
   "none",
   "editorial-rise",
@@ -22,87 +20,16 @@ export const ANIMATION_PRESETS = [
   "milestone-burst",
   "confetti",
 ] as const;
-
 export type AnimationPreset = (typeof ANIMATION_PRESETS)[number];
-
-export type TextAlign = "left" | "center";
-export type ParagraphSize = "compact" | "standard" | "large";
-export type ParagraphWeight = "regular" | "medium";
-export type HeadingSize = "standard" | "large" | "display";
-export type QuoteSize = "standard" | "emphasis";
-export type ImageWidth = "content" | "wide" | "full";
-export type CaptionSize = "small" | "standard";
-export type LinkSize = "compact" | "standard";
-export type TitleScale = "standard" | "feature";
-export type SummaryScale = "standard" | "large";
-export type KickerScale = "standard" | "prominent";
-
-export type UpdatePresentation = {
-  title_scale: TitleScale;
-  summary_scale: SummaryScale;
-  kicker_scale: KickerScale;
-};
-
-export const DEFAULT_UPDATE_PRESENTATION: UpdatePresentation = {
-  title_scale: "standard",
-  summary_scale: "standard",
-  kicker_scale: "standard",
-};
-
 export type UpdateBlock =
-  | {
-      type: "presentation";
-      title_scale?: TitleScale;
-      summary_scale?: SummaryScale;
-      kicker_scale?: KickerScale;
-    }
-  | {
-      type: "paragraph";
-      text: string;
-      size?: ParagraphSize;
-      weight?: ParagraphWeight;
-      align?: TextAlign;
-    }
-  | {
-      type: "heading2";
-      text: string;
-      size?: HeadingSize;
-      align?: TextAlign;
-    }
-  | {
-      type: "heading3";
-      text: string;
-      size?: Exclude<HeadingSize, "display">;
-      align?: TextAlign;
-    }
-  | {
-      type: "quote";
-      text: string;
-      size?: QuoteSize;
-      align?: TextAlign;
-    }
-  | {
-      type: "callout";
-      title?: string;
-      text: string;
-      size?: "standard" | "emphasis";
-    }
-  | {
-      type: "image";
-      url: string;
-      alt: string;
-      caption?: string;
-      width?: ImageWidth;
-      caption_size?: CaptionSize;
-      caption_align?: TextAlign;
-    }
+  | { type: "paragraph"; text: string }
+  | { type: "heading2"; text: string }
+  | { type: "heading3"; text: string }
+  | { type: "quote"; text: string }
+  | { type: "callout"; title?: string; text: string }
+  | { type: "image"; url: string; alt: string; caption?: string }
   | { type: "divider" }
-  | {
-      type: "link";
-      label: string;
-      url: string;
-      size?: LinkSize;
-    };
+  | { type: "link"; label: string; url: string };
 
 export type UpdatePost = {
   id: string;
@@ -134,49 +61,10 @@ export type UpdatePost = {
   updated_at: string;
 };
 
-export function getUpdatePresentation(
-  blocks: UpdateBlock[] | null | undefined,
-): UpdatePresentation {
-  const presentation = (blocks || []).find(
-    (block): block is Extract<UpdateBlock, { type: "presentation" }> =>
-      block.type === "presentation",
-  );
-
-  return {
-    title_scale:
-      presentation?.title_scale || DEFAULT_UPDATE_PRESENTATION.title_scale,
-    summary_scale:
-      presentation?.summary_scale || DEFAULT_UPDATE_PRESENTATION.summary_scale,
-    kicker_scale:
-      presentation?.kicker_scale || DEFAULT_UPDATE_PRESENTATION.kicker_scale,
-  };
-}
-
-export function withUpdatePresentation(
-  blocks: UpdateBlock[] | null | undefined,
-  patch: Partial<UpdatePresentation>,
-): UpdateBlock[] {
-  const current = getUpdatePresentation(blocks);
-  const next: UpdateBlock = {
-    type: "presentation",
-    ...current,
-    ...patch,
-  };
-  const content = (blocks || []).filter((block) => block.type !== "presentation");
-  return [next, ...content];
-}
-
-export function visibleUpdateBlocks(
-  blocks: UpdateBlock[] | null | undefined,
-): UpdateBlock[] {
-  return (blocks || []).filter((block) => block.type !== "presentation");
-}
-
 export function adminClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) throw new Error("updates_server_not_configured");
-
   return createClient(url, key, {
     auth: {
       persistSession: false,
@@ -199,10 +87,8 @@ export function isPublicPost(
   >,
   now = Date.now(),
 ) {
-  if (post.status === "published") {
+  if (post.status === "published")
     return new Date(post.published_at || post.created_at).getTime() <= now;
-  }
-
   return (
     post.status === "scheduled" &&
     !!post.scheduled_for &&
@@ -219,19 +105,19 @@ export async function listPublicUpdates(limit = 100): Promise<UpdatePost[]> {
     .order("published_at", { ascending: false, nullsFirst: false })
     .order("scheduled_for", { ascending: false, nullsFirst: false })
     .limit(limit);
-
   if (error) throw error;
-  return ((data || []) as UpdatePost[]).filter((post) => isPublicPost(post));
+  return ((data || []) as UpdatePost[]).filter((p) => isPublicPost(p));
 }
 
-export async function getPublicUpdate(slug: string): Promise<UpdatePost | null> {
+export async function getPublicUpdate(
+  slug: string,
+): Promise<UpdatePost | null> {
   const sb = adminClient();
   const { data, error } = await sb
     .from("stayknown_updates_posts")
     .select("*")
     .eq("slug", slug)
     .maybeSingle();
-
   if (error) throw error;
   const post = data as UpdatePost | null;
   return post && isPublicPost(post) ? post : null;
@@ -244,27 +130,19 @@ export async function getRouteViews(path: string): Promise<number> {
     .select("total_visits")
     .eq("path", path)
     .maybeSingle();
-
-  const n = Number((data as { total_visits?: unknown } | null)?.total_visits || 0);
+  const n = Number((data as any)?.total_visits || 0);
   return Number.isFinite(n) ? n : 0;
 }
 
 export function canonicalPath(slug: string) {
   return `/updates/${slug}`;
 }
-
 export function canonicalUrl(slug: string) {
   return `${SITE_URL}${canonicalPath(slug)}`;
 }
-
 export function wordCount(blocks: UpdateBlock[]) {
-  return visibleUpdateBlocks(blocks)
-    .map((block) => {
-      if ("text" in block) return block.text;
-      if (block.type === "image") return block.caption || "";
-      if (block.type === "link") return block.label;
-      return "";
-    })
+  return blocks
+    .map((b: any) => `${b.title || ""} ${b.text || ""} ${b.caption || ""}`)
     .join(" ")
     .trim()
     .split(/\s+/)
