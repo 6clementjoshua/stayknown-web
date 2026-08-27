@@ -205,25 +205,6 @@ type PostListFilter = "all" | "draft" | "published" | "scheduled";
 type OverviewLibraryFilter = PostListFilter | "deleted";
 type AutosaveState = "idle" | "dirty" | "saving" | "saved" | "retrying";
 
-type PublishIntent = "published" | "scheduled";
-
-type PublicationVerificationCheck = {
-  key: string;
-  label: string;
-  ok: boolean;
-  detail: string;
-};
-
-type PublicationVerification = {
-  ok: boolean;
-  publicUrl: string;
-  checkedAt: string;
-  views: number;
-  likes: number;
-  checks: PublicationVerificationCheck[];
-};
-
-
 const EDITABLE_POST_KEYS = [
   "slug",
   "status",
@@ -390,11 +371,6 @@ export default function UpdatesAdminClient() {
   const [deletedPosts, setDeletedPosts] = useState<any[]>([]);
   const [overviewFilter, setOverviewFilter] = useState<OverviewLibraryFilter | null>(null);
   const [previewPost, setPreviewPost] = useState<any | null>(null);
-  const [publishIntent, setPublishIntent] = useState<PublishIntent | null>(null);
-  const [verification, setVerification] =
-    useState<PublicationVerification | null>(null);
-  const [verificationBusy, setVerificationBusy] = useState(false);
-
   const [analytics, setAnalytics] = useState<any>(null);
   const [post, setPost] = useState<any>(() => blankPost());
   const [tab, setTab] = useState("Overview");
@@ -923,8 +899,6 @@ export default function UpdatesAdminClient() {
     setLastSavedAt(normalized.updated_at || normalized.created_at || "");
     setAutosaveError("");
     setNote("");
-    setVerification(null);
-    setPublishIntent(null);
     setPost(normalized);
   }
 
@@ -932,8 +906,6 @@ export default function UpdatesAdminClient() {
     if (!(await safelyLeaveCurrentEditor())) return;
 
     resetAutosaveTracking();
-    setVerification(null);
-    setPublishIntent(null);
     setPost(blankPost());
     setTab("Posts");
     setNote("");
@@ -968,83 +940,7 @@ export default function UpdatesAdminClient() {
     return result;
   }
 
-  async function verifyPublication(postId: string) {
-    if (!postId) return null;
-
-    setVerificationBusy(true);
-
-    try {
-      const response = await api(
-        `/api/admin/updates/posts/${postId}/publish-check`,
-      );
-      const result = (await response.json().catch(() => ({}))) as
-        | PublicationVerification
-        | { error?: string };
-
-      if (!response.ok || !("checks" in result)) {
-        throw new Error(
-          ("error" in result && result.error) ||
-            "Publication verification could not be completed.",
-        );
-      }
-
-      setVerification(result);
-      return result;
-    } catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : "Publication verification could not be completed.";
-
-      setVerification({
-        ok: false,
-        publicUrl: post?.slug ? `/updates/${post.slug}` : "",
-        checkedAt: new Date().toISOString(),
-        views: 0,
-        likes: Number(post?.like_count || 0),
-        checks: [
-          {
-            key: "verification_service",
-            label: "Publication verification",
-            ok: false,
-            detail: message,
-          },
-        ],
-      });
-
-      return null;
-    } finally {
-      setVerificationBusy(false);
-    }
-  }
-
-  function requestPublish(intent: PublishIntent) {
-    if (busy) return;
-
-    if (issues.some((item: SeoIssue) => item.level === "block")) {
-      setNote(
-        "Publishing is blocked until every SEO Quality Gate blocker is cleared.",
-      );
-      return;
-    }
-
-    if (intent === "scheduled") {
-      const scheduled = post.scheduled_for
-        ? new Date(post.scheduled_for).getTime()
-        : Number.NaN;
-
-      if (!Number.isFinite(scheduled) || scheduled <= Date.now()) {
-        setNote(
-          "Choose a future schedule time, or clear Schedule to publish immediately.",
-        );
-        return;
-      }
-    }
-
-    setPublishIntent(intent);
-  }
-
-  async function save(status?: string): Promise<any | null> {
+  async function save(status?: string) {
     clearAutosaveTimers();
     autosaveRevisionRef.current += 1;
 
@@ -1052,21 +948,6 @@ export default function UpdatesAdminClient() {
     setNote("");
 
     try {
-      const requestedStatus = status || post.status;
-
-      if (requestedStatus === "scheduled") {
-        const scheduled = post.scheduled_for
-          ? new Date(post.scheduled_for).getTime()
-          : Number.NaN;
-
-        if (!Number.isFinite(scheduled) || scheduled <= Date.now()) {
-          setNote(
-            "Choose a future schedule time, or clear Schedule to publish immediately.",
-          );
-          return null;
-        }
-      }
-
       const meta = await imageMeta();
       const payload = {
         ...post,
@@ -1092,7 +973,7 @@ export default function UpdatesAdminClient() {
                 .join(" · ")}`
             : result.error || "Save failed",
         );
-        return null;
+        return;
       }
 
       const normalized = normalizePost(result.post);
@@ -1104,32 +985,19 @@ export default function UpdatesAdminClient() {
         setAutosaveState("saved");
         setLastSavedAt(normalized.updated_at || new Date().toISOString());
         setAutosaveError("");
-        setVerification(null);
         setNote("Draft saved. Autosave is now active for this Update.");
       } else {
         setAutosaveState("idle");
         setLastSavedAt("");
         setAutosaveError("");
-
-        if (normalized.status === "published") {
-          setNote("Published. StayKnown is verifying the live publication now…");
-          await verifyPublication(normalized.id);
-        } else {
-          setVerification(null);
-          setNote(
-            `Scheduled successfully for ${new Intl.DateTimeFormat("en", {
-              dateStyle: "medium",
-              timeStyle: "short",
-              timeZone: "Africa/Lagos",
-            }).format(new Date(normalized.scheduled_for))}.`,
-          );
-        }
+        setNote(
+          normalized.status === "published"
+            ? "Published successfully."
+            : "Scheduled successfully.",
+        );
       }
-
-      return normalized;
     } catch (error) {
       setNote(error instanceof Error ? error.message : "Save failed");
-      return null;
     } finally {
       setBusy(false);
     }
@@ -1285,11 +1153,6 @@ export default function UpdatesAdminClient() {
                 autosaveState={autosaveState}
                 lastSavedAt={lastSavedAt}
                 autosaveError={autosaveError}
-                onPreview={() => setPreviewPost(normalizePost(post))}
-                requestPublish={requestPublish}
-                verifyPublication={verifyPublication}
-                verification={verification}
-                verificationBusy={verificationBusy}
               />
             </div>
           ) : tab === "Media" ? (
@@ -1319,25 +1182,6 @@ export default function UpdatesAdminClient() {
           onClose={() => setPreviewPost(null)}
         />
       ) : null}
-
-      {publishIntent ? (
-        <PublishConfirmation
-          post={post}
-          intent={publishIntent}
-          blockers={blockers}
-          busy={busy}
-          onPreview={() => {
-            setPublishIntent(null);
-            setPreviewPost(normalizePost(post));
-          }}
-          onCancel={() => setPublishIntent(null)}
-          onConfirm={async () => {
-            const intent = publishIntent;
-            const saved = await save(intent);
-            if (saved) setPublishIntent(null);
-          }}
-        />
-      ) : null}
     </main>
   );
 }
@@ -1359,11 +1203,6 @@ function Editor({
   autosaveState,
   lastSavedAt,
   autosaveError,
-  onPreview,
-  requestPublish,
-  verifyPublication,
-  verification,
-  verificationBusy,
 }: any) {
   const presentation = getUpdatePresentation(post.body || []);
   const visible = (post.body || []).filter(
@@ -1451,17 +1290,11 @@ function Editor({
 
       <Field label="Slug / permanent URL">
         <input
-          className="input disabled:cursor-not-allowed disabled:opacity-45"
+          className="input"
           value={post.slug}
-          disabled={Boolean(post.id && isPubliclyOpenable(post))}
           onChange={(event) => set("slug", slugify(event.target.value))}
         />
-        <Hint>
-          Canonical: /updates/{post.slug || "your-update"}
-          {post.id && isPubliclyOpenable(post)
-            ? " · Locked because this URL is already public."
-            : ""}
-        </Hint>
+        <Hint>Canonical: /updates/{post.slug || "your-update"}</Hint>
       </Field>
 
       <Field label="Summary">
@@ -1679,104 +1512,29 @@ function Editor({
 
       <SeoIssues issues={issues} />
 
-      <section className="mt-6 rounded-[26px] border border-white/[0.1] bg-white/[0.02] p-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <div className="text-[9px] font-black uppercase tracking-[0.18em] text-white/[0.35]">
-              Publication control
-            </div>
-            <div className="mt-1 text-[11px] font-black">
-              {issues.some((item: SeoIssue) => item.level === "block")
-                ? "Not ready to publish"
-                : post.status === "published"
-                  ? "Ready to update the live publication"
-                  : post.status === "scheduled"
-                    ? "Ready to review the schedule"
-                    : post.scheduled_for
-                      ? "Ready to schedule"
-                      : "Ready to publish"}
-            </div>
-          </div>
-
-          <div className="rounded-full border border-white/[0.12] px-3 py-2 text-[8px] font-black uppercase tracking-[0.14em] text-white/[0.42]">
-            {issues.filter((item: SeoIssue) => item.level === "block").length} blockers ·{" "}
-            {issues.filter((item: SeoIssue) => item.level === "warning").length} warnings
-          </div>
-        </div>
-
-        <div className="mt-4 flex flex-wrap gap-2">
-          <button
-            type="button"
-            disabled={busy}
-            onClick={onPreview}
-            className="rounded-full border border-white/[0.16] px-5 py-3 text-[10px] font-black transition hover:bg-white hover:text-black disabled:opacity-30"
-          >
-            Preview Update
-          </button>
-
-          {!post.id || post.status === "draft" ? (
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => save("draft")}
-              className="rounded-full border border-white/[0.16] px-5 py-3 text-[10px] font-black transition hover:bg-white hover:text-black disabled:opacity-30"
-            >
-              Save draft
-            </button>
-          ) : null}
-
-          <button
-            type="button"
-            disabled={
-              busy ||
-              issues.some((item: SeoIssue) => item.level === "block")
-            }
-            onClick={() =>
-              requestPublish(
-                post.status === "published"
-                  ? "published"
-                  : post.status === "scheduled"
-                    ? "scheduled"
-                    : post.scheduled_for
-                      ? "scheduled"
-                      : "published",
-              )
-            }
-            className="rounded-full bg-white px-5 py-3 text-[10px] font-black text-black transition hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-25"
-          >
-            {post.status === "published"
-              ? "Review & Update Live"
-              : post.status === "scheduled"
-                ? "Review Schedule"
-                : post.scheduled_for
-                  ? "Review & Schedule"
-                  : "Review & Publish"}
-          </button>
-
-          {post.id && isPubliclyOpenable(post) ? (
-            <button
-              type="button"
-              disabled={verificationBusy}
-              onClick={() => void verifyPublication(post.id)}
-              className="rounded-full border border-white/[0.16] px-5 py-3 text-[10px] font-black text-white/[0.65] transition hover:bg-white hover:text-black disabled:opacity-30"
-            >
-              {verificationBusy ? "Checking…" : "Re-check Live Update"}
-            </button>
-          ) : null}
-        </div>
-      </section>
+      <div className="mt-6 flex flex-wrap gap-2">
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => save("draft")}
+          className="rounded-full border border-white/[0.16] px-5 py-3 text-[10px] font-black transition hover:bg-white hover:text-black disabled:opacity-30"
+        >
+          Save draft
+        </button>
+        <button
+          type="button"
+          disabled={busy || issues.some((item: SeoIssue) => item.level === "block")}
+          onClick={() => save(post.scheduled_for ? "scheduled" : "published")}
+          className="rounded-full bg-white px-5 py-3 text-[10px] font-black text-black transition hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-25"
+        >
+          {post.scheduled_for ? "Schedule" : "Publish"}
+        </button>
+      </div>
 
       {note ? (
         <div className="mt-4 text-[11px] font-bold text-white/[0.52]">
           {note}
         </div>
-      ) : null}
-
-      {verification || verificationBusy ? (
-        <PublicationVerificationPanel
-          result={verification}
-          busy={verificationBusy}
-        />
       ) : null}
 
       <style jsx global>{`
@@ -2880,231 +2638,6 @@ function AdminPublicationPreview({ post, onClose }: { post: any; onClose: () => 
         </article>
       </div>
     </div>
-  );
-}
-
-
-function PublishConfirmation({
-  post,
-  intent,
-  blockers,
-  busy,
-  onPreview,
-  onCancel,
-  onConfirm,
-}: {
-  post: any;
-  intent: PublishIntent;
-  blockers: number;
-  busy: boolean;
-  onPreview: () => void;
-  onCancel: () => void;
-  onConfirm: () => void | Promise<void>;
-}) {
-  const scheduled =
-    intent === "scheduled" && post.scheduled_for
-      ? new Intl.DateTimeFormat("en", {
-          dateStyle: "full",
-          timeStyle: "short",
-          timeZone: "Africa/Lagos",
-        }).format(new Date(post.scheduled_for))
-      : "";
-
-  const publicPath = `/updates/${post.slug || "your-update"}`;
-  const representativeCount = [
-    post.image_16_9_url,
-    post.image_4_3_url,
-    post.image_1_1_url,
-  ].filter(Boolean).length;
-  const updatingLive = post.id && isPubliclyOpenable(post);
-
-  return (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center overflow-y-auto bg-black/90 p-4 backdrop-blur-xl">
-      <div className="w-full max-w-[700px] rounded-[32px] border border-white/[0.14] bg-black p-5 sm:p-7">
-        <div className="text-[8px] font-black uppercase tracking-[0.2em] text-white/[0.32]">
-          Final publication review
-        </div>
-        <h2 className="mt-3 text-[34px] font-black tracking-[-0.055em]">
-          {updatingLive
-            ? "Update this live publication?"
-            : intent === "scheduled"
-              ? "Schedule this Update?"
-              : "Publish this Update?"}
-        </h2>
-
-        <div className="mt-6 grid gap-2">
-          {[
-            ["Headline", post.title || "Untitled"],
-            ["Public URL", publicPath],
-            ["SEO blockers", String(blockers)],
-            ["Representative images", `${representativeCount}/3 ready`],
-            [
-              intent === "scheduled" ? "Goes public" : "Visibility",
-              intent === "scheduled"
-                ? scheduled
-                : updatingLive
-                  ? "Changes become public immediately"
-                  : "Immediately after confirmation",
-            ],
-          ].map(([label, value]) => (
-            <div
-              key={label}
-              className="flex items-start justify-between gap-5 rounded-2xl border border-white/[0.08] px-4 py-3"
-            >
-              <div className="text-[8px] font-black uppercase tracking-[0.14em] text-white/[0.28]">
-                {label}
-              </div>
-              <div className="max-w-[68%] text-right text-[10px] font-bold text-white/[0.62]">
-                {value}
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <div className="mt-5 overflow-hidden rounded-[24px] border border-white/[0.1] bg-white/[0.02]">
-          {post.image_16_9_url ? (
-            <img
-              src={post.image_16_9_url}
-              alt=""
-              className="aspect-[16/9] w-full object-cover"
-            />
-          ) : null}
-          <div className="p-4">
-            <div className="text-[8px] font-black uppercase tracking-[0.16em] text-white/[0.3]">
-              StayKnown · stay-known.com
-            </div>
-            <div className="mt-2 text-[18px] font-black leading-tight">
-              {post.seo_title || post.title || "Untitled Update"}
-            </div>
-            <div className="mt-2 line-clamp-2 text-[10px] font-semibold leading-4 text-white/[0.42]">
-              {post.seo_description || post.summary || "No summary yet."}
-            </div>
-            <div className="mt-3 text-[8px] font-black uppercase tracking-[0.14em] text-white/[0.24]">
-              Social share preview · 16:9 representative image · no logo overlay
-            </div>
-          </div>
-        </div>
-
-        <p className="mt-5 text-[10px] font-semibold leading-5 text-white/[0.4]">
-          {intent === "scheduled"
-            ? "StayKnown will keep this Update private until the scheduled time. The server enforces the final SEO gate again before accepting the schedule."
-            : "After confirmation, StayKnown checks the live URL, canonical and social metadata, Article schema, Updates sitemap, RSS, likes and analytics readiness."}
-        </p>
-
-        <div className="mt-6 flex flex-wrap justify-end gap-2">
-          <button
-            type="button"
-            disabled={busy}
-            onClick={onPreview}
-            className="rounded-full border border-white/[0.14] px-4 py-2.5 text-[9px] font-black text-white/[0.55] hover:bg-white hover:text-black disabled:opacity-30"
-          >
-            Preview full Update
-          </button>
-          <button
-            type="button"
-            disabled={busy}
-            onClick={onCancel}
-            className="rounded-full border border-white/[0.14] px-4 py-2.5 text-[9px] font-black text-white/[0.55] hover:bg-white hover:text-black disabled:opacity-30"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            disabled={busy || blockers > 0}
-            onClick={() => void onConfirm()}
-            className="rounded-full bg-white px-5 py-2.5 text-[9px] font-black text-black disabled:opacity-25"
-          >
-            {busy
-              ? "Working…"
-              : updatingLive
-                ? "Update live publication"
-                : intent === "scheduled"
-                  ? "Confirm schedule"
-                  : "Publish now"}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function PublicationVerificationPanel({
-  result,
-  busy,
-}: {
-  result: PublicationVerification | null;
-  busy: boolean;
-}) {
-  return (
-    <section className="mt-5 rounded-[26px] border border-white/[0.1] bg-white/[0.02] p-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <div className="text-[8px] font-black uppercase tracking-[0.18em] text-white/[0.3]">
-            Live publication verification
-          </div>
-          <div className="mt-1 text-[12px] font-black">
-            {busy
-              ? "Checking the public publication…"
-              : result?.ok
-                ? "Live publication verified"
-                : "One or more checks need attention"}
-          </div>
-        </div>
-
-        {result?.publicUrl ? (
-          <a
-            href={result.publicUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="rounded-full border border-white/[0.14] px-3 py-2 text-[8px] font-black text-white/[0.5] hover:bg-white hover:text-black"
-          >
-            OPEN UPDATE URL ↗
-          </a>
-        ) : null}
-      </div>
-
-      <div className="mt-4 grid gap-2 sm:grid-cols-2">
-        {(result?.checks || []).map((check) => (
-          <div
-            key={check.key}
-            className="rounded-2xl border border-white/[0.08] p-3"
-          >
-            <div className="flex items-center justify-between gap-3">
-              <div className="text-[9px] font-black text-white/[0.65]">
-                {check.label}
-              </div>
-              <div
-                className={`text-[8px] font-black uppercase tracking-[0.14em] ${
-                  check.ok ? "text-white/[0.75]" : "text-white/[0.32]"
-                }`}
-              >
-                {check.ok ? "PASS" : "CHECK"}
-              </div>
-            </div>
-            <div className="mt-1 text-[9px] font-semibold leading-4 text-white/[0.34]">
-              {check.detail}
-            </div>
-          </div>
-        ))}
-
-        {busy && !result ? (
-          <div className="rounded-2xl border border-white/[0.08] p-3 text-[9px] font-semibold text-white/[0.36]">
-            Checking public URL, metadata, sitemap and RSS…
-          </div>
-        ) : null}
-      </div>
-
-      {result ? (
-        <div className="mt-3 text-[8px] font-black uppercase tracking-[0.13em] text-white/[0.24]">
-          {result.views.toLocaleString()} views · {result.likes.toLocaleString()} likes · checked{" "}
-          {new Intl.DateTimeFormat("en", {
-            dateStyle: "medium",
-            timeStyle: "short",
-            timeZone: "Africa/Lagos",
-          }).format(new Date(result.checkedAt))}
-        </div>
-      ) : null}
-    </section>
   );
 }
 

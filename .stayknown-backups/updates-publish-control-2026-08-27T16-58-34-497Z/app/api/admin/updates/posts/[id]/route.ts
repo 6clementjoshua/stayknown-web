@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 
-import { adminClient, canonicalPath, isPublicPost } from "@/lib/stayknown-updates";
+import { adminClient, canonicalPath } from "@/lib/stayknown-updates";
 import { requireUpdatesAdmin } from "@/lib/stayknown-updates-auth";
 import { inspectSeo } from "@/lib/stayknown-updates-seo";
 
@@ -41,20 +41,6 @@ function nullableTimestamp(value: unknown): string | null {
   return text || null;
 }
 
-function validateFutureSchedule(input: Record<string, unknown>): string | null {
-  if (stringValue(input.status) !== "scheduled") return null;
-
-  const value = nullableTimestamp(input.scheduled_for);
-  if (!value) return "Choose a future schedule time.";
-
-  const time = new Date(value).getTime();
-  if (!Number.isFinite(time) || time <= Date.now()) {
-    return "Choose a future schedule time, or publish immediately instead.";
-  }
-
-  return null;
-}
-
 function seoInput(input: Record<string, any>, slug: string) {
   return {
     title: stringValue(input.title),
@@ -84,71 +70,8 @@ export async function PUT(
     const { id } = await params;
     const { user } = await requireUpdatesAdmin(req, ["owner", "admin", "editor"]);
     const input = (await req.json()) as Record<string, any>;
-    const sb = adminClient();
-
-    const { data: existing, error: existingError } = await sb
-      .from("stayknown_updates_posts")
-      .select("*")
-      .eq("id", id)
-      .is("deleted_at", null)
-      .maybeSingle();
-
-    if (existingError) throw existingError;
-    if (!existing) {
-      return Response.json(
-        { error: "This publication is unavailable or is in Recently Deleted." },
-        { status: 409 },
-      );
-    }
-
-    const currentlyPublic = isPublicPost(existing as any);
-
-    if (
-      currentlyPublic &&
-      stringValue(input.slug) &&
-      stringValue(input.slug) !== stringValue(existing.slug)
-    ) {
-      return Response.json(
-        {
-          error:
-            "The slug is locked because this Update is already public. Keep the permanent URL unchanged.",
-        },
-        { status: 409 },
-      );
-    }
-
-    if (currentlyPublic && stringValue(input.status) === "draft") {
-      return Response.json(
-        {
-          error:
-            "A public Update cannot be moved back to draft. Use the guarded delete flow if it must leave the public website.",
-        },
-        { status: 409 },
-      );
-    }
-
-    if (
-      currentlyPublic &&
-      existing.status === "scheduled" &&
-      stringValue(input.status) === "scheduled"
-    ) {
-      input.status = "published";
-      input.published_at =
-        nullableTimestamp(input.published_at) ||
-        nullableTimestamp(existing.scheduled_for) ||
-        new Date().toISOString();
-      input.scheduled_for = null;
-    } else {
-      const scheduleError = validateFutureSchedule(input);
-      if (scheduleError) {
-        return Response.json({ error: scheduleError }, { status: 400 });
-      }
-    }
-
     const publishing = ["published", "scheduled"].includes(input.status);
-    const slug = currentlyPublic
-      ? stringValue(existing.slug)
-      : resolveSlug(input, publishing);
+    const slug = resolveSlug(input, publishing);
     const canonical = canonicalPath(slug);
     const issues = inspectSeo(seoInput(input, slug));
 
@@ -178,6 +101,7 @@ export async function PUT(
       payload.published_at = new Date().toISOString();
     }
 
+    const sb = adminClient();
     const { data, error } = await sb
       .from("stayknown_updates_posts")
       .update(payload)
@@ -197,17 +121,8 @@ export async function PUT(
     await sb.from("stayknown_update_audit_log").insert({
       post_id: id,
       actor_user_id: user.id,
-      action:
-        data.status === "published"
-          ? "published"
-          : data.status === "scheduled"
-            ? "scheduled"
-            : "updated",
-      details: {
-        status: data.status,
-        published_at: data.published_at || null,
-        scheduled_for: data.scheduled_for || null,
-      },
+      action: "updated",
+      details: { status: data.status },
     });
 
     return Response.json({ post: data, issues });

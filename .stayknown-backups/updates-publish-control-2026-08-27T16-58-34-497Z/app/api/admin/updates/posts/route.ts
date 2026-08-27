@@ -41,20 +41,6 @@ function nullableTimestamp(value: unknown): string | null {
   return text || null;
 }
 
-function validateSchedule(input: Record<string, unknown>): string | null {
-  if (stringValue(input.status) !== "scheduled") return null;
-
-  const value = nullableTimestamp(input.scheduled_for);
-  if (!value) return "Choose a future schedule time.";
-
-  const time = new Date(value).getTime();
-  if (!Number.isFinite(time) || time <= Date.now()) {
-    return "Choose a future schedule time, or publish immediately instead.";
-  }
-
-  return null;
-}
-
 function seoInput(input: Record<string, any>, slug: string) {
   return {
     title: stringValue(input.title),
@@ -108,11 +94,6 @@ export async function POST(req: Request) {
   try {
     const { user } = await requireUpdatesAdmin(req, ["owner", "admin", "editor"]);
     const input = (await req.json()) as Record<string, any>;
-    const scheduleError = validateSchedule(input);
-    if (scheduleError) {
-      return Response.json({ error: scheduleError }, { status: 400 });
-    }
-
     const publishing = ["published", "scheduled"].includes(input.status);
     const slug = resolveSlug(input, publishing);
     const canonical = canonicalPath(slug);
@@ -155,17 +136,8 @@ export async function POST(req: Request) {
     await sb.from("stayknown_update_audit_log").insert({
       post_id: data.id,
       actor_user_id: user.id,
-      action:
-        data.status === "published"
-          ? "created_published"
-          : data.status === "scheduled"
-            ? "created_scheduled"
-            : "created",
-      details: {
-        status: data.status,
-        published_at: data.published_at || null,
-        scheduled_for: data.scheduled_for || null,
-      },
+      action: "created",
+      details: { status: data.status },
     });
 
     return Response.json({ post: data, issues }, { status: 201 });
