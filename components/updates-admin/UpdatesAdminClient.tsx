@@ -70,7 +70,6 @@ type MediaUploadResult = {
   name: string;
 };
 
-
 const storageBrowserUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const storageBrowserKey =
   process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
@@ -212,7 +211,6 @@ function createBlock(type: UpdateBlock["type"]): UpdateBlock | null {
   }
 }
 
-
 type PostListFilter = "all" | "draft" | "published" | "scheduled";
 type OverviewLibraryFilter = PostListFilter | "deleted";
 type AutosaveState = "idle" | "dirty" | "saving" | "saved" | "retrying";
@@ -235,7 +233,8 @@ type PublicationVerification = {
   checks: PublicationVerificationCheck[];
 };
 
-type PublishFeedbackKind = "checking" | "blocked" | "ready" | "error" | "published";
+type PublishFeedbackKind =
+  "checking" | "blocked" | "ready" | "error" | "published";
 
 type PublishFeedback = {
   kind: PublishFeedbackKind;
@@ -243,7 +242,6 @@ type PublishFeedback = {
   detail?: string;
   issues?: SeoIssue[];
 };
-
 
 const EDITABLE_POST_KEYS = [
   "slug",
@@ -306,8 +304,14 @@ function hasMeaningfulDraftContent(input: any): boolean {
       return false;
     }
 
-    return [block.text, block.title, block.label, block.url, block.alt, block.caption]
-      .some((value) => String(value || "").trim());
+    return [
+      block.text,
+      block.title,
+      block.label,
+      block.url,
+      block.alt,
+      block.caption,
+    ].some((value) => String(value || "").trim());
   });
 }
 
@@ -338,11 +342,17 @@ function formatSavedTime(value?: string | null): string {
   });
 }
 
-function sortPostsForLibrary(items: any[], filter: OverviewLibraryFilter): any[] {
+function sortPostsForLibrary(
+  items: any[],
+  filter: OverviewLibraryFilter,
+): any[] {
   const value = (item: any) => {
-    if (filter === "draft") return new Date(item.updated_at || item.created_at || 0).getTime();
-    if (filter === "published") return new Date(item.published_at || item.created_at || 0).getTime();
-    if (filter === "scheduled") return new Date(item.scheduled_for || item.created_at || 0).getTime();
+    if (filter === "draft")
+      return new Date(item.updated_at || item.created_at || 0).getTime();
+    if (filter === "published")
+      return new Date(item.published_at || item.created_at || 0).getTime();
+    if (filter === "scheduled")
+      return new Date(item.scheduled_for || item.created_at || 0).getTime();
     if (filter === "deleted") return new Date(item.deleted_at || 0).getTime();
     return new Date(item.created_at || 0).getTime();
   };
@@ -357,9 +367,10 @@ function firstPreviewMedia(item: any): {
   label?: string;
 } {
   const blocks = Array.isArray(item?.body) ? item.body : [];
-  const rich = blocks.find((block: any) =>
-    ["video", "image", "audio", "file"].includes(block?.type) &&
-    String(block?.url || "").trim(),
+  const rich = blocks.find(
+    (block: any) =>
+      ["video", "image", "audio", "file"].includes(block?.type) &&
+      String(block?.url || "").trim(),
   );
 
   if (rich?.type === "video") {
@@ -373,7 +384,11 @@ function firstPreviewMedia(item: any): {
   }
 
   if (rich?.type === "audio") {
-    return { kind: "audio", url: String(rich.url), label: rich.title || "Audio" };
+    return {
+      kind: "audio",
+      url: String(rich.url),
+      label: rich.title || "Audio",
+    };
   }
 
   if (rich?.type === "file") {
@@ -406,26 +421,44 @@ function seoIssueFix(issue: SeoIssue): string {
   const code = String(issue.code || "");
 
   if (code === "title_missing") return "Enter the Headline field.";
-  if (code === "slug_invalid") return "Set a lowercase URL slug using letters, numbers and hyphens only.";
-  if (code === "slug_temporary") return "Replace the draft-* slug with the final permanent public URL slug.";
+  if (code === "slug_invalid")
+    return "Set a lowercase URL slug using letters, numbers and hyphens only.";
+  if (code === "slug_temporary")
+    return "Replace the draft-* slug with the final permanent public URL slug.";
   if (code === "summary_missing") return "Complete the Summary field.";
-  if (code === "category_missing") return "Choose the correct publication Category.";
-  if (code === "author_missing") return "Complete the Author / publisher field.";
-  if (code === "body_missing") return "Add real content in Article Body before publishing.";
-  if (code === "canonical_mismatch") return "Use the canonical path generated from the final slug.";
+  if (code === "category_missing")
+    return "Choose the correct publication Category.";
+  if (code === "author_missing")
+    return "Complete the Author / publisher field.";
+  if (code === "body_missing")
+    return "Add real content in Article Body before publishing.";
+  if (code === "canonical_mismatch")
+    return "Use the canonical path generated from the final slug.";
   if (code === "alt_missing") return "Add Representative image alt text.";
-  if (code === "inline_alt_missing") return "Find the Article Body image without alt text and describe that image.";
-  if (code.includes("image_16:9_missing")) return "Upload the 16:9 representative image.";
-  if (code.includes("image_4:3_missing")) return "Upload the 4:3 representative image.";
-  if (code.includes("image_1:1_missing")) return "Upload the 1:1 representative image.";
-  if (code.includes("_small")) return "Replace that representative image with a larger image of the same required ratio.";
-  if (code.includes("_ratio")) return "Crop or replace the image so it matches the named representative-image ratio.";
-  if (code.includes("_https")) return "Use a public HTTPS image uploaded through the Updates media uploader.";
-  if (code === "thin_content") return "Consider adding more original information if readers need more context.";
-  if (code === "title_long") return "Shorten the headline if possible while keeping it accurate.";
-  if (code === "description_long") return "Tighten the Summary so the main point appears earlier.";
-  if (code === "description_short") return "Consider making the Summary more descriptive.";
-  if (code === "link_scheme") return "Review the flagged link and use HTTPS or a valid internal / path.";
+  if (code === "inline_alt_missing")
+    return "Find the Article Body image without alt text and describe that image.";
+  if (code.includes("image_16:9_missing"))
+    return "Upload the 16:9 representative image.";
+  if (code.includes("image_4:3_missing"))
+    return "Upload the 4:3 representative image.";
+  if (code.includes("image_1:1_missing"))
+    return "Upload the 1:1 representative image.";
+  if (code.includes("_small"))
+    return "Replace that representative image with a larger image of the same required ratio.";
+  if (code.includes("_ratio"))
+    return "Crop or replace the image so it matches the named representative-image ratio.";
+  if (code.includes("_https"))
+    return "Use a public HTTPS image uploaded through the Updates media uploader.";
+  if (code === "thin_content")
+    return "Consider adding more original information if readers need more context.";
+  if (code === "title_long")
+    return "Shorten the headline if possible while keeping it accurate.";
+  if (code === "description_long")
+    return "Tighten the Summary so the main point appears earlier.";
+  if (code === "description_short")
+    return "Consider making the Summary more descriptive.";
+  if (code === "link_scheme")
+    return "Review the flagged link and use HTTPS or a valid internal / path.";
 
   return issue.level === "block"
     ? "Correct this item before publishing."
@@ -441,14 +474,18 @@ export default function UpdatesAdminClient() {
   const [allowed, setAllowed] = useState(false);
   const [posts, setPosts] = useState<any[]>([]);
   const [deletedPosts, setDeletedPosts] = useState<any[]>([]);
-  const [overviewFilter, setOverviewFilter] = useState<OverviewLibraryFilter | null>(null);
+  const [overviewFilter, setOverviewFilter] =
+    useState<OverviewLibraryFilter | null>(null);
   const [previewPost, setPreviewPost] = useState<any | null>(null);
-  const [publishIntent, setPublishIntent] = useState<PublishIntent | null>(null);
+  const [publishIntent, setPublishIntent] = useState<PublishIntent | null>(
+    null,
+  );
   const [verification, setVerification] =
     useState<PublicationVerification | null>(null);
   const [verificationBusy, setVerificationBusy] = useState(false);
   const [publishPreflightBusy, setPublishPreflightBusy] = useState(false);
-  const [publishFeedback, setPublishFeedback] = useState<PublishFeedback | null>(null);
+  const [publishFeedback, setPublishFeedback] =
+    useState<PublishFeedback | null>(null);
 
   const [analytics, setAnalytics] = useState<any>(null);
   const [post, setPost] = useState<any>(() => blankPost());
@@ -489,7 +526,11 @@ export default function UpdatesAdminClient() {
     }
 
     url.searchParams.delete("auth");
-    window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+    window.history.replaceState(
+      {},
+      "",
+      `${url.pathname}${url.search}${url.hash}`,
+    );
   }, []);
 
   async function api(path: string, init: RequestInit = {}) {
@@ -503,7 +544,6 @@ export default function UpdatesAdminClient() {
       },
     });
   }
-
 
   function clearAutosaveTimers() {
     if (autosaveTimerRef.current) {
@@ -550,7 +590,10 @@ export default function UpdatesAdminClient() {
     const representative = purpose.startsWith("representative-");
     const type = file.type.toLowerCase();
 
-    if (representative && !(REPRESENTATIVE_IMAGE_TYPES as readonly string[]).includes(type)) {
+    if (
+      representative &&
+      !(REPRESENTATIVE_IMAGE_TYPES as readonly string[]).includes(type)
+    ) {
       throw new Error("Representative images must be JPEG, PNG or WebP.");
     }
 
@@ -558,17 +601,18 @@ export default function UpdatesAdminClient() {
       throw new Error("This publication media type is not supported.");
     }
 
-    const maxBytes =
-      type.startsWith("video/")
-        ? MAX_UPDATES_VIDEO_BYTES
-        : type.startsWith("audio/")
-          ? MAX_UPDATES_AUDIO_BYTES
-          : (ARTICLE_IMAGE_TYPES as readonly string[]).includes(type)
-            ? MAX_UPDATES_IMAGE_BYTES
-            : MAX_UPDATES_FILE_BYTES;
+    const maxBytes = type.startsWith("video/")
+      ? MAX_UPDATES_VIDEO_BYTES
+      : type.startsWith("audio/")
+        ? MAX_UPDATES_AUDIO_BYTES
+        : (ARTICLE_IMAGE_TYPES as readonly string[]).includes(type)
+          ? MAX_UPDATES_IMAGE_BYTES
+          : MAX_UPDATES_FILE_BYTES;
 
     if (file.size <= 0 || file.size > maxBytes) {
-      throw new Error(`This file is too large. Maximum for this media type is ${formatBytes(maxBytes)}.`);
+      throw new Error(
+        `This file is too large. Maximum for this media type is ${formatBytes(maxBytes)}.`,
+      );
     }
 
     const ticketResponse = await api("/api/admin/updates/media/upload-url", {
@@ -590,8 +634,15 @@ export default function UpdatesAdminClient() {
       error?: string;
     };
 
-    if (!ticketResponse.ok || !ticket.path || !ticket.token || !ticket.publicUrl) {
-      throw new Error(ticket.error || "A secure media upload could not be prepared.");
+    if (
+      !ticketResponse.ok ||
+      !ticket.path ||
+      !ticket.token ||
+      !ticket.publicUrl
+    ) {
+      throw new Error(
+        ticket.error || "A secure media upload could not be prepared.",
+      );
     }
 
     const { error: uploadError } = await storageBrowser.storage
@@ -617,7 +668,6 @@ export default function UpdatesAdminClient() {
     const result = await uploadMedia(file, purpose);
     return result.url;
   }
-
 
   useEffect(() => {
     let active = true;
@@ -691,7 +741,8 @@ export default function UpdatesAdminClient() {
 
       if (!response.ok) {
         throw new Error(
-          payload.error || `Secure sign-in request failed (${response.status}).`,
+          payload.error ||
+            `Secure sign-in request failed (${response.status}).`,
         );
       }
 
@@ -729,9 +780,7 @@ export default function UpdatesAdminClient() {
       if (key === "title" && !current.id && !current.slug) {
         const generatedSlug = slugify(String(value || ""));
         next.slug = generatedSlug;
-        next.canonical_path = generatedSlug
-          ? `/updates/${generatedSlug}`
-          : "";
+        next.canonical_path = generatedSlug ? `/updates/${generatedSlug}` : "";
       }
 
       return next;
@@ -867,7 +916,9 @@ export default function UpdatesAdminClient() {
       if (revision === autosaveRevisionRef.current) {
         setAutosaveState("saved");
         setLastSavedAt(
-          normalized.updated_at || result.post?.updated_at || new Date().toISOString(),
+          normalized.updated_at ||
+            result.post?.updated_at ||
+            new Date().toISOString(),
         );
         setAutosaveError("");
       }
@@ -1031,11 +1082,15 @@ export default function UpdatesAdminClient() {
       body: JSON.stringify({ action, ids, confirmation }),
     });
     const result = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(result.error || "Publication action failed.");
+    if (!response.ok)
+      throw new Error(result.error || "Publication action failed.");
 
     await refreshPosts();
 
-    if ((action === "soft_delete" || action === "permanent_delete") && ids.includes(post.id)) {
+    if (
+      (action === "soft_delete" || action === "permanent_delete") &&
+      ids.includes(post.id)
+    ) {
       resetAutosaveTracking();
       setPost(blankPost());
     }
@@ -1053,8 +1108,7 @@ export default function UpdatesAdminClient() {
         `/api/admin/updates/posts/${postId}/publish-check`,
       );
       const result = (await response.json().catch(() => ({}))) as
-        | PublicationVerification
-        | { error?: string };
+        PublicationVerification | { error?: string };
 
       if (!response.ok || !("checks" in result)) {
         throw new Error(
@@ -1102,7 +1156,8 @@ export default function UpdatesAdminClient() {
     setPublishFeedback({
       kind: "checking",
       title: "Checking publication requirements…",
-      detail: "StayKnown is checking the current editor content before anything can go public.",
+      detail:
+        "StayKnown is checking the current editor content before anything can go public.",
       issues: [],
     });
 
@@ -1148,18 +1203,25 @@ export default function UpdatesAdminClient() {
       };
 
       if (!response.ok) {
-        throw new Error(result.error || "Publication preflight could not be completed.");
+        throw new Error(
+          result.error || "Publication preflight could not be completed.",
+        );
       }
 
       const checkedIssues = Array.isArray(result.issues) ? result.issues : [];
-      const checkedBlockers = checkedIssues.filter((item) => item.level === "block");
-      const checkedWarnings = checkedIssues.filter((item) => item.level === "warning");
+      const checkedBlockers = checkedIssues.filter(
+        (item) => item.level === "block",
+      );
+      const checkedWarnings = checkedIssues.filter(
+        (item) => item.level === "warning",
+      );
 
       if (!result.ok || checkedBlockers.length > 0) {
         setPublishFeedback({
           kind: "blocked",
           title: `${checkedBlockers.length} publication blocker${checkedBlockers.length === 1 ? "" : "s"} found.`,
-          detail: "Nothing was published. Fix every BLOCK item below, then run the check again.",
+          detail:
+            "Nothing was published. Fix every BLOCK item below, then run the check again.",
           issues: checkedIssues,
         });
         return;
@@ -1178,7 +1240,10 @@ export default function UpdatesAdminClient() {
       setPublishFeedback({
         kind: "error",
         title: "Publication check could not be completed.",
-        detail: error instanceof Error ? error.message : "Please retry the publication check.",
+        detail:
+          error instanceof Error
+            ? error.message
+            : "Please retry the publication check.",
         issues: [],
       });
     } finally {
@@ -1227,12 +1292,17 @@ export default function UpdatesAdminClient() {
 
       if (!response.ok) {
         if (result.error === "seo_blocked") {
-          const serverIssues = Array.isArray(result.issues) ? result.issues : [];
-          const serverBlockers = serverIssues.filter((item: SeoIssue) => item.level === "block");
+          const serverIssues = Array.isArray(result.issues)
+            ? result.issues
+            : [];
+          const serverBlockers = serverIssues.filter(
+            (item: SeoIssue) => item.level === "block",
+          );
           setPublishFeedback({
             kind: "blocked",
             title: `${serverBlockers.length} publication blocker${serverBlockers.length === 1 ? "" : "s"} found by the final server check.`,
-            detail: "Nothing was published. Fix the BLOCK items below and try again.",
+            detail:
+              "Nothing was published. Fix the BLOCK items below and try again.",
             issues: serverIssues,
           });
           setNote("");
@@ -1268,10 +1338,13 @@ export default function UpdatesAdminClient() {
           setPublishFeedback({
             kind: "published",
             title: "Published successfully.",
-            detail: "The Update is public. StayKnown is now verifying the main Updates page, article URL, metadata, sitemap, RSS, likes and analytics.",
+            detail:
+              "The Update is public. StayKnown is now verifying the main Updates page, article URL, metadata, sitemap, RSS, likes and analytics.",
             issues: [],
           });
-          setNote("Published. StayKnown is verifying the live publication now…");
+          setNote(
+            "Published. StayKnown is verifying the live publication now…",
+          );
           await verifyPublication(normalized.id);
         } else {
           setVerification(null);
@@ -1294,8 +1367,6 @@ export default function UpdatesAdminClient() {
     }
   }
 
-
-
   if (authState === "checking") {
     return (
       <div className="min-h-screen bg-black px-6 py-20 text-white">
@@ -1317,8 +1388,8 @@ export default function UpdatesAdminClient() {
             Updates Admin.
           </h1>
           <p className="mt-4 text-[12px] font-semibold leading-6 text-white/[0.48]">
-            Authorized editorial access for StayKnown Updates, newsroom publishing,
-            SEO review, media, analytics and publication controls.
+            Authorized editorial access for StayKnown Updates, newsroom
+            publishing, SEO review, media, analytics and publication controls.
           </p>
           <input
             id="sk-admin-email"
@@ -1348,7 +1419,8 @@ export default function UpdatesAdminClient() {
     return (
       <div className="min-h-screen bg-black px-6 py-20 text-white">
         <div className="mx-auto max-w-xl text-[14px] font-bold">
-          This email is not authorized for StayKnown Updates & Publication Admin.
+          This email is not authorized for StayKnown Updates & Publication
+          Admin.
         </div>
       </div>
     );
@@ -1476,7 +1548,11 @@ export default function UpdatesAdminClient() {
               />
             </div>
           ) : tab === "Media" ? (
-            <MediaLibrary api={api} uploadImage={uploadImage} uploadMedia={uploadMedia} />
+            <MediaLibrary
+              api={api}
+              uploadImage={uploadImage}
+              uploadMedia={uploadMedia}
+            />
           ) : tab === "SEO" ? (
             <SeoGuide />
           ) : tab === "Settings" ? (
@@ -1886,8 +1962,10 @@ function Editor({
           </div>
 
           <div className="rounded-full border border-white/[0.12] px-3 py-2 text-[8px] font-black uppercase tracking-[0.14em] text-white/[0.42]">
-            {issues.filter((item: SeoIssue) => item.level === "block").length} blockers ·{" "}
-            {issues.filter((item: SeoIssue) => item.level === "warning").length} warnings
+            {issues.filter((item: SeoIssue) => item.level === "block").length}{" "}
+            blockers ·{" "}
+            {issues.filter((item: SeoIssue) => item.level === "warning").length}{" "}
+            warnings
           </div>
         </div>
 
@@ -2077,7 +2155,9 @@ function BlockEditor({
             className="input mt-2"
             placeholder="Caption (optional)"
             value={block.caption || ""}
-            onChange={(event) => updateBlock(index, "caption", event.target.value)}
+            onChange={(event) =>
+              updateBlock(index, "caption", event.target.value)
+            }
           />
         </>
       ) : null}
@@ -2104,7 +2184,9 @@ function BlockEditor({
               value={block.poster_url || ""}
               purpose="article-body"
               uploadImage={uploadImage}
-              onUploaded={(url: string) => updateBlock(index, "poster_url", url)}
+              onUploaded={(url: string) =>
+                updateBlock(index, "poster_url", url)
+              }
               onRemove={() => updateBlock(index, "poster_url", "")}
             />
           </div>
@@ -2112,7 +2194,9 @@ function BlockEditor({
             className="input mt-2"
             placeholder="Video caption (optional)"
             value={block.caption || ""}
-            onChange={(event) => updateBlock(index, "caption", event.target.value)}
+            onChange={(event) =>
+              updateBlock(index, "caption", event.target.value)
+            }
           />
         </>
       ) : null}
@@ -2137,13 +2221,17 @@ function BlockEditor({
             className="input mt-2"
             placeholder="Audio title"
             value={block.title || ""}
-            onChange={(event) => updateBlock(index, "title", event.target.value)}
+            onChange={(event) =>
+              updateBlock(index, "title", event.target.value)
+            }
           />
           <input
             className="input mt-2"
             placeholder="Audio caption (optional)"
             value={block.caption || ""}
-            onChange={(event) => updateBlock(index, "caption", event.target.value)}
+            onChange={(event) =>
+              updateBlock(index, "caption", event.target.value)
+            }
           />
         </>
       ) : null}
@@ -2170,7 +2258,9 @@ function BlockEditor({
             className="input mt-2"
             placeholder="File label"
             value={block.label || ""}
-            onChange={(event) => updateBlock(index, "label", event.target.value)}
+            onChange={(event) =>
+              updateBlock(index, "label", event.target.value)
+            }
           />
         </>
       ) : null}
@@ -2181,7 +2271,9 @@ function BlockEditor({
             className="input mt-3"
             placeholder="Button/link label"
             value={block.label || ""}
-            onChange={(event) => updateBlock(index, "label", event.target.value)}
+            onChange={(event) =>
+              updateBlock(index, "label", event.target.value)
+            }
           />
           <input
             className="input mt-2"
@@ -2215,7 +2307,11 @@ function BlockEditor({
                 ]}
                 onChange={(value) => updateBlock(index, "weight", value)}
               />
-              <AlignmentControl block={block} index={index} updateBlock={updateBlock} />
+              <AlignmentControl
+                block={block}
+                index={index}
+                updateBlock={updateBlock}
+              />
             </>
           ) : null}
 
@@ -2231,7 +2327,11 @@ function BlockEditor({
                 ]}
                 onChange={(value) => updateBlock(index, "size", value)}
               />
-              <AlignmentControl block={block} index={index} updateBlock={updateBlock} />
+              <AlignmentControl
+                block={block}
+                index={index}
+                updateBlock={updateBlock}
+              />
             </>
           ) : null}
 
@@ -2246,7 +2346,11 @@ function BlockEditor({
                 ]}
                 onChange={(value) => updateBlock(index, "size", value)}
               />
-              <AlignmentControl block={block} index={index} updateBlock={updateBlock} />
+              <AlignmentControl
+                block={block}
+                index={index}
+                updateBlock={updateBlock}
+              />
             </>
           ) : null}
 
@@ -2261,7 +2365,11 @@ function BlockEditor({
                 ]}
                 onChange={(value) => updateBlock(index, "size", value)}
               />
-              <AlignmentControl block={block} index={index} updateBlock={updateBlock} />
+              <AlignmentControl
+                block={block}
+                index={index}
+                updateBlock={updateBlock}
+              />
             </>
           ) : null}
 
@@ -2480,7 +2588,10 @@ function SeoIssues({ issues }: { issues: SeoIssue[] }) {
               {item.message}
             </div>
             <div className="mt-1 text-[9px] font-black uppercase tracking-[0.08em] text-white/[0.38]">
-              What to do: <span className="normal-case tracking-normal text-white/[0.58]">{seoIssueFix(item)}</span>
+              What to do:{" "}
+              <span className="normal-case tracking-normal text-white/[0.58]">
+                {seoIssueFix(item)}
+              </span>
             </div>
           </div>
         ))}
@@ -2510,7 +2621,10 @@ function RichMediaUploadControl({
   value: string;
   kind: "video" | "audio" | "file" | "any";
   purpose: UpdatesMediaPurpose;
-  uploadMedia: (file: File, purpose: UpdatesMediaPurpose) => Promise<MediaUploadResult>;
+  uploadMedia: (
+    file: File,
+    purpose: UpdatesMediaPurpose,
+  ) => Promise<MediaUploadResult>;
   onUploaded: (result: MediaUploadResult) => void;
   onRemove: () => void;
 }) {
@@ -2536,7 +2650,9 @@ function RichMediaUploadControl({
       onUploaded(result);
       setMessage(`Uploaded ${file.name} · ${formatBytes(file.size)}`);
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Media upload failed.");
+      setMessage(
+        error instanceof Error ? error.message : "Media upload failed.",
+      );
     } finally {
       setUploading(false);
       if (inputRef.current) inputRef.current.value = "";
@@ -2548,16 +2664,34 @@ function RichMediaUploadControl({
       {value ? (
         <div className="border-b border-white/[0.08] p-3">
           {kind === "video" ? (
-            <video src={value} controls preload="metadata" className="max-h-[280px] w-full rounded-xl bg-black" />
+            <video
+              src={value}
+              controls
+              preload="metadata"
+              className="max-h-[280px] w-full rounded-xl bg-black"
+            />
           ) : kind === "audio" ? (
             <audio src={value} controls preload="metadata" className="w-full" />
           ) : (
             <div className="flex items-center justify-between gap-3 rounded-xl border border-white/[0.08] p-3">
-              <span className="truncate text-[9px] font-black text-white/[0.58]">FILE ATTACHED</span>
-              <a href={value} target="_blank" rel="noreferrer" className="text-[8px] font-black text-white/[0.42] underline">OPEN</a>
+              <span className="truncate text-[9px] font-black text-white/[0.58]">
+                FILE ATTACHED
+              </span>
+              <a
+                href={value}
+                target="_blank"
+                rel="noreferrer"
+                className="text-[8px] font-black text-white/[0.42] underline"
+              >
+                OPEN
+              </a>
             </div>
           )}
-          <button type="button" onClick={onRemove} className="mt-2 rounded-full border border-white/[0.14] px-2.5 py-1.5 text-[8px] font-black text-white/[0.45] hover:bg-white hover:!text-black">
+          <button
+            type="button"
+            onClick={onRemove}
+            className="mt-2 rounded-full border border-white/[0.14] px-2.5 py-1.5 text-[8px] font-black text-white/[0.45] hover:bg-white hover:!text-black"
+          >
             Remove
           </button>
         </div>
@@ -2568,13 +2702,30 @@ function RichMediaUploadControl({
         onClick={() => inputRef.current?.click()}
         className="block w-full px-4 py-5 text-left transition hover:bg-white/[0.045] disabled:opacity-40"
       >
-        <div className="text-[9px] font-black">{uploading ? "Uploading…" : value ? "Replace media" : `Upload ${label.toLowerCase()}`}</div>
+        <div className="text-[9px] font-black">
+          {uploading
+            ? "Uploading…"
+            : value
+              ? "Replace media"
+              : `Upload ${label.toLowerCase()}`}
+        </div>
         <div className="mt-1 text-[8px] font-semibold leading-4 text-white/[0.32]">
-          Video, audio and publication files upload directly to StayKnown media storage.
+          Video, audio and publication files upload directly to StayKnown media
+          storage.
         </div>
       </button>
-      <input ref={inputRef} type="file" accept={accept} className="hidden" onChange={(event) => void choose(event.target.files?.[0])} />
-      {message ? <div className="border-t border-white/[0.07] px-3 py-2 text-[8px] font-semibold text-white/[0.42]">{message}</div> : null}
+      <input
+        ref={inputRef}
+        type="file"
+        accept={accept}
+        className="hidden"
+        onChange={(event) => void choose(event.target.files?.[0])}
+      />
+      {message ? (
+        <div className="border-t border-white/[0.07] px-3 py-2 text-[8px] font-semibold text-white/[0.42]">
+          {message}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -2682,14 +2833,19 @@ function ImageUploadControl({
             dragging ? "!text-black/60" : "text-white/[0.32]"
           }`}
         >
-          Drop here or choose from this device · JPEG, PNG, WebP{purpose === "article-body" ? " or GIF" : ""} · up to 20 MB
+          Drop here or choose from this device · JPEG, PNG, WebP
+          {purpose === "article-body" ? " or GIF" : ""} · up to 20 MB
         </div>
       </button>
 
       <input
         ref={inputRef}
         type="file"
-        accept={purpose === "article-body" ? "image/jpeg,image/png,image/webp,image/gif" : "image/jpeg,image/png,image/webp"}
+        accept={
+          purpose === "article-body"
+            ? "image/jpeg,image/png,image/webp,image/gif"
+            : "image/jpeg,image/png,image/webp"
+        }
         className="hidden"
         onChange={(event) => void choose(event.target.files?.[0])}
       />
@@ -2710,7 +2866,10 @@ function MediaLibrary({
 }: {
   api: (path: string, init?: RequestInit) => Promise<Response>;
   uploadImage: (file: File, purpose: UpdatesImagePurpose) => Promise<string>;
-  uploadMedia: (file: File, purpose: UpdatesMediaPurpose) => Promise<MediaUploadResult>;
+  uploadMedia: (
+    file: File,
+    purpose: UpdatesMediaPurpose,
+  ) => Promise<MediaUploadResult>;
 }) {
   const [files, setFiles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -2721,10 +2880,13 @@ function MediaLibrary({
     try {
       const response = await api("/api/admin/updates/media");
       const payload = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(payload.error || "Media could not be loaded.");
+      if (!response.ok)
+        throw new Error(payload.error || "Media could not be loaded.");
       setFiles(payload.files || []);
     } catch (error) {
-      setNote(error instanceof Error ? error.message : "Media could not be loaded.");
+      setNote(
+        error instanceof Error ? error.message : "Media could not be loaded.",
+      );
     } finally {
       setLoading(false);
     }
@@ -2736,10 +2898,15 @@ function MediaLibrary({
 
   return (
     <div>
-      <div className="text-[9px] font-black uppercase tracking-[0.2em] text-white/[0.3]">Media</div>
-      <h1 className="mt-3 text-[48px] font-black tracking-[-0.065em]">Publication media.</h1>
+      <div className="text-[9px] font-black uppercase tracking-[0.2em] text-white/[0.3]">
+        Media
+      </div>
+      <h1 className="mt-3 text-[48px] font-black tracking-[-0.065em]">
+        Publication media.
+      </h1>
       <p className="mt-3 max-w-2xl text-[11px] font-semibold leading-5 text-white/[0.38]">
-        Images, animated GIFs, web video, audio and approved document files live here. Representative Article images remain JPEG, PNG or WebP only.
+        Images, animated GIFs, web video, audio and approved document files live
+        here. Representative Article images remain JPEG, PNG or WebP only.
       </p>
 
       <div className="mt-7 max-w-xl">
@@ -2757,37 +2924,77 @@ function MediaLibrary({
         />
       </div>
 
-      {note ? <div className="mt-4 text-[10px] font-bold text-white/[0.48]">{note}</div> : null}
+      {note ? (
+        <div className="mt-4 text-[10px] font-bold text-white/[0.48]">
+          {note}
+        </div>
+      ) : null}
 
       {loading ? (
-        <div className="mt-8 text-[10px] font-black text-white/[0.3]">Loading media…</div>
+        <div className="mt-8 text-[10px] font-black text-white/[0.3]">
+          Loading media…
+        </div>
       ) : files.length ? (
         <div className="mt-8 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {files.map((item) => {
             const mime = String(item.mimeType || "").toLowerCase();
             return (
-              <div key={item.path} className="overflow-hidden rounded-[22px] border border-white/[0.1]">
+              <div
+                key={item.path}
+                className="overflow-hidden rounded-[22px] border border-white/[0.1]"
+              >
                 <div className="flex aspect-[16/9] items-center justify-center overflow-hidden bg-white/[0.02]">
                   {mime.startsWith("video/") ? (
-                    <video src={item.publicUrl} controls preload="metadata" className="h-full w-full object-contain" />
+                    <video
+                      src={item.publicUrl}
+                      controls
+                      preload="metadata"
+                      className="h-full w-full object-contain"
+                    />
                   ) : mime.startsWith("audio/") ? (
-                    <div className="w-full px-4"><audio src={item.publicUrl} controls preload="metadata" className="w-full" /></div>
+                    <div className="w-full px-4">
+                      <audio
+                        src={item.publicUrl}
+                        controls
+                        preload="metadata"
+                        className="w-full"
+                      />
+                    </div>
                   ) : mime.startsWith("image/") ? (
-                    <img src={item.publicUrl} alt="" className="h-full w-full object-cover" loading="lazy" />
+                    <img
+                      src={item.publicUrl}
+                      alt=""
+                      className="h-full w-full object-cover"
+                      loading="lazy"
+                    />
                   ) : (
-                    <a href={item.publicUrl} target="_blank" rel="noreferrer" className="rounded-full border border-white/[0.14] px-4 py-2 text-[9px] font-black text-white/[0.5] hover:bg-white hover:!text-black">OPEN FILE ↗</a>
+                    <a
+                      href={item.publicUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="rounded-full border border-white/[0.14] px-4 py-2 text-[9px] font-black text-white/[0.5] hover:bg-white hover:!text-black"
+                    >
+                      OPEN FILE ↗
+                    </a>
                   )}
                 </div>
                 <div className="p-3">
-                  <div className="truncate text-[9px] font-black text-white/[0.62]">{item.name}</div>
-                  <div className="mt-1 text-[8px] font-semibold text-white/[0.28]">{mime || "publication file"} · {formatBytes(Number(item.size || 0)) || "asset"}</div>
+                  <div className="truncate text-[9px] font-black text-white/[0.62]">
+                    {item.name}
+                  </div>
+                  <div className="mt-1 text-[8px] font-semibold text-white/[0.28]">
+                    {mime || "publication file"} ·{" "}
+                    {formatBytes(Number(item.size || 0)) || "asset"}
+                  </div>
                 </div>
               </div>
             );
           })}
         </div>
       ) : (
-        <div className="mt-8 rounded-[24px] border border-white/[0.08] p-5 text-[10px] font-semibold text-white/[0.32]">No publication media uploaded yet.</div>
+        <div className="mt-8 rounded-[24px] border border-white/[0.08] p-5 text-[10px] font-semibold text-white/[0.32]">
+          No publication media uploaded yet.
+        </div>
       )}
     </div>
   );
@@ -2822,7 +3029,9 @@ function Dashboard({
   const drafts = posts.filter((item) => item.status === "draft").length;
   const [selecting, setSelecting] = useState(false);
   const [selected, setSelected] = useState<string[]>([]);
-  const [confirmMode, setConfirmMode] = useState<"delete" | "permanent" | null>(null);
+  const [confirmMode, setConfirmMode] = useState<"delete" | "permanent" | null>(
+    null,
+  );
   const [confirmText, setConfirmText] = useState("");
   const [actionBusy, setActionBusy] = useState(false);
   const [actionNote, setActionNote] = useState("");
@@ -2830,7 +3039,8 @@ function Dashboard({
   const librarySource = activeFilter === "deleted" ? deletedPosts : posts;
   const visibleLibrary = sortPostsForLibrary(
     librarySource.filter((item) => {
-      if (!activeFilter || activeFilter === "all" || activeFilter === "deleted") return true;
+      if (!activeFilter || activeFilter === "all" || activeFilter === "deleted")
+        return true;
       return item.status === activeFilter;
     }),
     activeFilter || "all",
@@ -2842,16 +3052,24 @@ function Dashboard({
     setActionNote("");
   }, [activeFilter]);
 
-  const selectedRows = visibleLibrary.filter((item) => selected.includes(item.id));
-  const selectedHasPublished = selectedRows.some((item) => item.status === "published");
+  const selectedRows = visibleLibrary.filter((item) =>
+    selected.includes(item.id),
+  );
+  const selectedHasPublished = selectedRows.some(
+    (item) => item.status === "published",
+  );
 
   function toggleSelected(id: string) {
     setSelected((current) =>
-      current.includes(id) ? current.filter((value) => value !== id) : [...current, id],
+      current.includes(id)
+        ? current.filter((value) => value !== id)
+        : [...current, id],
     );
   }
 
-  async function perform(action: "soft_delete" | "restore" | "permanent_delete") {
+  async function perform(
+    action: "soft_delete" | "restore" | "permanent_delete",
+  ) {
     if (!selected.length) return;
     setActionBusy(true);
     setActionNote("");
@@ -2859,7 +3077,11 @@ function Dashboard({
       await onLibraryAction(
         action,
         selected,
-        action === "soft_delete" ? "DELETE" : action === "permanent_delete" ? "PERMANENTLY DELETE" : "",
+        action === "soft_delete"
+          ? "DELETE"
+          : action === "permanent_delete"
+            ? "PERMANENTLY DELETE"
+            : "",
       );
       setActionNote(
         action === "restore"
@@ -2873,7 +3095,9 @@ function Dashboard({
       setConfirmMode(null);
       setConfirmText("");
     } catch (error) {
-      setActionNote(error instanceof Error ? error.message : "Publication action failed.");
+      setActionNote(
+        error instanceof Error ? error.message : "Publication action failed.",
+      );
     } finally {
       setActionBusy(false);
     }
@@ -2881,23 +3105,39 @@ function Dashboard({
 
   return (
     <div>
-      <div className="text-[9px] font-black uppercase tracking-[0.2em] text-white/[0.3]">{tab}</div>
-      <h1 className="mt-3 text-[48px] font-black tracking-[-0.065em]">Publishing control.</h1>
+      <div className="text-[9px] font-black uppercase tracking-[0.2em] text-white/[0.3]">
+        {tab}
+      </div>
+      <h1 className="mt-3 text-[48px] font-black tracking-[-0.065em]">
+        Publishing control.
+      </h1>
       <div className="mt-8 grid gap-3 sm:grid-cols-3">
         {[
           { count: posts.length, label: "All posts", filter: "all" as const },
-          { count: published, label: "Published", filter: "published" as const },
+          {
+            count: published,
+            label: "Published",
+            filter: "published" as const,
+          },
           { count: drafts, label: "Drafts", filter: "draft" as const },
         ].map(({ count, label, filter }) => (
           <button
             type="button"
             key={label}
-            onClick={() => onFilterChange(activeFilter === filter ? null : filter)}
+            onClick={() =>
+              onFilterChange(activeFilter === filter ? null : filter)
+            }
             className={`rounded-[26px] border p-5 text-left transition active:scale-[0.99] ${activeFilter === filter ? "border-white/[0.34] bg-white/[0.055]" : "border-white/[0.1] hover:border-white/[0.28] hover:bg-white/[0.03]"}`}
           >
-            <div className="text-[40px] font-black tracking-[-0.06em]">{count}</div>
-            <div className="text-[9px] font-black uppercase tracking-[0.16em] text-white/[0.3]">{label}</div>
-            <div className="mt-2 text-[8px] font-semibold text-white/[0.22]">{activeFilter === filter ? "Hide" : "Show"} {label.toLowerCase()}</div>
+            <div className="text-[40px] font-black tracking-[-0.06em]">
+              {count}
+            </div>
+            <div className="text-[9px] font-black uppercase tracking-[0.16em] text-white/[0.3]">
+              {label}
+            </div>
+            <div className="mt-2 text-[8px] font-semibold text-white/[0.22]">
+              {activeFilter === filter ? "Hide" : "Show"} {label.toLowerCase()}
+            </div>
           </button>
         ))}
       </div>
@@ -2905,7 +3145,9 @@ function Dashboard({
       <div className="mt-3 flex justify-end">
         <button
           type="button"
-          onClick={() => onFilterChange(activeFilter === "deleted" ? null : "deleted")}
+          onClick={() =>
+            onFilterChange(activeFilter === "deleted" ? null : "deleted")
+          }
           className={`rounded-full border px-3 py-2 text-[8px] font-black uppercase tracking-[0.12em] transition ${activeFilter === "deleted" ? "border-white bg-white !text-black" : "border-white/[0.1] text-white/[0.34] hover:border-white/[0.28] hover:text-white"}`}
         >
           Recently Deleted · {deletedPosts.length} · 90-day recovery
@@ -2916,34 +3158,96 @@ function Dashboard({
         <section className="mt-5 rounded-[28px] border border-white/[0.08] p-3 sm:p-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <div className="text-[9px] font-black uppercase tracking-[0.18em] text-white/[0.34]">{activeFilter === "deleted" ? "Recently Deleted" : activeFilter === "all" ? "All Posts" : activeFilter}</div>
-              <div className="mt-1 text-[8px] font-semibold text-white/[0.24]">Newest first · {visibleLibrary.length} item{visibleLibrary.length === 1 ? "" : "s"}</div>
+              <div className="text-[9px] font-black uppercase tracking-[0.18em] text-white/[0.34]">
+                {activeFilter === "deleted"
+                  ? "Recently Deleted"
+                  : activeFilter === "all"
+                    ? "All Posts"
+                    : activeFilter}
+              </div>
+              <div className="mt-1 text-[8px] font-semibold text-white/[0.24]">
+                Newest first · {visibleLibrary.length} item
+                {visibleLibrary.length === 1 ? "" : "s"}
+              </div>
             </div>
             <div className="flex flex-wrap gap-2">
-              <button type="button" onClick={() => setSelecting((value) => !value)} className="rounded-full border border-white/[0.1] px-3 py-2 text-[8px] font-black text-white/[0.4] hover:bg-white hover:!text-black">{selecting ? "DONE SELECTING" : "SELECT"}</button>
+              <button
+                type="button"
+                onClick={() => setSelecting((value) => !value)}
+                className="rounded-full border border-white/[0.1] px-3 py-2 text-[8px] font-black text-white/[0.4] hover:bg-white hover:!text-black"
+              >
+                {selecting ? "DONE SELECTING" : "SELECT"}
+              </button>
               {selecting && visibleLibrary.length ? (
-                <button type="button" onClick={() => setSelected(selected.length === visibleLibrary.length ? [] : visibleLibrary.map((item) => item.id))} className="rounded-full border border-white/[0.1] px-3 py-2 text-[8px] font-black text-white/[0.4] hover:bg-white hover:!text-black">{selected.length === visibleLibrary.length ? "CLEAR ALL" : "SELECT ALL"}</button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setSelected(
+                      selected.length === visibleLibrary.length
+                        ? []
+                        : visibleLibrary.map((item) => item.id),
+                    )
+                  }
+                  className="rounded-full border border-white/[0.1] px-3 py-2 text-[8px] font-black text-white/[0.4] hover:bg-white hover:!text-black"
+                >
+                  {selected.length === visibleLibrary.length
+                    ? "CLEAR ALL"
+                    : "SELECT ALL"}
+                </button>
               ) : null}
             </div>
           </div>
 
           {selecting && selected.length ? (
             <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/[0.1] bg-white/[0.025] p-3">
-              <div className="text-[9px] font-black text-white/[0.5]">{selected.length} selected</div>
+              <div className="text-[9px] font-black text-white/[0.5]">
+                {selected.length} selected
+              </div>
               <div className="flex gap-2">
                 {activeFilter === "deleted" ? (
                   <>
-                    <button type="button" disabled={actionBusy} onClick={() => void perform("restore")} className="rounded-full bg-white px-3 py-2 text-[8px] font-black !text-black disabled:opacity-30">RESTORE SELECTED</button>
-                    <button type="button" disabled={actionBusy} onClick={() => { setConfirmMode("permanent"); setConfirmText(""); }} className="rounded-full border border-white/[0.16] px-3 py-2 text-[8px] font-black text-white/[0.48] disabled:opacity-30">PERMANENT DELETE</button>
+                    <button
+                      type="button"
+                      disabled={actionBusy}
+                      onClick={() => void perform("restore")}
+                      className="rounded-full bg-white px-3 py-2 text-[8px] font-black !text-black disabled:opacity-30"
+                    >
+                      RESTORE SELECTED
+                    </button>
+                    <button
+                      type="button"
+                      disabled={actionBusy}
+                      onClick={() => {
+                        setConfirmMode("permanent");
+                        setConfirmText("");
+                      }}
+                      className="rounded-full border border-white/[0.16] px-3 py-2 text-[8px] font-black text-white/[0.48] disabled:opacity-30"
+                    >
+                      PERMANENT DELETE
+                    </button>
                   </>
                 ) : (
-                  <button type="button" disabled={actionBusy} onClick={() => { setConfirmMode("delete"); setConfirmText(""); }} className="rounded-full border border-white/[0.16] px-3 py-2 text-[8px] font-black text-white/[0.48] disabled:opacity-30">MOVE TO RECENTLY DELETED</button>
+                  <button
+                    type="button"
+                    disabled={actionBusy}
+                    onClick={() => {
+                      setConfirmMode("delete");
+                      setConfirmText("");
+                    }}
+                    className="rounded-full border border-white/[0.16] px-3 py-2 text-[8px] font-black text-white/[0.48] disabled:opacity-30"
+                  >
+                    MOVE TO RECENTLY DELETED
+                  </button>
                 )}
               </div>
             </div>
           ) : null}
 
-          {actionNote ? <div className="mt-3 text-[9px] font-bold text-white/[0.44]">{actionNote}</div> : null}
+          {actionNote ? (
+            <div className="mt-3 text-[9px] font-bold text-white/[0.44]">
+              {actionNote}
+            </div>
+          ) : null}
 
           {visibleLibrary.length ? (
             <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -2966,48 +3270,117 @@ function Dashboard({
                     setSelected([item.id]);
                     void (async () => {
                       setActionBusy(true);
-                      try { await onLibraryAction("restore", [item.id]); setActionNote("Publication restored."); }
-                      catch (error) { setActionNote(error instanceof Error ? error.message : "Restore failed."); }
-                      finally { setActionBusy(false); setSelected([]); }
+                      try {
+                        await onLibraryAction("restore", [item.id]);
+                        setActionNote("Publication restored.");
+                      } catch (error) {
+                        setActionNote(
+                          error instanceof Error
+                            ? error.message
+                            : "Restore failed.",
+                        );
+                      } finally {
+                        setActionBusy(false);
+                        setSelected([]);
+                      }
                     })();
                   }}
                 />
               ))}
             </div>
           ) : (
-            <div className="mt-4 rounded-2xl border border-white/[0.08] p-5 text-[9px] font-semibold text-white/[0.3]">Nothing in this publication section yet.</div>
+            <div className="mt-4 rounded-2xl border border-white/[0.08] p-5 text-[9px] font-semibold text-white/[0.3]">
+              Nothing in this publication section yet.
+            </div>
           )}
         </section>
       ) : null}
 
       {tab === "Analytics" ? (
         <div className="mt-8 space-y-2">
-          <div className="text-[11px] font-black">Recorded /updates views: {Number(analytics?.updatesViews || 0).toLocaleString()}</div>
+          <div className="text-[11px] font-black">
+            Recorded /updates views:{" "}
+            {Number(analytics?.updatesViews || 0).toLocaleString()}
+          </div>
           {(analytics?.posts || []).map((item: any) => (
-            <div key={item.id} className="flex items-center justify-between rounded-2xl border border-white/[0.09] p-3 text-[10px]">
-              <span className="max-w-[70%] font-bold text-white/[0.6]">{item.title}</span>
-              <span className="font-black tabular-nums text-white/[0.38]">{Number(item.views || 0).toLocaleString()} views · {Number(item.likes || 0).toLocaleString()} likes</span>
+            <div
+              key={item.id}
+              className="flex items-center justify-between rounded-2xl border border-white/[0.09] p-3 text-[10px]"
+            >
+              <span className="max-w-[70%] font-bold text-white/[0.6]">
+                {item.title}
+              </span>
+              <span className="font-black tabular-nums text-white/[0.38]">
+                {Number(item.views || 0).toLocaleString()} views ·{" "}
+                {Number(item.likes || 0).toLocaleString()} likes
+              </span>
             </div>
           ))}
         </div>
       ) : tab === "Overview" ? (
-        <p className="mt-6 max-w-xl text-[11px] font-semibold leading-5 text-white/[0.32]">Tap All Posts, Published or Drafts to expand compact publication cards here. Preview stays inside Admin; Open URL is available only when the Update is actually public.</p>
+        <p className="mt-6 max-w-xl text-[11px] font-semibold leading-5 text-white/[0.32]">
+          Tap All Posts, Published or Drafts to expand compact publication cards
+          here. Preview stays inside Admin; Open URL is available only when the
+          Update is actually public.
+        </p>
       ) : null}
 
       {confirmMode ? (
         <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/80 p-4 backdrop-blur-md">
           <div className="w-full max-w-md rounded-[28px] border border-white/[0.16] bg-black p-6 shadow-2xl">
-            <div className="text-[9px] font-black uppercase tracking-[0.18em] text-white/[0.35]">Deletion protection</div>
-            <h2 className="mt-2 text-[30px] font-black tracking-[-0.05em]">{confirmMode === "permanent" ? "Delete permanently?" : "Move to Recently Deleted?"}</h2>
+            <div className="text-[9px] font-black uppercase tracking-[0.18em] text-white/[0.35]">
+              Deletion protection
+            </div>
+            <h2 className="mt-2 text-[30px] font-black tracking-[-0.05em]">
+              {confirmMode === "permanent"
+                ? "Delete permanently?"
+                : "Move to Recently Deleted?"}
+            </h2>
             <p className="mt-3 text-[10px] font-semibold leading-5 text-white/[0.45]">
               {confirmMode === "permanent"
                 ? "This cannot be restored. Type PERMANENTLY DELETE to continue."
                 : `${selected.length} publication${selected.length === 1 ? "" : "s"} will disappear from active Admin lists${selectedHasPublished ? " and any published Update will disappear from the public website immediately" : ""}. It remains recoverable for 90 days. Type DELETE to continue.`}
             </p>
-            <input autoFocus className="input mt-4" value={confirmText} onChange={(event) => setConfirmText(event.target.value)} placeholder={confirmMode === "permanent" ? "PERMANENTLY DELETE" : "DELETE"} />
+            <input
+              autoFocus
+              className="input mt-4"
+              value={confirmText}
+              onChange={(event) => setConfirmText(event.target.value)}
+              placeholder={
+                confirmMode === "permanent" ? "PERMANENTLY DELETE" : "DELETE"
+              }
+            />
             <div className="mt-4 flex justify-end gap-2">
-              <button type="button" onClick={() => { setConfirmMode(null); setConfirmText(""); }} className="rounded-full border border-white/[0.12] px-4 py-2 text-[9px] font-black text-white/[0.45]">CANCEL</button>
-              <button type="button" disabled={actionBusy || confirmText !== (confirmMode === "permanent" ? "PERMANENTLY DELETE" : "DELETE")} onClick={() => void perform(confirmMode === "permanent" ? "permanent_delete" : "soft_delete")} className="rounded-full bg-white px-4 py-2 text-[9px] font-black !text-black disabled:opacity-25">CONFIRM</button>
+              <button
+                type="button"
+                onClick={() => {
+                  setConfirmMode(null);
+                  setConfirmText("");
+                }}
+                className="rounded-full border border-white/[0.12] px-4 py-2 text-[9px] font-black text-white/[0.45]"
+              >
+                CANCEL
+              </button>
+              <button
+                type="button"
+                disabled={
+                  actionBusy ||
+                  confirmText !==
+                    (confirmMode === "permanent"
+                      ? "PERMANENTLY DELETE"
+                      : "DELETE")
+                }
+                onClick={() =>
+                  void perform(
+                    confirmMode === "permanent"
+                      ? "permanent_delete"
+                      : "soft_delete",
+                  )
+                }
+                className="rounded-full bg-white px-4 py-2 text-[9px] font-black !text-black disabled:opacity-25"
+              >
+                CONFIRM
+              </button>
             </div>
           </div>
         </div>
@@ -3016,32 +3389,87 @@ function Dashboard({
   );
 }
 
-function PublicationMiniCard({ item, selecting, selected, deleted, onToggleSelect, onEdit, onPreview, onDelete, onRestore }: any) {
+function PublicationMiniCard({
+  item,
+  selecting,
+  selected,
+  deleted,
+  onToggleSelect,
+  onEdit,
+  onPreview,
+  onDelete,
+  onRestore,
+}: any) {
   const media = firstPreviewMedia(item);
   const publicUrl = `/updates/${item.slug}`;
 
   return (
     <article className="group relative overflow-hidden rounded-[22px] border border-white/[0.09] bg-black transition hover:border-white/[0.22]">
       {selecting ? (
-        <button type="button" onClick={onToggleSelect} className={`absolute left-2 top-2 z-20 flex h-7 w-7 items-center justify-center rounded-full border text-[10px] font-black backdrop-blur-md ${selected ? "border-white bg-white !text-black" : "border-white/[0.25] bg-black/70 text-white"}`}>{selected ? "✓" : ""}</button>
+        <button
+          type="button"
+          onClick={onToggleSelect}
+          className={`absolute left-2 top-2 z-20 flex h-7 w-7 items-center justify-center rounded-full border text-[10px] font-black backdrop-blur-md ${selected ? "border-white bg-white !text-black" : "border-white/[0.25] bg-black/70 text-white"}`}
+        >
+          {selected ? "✓" : ""}
+        </button>
       ) : null}
-      <button type="button" onClick={selecting ? onToggleSelect : deleted ? onPreview : onEdit} className="block w-full text-left">
+      <button
+        type="button"
+        onClick={selecting ? onToggleSelect : deleted ? onPreview : onEdit}
+        className="block w-full text-left"
+      >
         <PublicationPreviewMedia media={media} compact />
         <div className="p-3">
-          <div className="text-[7px] font-black uppercase tracking-[0.14em] text-white/[0.28]">{deleted ? "RECENTLY DELETED" : item.status} · {item.category}</div>
-          <div className="mt-1 line-clamp-2 min-h-[32px] text-[11px] font-black leading-4">{String(item.title || "").trim() || "Untitled draft"}</div>
-          <div className="mt-2 text-[7px] font-semibold text-white/[0.24]">{deleted ? `Restorable until ${formatAdminDate(item.delete_after)}` : `Last saved ${formatAdminDate(item.updated_at || item.created_at)}`}</div>
+          <div className="text-[7px] font-black uppercase tracking-[0.14em] text-white/[0.28]">
+            {deleted ? "RECENTLY DELETED" : item.status} · {item.category}
+          </div>
+          <div className="mt-1 line-clamp-2 min-h-[32px] text-[11px] font-black leading-4">
+            {String(item.title || "").trim() || "Untitled draft"}
+          </div>
+          <div className="mt-2 text-[7px] font-semibold text-white/[0.24]">
+            {deleted
+              ? `Restorable until ${formatAdminDate(item.delete_after)}`
+              : `Last saved ${formatAdminDate(item.updated_at || item.created_at)}`}
+          </div>
         </div>
       </button>
       {!selecting ? (
         <div className="flex flex-wrap gap-1.5 border-t border-white/[0.07] p-2">
           {deleted ? (
-            <button type="button" onClick={onRestore} className="rounded-full bg-white px-2.5 py-1.5 text-[7px] font-black !text-black">RESTORE</button>
+            <button
+              type="button"
+              onClick={onRestore}
+              className="rounded-full bg-white px-2.5 py-1.5 text-[7px] font-black !text-black"
+            >
+              RESTORE
+            </button>
           ) : (
             <>
-              <button type="button" onClick={onPreview} className="rounded-full border border-white/[0.1] px-2.5 py-1.5 text-[7px] font-black text-white/[0.42] hover:bg-white hover:!text-black">PREVIEW HERE</button>
-              {isPubliclyOpenable(item) ? <a href={publicUrl} target="_blank" rel="noreferrer" className="rounded-full border border-white/[0.1] px-2.5 py-1.5 text-[7px] font-black text-white/[0.42] hover:bg-white hover:!text-black">OPEN URL ↗</a> : null}
-              <button type="button" onClick={onDelete} className="rounded-full border border-white/[0.1] px-2.5 py-1.5 text-[7px] font-black text-white/[0.32] hover:border-white/[0.28] hover:text-white">DELETE</button>
+              <button
+                type="button"
+                onClick={onPreview}
+                className="rounded-full border border-white/[0.1] px-2.5 py-1.5 text-[7px] font-black text-white/[0.42] hover:bg-white hover:!text-black"
+              >
+                PREVIEW HERE
+              </button>
+              {isPubliclyOpenable(item) ? (
+                <a
+                  href={publicUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="rounded-full border border-white/[0.1] px-2.5 py-1.5 text-[7px] font-black text-white/[0.42] hover:bg-white hover:!text-black"
+                >
+                  OPEN URL ↗
+                </a>
+              ) : null}
+              <button
+                type="button"
+                onClick={onDelete}
+                className="rounded-full border border-white/[0.1] px-2.5 py-1.5 text-[7px] font-black text-white/[0.32] hover:border-white/[0.28] hover:text-white"
+              >
+                DELETE
+              </button>
             </>
           )}
         </div>
@@ -3050,39 +3478,152 @@ function PublicationMiniCard({ item, selecting, selected, deleted, onToggleSelec
   );
 }
 
-function PublicationPreviewMedia({ media, compact = false }: { media: ReturnType<typeof firstPreviewMedia>; compact?: boolean }) {
+function PublicationPreviewMedia({
+  media,
+  compact = false,
+}: {
+  media: ReturnType<typeof firstPreviewMedia>;
+  compact?: boolean;
+}) {
   const className = compact ? "aspect-[16/8]" : "aspect-[16/9]";
-  if (media.kind === "video") return <div className={`${className} overflow-hidden bg-black`}><video src={media.url} poster={media.poster} muted playsInline preload="metadata" className="h-full w-full object-cover" /></div>;
-  if (media.kind === "audio") return <div className={`${className} flex flex-col items-center justify-center gap-2 bg-white/[0.025] px-3`}><div className="text-[22px]">◉</div><div className="text-[8px] font-black uppercase tracking-[0.14em] text-white/[0.35]">AUDIO · {media.label || "PLAYBACK"}</div></div>;
-  if (media.kind === "file") return <div className={`${className} flex flex-col items-center justify-center gap-2 bg-white/[0.025] px-3`}><div className="text-[22px]">▤</div><div className="max-w-full truncate text-[8px] font-black uppercase tracking-[0.14em] text-white/[0.35]">{media.label || "PUBLICATION FILE"}</div></div>;
-  if (media.kind === "image") return <div className={`${className} overflow-hidden bg-white/[0.02]`}><img src={media.url} alt="" className="h-full w-full object-cover" loading="lazy" /></div>;
-  return <div className={`${className} flex items-center justify-center bg-white/[0.018] text-[8px] font-black uppercase tracking-[0.14em] text-white/[0.2]`}>No media preview</div>;
+  if (media.kind === "video")
+    return (
+      <div className={`${className} overflow-hidden bg-black`}>
+        <video
+          src={media.url}
+          poster={media.poster}
+          muted
+          playsInline
+          preload="metadata"
+          className="h-full w-full object-cover"
+        />
+      </div>
+    );
+  if (media.kind === "audio")
+    return (
+      <div
+        className={`${className} flex flex-col items-center justify-center gap-2 bg-white/[0.025] px-3`}
+      >
+        <div className="text-[22px]">◉</div>
+        <div className="text-[8px] font-black uppercase tracking-[0.14em] text-white/[0.35]">
+          AUDIO · {media.label || "PLAYBACK"}
+        </div>
+      </div>
+    );
+  if (media.kind === "file")
+    return (
+      <div
+        className={`${className} flex flex-col items-center justify-center gap-2 bg-white/[0.025] px-3`}
+      >
+        <div className="text-[22px]">▤</div>
+        <div className="max-w-full truncate text-[8px] font-black uppercase tracking-[0.14em] text-white/[0.35]">
+          {media.label || "PUBLICATION FILE"}
+        </div>
+      </div>
+    );
+  if (media.kind === "image")
+    return (
+      <div className={`${className} overflow-hidden bg-white/[0.02]`}>
+        <img
+          src={media.url}
+          alt=""
+          className="h-full w-full object-cover"
+          loading="lazy"
+        />
+      </div>
+    );
+  return (
+    <div
+      className={`${className} flex items-center justify-center bg-white/[0.018] text-[8px] font-black uppercase tracking-[0.14em] text-white/[0.2]`}
+    >
+      No media preview
+    </div>
+  );
 }
 
-function AdminPublicationPreview({ post, onClose }: { post: any; onClose: () => void }) {
+function AdminPublicationPreview({
+  post,
+  onClose,
+}: {
+  post: any;
+  onClose: () => void;
+}) {
   const presentation = getUpdatePresentation(post.body || []);
   return (
     <div className="fixed inset-0 z-[100] overflow-y-auto bg-black/95 p-3 backdrop-blur-xl sm:p-6">
       <div className="mx-auto max-w-[1050px] overflow-hidden rounded-[30px] border border-white/[0.12] bg-black">
         <div className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-white/[0.08] bg-black/90 p-3 backdrop-blur-xl">
-          <div><div className="text-[8px] font-black uppercase tracking-[0.16em] text-white/[0.3]">ADMIN WEB PREVIEW · NOT A PUBLIC ROUTE</div><div className="mt-1 text-[9px] font-semibold text-white/[0.25]">Preview this Update without leaving Publication Admin.</div></div>
-          <div className="flex gap-2">{isPubliclyOpenable(post) ? <a href={`/updates/${post.slug}`} target="_blank" rel="noreferrer" className="rounded-full border border-white/[0.14] px-3 py-2 text-[8px] font-black text-white/[0.45] hover:bg-white hover:!text-black">OPEN UPDATE URL ↗</a> : null}<button type="button" onClick={onClose} className="rounded-full bg-white px-3 py-2 text-[8px] font-black !text-black">CLOSE</button></div>
+          <div>
+            <div className="text-[8px] font-black uppercase tracking-[0.16em] text-white/[0.3]">
+              ADMIN WEB PREVIEW · NOT A PUBLIC ROUTE
+            </div>
+            <div className="mt-1 text-[9px] font-semibold text-white/[0.25]">
+              Preview this Update without leaving Publication Admin.
+            </div>
+          </div>
+          <div className="flex gap-2">
+            {isPubliclyOpenable(post) ? (
+              <a
+                href={`/updates/${post.slug}`}
+                target="_blank"
+                rel="noreferrer"
+                className="rounded-full border border-white/[0.14] px-3 py-2 text-[8px] font-black text-white/[0.45] hover:bg-white hover:!text-black"
+              >
+                OPEN UPDATE URL ↗
+              </a>
+            ) : null}
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-full bg-white px-3 py-2 text-[8px] font-black !text-black"
+            >
+              CLOSE
+            </button>
+          </div>
         </div>
         <article className="px-4 py-10 sm:px-8 sm:py-14">
           <div className="mx-auto max-w-[900px]">
-            <div className="text-[8px] font-black uppercase tracking-[0.18em] text-white/[0.32]">{post.category} · {post.status}</div>
-            {post.kicker ? <div className="mt-7 text-[10px] font-black uppercase tracking-[0.18em] text-white/[0.45]">{post.kicker}</div> : null}
-            <h1 className={`mt-3 font-black leading-[0.93] tracking-[-0.06em] ${presentation.title_scale === "feature" ? "text-[52px] sm:text-[76px]" : "text-[44px] sm:text-[64px]"}`}>{post.title || "Untitled draft"}</h1>
-            {post.summary ? <p className="mt-6 max-w-[760px] text-[16px] font-semibold leading-7 text-white/[0.55]">{post.summary}</p> : null}
-            {post.hero_image_url || post.image_16_9_url ? <figure className="mt-9 overflow-hidden rounded-[28px] border border-white/[0.1]"><img src={post.hero_image_url || post.image_16_9_url} alt={post.hero_alt_text || ""} className="aspect-[16/9] w-full object-cover" /></figure> : null}
-            <div className="mt-10"><UpdateBlocks blocks={post.body || []} fallbackPosterUrl={post.image_16_9_url || post.hero_image_url || ""} /></div>
+            <div className="text-[8px] font-black uppercase tracking-[0.18em] text-white/[0.32]">
+              {post.category} · {post.status}
+            </div>
+            {post.kicker ? (
+              <div className="mt-7 text-[10px] font-black uppercase tracking-[0.18em] text-white/[0.45]">
+                {post.kicker}
+              </div>
+            ) : null}
+            <h1
+              className={`mt-3 font-black leading-[0.93] tracking-[-0.06em] ${presentation.title_scale === "feature" ? "text-[52px] sm:text-[76px]" : "text-[44px] sm:text-[64px]"}`}
+            >
+              {post.title || "Untitled draft"}
+            </h1>
+            {post.summary ? (
+              <p className="mt-6 max-w-[760px] text-[16px] font-semibold leading-7 text-white/[0.55]">
+                {post.summary}
+              </p>
+            ) : null}
+            {post.hero_image_url || post.image_16_9_url ? (
+              <figure className="mt-9 overflow-hidden rounded-[28px] border border-white/[0.1]">
+                <img
+                  src={post.hero_image_url || post.image_16_9_url}
+                  alt={post.hero_alt_text || ""}
+                  className="aspect-[16/9] w-full object-cover"
+                />
+              </figure>
+            ) : null}
+            <div className="mt-10">
+              <UpdateBlocks
+                blocks={post.body || []}
+                fallbackPosterUrl={
+                  post.image_16_9_url || post.hero_image_url || ""
+                }
+              />
+            </div>
           </div>
         </article>
       </div>
     </div>
   );
 }
-
 
 function PublishFeedbackPanel({ feedback }: { feedback: PublishFeedback }) {
   const issues = Array.isArray(feedback.issues) ? feedback.issues : [];
@@ -3101,7 +3642,9 @@ function PublishFeedbackPanel({ feedback }: { feedback: PublishFeedback }) {
       <div className="text-[8px] font-black uppercase tracking-[0.18em] text-white/[0.34]">
         Publication feedback
       </div>
-      <div className="mt-2 text-[13px] font-black text-white">{feedback.title}</div>
+      <div className="mt-2 text-[13px] font-black text-white">
+        {feedback.title}
+      </div>
       {feedback.detail ? (
         <div className="mt-2 text-[10px] font-semibold leading-5 text-white/[0.48]">
           {feedback.detail}
@@ -3117,7 +3660,10 @@ function PublishFeedbackPanel({ feedback }: { feedback: PublishFeedback }) {
       {blockers.length > 0 ? (
         <div className="mt-4 space-y-2">
           {blockers.map((item, index) => (
-            <div key={`${item.code}-${index}`} className="rounded-2xl border border-white/[0.16] p-3">
+            <div
+              key={`${item.code}-${index}`}
+              className="rounded-2xl border border-white/[0.16] p-3"
+            >
               <div className="text-[9px] font-black uppercase tracking-[0.12em] text-white">
                 BLOCK · {item.message}
               </div>
@@ -3132,13 +3678,20 @@ function PublishFeedbackPanel({ feedback }: { feedback: PublishFeedback }) {
       {warnings.length > 0 ? (
         <details className="mt-4 rounded-2xl border border-white/[0.1] p-3">
           <summary className="cursor-pointer text-[9px] font-black uppercase tracking-[0.12em] text-white/[0.5]">
-            {warnings.length} warning{warnings.length === 1 ? "" : "s"} to review
+            {warnings.length} warning{warnings.length === 1 ? "" : "s"} to
+            review
           </summary>
           <div className="mt-3 space-y-2">
             {warnings.map((item, index) => (
-              <div key={`${item.code}-${index}`} className="text-[9px] font-semibold leading-4 text-white/[0.42]">
-                <b>WARNING ·</b> {item.message}<br />
-                <span className="text-white/[0.32]">What to do: {seoIssueFix(item)}</span>
+              <div
+                key={`${item.code}-${index}`}
+                className="text-[9px] font-semibold leading-4 text-white/[0.42]"
+              >
+                <b>WARNING ·</b> {item.message}
+                <br />
+                <span className="text-white/[0.32]">
+                  What to do: {seoIssueFix(item)}
+                </span>
               </div>
             ))}
           </div>
@@ -3262,9 +3815,14 @@ function PublishConfirmation({
             </div>
             <div className="mt-3 space-y-2">
               {warnings.map((item: SeoIssue, index: number) => (
-                <div key={`${item.code}-${index}`} className="text-[9px] font-semibold leading-4 text-white/[0.46]">
+                <div
+                  key={`${item.code}-${index}`}
+                  className="text-[9px] font-semibold leading-4 text-white/[0.46]"
+                >
                   {item.message}
-                  <div className="text-white/[0.3]">What to do: {seoIssueFix(item)}</div>
+                  <div className="text-white/[0.3]">
+                    What to do: {seoIssueFix(item)}
+                  </div>
                 </div>
               ))}
             </div>
@@ -3382,7 +3940,8 @@ function PublicationVerificationPanel({
 
       {result ? (
         <div className="mt-3 text-[8px] font-black uppercase tracking-[0.13em] text-white/[0.24]">
-          {result.views.toLocaleString()} views · {result.likes.toLocaleString()} likes · checked{" "}
+          {result.views.toLocaleString()} views ·{" "}
+          {result.likes.toLocaleString()} likes · checked{" "}
           {new Intl.DateTimeFormat("en", {
             dateStyle: "medium",
             timeStyle: "short",

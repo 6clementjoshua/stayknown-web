@@ -172,7 +172,12 @@ export function UpdateBlocks({
                   {block.title}
                 </div>
               ) : null}
-              <audio src={block.url} controls preload="metadata" className="w-full" />
+              <audio
+                src={block.url}
+                controls
+                preload="metadata"
+                className="w-full"
+              />
               {block.caption ? (
                 <p className="mt-3 text-[10px] font-semibold leading-5 text-white/[0.38]">
                   {block.caption}
@@ -199,7 +204,9 @@ export function UpdateBlocks({
                   {block.label || "Open attached file"}
                 </div>
               </div>
-              <span className="text-[12px] font-black text-white/[0.42]">↗</span>
+              <span className="text-[12px] font-black text-white/[0.42]">
+                ↗
+              </span>
             </a>
           );
         }

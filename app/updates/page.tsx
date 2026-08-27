@@ -17,7 +17,8 @@ const DESCRIPTION =
 export async function generateMetadata(): Promise<Metadata> {
   const latest = (await listPublicUpdates(1))[0] || null;
   const image = latest?.image_16_9_url || latest?.hero_image_url || "";
-  const imageAlt = latest?.hero_alt_text || latest?.title || "StayKnown Updates";
+  const imageAlt =
+    latest?.hero_alt_text || latest?.title || "StayKnown Updates";
 
   return {
     title: "StayKnown Updates",
