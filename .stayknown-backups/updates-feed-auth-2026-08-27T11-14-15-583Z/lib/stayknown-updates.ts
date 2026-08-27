@@ -212,24 +212,16 @@ export function isPublicPost(
 
 export async function listPublicUpdates(limit = 100): Promise<UpdatePost[]> {
   const sb = adminClient();
-  const fetchLimit = Math.max(limit * 5, 500);
   const { data, error } = await sb
     .from("stayknown_updates_posts")
     .select("*")
     .in("status", ["published", "scheduled"])
-    .order("created_at", { ascending: false })
-    .limit(fetchLimit);
+    .order("published_at", { ascending: false, nullsFirst: false })
+    .order("scheduled_for", { ascending: false, nullsFirst: false })
+    .limit(limit);
 
   if (error) throw error;
-
-  return ((data || []) as UpdatePost[])
-    .filter((post) => isPublicPost(post))
-    .sort((a, b) => {
-      const aTime = new Date(publicDate(a)).getTime();
-      const bTime = new Date(publicDate(b)).getTime();
-      return bTime - aTime;
-    })
-    .slice(0, limit);
+  return ((data || []) as UpdatePost[]).filter((post) => isPublicPost(post));
 }
 
 export async function getPublicUpdate(slug: string): Promise<UpdatePost | null> {

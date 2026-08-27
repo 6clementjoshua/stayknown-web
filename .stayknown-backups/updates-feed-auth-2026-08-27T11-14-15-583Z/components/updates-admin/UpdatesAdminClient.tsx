@@ -13,12 +13,10 @@ import {
 } from "@/lib/stayknown-updates";
 import { inspectSeo, type SeoIssue } from "@/lib/stayknown-updates-seo";
 
-const supabaseBrowserUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseBrowserKey =
-  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-const sb = createClient(supabaseBrowserUrl!, supabaseBrowserKey!);
+const sb = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+);
 
 function blankPost() {
   return {
@@ -165,29 +163,14 @@ export default function UpdatesAdminClient() {
     if (!email) return;
 
     setBusy(true);
-    setNote("");
-
-    try {
-      const { error } = await sb.auth.signInWithOtp({
-        email,
-        options: { emailRedirectTo: `${location.origin}/admin/updates` },
-      });
-
-      setNote(
-        error
-          ? error.message
-          : "Check your email for the secure sign-in link.",
-      );
-    } catch (error) {
-      console.error("updates_admin_login_failed", error);
-      setNote(
-        error instanceof Error
-          ? `Could not reach secure sign-in: ${error.message}`
-          : "Could not reach secure sign-in. Please retry.",
-      );
-    } finally {
-      setBusy(false);
-    }
+    const { error } = await sb.auth.signInWithOtp({
+      email,
+      options: { emailRedirectTo: `${location.origin}/admin/updates` },
+    });
+    setBusy(false);
+    setNote(
+      error ? error.message : "Check your email for the secure sign-in link.",
+    );
   }
 
   const issues = useMemo(() => inspectSeo(post), [post]);
