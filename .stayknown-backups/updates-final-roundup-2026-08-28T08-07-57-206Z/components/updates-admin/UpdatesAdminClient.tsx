@@ -243,16 +243,6 @@ type PublishFeedback = {
   issues?: SeoIssue[];
 };
 
-type PreparedUpdateEmail = {
-  ok?: boolean;
-  error?: string;
-  open_url?: string;
-  campaign_id?: string;
-  reused?: boolean;
-  already_sent?: boolean;
-  campaign_status?: string;
-};
-
 const EDITABLE_POST_KEYS = [
   "slug",
   "status",
@@ -1261,68 +1251,6 @@ export default function UpdatesAdminClient() {
     }
   }
 
-  async function preparePublishedUpdateEmail(
-    postId: string,
-    popup: Window | null,
-  ): Promise<boolean> {
-    try {
-      setNote("Preparing the Update email in StayKnown Mail Console…");
-
-      const response = await api(
-        `/api/admin/updates/posts/${encodeURIComponent(postId)}/email`,
-        { method: "POST", body: JSON.stringify({}) },
-      );
-      const result = (await response
-        .json()
-        .catch(() => ({}))) as PreparedUpdateEmail;
-
-      if (!response.ok) {
-        if (result.already_sent) {
-          if (popup && !popup.closed) {
-            popup.location.href = "/mail-console/logs";
-          }
-          setNote(
-            `Email distribution is already ${result.campaign_status || "active"} for this Update. StayKnown did not create a duplicate campaign. Mail Console Logs has the existing campaign.`,
-          );
-          return false;
-        }
-
-        if (popup && !popup.closed) popup.close();
-        throw new Error(result.error || "Could not prepare the Update email.");
-      }
-
-      const openUrl = String(result.open_url || "").trim();
-      if (!openUrl) {
-        if (popup && !popup.closed) popup.close();
-        throw new Error(
-          "Mail Console draft was prepared, but no composer URL was returned.",
-        );
-      }
-
-      setNote(
-        result.reused
-          ? "Update published. The existing linked email draft is reopening in Mail Console."
-          : "Update published. A newsletter draft was prepared from this Update and is opening in Mail Console.",
-      );
-
-      if (popup && !popup.closed) {
-        popup.location.href = openUrl;
-      } else {
-        window.location.href = openUrl;
-      }
-
-      return true;
-    } catch (error) {
-      if (popup && !popup.closed) popup.close();
-      setNote(
-        error instanceof Error
-          ? `Update remains published. Email was not prepared: ${error.message}`
-          : "Update remains published. Email was not prepared.",
-      );
-      return false;
-    }
-  }
-
   async function save(status?: string): Promise<any | null> {
     clearAutosaveTimers();
     autosaveRevisionRef.current += 1;
@@ -1645,28 +1573,6 @@ export default function UpdatesAdminClient() {
             const intent = publishIntent;
             const saved = await save(intent);
             if (saved) setPublishIntent(null);
-          }}
-          onConfirmEmail={async () => {
-            const intent = publishIntent;
-            if (intent !== "published") return;
-
-            const popup = window.open("about:blank", "_blank");
-            if (popup) {
-              popup.document.title = "StayKnown · Preparing email";
-              popup.document.body.style.cssText =
-                "margin:0;background:#000;color:#fff;font-family:Arial,sans-serif;display:grid;place-items:center;min-height:100vh";
-              popup.document.body.innerHTML =
-                '<div style="text-align:center"><div style="font-size:11px;font-weight:800;letter-spacing:.16em">STAYKNOWN UPDATES</div><div style="margin-top:12px;font-size:20px;font-weight:800">Publishing first…</div><div style="margin-top:8px;font-size:12px;opacity:.55">Mail Console will open after the live publication is verified.</div></div>';
-            }
-
-            const saved = await save(intent);
-            if (!saved) {
-              if (popup && !popup.closed) popup.close();
-              return;
-            }
-
-            setPublishIntent(null);
-            await preparePublishedUpdateEmail(saved.id, popup);
           }}
         />
       ) : null}
@@ -3782,7 +3688,6 @@ function PublishConfirmation({
   onPreview,
   onCancel,
   onConfirm,
-  onConfirmEmail,
 }: {
   post: any;
   intent: PublishIntent;
@@ -3792,7 +3697,6 @@ function PublishConfirmation({
   onPreview: () => void;
   onCancel: () => void;
   onConfirm: () => void | Promise<void>;
-  onConfirmEmail: () => void | Promise<void>;
 }) {
   const scheduled =
     intent === "scheduled" && post.scheduled_for
@@ -3905,7 +3809,7 @@ function PublishConfirmation({
 
         <p className="mt-5 text-[10px] font-semibold leading-5 text-white/[0.4]">
           {intent === "scheduled"
-            ? "StayKnown will keep this Update private until the scheduled time. The server enforces the final SEO gate again before accepting the schedule. Publish + Email becomes available once an Update is being published live."
+            ? "StayKnown will keep this Update private until the scheduled time. The server enforces the final SEO gate again before accepting the schedule."
             : "After confirmation, StayKnown checks the live URL, canonical and social metadata, Article schema, Updates sitemap, RSS, likes and analytics readiness."}
         </p>
 
@@ -3930,7 +3834,7 @@ function PublishConfirmation({
             type="button"
             disabled={busy || blockers > 0}
             onClick={() => void onConfirm()}
-            className="rounded-full bg-white px-5 py-2.5 text-[9px] font-black text-black transition hover:bg-white hover:!text-black disabled:opacity-25"
+            className="rounded-full bg-white px-5 py-2.5 text-[9px] font-black text-black disabled:opacity-25"
           >
             {busy
               ? "Working…"
@@ -3938,18 +3842,8 @@ function PublishConfirmation({
                 ? "Update live publication"
                 : intent === "scheduled"
                   ? "Confirm schedule"
-                  : "Publish only"}
+                  : "Publish now"}
           </button>
-          {intent === "published" ? (
-            <button
-              type="button"
-              disabled={busy || blockers > 0}
-              onClick={() => void onConfirmEmail()}
-              className="rounded-full border border-white bg-black px-5 py-2.5 text-[9px] font-black text-white transition hover:bg-white hover:!text-black disabled:opacity-25"
-            >
-              {busy ? "Working…" : "Publish + Email"}
-            </button>
-          ) : null}
         </div>
       </div>
     </div>

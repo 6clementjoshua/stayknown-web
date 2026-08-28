@@ -20,7 +20,13 @@ type BodyBlockKind = "audio" | "image" | "message";
 type BodyHintFontStyle = "normal" | "italic";
 type StoreBadgePlacement = "top" | "bottom";
 type RecipientStatus =
-  "ready" | "queued" | "sending" | "sent" | "failed" | "skipped" | "draft";
+  | "ready"
+  | "queued"
+  | "sending"
+  | "sent"
+  | "failed"
+  | "skipped"
+  | "draft";
 
 type RecipientChip = {
   id: string;
@@ -79,8 +85,7 @@ type PolicyLinkKey =
 
 const MAX_RECIPIENTS = 50;
 const SEND_BATCH_SIZE = 5;
-const RESEND_SAFE_WINDOW_MS = 1050;
-
+const RESEND_SAFE_WINDOW_MS = 3500;
 const BODY_IMAGE_TOKEN = "{{image}}";
 const BODY_AUDIO_TOKEN = "{{audio}}";
 
@@ -444,6 +449,7 @@ type StoredDraftAttachment = {
     | "body_image"
     | "body_inline_audio"
     | "body_inline_image"
+    | "body_inline_video"
     | "body_inline_file"
     | "file";
   file_name: string;
@@ -468,7 +474,7 @@ type StoredDraftAttachment = {
 
 type StoredDraftInlineMediaItem = {
   id: string;
-  kind: "audio" | "image" | "file";
+  kind: "audio" | "image" | "video" | "file";
   display_name?: string;
   displayName?: string;
   size?: number;
@@ -494,7 +500,7 @@ type StoredDraftInlineMediaItem = {
 
 type BodyInlineMediaItem = {
   id: string;
-  kind: "audio" | "image" | "file";
+  kind: "audio" | "image" | "video" | "file";
   file: File | null;
   previewUrl: string;
   displayName: string;
@@ -563,6 +569,90 @@ function niceFileSize(size: number) {
   if (size < 1024) return `${size} B`;
   if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
   return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+const MAIL_CONSOLE_SAFE_UPLOAD_BYTES = 15 * 1024 * 1024;
+
+type MailSendApiResponse = {
+  ok?: boolean;
+  delivery_ok?: boolean;
+  has_failures?: boolean;
+  error?: string;
+  message?: string;
+  campaign_id?: string;
+  summary?: {
+    requested?: number;
+    sent?: number;
+    failed?: number;
+    skipped?: number;
+    results?: Array<Record<string, unknown>>;
+  };
+};
+
+function textBytes(value: string) {
+  return new TextEncoder().encode(value).length;
+}
+
+function safeJsonStringify(value: unknown, fallback = "[]") {
+  try {
+    return JSON.stringify(value) || fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function oversizedPayloadMessage(totalBytes: number, fileCount: number) {
+  return [
+    `Your selected media/files are too large for one Send Email request.`,
+    `Selected upload size: ${niceFileSize(totalBytes)} across ${fileCount} file(s).`,
+    `To preserve quality, StayKnown will not auto-reduce image, audio, video, or PDF quality.`,
+    `Please remove some files, split the email into smaller media sets, or use already-hosted links for large audio/video files.`,
+  ].join(" ");
+}
+
+async function readMailSendApiResponse(
+  res: Response,
+): Promise<MailSendApiResponse> {
+  const contentType = res.headers.get("content-type") || "";
+
+  if (contentType.includes("application/json")) {
+    const data = (await res.json().catch(() => ({}))) as MailSendApiResponse;
+
+    if (
+      !res.ok &&
+      !data.error &&
+      (res.status === 413 || data.message === "FUNCTION_PAYLOAD_TOO_LARGE")
+    ) {
+      return {
+        ok: false,
+        error:
+          "Your selected media/files are too large for one Send Email request. Please split the media into smaller sets or use links for large audio/video files.",
+      };
+    }
+
+    return data;
+  }
+
+  const text = await res.text().catch(() => "");
+
+  if (
+    res.status === 413 ||
+    text.includes("FUNCTION_PAYLOAD_TOO_LARGE") ||
+    text.includes("Request Entity Too Large")
+  ) {
+    return {
+      ok: false,
+      error:
+        "Your selected media/files are too large for one Send Email request. StayKnown did not reduce quality. Please split the files into smaller sets or use links for large audio/video files.",
+    };
+  }
+
+  return {
+    ok: false,
+    error:
+      text ||
+      `Email send failed with status ${res.status}. Please retry in a few minutes.`,
+  };
 }
 
 function makeId(prefix: string) {
@@ -737,17 +827,20 @@ function revokePreviewUrl(url: string) {
   URL.revokeObjectURL(url);
 }
 
-function bodyInlineToken(kind: "audio" | "image" | "file", id: string) {
+function bodyInlineToken(
+  kind: "audio" | "image" | "video" | "file",
+  id: string,
+) {
   return `{{${kind}:${id}}}`;
 }
 
 function parseBodyInlineToken(token: string) {
-  const match = token.match(/^\{\{(audio|image|file):([^}]+)\}\}$/);
+  const match = token.match(/^\{\{(audio|image|video|file):([^}]+)\}\}$/);
 
   if (!match) return null;
 
   return {
-    kind: match[1] as "audio" | "image" | "file",
+    kind: match[1] as "audio" | "image" | "video" | "file",
     id: match[2],
   };
 }
@@ -974,10 +1067,6 @@ export default function MailConsoleSendForm({
   const [templateId, setTemplateId] = useState("");
   const [savingDraft, setSavingDraft] = useState(false);
 
-  const [sourceUpdateId, setSourceUpdateId] = useState("");
-  const [sourceUpdateSlug, setSourceUpdateSlug] = useState("");
-  const [sourceUpdateUrl, setSourceUpdateUrl] = useState("");
-
   const [openedCampaignId, setOpenedCampaignId] = useState("");
   const [openedCampaignStatus, setOpenedCampaignStatus] = useState("");
   const [openedCampaignMode, setOpenedCampaignMode] = useState<
@@ -1139,18 +1228,6 @@ export default function MailConsoleSendForm({
     }
 
     const meta = campaign.meta || {};
-    const linkedUpdateId = stringFromMeta(meta, "stayknown_update_id");
-    const linkedUpdateSlug = stringFromMeta(meta, "stayknown_update_slug");
-    const linkedUpdateUrl = stringFromMeta(meta, "stayknown_update_url");
-    const linkedUpdateBannerUrl = stringFromMeta(
-      meta,
-      "stayknown_update_banner_url",
-    );
-
-    setSourceUpdateId(linkedUpdateId);
-    setSourceUpdateSlug(linkedUpdateSlug);
-    setSourceUpdateUrl(linkedUpdateUrl);
-
     const nextMode = safeMailModeValue(campaign.mode);
     const nextOpenMode: "editable" = "editable";
     setOpenedCampaignId(campaign.id);
@@ -1262,11 +1339,8 @@ export default function MailConsoleSendForm({
 
     setBannerTopFile(null);
     setBannerBottomFile(null);
-    setBannerTopPreviewUrl(linkedUpdateBannerUrl || "");
+    setBannerTopPreviewUrl("");
     setBannerBottomPreviewUrl("");
-    if (linkedUpdateBannerUrl) {
-      setImagePosition((current) => (current === "none" ? "top" : current));
-    }
     setBodyAudioFile(null);
     setBodyAudioPreviewUrl("");
     setBodyImageFile(null);
@@ -1326,6 +1400,7 @@ export default function MailConsoleSendForm({
       if (
         attachment.role === "body_inline_audio" ||
         attachment.role === "body_inline_image" ||
+        attachment.role === "body_inline_video" ||
         attachment.role === "body_inline_file"
       ) {
         continue;
@@ -1416,7 +1491,10 @@ export default function MailConsoleSendForm({
 
     for (const item of items) {
       const kind =
-        item.kind === "audio" || item.kind === "image" || item.kind === "file"
+        item.kind === "audio" ||
+        item.kind === "image" ||
+        item.kind === "video" ||
+        item.kind === "file"
           ? item.kind
           : null;
 
@@ -1433,17 +1511,18 @@ export default function MailConsoleSendForm({
           ? "StayKnown Audio"
           : kind === "image"
             ? "StayKnown Image"
-            : "StayKnown File");
+            : kind === "video"
+              ? "StayKnown Video"
+              : "StayKnown File");
 
       const size =
         typeof item.size === "number" && Number.isFinite(item.size)
           ? Math.max(32, Math.min(100, Math.round(item.size)))
           : kind === "audio"
             ? 76
-            : kind === "image"
+            : kind === "image" || kind === "video"
               ? 88
               : 100;
-
       const placement: BodyMediaPlacement =
         item.placement === "top" || item.placement === "bottom"
           ? item.placement
@@ -1459,10 +1538,9 @@ export default function MailConsoleSendForm({
           : "normal";
 
       const imageShape =
-        kind === "image" || kind === "file"
+        kind === "image" || kind === "video" || kind === "file"
           ? item.image_shape || item.imageShape || "rectangle"
           : undefined;
-
       const restoredItem: BodyInlineMediaItem = {
         id: item.id,
         kind,
@@ -1482,7 +1560,9 @@ export default function MailConsoleSendForm({
             ? "audio/mpeg"
             : kind === "image"
               ? "image/png"
-              : "application/octet-stream"),
+              : kind === "video"
+                ? "video/mp4"
+                : "application/octet-stream"),
         originalName: item.original_name || item.originalName || displayName,
         storageBucket: item.storage_bucket || item.storageBucket || "",
         storagePath: item.storage_path || item.storagePath || "",
@@ -1715,7 +1795,6 @@ export default function MailConsoleSendForm({
       : sendSummary.total <= SEND_BATCH_SIZE
         ? "Direct Email Delivery"
         : "Sending Queue";
-
   const sendOverlayTitle = sendComplete
     ? sendSummary.total <= 1
       ? "Email sent"
@@ -1730,7 +1809,6 @@ export default function MailConsoleSendForm({
       : sendSummary.total <= SEND_BATCH_SIZE
         ? `Sending ${sendSummary.total} emails in one direct batch. No extra waiting step is needed because this is under the ${SEND_BATCH_SIZE}-recipient batch limit.`
         : `Sending ${sendSummary.total} emails in batches of ${SEND_BATCH_SIZE}. Already sent emails cannot be cancelled. Stopping now keeps remaining queued emails in draft status.`;
-
   const stopSendButtonLabel =
     sendSummary.total <= 1 ? "Stop send" : "Stop & save remaining as draft";
 
@@ -2070,8 +2148,11 @@ export default function MailConsoleSendForm({
   function pickBodyImageFile(file: File | null) {
     if (!file) return;
 
-    if (!file.type.startsWith("image/")) {
-      setStatus("Body image must be an image file.");
+    const isImage = file.type.startsWith("image/");
+    const isVideo = file.type.startsWith("video/");
+
+    if (!isImage && !isVideo) {
+      setStatus("Body media must be an image or video file.");
       return;
     }
 
@@ -2081,10 +2162,15 @@ export default function MailConsoleSendForm({
 
     setBodyImageFile(file);
     setBodyImagePreviewUrl(previewUrl);
-    setBodyImageDisplayName((prev) => prev.trim() || "StayKnown Image");
+    setBodyImageDisplayName(
+      (prev) =>
+        prev.trim() || (isVideo ? "StayKnown Video" : "StayKnown Image"),
+    );
 
     setStatus(
-      "Body image selected. Tap inside the message and insert {{image}} where you want it.",
+      isVideo
+        ? "Body video selected. Tap inside the message and insert it where you want it."
+        : "Body image selected. Tap inside the message and insert it where you want it.",
     );
   }
 
@@ -2100,7 +2186,7 @@ export default function MailConsoleSendForm({
     setBodyImageHintFontStyle("normal");
 
     setStatus(
-      "Selected body image removed. Inserted image markers in the message were not deleted.",
+      "Selected body image/video removed. Inserted image or video markers in the message were not deleted.",
     );
   }
   function moveBodyBlock(dragged: BodyBlockKind, target: BodyBlockKind) {
@@ -2198,23 +2284,26 @@ export default function MailConsoleSendForm({
     }
 
     if (!bodyImagePreviewUrl) {
-      setStatus("Choose an image file first.");
+      setStatus("Choose an image or video file first.");
       return;
     }
 
-    const id = makeId("body-image");
+    const isVideo = bodyImageFile?.type.startsWith("video/") || false;
+    const mediaKind: "image" | "video" = isVideo ? "video" : "image";
+
+    const id = makeId(isVideo ? "body-video" : "body-image");
     const previewUrl = bodyImageFile
       ? URL.createObjectURL(bodyImageFile)
       : bodyImagePreviewUrl;
 
     const item: BodyInlineMediaItem = {
       id,
-      kind: "image",
+      kind: mediaKind,
       file: bodyImageFile,
       previewUrl,
       displayName: cleanDisplayFilename(
         bodyImageDisplayName,
-        "StayKnown Image",
+        isVideo ? "StayKnown Video" : "StayKnown Image",
       ),
       size: bodyImageSize,
       placement: "custom",
@@ -2222,54 +2311,97 @@ export default function MailConsoleSendForm({
       hintColor: bodyImageHintColor,
       hintFontStyle: bodyImageHintFontStyle,
       imageShape: bodyImageShape,
-      mimeType: bodyImageFile?.type || "image/png",
+      mimeType: bodyImageFile?.type || (isVideo ? "video/mp4" : "image/png"),
       originalName:
-        bodyImageFile?.name || bodyImageDisplayName || "StayKnown Image",
+        bodyImageFile?.name ||
+        bodyImageDisplayName ||
+        (isVideo ? "StayKnown Video" : "StayKnown Image"),
     };
 
     setBodyInlineMediaItems((prev) => [...prev, item]);
-    insertBodyTokenAtCursor(bodyInlineToken("image", id));
+    insertBodyTokenAtCursor(bodyInlineToken(mediaKind, id));
   }
-
   function insertAttachmentInsideMessage(picked: PickedFile) {
-    if (!picked?.file) {
-      setStatus("Choose an attachment first.");
-      return;
+    try {
+      if (!picked?.file) {
+        setStatus("Choose an attachment first.");
+        return;
+      }
+
+      const file = picked.file;
+      const isImage = file.type.startsWith("image/");
+      const isVideo = file.type.startsWith("video/");
+      const inlineKind: "image" | "video" | "file" = isImage
+        ? "image"
+        : isVideo
+          ? "video"
+          : "file";
+
+      const id = makeId(
+        inlineKind === "image"
+          ? "body-image"
+          : inlineKind === "video"
+            ? "body-video"
+            : "body-file",
+      );
+
+      const previewUrl = URL.createObjectURL(file);
+
+      const item: BodyInlineMediaItem = {
+        id,
+        kind: inlineKind,
+        file,
+        previewUrl,
+        displayName: cleanDisplayFilename(
+          picked.displayName,
+          isVideo
+            ? "StayKnown Video"
+            : isImage
+              ? "StayKnown Image"
+              : defaultAttachmentDisplayName(file, 0),
+        ),
+        size: 100,
+        placement: "custom",
+        hint: "",
+        hintColor: "#6b7280",
+        hintFontStyle: "normal",
+        imageShape: "rectangle",
+        mimeType: file.type || "application/octet-stream",
+        originalName:
+          file.name ||
+          picked.displayName ||
+          (isVideo
+            ? "StayKnown Video"
+            : isImage
+              ? "StayKnown Image"
+              : "StayKnown File"),
+      };
+
+      setBodyInlineMediaItems((prev) => [...prev, item]);
+
+      // Keep the original file in the attachment list.
+      // The backend will dedupe it so it does not double the payload.
+      insertBodyTokenAtCursor(bodyInlineToken(inlineKind, id));
+
+      setStatus(
+        isImage
+          ? "Image inserted inside the message body. It can still remain available as an attachment."
+          : isVideo
+            ? "Video marker inserted inside the message body. The file will be attached for delivery."
+            : "File marker inserted inside the message body. The file will be attached for delivery.",
+      );
+    } catch (err) {
+      console.error(
+        "[MailConsole] insert attachment inside message failed",
+        err,
+      );
+      setStatus(
+        err instanceof Error
+          ? `Could not insert attachment inside message: ${err.message}`
+          : "Could not insert attachment inside message.",
+      );
     }
-
-    const id = makeId("body-file");
-    const previewUrl = URL.createObjectURL(picked.file);
-
-    const item: BodyInlineMediaItem = {
-      id,
-      kind: "file",
-      file: picked.file,
-      previewUrl,
-      displayName: cleanDisplayFilename(
-        picked.displayName,
-        defaultAttachmentDisplayName(picked.file, 0),
-      ),
-      size: 100,
-      placement: "custom",
-      hint: "",
-      hintColor: "#6b7280",
-      hintFontStyle: "normal",
-      imageShape: picked.file.type.startsWith("image/")
-        ? "rectangle"
-        : undefined,
-      mimeType: picked.file.type || "application/octet-stream",
-      originalName: picked.file.name || picked.displayName || "StayKnown File",
-    };
-
-    setBodyInlineMediaItems((prev) => [...prev, item]);
-
-    // Remove from normal attachments so it does not duplicate at the email bottom.
-    setFiles((prev) => prev.filter((fileItem) => fileItem.id !== picked.id));
-
-    insertBodyTokenAtCursor(bodyInlineToken("file", id));
-    setStatus("Attachment inserted inside the message body.");
   }
-
   async function saveDraft() {
     if (isReadOnlyCampaign) {
       setStatus(
@@ -2279,6 +2411,21 @@ export default function MailConsoleSendForm({
     }
 
     if (savingDraft) return;
+
+    const activeBodyInlineMediaItems = getActiveBodyInlineMediaItems();
+
+    const normalizedMessage = normalizeLegacyBodyFileTokens(
+      message,
+      activeBodyInlineMediaItems,
+    );
+
+    const standaloneBodyAudioFile = shouldSendStandaloneBodyAudioFile()
+      ? bodyAudioFile
+      : null;
+
+    const standaloneBodyImageFile = shouldSendStandaloneBodyImageFile()
+      ? bodyImageFile
+      : null;
 
     setSavingDraft(true);
     setStatus("");
@@ -2290,13 +2437,13 @@ export default function MailConsoleSendForm({
       form.append("sender_identity_id", senderId);
       form.append(
         "recipient_emails",
-        JSON.stringify(recipients.map((r) => r.email)),
+        safeJsonStringify(recipients.map((r) => r.email)),
       );
       form.append("subject", subject);
       form.append("title", title);
       form.append("subtitle", subtitle);
       form.append("badge", badge);
-      form.append("message", message);
+      form.append("message", normalizedMessage);
 
       if (typeof window !== "undefined") {
         form.append(
@@ -2314,15 +2461,6 @@ export default function MailConsoleSendForm({
           : "",
       );
       form.append("banner_height", String(bannerHeight));
-      if (!bannerTopFile && /^https?:\/\//i.test(bannerTopPreviewUrl)) {
-        form.append("banner_top_url", bannerTopPreviewUrl);
-      }
-      if (!bannerBottomFile && /^https?:\/\//i.test(bannerBottomPreviewUrl)) {
-        form.append("banner_bottom_url", bannerBottomPreviewUrl);
-      }
-      form.append("stayknown_update_id", sourceUpdateId);
-      form.append("stayknown_update_slug", sourceUpdateSlug);
-      form.append("stayknown_update_url", sourceUpdateUrl);
 
       if (bannerTopFile) {
         form.append("banner_top_file", bannerTopFile, bannerTopFile.name);
@@ -2346,8 +2484,12 @@ export default function MailConsoleSendForm({
       form.append("body_audio_hint_color", bodyAudioHintColor);
       form.append("body_audio_hint_font_style", bodyAudioHintFontStyle);
 
-      if (bodyAudioFile) {
-        form.append("body_audio_file", bodyAudioFile, bodyAudioFile.name);
+      if (standaloneBodyAudioFile) {
+        form.append(
+          "body_audio_file",
+          standaloneBodyAudioFile,
+          standaloneBodyAudioFile.name,
+        );
       }
 
       form.append("body_image_placement", bodyImagePlacement);
@@ -2361,15 +2503,22 @@ export default function MailConsoleSendForm({
       form.append("body_image_hint_color", bodyImageHintColor);
       form.append("body_image_hint_font_style", bodyImageHintFontStyle);
 
-      if (bodyImageFile) {
-        form.append("body_image_file", bodyImageFile, bodyImageFile.name);
+      if (standaloneBodyImageFile) {
+        form.append(
+          "body_image_file",
+          standaloneBodyImageFile,
+          standaloneBodyImageFile.name,
+        );
       }
+
       form.append(
         "body_inline_media_items",
-        JSON.stringify(bodyInlineMediaItems.map(bodyInlineFormPayload)),
+        safeJsonStringify(
+          activeBodyInlineMediaItems.map(bodyInlineFormPayload),
+        ),
       );
 
-      for (const item of bodyInlineMediaItems) {
+      for (const item of activeBodyInlineMediaItems) {
         if (item.file) {
           form.append(
             `body_inline_media_file_${item.id}`,
@@ -2378,10 +2527,14 @@ export default function MailConsoleSendForm({
           );
         }
       }
-      form.append("body_block_order", JSON.stringify(bodyPreviewOrder));
+
+      form.append("body_block_order", safeJsonStringify(bodyPreviewOrder));
+
       form.append(
         "body_media_note",
-        bodyAudioFile || bodyImageFile
+        standaloneBodyAudioFile ||
+          standaloneBodyImageFile ||
+          activeBodyInlineMediaItems.some((item) => item.file)
           ? "Body audio/image files are stored with this saved draft and will return when opened."
           : "",
       );
@@ -2396,11 +2549,8 @@ export default function MailConsoleSendForm({
       form.append("app_store_url", appStoreUrl);
 
       form.append("footer_policy_id", footerPolicyId);
-      form.append(
-        "footer_html",
-        customFooter || selectedFooter?.footer_html || "",
-      );
-      form.append("policy_links", JSON.stringify(selectedPolicyLinks));
+      form.append("footer_html", footerText);
+      form.append("policy_links", safeJsonStringify(selectedPolicyLinks));
 
       form.append(
         "social_tiktok_enabled",
@@ -2431,11 +2581,12 @@ export default function MailConsoleSendForm({
 
       form.append(
         "file_modes",
-        JSON.stringify(files.map((picked) => picked.mode)),
+        safeJsonStringify(files.map((picked) => picked.mode)),
       );
+
       form.append(
         "file_display_names",
-        JSON.stringify(
+        safeJsonStringify(
           files.map((picked, index) =>
             cleanDisplayFilename(
               picked.displayName,
@@ -2460,9 +2611,29 @@ export default function MailConsoleSendForm({
         body: form,
       });
 
-      const data = await res.json().catch(() => ({}));
+      const contentType = res.headers.get("content-type") || "";
+
+      const data = contentType.includes("application/json")
+        ? await res.json().catch(() => ({}))
+        : {
+            ok: false,
+            error: await res.text().catch(() => ""),
+          };
 
       if (!res.ok || !data.ok) {
+        const errorText = String(data.error || "");
+
+        if (
+          res.status === 413 ||
+          errorText.includes("FUNCTION_PAYLOAD_TOO_LARGE") ||
+          errorText.includes("Request Entity Too Large")
+        ) {
+          setStatus(
+            "Could not save draft because the selected media/files are too large for one request. StayKnown did not reduce quality. Please remove unused media, split files into smaller groups, or use temporary hosted links for large files.",
+          );
+          return;
+        }
+
         setStatus(data.error || "Could not save draft.");
         return;
       }
@@ -2482,6 +2653,7 @@ export default function MailConsoleSendForm({
       setSavingDraft(false);
     }
   }
+
   function handleFiles(e: ChangeEvent<HTMLInputElement>) {
     const picked = Array.from(e.target.files || []);
     if (picked.length === 0) return;
@@ -2552,8 +2724,126 @@ export default function MailConsoleSendForm({
     });
   }
 
+  function getSelectedUploadFiles() {
+    const selected: Array<{ label: string; file: File }> = [];
+
+    if (bannerTopFile) {
+      selected.push({ label: "top banner", file: bannerTopFile });
+    }
+
+    if (bannerBottomFile) {
+      selected.push({ label: "bottom banner", file: bannerBottomFile });
+    }
+
+    if (bodyAudioFile) {
+      selected.push({ label: "body audio", file: bodyAudioFile });
+    }
+
+    if (bodyImageFile) {
+      selected.push({ label: "body image", file: bodyImageFile });
+    }
+
+    for (const item of bodyInlineMediaItems) {
+      if (item.file) {
+        selected.push({
+          label: `inserted body ${item.kind}`,
+          file: item.file,
+        });
+      }
+    }
+
+    for (const picked of files) {
+      selected.push({
+        label: picked.mode === "attach" ? "attachment" : picked.mode,
+        file: picked.file,
+      });
+    }
+
+    return selected;
+  }
+
+  function getSendUploadBlockReason() {
+    // Do not block Send Email from the frontend because of selected media size.
+    // Backend/provider limits will handle real hard failures.
+    return "";
+  }
+  function bodyInlineTokenExistsInMessage(item: BodyInlineMediaItem) {
+    const normalToken = `{{${item.kind}:${item.id}}}`;
+
+    // Legacy support: old inserted files were sometimes saved as {{image:body-file-...}}
+    const legacyFileImageToken =
+      item.kind === "file" ? `{{image:${item.id}}}` : "";
+
+    return (
+      message.includes(normalToken) ||
+      Boolean(legacyFileImageToken && message.includes(legacyFileImageToken))
+    );
+  }
+
+  function getActiveBodyInlineMediaItems() {
+    return bodyInlineMediaItems.filter(bodyInlineTokenExistsInMessage);
+  }
+
+  function normalizeLegacyBodyFileTokens(
+    value: string,
+    activeItems: BodyInlineMediaItem[],
+  ) {
+    let next = value;
+
+    for (const item of activeItems) {
+      if (item.kind !== "file") continue;
+
+      next = next.replaceAll(`{{image:${item.id}}}`, `{{file:${item.id}}}`);
+    }
+
+    return next;
+  }
+
+  function hasInsertedAudioToken() {
+    return /\{\{audio:[^}]+\}\}/.test(message);
+  }
+
+  function hasInsertedImageOrVideoToken() {
+    return (
+      /\{\{image:[^}]+\}\}/.test(message) || /\{\{video:[^}]+\}\}/.test(message)
+    );
+  }
+
+  function shouldSendStandaloneBodyAudioFile() {
+    if (!bodyAudioFile) return false;
+
+    // If audio was inserted inside the message, do not also send it as a separate body block.
+    if (hasInsertedAudioToken()) return false;
+
+    return bodyPreviewOrder.includes("audio") || message.includes("{{audio}}");
+  }
+
+  function shouldSendStandaloneBodyImageFile() {
+    if (!bodyImageFile) return false;
+
+    // If image/video was inserted inside the message, do not also send it as a separate body block.
+    if (hasInsertedImageOrVideoToken()) return false;
+
+    return bodyPreviewOrder.includes("image") || message.includes("{{image}}");
+  }
+
   function buildEmailForm(chunkEmails: string[]) {
     const form = new FormData();
+
+    const activeBodyInlineMediaItems = getActiveBodyInlineMediaItems();
+
+    const normalizedMessage = normalizeLegacyBodyFileTokens(
+      message,
+      activeBodyInlineMediaItems,
+    );
+
+    const standaloneBodyAudioFile = shouldSendStandaloneBodyAudioFile()
+      ? bodyAudioFile
+      : null;
+
+    const standaloneBodyImageFile = shouldSendStandaloneBodyImageFile()
+      ? bodyImageFile
+      : null;
 
     form.append("mode", mode);
     form.append("sender_identity_id", senderId);
@@ -2562,7 +2852,7 @@ export default function MailConsoleSendForm({
     form.append("title", title);
     form.append("subtitle", subtitle);
     form.append("badge", badge);
-    form.append("message", message);
+    form.append("message", normalizedMessage);
 
     if (typeof window !== "undefined") {
       form.append(
@@ -2574,15 +2864,6 @@ export default function MailConsoleSendForm({
     form.append("image_position", imagePosition);
     form.append("banner_position", imagePosition);
     form.append("banner_height", String(bannerHeight));
-    if (!bannerTopFile && /^https?:\/\//i.test(bannerTopPreviewUrl)) {
-      form.append("banner_top_url", bannerTopPreviewUrl);
-    }
-    if (!bannerBottomFile && /^https?:\/\//i.test(bannerBottomPreviewUrl)) {
-      form.append("banner_bottom_url", bannerBottomPreviewUrl);
-    }
-    form.append("stayknown_update_id", sourceUpdateId);
-    form.append("stayknown_update_slug", sourceUpdateSlug);
-    form.append("stayknown_update_url", sourceUpdateUrl);
 
     if (bannerTopFile) {
       form.append("banner_top_file", bannerTopFile, bannerTopFile.name);
@@ -2605,6 +2886,7 @@ export default function MailConsoleSendForm({
     form.append("body_audio_hint", bodyAudioHint);
     form.append("body_audio_hint_color", bodyAudioHintColor);
     form.append("body_audio_hint_font_style", bodyAudioHintFontStyle);
+
     form.append("body_image_placement", bodyImagePlacement);
     form.append("body_image_shape", bodyImageShape);
     form.append("body_image_size", String(bodyImageSize));
@@ -2615,12 +2897,13 @@ export default function MailConsoleSendForm({
     form.append("body_image_hint", bodyImageHint);
     form.append("body_image_hint_color", bodyImageHintColor);
     form.append("body_image_hint_font_style", bodyImageHintFontStyle);
+
     form.append(
       "body_inline_media_items",
-      JSON.stringify(bodyInlineMediaItems.map(bodyInlineFormPayload)),
+      safeJsonStringify(activeBodyInlineMediaItems.map(bodyInlineFormPayload)),
     );
 
-    for (const item of bodyInlineMediaItems) {
+    for (const item of activeBodyInlineMediaItems) {
       if (item.file) {
         form.append(
           `body_inline_media_file_${item.id}`,
@@ -2629,29 +2912,37 @@ export default function MailConsoleSendForm({
         );
       }
     }
-    form.append("body_block_order", JSON.stringify(bodyPreviewOrder));
 
-    if (bodyAudioFile) {
-      form.append("body_audio_file", bodyAudioFile, bodyAudioFile.name);
+    form.append("body_block_order", safeJsonStringify(bodyPreviewOrder));
+
+    if (standaloneBodyAudioFile) {
+      form.append(
+        "body_audio_file",
+        standaloneBodyAudioFile,
+        standaloneBodyAudioFile.name,
+      );
     }
 
-    if (bodyImageFile) {
-      form.append("body_image_file", bodyImageFile, bodyImageFile.name);
+    if (standaloneBodyImageFile) {
+      form.append(
+        "body_image_file",
+        standaloneBodyImageFile,
+        standaloneBodyImageFile.name,
+      );
     }
 
     form.append("cta_label", ctaLabel);
     form.append("cta_url", ctaUrl);
+
     form.append("store_badge_placement", storeBadgePlacement);
     form.append("google_play_enabled", googlePlayEnabled ? "true" : "false");
     form.append("google_play_url", googlePlayUrl);
     form.append("app_store_enabled", appStoreEnabled ? "true" : "false");
     form.append("app_store_url", appStoreUrl);
+
     form.append("footer_policy_id", footerPolicyId);
-    form.append(
-      "footer_html",
-      customFooter || selectedFooter?.footer_html || "",
-    );
-    form.append("policy_links", JSON.stringify(selectedPolicyLinks));
+    form.append("footer_html", footerText);
+    form.append("policy_links", safeJsonStringify(selectedPolicyLinks));
 
     form.append(
       "social_tiktok_enabled",
@@ -2682,12 +2973,12 @@ export default function MailConsoleSendForm({
 
     form.append(
       "file_modes",
-      JSON.stringify(files.map((picked) => picked.mode)),
+      safeJsonStringify(files.map((picked) => picked.mode)),
     );
 
     form.append(
       "file_display_names",
-      JSON.stringify(
+      safeJsonStringify(
         files.map((picked, index) =>
           cleanDisplayFilename(
             picked.displayName,
@@ -2709,7 +3000,6 @@ export default function MailConsoleSendForm({
 
     return form;
   }
-
   function updateSendRowStatus(
     chunkEmails: string[],
     status: RecipientStatus,
@@ -2895,6 +3185,21 @@ export default function MailConsoleSendForm({
       return;
     }
 
+    const activeInlineItems = getActiveBodyInlineMediaItems();
+
+    if (activeInlineItems.length !== bodyInlineMediaItems.length) {
+      setBodyInlineMediaItems(activeInlineItems);
+    }
+
+    setMessage((prev) =>
+      normalizeLegacyBodyFileTokens(prev, activeInlineItems),
+    );
+
+    const uploadBlockReason = getSendUploadBlockReason();
+
+if (uploadBlockReason) {
+  console.warn("[MailConsole] Upload warning ignored:", uploadBlockReason);
+}
     setSending(true);
     setStatus("");
     setSendComplete(false);
@@ -2932,7 +3237,7 @@ export default function MailConsoleSendForm({
             signal: controller.signal,
           });
 
-          const data = await res.json().catch(() => ({}));
+          const data = await readMailSendApiResponse(res);
 
           const results = Array.isArray(data?.summary?.results)
             ? data.summary.results
@@ -2942,11 +3247,13 @@ export default function MailConsoleSendForm({
             updateSendResults(results, chunk);
           } else if (!res.ok || !data.ok) {
             const error =
-              data.error ||
-              "StayKnown email sending is temporarily paused because today’s Resend sending limit has been reached. Please save this message as a draft and try again tomorrow.";
+              data?.error ||
+              data?.message ||
+              "Email send failed for this batch. Please retry in a few minutes.";
+
             updateSendRowStatus(chunk, "failed", error);
           } else {
-            updateSendResults([], chunk);
+            updateSendRowStatus(chunk, "sent", "");
           }
         } catch (err) {
           if (stopSendRef.current) {
@@ -2954,13 +3261,16 @@ export default function MailConsoleSendForm({
             break;
           }
 
-          updateSendRowStatus(
-            chunk,
-            "failed",
+          const error =
             err instanceof Error
               ? err.message
-              : "StayKnown email sending is temporarily unavailable. Please save this message as a draft and try again tomorrow.",
-          );
+              : "Email send failed for this batch. Please retry in a few minutes.";
+
+          updateSendRowStatus(chunk, "failed", error);
+        } finally {
+          if (sendAbortRef.current === controller) {
+            sendAbortRef.current = null;
+          }
         }
 
         const elapsed = Date.now() - startedAt;
@@ -2974,7 +3284,12 @@ export default function MailConsoleSendForm({
 
       if (!stopSendRef.current) {
         setSendComplete(true);
-        setStatus("Email sending process completed.");
+
+        setTimeout(() => {
+          setStatus(
+            "Sending finished. Check the delivery panel: sent emails are marked ✓, failed emails can be retried.",
+          );
+        }, 0);
       }
     } finally {
       sendAbortRef.current = null;
@@ -2982,7 +3297,6 @@ export default function MailConsoleSendForm({
       setActiveSendEmail("");
     }
   }
-
   async function retryFailedEmails() {
     if (sending) return;
 
@@ -3020,7 +3334,7 @@ export default function MailConsoleSendForm({
             signal: controller.signal,
           });
 
-          const data = await res.json().catch(() => ({}));
+          const data = await readMailSendApiResponse(res);
 
           const results = Array.isArray(data?.summary?.results)
             ? data.summary.results
@@ -3047,7 +3361,6 @@ export default function MailConsoleSendForm({
         const elapsed = Date.now() - startedAt;
         const waitMs = RESEND_SAFE_WINDOW_MS - elapsed;
         const hasNextBatch = i + SEND_BATCH_SIZE < failedEmails.length;
-
         if (waitMs > 0 && hasNextBatch && !stopSendRef.current) {
           await delay(waitMs);
         }
@@ -3066,7 +3379,11 @@ export default function MailConsoleSendForm({
     setStatus("Preview updated.");
   }
 
-  const footerText = customFooter || selectedFooter?.footer_html || "";
+  const defaultMailFooterHtml =
+    "StayKnown — You are receiving this message from StayKnown. Please contact support if you received this in error.";
+
+  const footerText =
+    customFooter || selectedFooter?.footer_html || defaultMailFooterHtml;
   const hasAnyBanner = Boolean(bannerTopPreviewUrl || bannerBottomPreviewUrl);
   const topBannerPreview = bannerTopPreviewUrl || bannerBottomPreviewUrl;
   const bottomBannerPreview = bannerBottomPreviewUrl || bannerTopPreviewUrl;
@@ -3522,7 +3839,63 @@ export default function MailConsoleSendForm({
         </div>
       );
     }
+    if (item.kind === "video") {
+      const shape = item.imageShape || "rectangle";
+      const frameStyle = getPreviewBodyImageFrameStyle(shape, item.size);
 
+      return (
+        <div style={embeddedMediaSlotStyle}>
+          <div
+            style={{
+              ...frameStyle,
+              background: "#000",
+            }}
+          >
+            <video
+              src={item.previewUrl}
+              controls
+              style={{
+                display: "block",
+                width: "100%",
+                maxHeight: 340,
+                background: "#000",
+              }}
+            />
+
+            <a
+              href={item.previewUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: "block",
+                padding: "9px 11px",
+                background: "#ffffff",
+                color: "#050505",
+                fontSize: 12,
+                fontWeight: 900,
+                textAlign: "center",
+                textDecoration: "none",
+              }}
+            >
+              Tap to open video
+            </a>
+          </div>
+
+          {item.hint ? (
+            <div
+              style={{
+                ...previewMediaHintStyle,
+                width: `${item.size}%`,
+                color: item.hintColor,
+                fontStyle: item.hintFontStyle,
+              }}
+            >
+              {item.hint}
+            </div>
+          ) : null}
+        </div>
+      );
+    }
     const shape = item.imageShape || "rectangle";
     const frameStyle = getPreviewBodyImageFrameStyle(shape, item.size);
 
@@ -3572,7 +3945,7 @@ export default function MailConsoleSendForm({
   function renderMessageTextWithInlineMedia(readOnly = false) {
     const content = message || "Your email body preview will appear here.";
     const parts = content.split(
-      /(\{\{image:[^}]+\}\}|\{\{audio:[^}]+\}\}|\{\{file:[^}]+\}\}|\{\{image\}\}|\{\{audio\}\})/g,
+      /(\{\{image:[^}]+\}\}|\{\{audio:[^}]+\}\}|\{\{video:[^}]+\}\}|\{\{file:[^}]+\}\}|\{\{image\}\}|\{\{audio\}\})/g,
     );
 
     return parts.map((part, index) => {
@@ -4346,8 +4719,9 @@ ${BODY_AUDIO_TOKEN} for body audio`}
               bodyImagePlacement === "custom" &&
               !messageHasBodyImageToken ? (
                 <div style={storeWarningStyle}>
-                  Body image is selected, but it will not show until you place
-                  your cursor in the message and click “Insert image here”.
+                  Body image/video is selected, but it will not show until you
+                  place your cursor in the message and click “Insert image/video
+                  here”.
                 </div>
               ) : null}
 
@@ -4653,10 +5027,10 @@ ${BODY_AUDIO_TOKEN} for body audio`}
 
                 <div style={bannerPickerStyle}>
                   <label data-button="true" style={filePickButtonStyle}>
-                    Choose image
+                    Choose image/video
                     <input
                       type="file"
-                      accept="image/*"
+                      accept="image/*,video/*"
                       style={{ display: "none" }}
                       onChange={(e) => {
                         pickBodyImageFile(e.target.files?.[0] || null);
@@ -4681,11 +5055,11 @@ ${BODY_AUDIO_TOKEN} for body audio`}
                 ) : null}
 
                 <div style={{ marginTop: 10 }}>
-                  <label style={labelStyle}>Image display name</label>
+                  <label style={labelStyle}>Image / video display name</label>
                   <input
                     value={bodyImageDisplayName}
                     onChange={(e) => setBodyImageDisplayName(e.target.value)}
-                    placeholder="StayKnown Image"
+                    placeholder="StayKnown Image or Video"
                     style={inputStyle}
                   />
                 </div>
@@ -4701,7 +5075,7 @@ ${BODY_AUDIO_TOKEN} for body audio`}
                       cursor: bodyImagePreviewUrl ? "pointer" : "not-allowed",
                     }}
                   >
-                    Insert image in message
+                    Insert image/video in message
                   </button>
                 </div>
 
@@ -5639,7 +6013,8 @@ ${BODY_AUDIO_TOKEN} for body audio`}
                   {readOnlyPreviewEmail
                     ? `Previewing email for ${readOnlyPreviewEmail}.`
                     : "Previewing the composed email."}{" "}
-                  Audio can be played and images can be opened from this view.
+                  Audio can be played, images can be opened, and videos can be
+                  previewed from this view.
                 </p>
               </div>
 

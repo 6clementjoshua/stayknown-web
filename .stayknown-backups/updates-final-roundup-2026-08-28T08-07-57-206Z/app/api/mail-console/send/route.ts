@@ -450,28 +450,6 @@ function safePublicHttpUrl(v: unknown) {
   return isPublicHttpUrl(url) ? url : "";
 }
 
-function safeUpdateBannerUrl(v: unknown) {
-  const url = safePublicHttpUrl(v);
-  if (!url) return "";
-
-  try {
-    const parsed = new URL(url);
-    if (parsed.protocol !== "https:") return "";
-
-    const allowedHosts = new Set([
-      "ipognlibpkbauusvfeic.supabase.co",
-      "stay-known.com",
-      "www.stay-known.com",
-    ]);
-
-    return allowedHosts.has(parsed.hostname.toLowerCase())
-      ? parsed.toString()
-      : "";
-  } catch (_) {
-    return "";
-  }
-}
-
 function safeHexColor(v: unknown, fallback = "#6b7280") {
   const s = clean(v);
 
@@ -2281,14 +2259,6 @@ export async function POST(req: NextRequest) {
     const subtitle = clean(form.get("subtitle"));
     const badge = clean(form.get("badge"));
     const message = clean(form.get("message"));
-    const sourceUpdateId = clean(form.get("stayknown_update_id")).slice(0, 80);
-    const sourceUpdateSlug = clean(form.get("stayknown_update_slug")).slice(
-      0,
-      160,
-    );
-    const sourceUpdateUrl = safePublicHttpUrl(form.get("stayknown_update_url"));
-    const bannerTopUrl = safeUpdateBannerUrl(form.get("banner_top_url"));
-    const bannerBottomUrl = safeUpdateBannerUrl(form.get("banner_bottom_url"));
 
     const siteUrl = getMailConsoleSiteUrl();
     const formLogoUrl = safePublicHttpUrl(form.get("brand_logo_url"));
@@ -2313,7 +2283,7 @@ export async function POST(req: NextRequest) {
       bodyImageFileRaw instanceof File ? bodyImageFileRaw : null;
 
     const bannerPosition =
-      bannerTopFile || bannerBottomFile || bannerTopUrl || bannerBottomUrl
+      bannerTopFile || bannerBottomFile
         ? safeImagePosition(
             form.get("banner_position") || form.get("image_position"),
           )
@@ -2708,20 +2678,6 @@ export async function POST(req: NextRequest) {
     const normalizedFileModes = files.map(
       (_, index) => fileModes[index] || "attach",
     );
-    const specialAttachmentCount = normalizedFileModes.filter(
-      (modeValue) => modeValue !== "attach",
-    ).length;
-
-    if (specialAttachmentCount > 1) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error:
-            "Only one attachment can be inline image or link-only. Keep the rest as normal attachments.",
-        },
-        { status: 400 },
-      );
-    }
 
     for (let i = 0; i < files.length; i += 1) {
       const file = files[i];
@@ -2748,7 +2704,7 @@ export async function POST(req: NextRequest) {
         subject,
         body_html: textToHtml(message),
         body_text: message,
-        image_url: bannerTopUrl || bannerBottomUrl || null,
+        image_url: null,
         image_position: bannerPosition,
         cta_label: ctaLabel || null,
         cta_url: ctaUrl || null,
@@ -2757,13 +2713,7 @@ export async function POST(req: NextRequest) {
         reply_mode: replyMode,
         status: "sending",
         meta: {
-          created_from: sourceUpdateId
-            ? "stayknown_updates_publish_email"
-            : "next_api_mail_console_send",
-          stayknown_update_id: sourceUpdateId || null,
-          stayknown_update_slug: sourceUpdateSlug || null,
-          stayknown_update_url: sourceUpdateUrl || null,
-          stayknown_update_banner_url: bannerTopUrl || bannerBottomUrl || null,
+          created_from: "next_api_mail_console_send",
           admin_email: adminEmail,
           sender_email: senderRow.from_email,
           brand_logo_url: brandLogoUrl || null,
@@ -2850,63 +2800,6 @@ export async function POST(req: NextRequest) {
     let bodyAudioUrl = "";
     const bodyInlineMediaHtmlByToken: Record<string, string> = {};
     const bodyInlineMediaMeta: Array<Record<string, unknown>> = [];
-
-    async function embedRemoteBanner(
-      url: string,
-      placement: "top" | "bottom",
-    ): Promise<string> {
-      if (!url) return "";
-
-      const response = await fetch(url, {
-        cache: "no-store",
-        redirect: "error",
-      });
-
-      if (!response.ok) {
-        throw new Error(
-          `Could not load the linked Update ${placement} banner.`,
-        );
-      }
-
-      const mime = (response.headers.get("content-type") || "")
-        .split(";")[0]
-        .trim();
-
-      if (!mime.startsWith("image/")) {
-        throw new Error(
-          `The linked Update ${placement} banner is not an image.`,
-        );
-      }
-
-      const buffer = Buffer.from(await response.arrayBuffer());
-      if (buffer.length > 8 * 1024 * 1024) {
-        throw new Error(`The linked Update ${placement} banner exceeds 8MB.`);
-      }
-
-      totalAttachmentRawBytes += buffer.length;
-      const contentId = `sk-update-banner-${placement}-${randomUUID()}`;
-      attachments.push({
-        filename:
-          placement === "top"
-            ? "StayKnown Update Banner"
-            : "StayKnown Update Bottom Banner",
-        content: buffer.toString("base64"),
-        content_id: contentId,
-        content_type: mime || "image/png",
-      });
-      return contentId;
-    }
-
-    if (!bannerTopFile && bannerTopUrl) {
-      bannerTopContentId = await embedRemoteBanner(bannerTopUrl, "top");
-    }
-
-    if (!bannerBottomFile && bannerBottomUrl) {
-      bannerBottomContentId = await embedRemoteBanner(
-        bannerBottomUrl,
-        "bottom",
-      );
-    }
 
     if (bannerTopFile) {
       const buffer = Buffer.from(await bannerTopFile.arrayBuffer());
@@ -3106,7 +2999,7 @@ export async function POST(req: NextRequest) {
       if (item.kind === "image" || mime.startsWith("image/")) {
         totalAttachmentRawBytes += buffer.length;
 
-        if (totalAttachmentRawBytes > 25 * 1024 * 1024) {
+        if (totalAttachmentRawBytes > MAX_DIRECT_ATTACHMENT_TOTAL_RAW_BYTES) {
           return NextResponse.json(
             {
               ok: false,
@@ -3138,7 +3031,7 @@ export async function POST(req: NextRequest) {
       } else {
         totalAttachmentRawBytes += buffer.length;
 
-        if (totalAttachmentRawBytes > 25 * 1024 * 1024) {
+        if (totalAttachmentRawBytes > MAX_DIRECT_ATTACHMENT_TOTAL_RAW_BYTES) {
           return NextResponse.json(
             {
               ok: false,
@@ -3235,7 +3128,7 @@ export async function POST(req: NextRequest) {
 
       totalAttachmentRawBytes += buffer.length;
 
-      if (totalAttachmentRawBytes > 25 * 1024 * 1024) {
+      if (totalAttachmentRawBytes > MAX_DIRECT_ATTACHMENT_TOTAL_RAW_BYTES) {
         return NextResponse.json(
           {
             ok: false,

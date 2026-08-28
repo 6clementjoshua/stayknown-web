@@ -128,7 +128,7 @@ function formatDate(post: UpdatePost) {
   }).format(new Date(publicDate(post)));
 }
 
-export function UpdatesSiteFooter() {
+function SiteFooter() {
   return (
     <footer className="relative z-20 w-full border-t border-white/[0.08] bg-black">
       <div className="mx-auto max-w-6xl px-4 pb-8 pt-10 sm:px-5 sm:pb-10 sm:pt-12 lg:px-6">
@@ -245,11 +245,11 @@ export function UpdatesFeed({
         }
       `}</style>
       <header className="sticky top-0 z-50 border-b border-white/[0.08] bg-black/95 px-4 py-3 backdrop-blur-xl sm:px-6">
-        <div className="mx-auto grid max-w-[1160px] grid-cols-[1fr_auto] items-center gap-x-3 gap-y-2 sm:grid-cols-[1fr_auto_1fr]">
+        <div className="mx-auto flex max-w-[1160px] items-center justify-between gap-4">
           <Link
             href="/"
             aria-label="StayKnown home"
-            className="group inline-flex min-h-11 items-center gap-2.5 justify-self-start focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/35"
+            className="group inline-flex min-h-11 items-center gap-2.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/35"
           >
             <span className="flex h-8 w-8 items-center justify-center rounded-[11px] border border-white bg-white transition duration-300 group-hover:scale-[1.04]">
               <Image src="/6logo.png" alt="" width={18} height={18} priority />
@@ -259,11 +259,7 @@ export function UpdatesFeed({
             </span>
           </Link>
 
-          <div className="col-span-2 row-start-2 justify-self-center whitespace-nowrap text-[8px] font-black uppercase tracking-[0.28em] text-white/[0.46] sm:col-span-1 sm:col-start-2 sm:row-start-1 sm:text-[9px] lg:text-[10px]">
-            ELIXIR OF SAFETY
-          </div>
-
-          <div className="justify-self-end rounded-full border border-white/[0.12] bg-white/[0.03] px-3 py-2 text-[8px] font-black tracking-[0.03em] text-white/45 sm:col-start-3 sm:text-[9px]">
+          <div className="rounded-full border border-white/[0.12] bg-white/[0.03] px-3 py-2 text-[9px] font-black tracking-[0.03em] text-white/45">
             ◉ {totalViews.toLocaleString()} UPDATE VIEWS
           </div>
         </div>
@@ -315,7 +311,7 @@ export function UpdatesFeed({
         <div className="mx-auto max-w-[1160px]">
           {[...groups.entries()].map(([month, items]) => (
             <section key={month} className="pt-12 sm:pt-16">
-              <div className="sticky top-[83px] z-20 sm:top-[57px] -mx-2 border-b border-white/[0.07] bg-black/92 px-2 py-3 text-[9px] font-black uppercase tracking-[0.24em] text-white/32 backdrop-blur-xl">
+              <div className="sticky top-[57px] z-20 -mx-2 border-b border-white/[0.07] bg-black/92 px-2 py-3 text-[9px] font-black uppercase tracking-[0.24em] text-white/32 backdrop-blur-xl">
                 {month}
               </div>
 
@@ -407,7 +403,7 @@ export function UpdatesFeed({
         </div>
       </section>
 
-      <UpdatesSiteFooter />
+      <SiteFooter />
     </main>
   );
 }

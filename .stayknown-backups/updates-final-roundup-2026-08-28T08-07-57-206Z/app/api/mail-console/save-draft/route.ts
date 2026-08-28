@@ -13,7 +13,7 @@ type BodyImageShape = "banner" | "pill" | "rectangle" | "square" | "circle";
 type BodyBlockKind = "audio" | "image" | "message";
 type BodyHintFontStyle = "normal" | "italic";
 type StoreBadgePlacement = "top" | "bottom";
-type BodyInlineMediaKind = "audio" | "image" | "file";
+type BodyInlineMediaKind = "audio" | "image" | "video" | "file";
 
 type MailConsoleAdminClient = Awaited<
   ReturnType<typeof requireMailConsoleAdmin>
@@ -263,7 +263,10 @@ function safeBodyInlineMediaItems(v: unknown): BodyInlineMediaInput[] {
       const id = clean(row.id);
       const kindText = clean(row.kind).toLowerCase();
       const kind: BodyInlineMediaKind | "" =
-        kindText === "audio" || kindText === "image" || kindText === "file"
+        kindText === "audio" ||
+        kindText === "image" ||
+        kindText === "video" ||
+        kindText === "file"
           ? kindText
           : "";
       if (!id || !kind) return null;
@@ -284,7 +287,7 @@ function safeBodyInlineMediaItems(v: unknown): BodyInlineMediaInput[] {
         row.hint_font_style || row.hintFontStyle,
       );
       const imageShape =
-        kind === "image"
+        kind === "image" || kind === "video"
           ? safeBodyImageShape(row.image_shape || row.imageShape)
           : null;
       const mimeType =
@@ -293,7 +296,9 @@ function safeBodyInlineMediaItems(v: unknown): BodyInlineMediaInput[] {
           ? "audio/mpeg"
           : kind === "image"
             ? "image/png"
-            : "application/octet-stream");
+            : kind === "video"
+              ? "video/mp4"
+              : "application/octet-stream");
       const originalName =
         clean(row.original_name || row.originalName) || displayName;
       const fileField =
@@ -546,6 +551,7 @@ function safeDraftAttachments(v: unknown): DraftStoredAttachment[] {
     if (
       inlineMediaKindText === "audio" ||
       inlineMediaKindText === "image" ||
+      inlineMediaKindText === "video" ||
       inlineMediaKindText === "file"
     ) {
       attachment.inline_media_kind = inlineMediaKindText;
@@ -745,6 +751,10 @@ function validateDraftFiles(params: {
     if (media.item.kind === "audio" && !file.type.startsWith("audio/")) {
       return "Inserted body audio must be an audio file.";
     }
+    if (media.item.kind === "video" && !file.type.startsWith("video/")) {
+      return "Inserted body video must be a video file.";
+    }
+
     if (media.item.kind === "file" && file.size > fileLimit) {
       return `${
         media.item.display_name || file.name || "Inserted file"
@@ -757,6 +767,10 @@ function validateDraftFiles(params: {
 
     if (media.item.kind === "audio" && file.size > audioLimit) {
       return `${media.item.display_name || file.name || "Inserted audio"} must be under 20MB.`;
+    }
+
+    if (media.item.kind === "video" && file.size > fileLimit) {
+      return `${media.item.display_name || file.name || "Inserted video"} must be under 20MB.`;
     }
   }
 
@@ -784,6 +798,47 @@ function safeSocialUsername(v: unknown) {
     .split(/[/?#]/)[0]
     .replace(/[^a-zA-Z0-9._-]/g, "")
     .slice(0, 60);
+}
+
+function bodyInlineTokenExistsInMessage(
+  message: string,
+  item: BodyInlineMediaInput,
+) {
+  const normalToken = `{{${item.kind}:${item.id}}}`;
+
+  // Legacy support: old inserted files sometimes exist as {{image:body-file-...}}
+  const legacyFileImageToken =
+    item.kind === "file" ? `{{image:${item.id}}}` : "";
+
+  return (
+    message.includes(normalToken) ||
+    Boolean(legacyFileImageToken && message.includes(legacyFileImageToken))
+  );
+}
+
+function normalizeLegacyBodyFileTokens(
+  message: string,
+  activeItems: BodyInlineMediaInput[],
+) {
+  let next = message;
+
+  for (const item of activeItems) {
+    if (item.kind !== "file") continue;
+
+    next = next.replaceAll(`{{image:${item.id}}}`, `{{file:${item.id}}}`);
+  }
+
+  return next;
+}
+
+function hasInsertedAudioToken(message: string) {
+  return /\{\{audio:[^}]+\}\}/.test(message);
+}
+
+function hasInsertedImageOrVideoToken(message: string) {
+  return (
+    /\{\{image:[^}]+\}\}/.test(message) || /\{\{video:[^}]+\}\}/.test(message)
+  );
 }
 
 export async function GET(req: NextRequest) {
@@ -968,7 +1023,7 @@ export async function POST(req: NextRequest) {
     const title = field("title") || subject;
     const subtitle = field("subtitle");
     const badge = field("badge");
-    const message = field("message");
+    const rawMessage = field("message");
 
     const brandLogoUrl = safePublicHttpUrl(fieldUnknown("brand_logo_url"));
 
@@ -1022,22 +1077,21 @@ export async function POST(req: NextRequest) {
     const bodyBlockOrder = safeBodyBlockOrder(fieldUnknown("body_block_order"));
     const bodyMediaNote = field("body_media_note");
 
-    const bodyInlineMediaItems = safeBodyInlineMediaItems(
+    const rawBodyInlineMediaItems = safeBodyInlineMediaItems(
       fieldUnknown("body_inline_media_items"),
+    );
+
+    const bodyInlineMediaItems = rawBodyInlineMediaItems.filter((item) =>
+      bodyInlineTokenExistsInMessage(rawMessage, item),
+    );
+
+    const message = normalizeLegacyBodyFileTokens(
+      rawMessage,
+      bodyInlineMediaItems,
     );
 
     const ctaLabel = field("cta_label");
     const ctaUrl = field("cta_url");
-
-    const sourceUpdateId = field("stayknown_update_id").slice(0, 80);
-    const sourceUpdateSlug = field("stayknown_update_slug").slice(0, 160);
-    const sourceUpdateUrl = safePublicHttpUrl(
-      fieldUnknown("stayknown_update_url"),
-    );
-    const bannerTopUrl = safePublicHttpUrl(fieldUnknown("banner_top_url"));
-    const bannerBottomUrl = safePublicHttpUrl(
-      fieldUnknown("banner_bottom_url"),
-    );
 
     const footerPolicyId = field("footer_policy_id");
     const footerHtml = field("footer_html");
@@ -1063,8 +1117,16 @@ export async function POST(req: NextRequest) {
 
     const bannerTopFile = getOptionalFile(form, "banner_top_file");
     const bannerBottomFile = getOptionalFile(form, "banner_bottom_file");
-    const bodyAudioFile = getOptionalFile(form, "body_audio_file");
-    const bodyImageFile = getOptionalFile(form, "body_image_file");
+    const rawBodyAudioFile = getOptionalFile(form, "body_audio_file");
+    const rawBodyImageFile = getOptionalFile(form, "body_image_file");
+
+    const bodyAudioFile = hasInsertedAudioToken(message)
+      ? null
+      : rawBodyAudioFile;
+
+    const bodyImageFile = hasInsertedImageOrVideoToken(message)
+      ? null
+      : rawBodyImageFile;
     const files = getFiles(form, "files");
 
     const bodyInlineMediaFiles = bodyInlineMediaItems.map((item) => ({
@@ -1127,13 +1189,7 @@ export async function POST(req: NextRequest) {
     );
 
     const baseMeta = {
-      created_from: sourceUpdateId
-        ? "stayknown_updates_publish_email"
-        : "mail_console_save_draft",
-      stayknown_update_id: sourceUpdateId || null,
-      stayknown_update_slug: sourceUpdateSlug || null,
-      stayknown_update_url: sourceUpdateUrl || null,
-      stayknown_update_banner_url: bannerTopUrl || bannerBottomUrl || null,
+      created_from: "mail_console_save_draft",
       open_behavior: "draft_opens_editable_sent_opens_readonly",
       draft_storage_version: "formdata_files_v2_inline_body_media",
       admin_email: adminEmail,
@@ -1220,7 +1276,7 @@ export async function POST(req: NextRequest) {
         subject,
         body_html: bodyHtml,
         body_text: message,
-        image_url: bannerTopUrl || bannerBottomUrl || imageUrl || null,
+        image_url: imageUrl || null,
         image_position: imagePosition,
         cta_label: ctaLabel || null,
         cta_url: ctaUrl || null,

@@ -7,7 +7,6 @@ import { getUpdatePresentation, publicDate } from "@/lib/stayknown-updates";
 import { StayKnownUpdateEffects } from "./StayKnownUpdateEffects";
 import { UpdateBlocks } from "./UpdateBlocks";
 import { UpdateLikeButton } from "./UpdateLikeButton";
-import { UpdatesSiteFooter } from "./UpdatesFeed";
 
 const titleScale = {
   standard:
@@ -63,10 +62,10 @@ export function UpdateArticle({
 `}</style>
 
       <header className="sticky top-0 z-40 border-b border-white/[0.08] bg-black/[0.82] px-4 py-3 backdrop-blur-xl sm:px-6">
-        <div className="mx-auto grid max-w-[1120px] grid-cols-[1fr_auto] items-center gap-x-3 gap-y-2 sm:grid-cols-[1fr_auto_1fr]">
+        <div className="mx-auto flex max-w-[1120px] items-center justify-between gap-4">
           <Link
             href="/updates"
-            className="inline-flex items-center gap-2.5 justify-self-start text-[11px] font-black tracking-[0.18em]"
+            className="inline-flex items-center gap-2.5 text-[11px] font-black tracking-[0.18em]"
           >
             <span className="flex h-8 w-8 items-center justify-center rounded-[11px] border border-white bg-white">
               <Image src="/6logo.png" alt="" width={18} height={18} />
@@ -76,11 +75,7 @@ export function UpdateArticle({
             </span>
           </Link>
 
-          <div className="col-span-2 row-start-2 justify-self-center whitespace-nowrap text-[8px] font-black uppercase tracking-[0.28em] text-white/[0.46] sm:col-span-1 sm:col-start-2 sm:row-start-1 sm:text-[9px] lg:text-[10px]">
-            ELIXIR OF SAFETY
-          </div>
-
-          <div className="justify-self-end text-right text-[8px] font-black uppercase tracking-[0.14em] text-white/[0.35] sm:col-start-3 sm:text-[9px] sm:tracking-[0.17em]">
+          <div className="text-right text-[9px] font-black uppercase tracking-[0.17em] text-white/[0.35]">
             A 6 Clement Joshua service™
           </div>
         </div>
@@ -162,8 +157,6 @@ export function UpdateArticle({
           </footer>
         </div>
       </article>
-
-      <UpdatesSiteFooter />
     </main>
   );
 }
