@@ -55,8 +55,7 @@ const YOUTUBE_URL = "https://www.youtube.com/@stayknownapp";
 const DEFAULT_TITLE = "StayKnown: Consent-First Personal Safety, Visits & SOS";
 
 const DEFAULT_DESCRIPTION =
-  "StayKnown is a consent-first personal safety app for Android with active Visits, LIVE sharing, I’M SAFE check-ins, SOS alerts, approved contacts and secure chat.";
-
+  "StayKnown is a consent-first safety app with LIVE Visits, I’M SAFE check-ins, SOS alerts, approved contacts, secure chat and location sharing.";
 const OG_IMAGE = "/hero/visit-live-sos.png";
 const LOGO_IMAGE = "/6logo.png";
 
