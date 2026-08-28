@@ -262,7 +262,7 @@ export function UpdatesFeed({
           </div>
 
           <div className="justify-self-end rounded-full border border-white/[0.12] bg-white/[0.03] px-3 py-2 text-[8px] font-black tracking-[0.03em] text-white/45 sm:col-start-3 sm:text-[9px]">
-            ◉ {totalViews.toLocaleString()} VISITORS
+            ◉ {totalViews.toLocaleString()} UPDATE VIEWS
           </div>
         </div>
       </header>

@@ -20,13 +20,7 @@ type BodyBlockKind = "audio" | "image" | "message";
 type BodyHintFontStyle = "normal" | "italic";
 type StoreBadgePlacement = "top" | "bottom";
 type RecipientStatus =
-  | "ready"
-  | "queued"
-  | "sending"
-  | "sent"
-  | "failed"
-  | "skipped"
-  | "draft";
+  "ready" | "queued" | "sending" | "sent" | "failed" | "skipped" | "draft";
 
 type RecipientChip = {
   id: string;

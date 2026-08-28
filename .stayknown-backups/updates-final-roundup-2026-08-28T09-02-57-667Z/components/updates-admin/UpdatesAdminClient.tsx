@@ -3082,11 +3082,11 @@ function Dashboard({
 
       {tab === "Analytics" ? (
         <div className="mt-8 space-y-2">
-          <div className="text-[11px] font-black">Recorded /updates visitors: {Number(analytics?.updatesViews || 0).toLocaleString()}</div>
+          <div className="text-[11px] font-black">Recorded /updates views: {Number(analytics?.updatesViews || 0).toLocaleString()}</div>
           {(analytics?.posts || []).map((item: any) => (
             <div key={item.id} className="flex items-center justify-between rounded-2xl border border-white/[0.09] p-3 text-[10px]">
               <span className="max-w-[70%] font-bold text-white/[0.6]">{item.title}</span>
-              <span className="font-black tabular-nums text-white/[0.38]">{Number(item.views || 0).toLocaleString()} visitors · {Number(item.likes || 0).toLocaleString()} likes</span>
+              <span className="font-black tabular-nums text-white/[0.38]">{Number(item.views || 0).toLocaleString()} views · {Number(item.likes || 0).toLocaleString()} likes</span>
             </div>
           ))}
         </div>
@@ -3494,7 +3494,7 @@ function PublicationVerificationPanel({
 
       {result ? (
         <div className="mt-3 text-[8px] font-black uppercase tracking-[0.13em] text-white/[0.24]">
-          {result.views.toLocaleString()} visitors · {result.likes.toLocaleString()} likes · checked{" "}
+          {result.views.toLocaleString()} views · {result.likes.toLocaleString()} likes · checked{" "}
           {new Intl.DateTimeFormat("en", {
             dateStyle: "medium",
             timeStyle: "short",

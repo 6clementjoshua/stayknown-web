@@ -2282,7 +2282,10 @@ export async function POST(req: NextRequest) {
     const badge = clean(form.get("badge"));
     const message = clean(form.get("message"));
     const sourceUpdateId = clean(form.get("stayknown_update_id")).slice(0, 80);
-    const sourceUpdateSlug = clean(form.get("stayknown_update_slug")).slice(0, 160);
+    const sourceUpdateSlug = clean(form.get("stayknown_update_slug")).slice(
+      0,
+      160,
+    );
     const sourceUpdateUrl = safePublicHttpUrl(form.get("stayknown_update_url"));
     const bannerTopUrl = safeUpdateBannerUrl(form.get("banner_top_url"));
     const bannerBottomUrl = safeUpdateBannerUrl(form.get("banner_bottom_url"));
@@ -2860,7 +2863,9 @@ export async function POST(req: NextRequest) {
       });
 
       if (!response.ok) {
-        throw new Error(`Could not load the linked Update ${placement} banner.`);
+        throw new Error(
+          `Could not load the linked Update ${placement} banner.`,
+        );
       }
 
       const mime = (response.headers.get("content-type") || "")
@@ -2868,7 +2873,9 @@ export async function POST(req: NextRequest) {
         .trim();
 
       if (!mime.startsWith("image/")) {
-        throw new Error(`The linked Update ${placement} banner is not an image.`);
+        throw new Error(
+          `The linked Update ${placement} banner is not an image.`,
+        );
       }
 
       const buffer = Buffer.from(await response.arrayBuffer());
@@ -2890,13 +2897,15 @@ export async function POST(req: NextRequest) {
       return contentId;
     }
 
-
     if (!bannerTopFile && bannerTopUrl) {
       bannerTopContentId = await embedRemoteBanner(bannerTopUrl, "top");
     }
 
     if (!bannerBottomFile && bannerBottomUrl) {
-      bannerBottomContentId = await embedRemoteBanner(bannerBottomUrl, "bottom");
+      bannerBottomContentId = await embedRemoteBanner(
+        bannerBottomUrl,
+        "bottom",
+      );
     }
 
     if (bannerTopFile) {

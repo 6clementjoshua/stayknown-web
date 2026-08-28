@@ -2,10 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 
 import type { UpdatePost } from "@/lib/stayknown-updates";
-import {
-  getUpdatePresentation,
-  publicDate,
-} from "@/lib/stayknown-updates";
+import { getUpdatePresentation, publicDate } from "@/lib/stayknown-updates";
 
 import { StayKnownUpdateEffects } from "./StayKnownUpdateEffects";
 import { UpdateBlocks } from "./UpdateBlocks";
@@ -121,7 +118,7 @@ export function UpdateArticle({
               initial={Number(post.like_count || 0)}
             />
             <span className="rounded-full border border-white/[0.1] px-3.5 py-2 text-[10px] font-black text-white/[0.42]">
-              ◉ {views.toLocaleString()} visitors
+              ◉ {views.toLocaleString()} views
             </span>
           </div>
 
@@ -136,7 +133,12 @@ export function UpdateArticle({
           ) : null}
 
           <div className="mt-14">
-            <UpdateBlocks blocks={post.body || []} fallbackPosterUrl={post.image_16_9_url || post.hero_image_url || ""} />
+            <UpdateBlocks
+              blocks={post.body || []}
+              fallbackPosterUrl={
+                post.image_16_9_url || post.hero_image_url || ""
+              }
+            />
           </div>
 
           <footer className="mx-auto mt-16 max-w-[760px] border-t border-white/[0.1] pt-7">

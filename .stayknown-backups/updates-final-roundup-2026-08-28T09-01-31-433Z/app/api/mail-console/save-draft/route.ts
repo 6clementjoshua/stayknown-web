@@ -1031,9 +1031,13 @@ export async function POST(req: NextRequest) {
 
     const sourceUpdateId = field("stayknown_update_id").slice(0, 80);
     const sourceUpdateSlug = field("stayknown_update_slug").slice(0, 160);
-    const sourceUpdateUrl = safePublicHttpUrl(fieldUnknown("stayknown_update_url"));
+    const sourceUpdateUrl = safePublicHttpUrl(
+      fieldUnknown("stayknown_update_url"),
+    );
     const bannerTopUrl = safePublicHttpUrl(fieldUnknown("banner_top_url"));
-    const bannerBottomUrl = safePublicHttpUrl(fieldUnknown("banner_bottom_url"));
+    const bannerBottomUrl = safePublicHttpUrl(
+      fieldUnknown("banner_bottom_url"),
+    );
 
     const footerPolicyId = field("footer_policy_id");
     const footerHtml = field("footer_html");

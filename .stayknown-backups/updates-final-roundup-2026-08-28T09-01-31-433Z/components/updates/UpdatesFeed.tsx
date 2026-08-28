@@ -166,7 +166,9 @@ export function UpdatesSiteFooter() {
                     <li key={link.href}>
                       <a
                         href={link.href}
-                        target={link.href.startsWith("http") ? "_blank" : undefined}
+                        target={
+                          link.href.startsWith("http") ? "_blank" : undefined
+                        }
                         rel={
                           link.href.startsWith("http")
                             ? "noopener noreferrer"
@@ -262,7 +264,7 @@ export function UpdatesFeed({
           </div>
 
           <div className="justify-self-end rounded-full border border-white/[0.12] bg-white/[0.03] px-3 py-2 text-[8px] font-black tracking-[0.03em] text-white/45 sm:col-start-3 sm:text-[9px]">
-            ◉ {totalViews.toLocaleString()} VISITORS
+            ◉ {totalViews.toLocaleString()} UPDATE VIEWS
           </div>
         </div>
       </header>
@@ -277,8 +279,8 @@ export function UpdatesFeed({
               StayKnown Updates.
             </h1>
             <p className="mt-7 max-w-[620px] text-[14px] font-semibold leading-7 text-white/48">
-              The official public record of what StayKnown is building, changing,
-              releasing and learning across safety technology.
+              The official public record of what StayKnown is building,
+              changing, releasing and learning across safety technology.
             </p>
           </div>
 
@@ -333,7 +335,9 @@ export function UpdatesFeed({
                         <div className="overflow-hidden rounded-[24px] border border-white/[0.1] bg-white/[0.02]">
                           {post.image_16_9_url || post.hero_image_url ? (
                             <img
-                              src={post.image_16_9_url || post.hero_image_url || ""}
+                              src={
+                                post.image_16_9_url || post.hero_image_url || ""
+                              }
                               alt={post.hero_alt_text || post.title}
                               loading="lazy"
                               className="aspect-[16/9] w-full object-cover transition duration-500 group-hover:scale-[1.025]"
@@ -390,8 +394,8 @@ export function UpdatesFeed({
                   The record begins with the first published update.
                 </h2>
                 <p className="mt-4 max-w-[560px] text-[12px] font-semibold leading-6 text-white/38">
-                  Official StayKnown product, safety, technology and company updates
-                  will appear here as they are published.
+                  Official StayKnown product, safety, technology and company
+                  updates will appear here as they are published.
                 </p>
               </div>
             </div>

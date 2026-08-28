@@ -75,7 +75,8 @@ function pickNewsletterSender(rows: any[]): any | null {
       const label = clean(row.label).toLowerCase();
       const purpose = clean(row.purpose).toLowerCase();
       if (label.includes("stayknown news")) return 0;
-      if (email === "no-reply@stay-known.com" && purpose === "newsletter") return 1;
+      if (email === "no-reply@stay-known.com" && purpose === "newsletter")
+        return 1;
       if (purpose === "newsletter" && !email.startsWith("creators@")) return 2;
       if (email === "stayknown@stay-known.com") return 3;
       if (purpose === "newsletter") return 4;
@@ -87,7 +88,9 @@ function pickNewsletterSender(rows: any[]): any | null {
   return ranked[0] || null;
 }
 
-function copyNewsletterPreferences(meta: Record<string, unknown> | null | undefined) {
+function copyNewsletterPreferences(
+  meta: Record<string, unknown> | null | undefined,
+) {
   const source = meta || {};
   const keys = [
     "policy_links",
@@ -265,7 +268,9 @@ export async function POST(
     );
 
     const publicUrl = `https://www.stay-known.com/updates/${post.slug}`;
-    const representativeImage = clean(post.image_16_9_url || post.hero_image_url);
+    const representativeImage = clean(
+      post.image_16_9_url || post.hero_image_url,
+    );
     const bodyText = articleBodyText(post.body);
     const message = [
       clean(post.summary),

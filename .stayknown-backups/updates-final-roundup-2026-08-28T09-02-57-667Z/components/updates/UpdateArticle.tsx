@@ -121,7 +121,7 @@ export function UpdateArticle({
               initial={Number(post.like_count || 0)}
             />
             <span className="rounded-full border border-white/[0.1] px-3.5 py-2 text-[10px] font-black text-white/[0.42]">
-              ◉ {views.toLocaleString()} visitors
+              ◉ {views.toLocaleString()} views
             </span>
           </div>
 
