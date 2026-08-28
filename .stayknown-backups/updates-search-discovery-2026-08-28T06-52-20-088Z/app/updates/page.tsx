@@ -23,12 +23,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title: "StayKnown Updates",
     description: DESCRIPTION,
-    alternates: {
-      canonical: "/updates",
-      types: {
-        "application/rss+xml": `${SITE_URL}/updates/feed.xml`,
-      },
-    },
+    alternates: { canonical: "/updates" },
     openGraph: {
       type: "website",
       url: "/updates",

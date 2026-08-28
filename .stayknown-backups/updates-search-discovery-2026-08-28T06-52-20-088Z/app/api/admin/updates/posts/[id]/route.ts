@@ -1,9 +1,8 @@
 import { randomUUID } from "node:crypto";
 
-import { adminClient, canonicalPath } from "@/lib/stayknown-updates";
+import { adminClient, canonicalPath, isPublicPost } from "@/lib/stayknown-updates";
 import { requireUpdatesAdmin } from "@/lib/stayknown-updates-auth";
 import { inspectSeo } from "@/lib/stayknown-updates-seo";
-import { notifyUpdatesDiscovery } from "@/lib/stayknown-updates-discovery";
 
 const VALID_SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
@@ -22,10 +21,7 @@ function slugBase(value: string): string {
     .replace(/-+$/g, "");
 }
 
-function resolveSlug(
-  input: Record<string, unknown>,
-  publishing: boolean,
-): string {
+function resolveSlug(input: Record<string, unknown>, publishing: boolean): string {
   const requested = stringValue(input.slug);
 
   if (publishing) return requested;
@@ -45,7 +41,7 @@ function nullableTimestamp(value: unknown): string | null {
   return text || null;
 }
 
-function validateSchedule(input: Record<string, unknown>): string | null {
+function validateFutureSchedule(input: Record<string, unknown>): string | null {
   if (stringValue(input.status) !== "scheduled") return null;
 
   const value = nullableTimestamp(input.scheduled_for);
@@ -80,49 +76,79 @@ function seoInput(input: Record<string, any>, slug: string) {
   };
 }
 
-export async function GET(req: Request) {
+export async function PUT(
+  req: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
   try {
-    await requireUpdatesAdmin(req);
+    const { id } = await params;
+    const { user } = await requireUpdatesAdmin(req, ["owner", "admin", "editor"]);
+    const input = (await req.json()) as Record<string, any>;
+    const sb = adminClient();
 
-    const { data, error } = await adminClient()
+    const { data: existing, error: existingError } = await sb
       .from("stayknown_updates_posts")
       .select("*")
-      .order("created_at", { ascending: false })
-      .limit(1000);
+      .eq("id", id)
+      .is("deleted_at", null)
+      .maybeSingle();
 
-    if (error) throw error;
-
-    const rows = data || [];
-    const posts = rows.filter((row: any) => !row.deleted_at);
-    const deletedPosts = rows
-      .filter((row: any) => Boolean(row.deleted_at))
-      .sort(
-        (a: any, b: any) =>
-          new Date(b.deleted_at || 0).getTime() -
-          new Date(a.deleted_at || 0).getTime(),
+    if (existingError) throw existingError;
+    if (!existing) {
+      return Response.json(
+        { error: "This publication is unavailable or is in Recently Deleted." },
+        { status: 409 },
       );
+    }
 
-    return Response.json({ posts, deletedPosts });
-  } catch (e: any) {
-    return Response.json({ error: e.message }, { status: e.status || 500 });
-  }
-}
+    const currentlyPublic = isPublicPost(existing as any);
 
-export async function POST(req: Request) {
-  try {
-    const { user } = await requireUpdatesAdmin(req, [
-      "owner",
-      "admin",
-      "editor",
-    ]);
-    const input = (await req.json()) as Record<string, any>;
-    const scheduleError = validateSchedule(input);
-    if (scheduleError) {
-      return Response.json({ error: scheduleError }, { status: 400 });
+    if (
+      currentlyPublic &&
+      stringValue(input.slug) &&
+      stringValue(input.slug) !== stringValue(existing.slug)
+    ) {
+      return Response.json(
+        {
+          error:
+            "The slug is locked because this Update is already public. Keep the permanent URL unchanged.",
+        },
+        { status: 409 },
+      );
+    }
+
+    if (currentlyPublic && stringValue(input.status) === "draft") {
+      return Response.json(
+        {
+          error:
+            "A public Update cannot be moved back to draft. Use the guarded delete flow if it must leave the public website.",
+        },
+        { status: 409 },
+      );
+    }
+
+    if (
+      currentlyPublic &&
+      existing.status === "scheduled" &&
+      stringValue(input.status) === "scheduled"
+    ) {
+      input.status = "published";
+      input.published_at =
+        nullableTimestamp(input.published_at) ||
+        nullableTimestamp(existing.scheduled_for) ||
+        new Date().toISOString();
+      input.scheduled_for = null;
+    } else {
+      const scheduleError = validateFutureSchedule(input);
+      if (scheduleError) {
+        return Response.json({ error: scheduleError }, { status: 400 });
+      }
     }
 
     const publishing = ["published", "scheduled"].includes(input.status);
-    const slug = resolveSlug(input, publishing);
+    const slug = currentlyPublic
+      ? stringValue(existing.slug)
+      : resolveSlug(input, publishing);
     const canonical = canonicalPath(slug);
     const issues = inspectSeo(seoInput(input, slug));
 
@@ -130,45 +156,53 @@ export async function POST(req: Request) {
       return Response.json({ error: "seo_blocked", issues }, { status: 422 });
     }
 
-    const now = new Date().toISOString();
     const payload: Record<string, any> = {
       ...input,
       slug,
       canonical_path: canonical,
       scheduled_for: nullableTimestamp(input.scheduled_for),
-      created_by: user.id,
+      published_at: nullableTimestamp(input.published_at),
       updated_by: user.id,
-      updated_at: now,
-      published_at:
-        input.status === "published"
-          ? nullableTimestamp(input.published_at) || now
-          : nullableTimestamp(input.published_at),
+      updated_at: new Date().toISOString(),
     };
 
     delete payload.id;
+    delete payload.created_at;
+    delete payload.created_by;
     delete payload.imageMeta;
     delete payload.deleted_at;
     delete payload.delete_after;
     delete payload.deleted_by;
 
-    const sb = adminClient();
+    if (input.status === "published" && !payload.published_at) {
+      payload.published_at = new Date().toISOString();
+    }
+
     const { data, error } = await sb
       .from("stayknown_updates_posts")
-      .insert(payload)
+      .update(payload)
+      .eq("id", id)
+      .is("deleted_at", null)
       .select("*")
-      .single();
+      .maybeSingle();
 
     if (error) throw error;
+    if (!data) {
+      return Response.json(
+        { error: "This publication is unavailable or is in Recently Deleted." },
+        { status: 409 },
+      );
+    }
 
     await sb.from("stayknown_update_audit_log").insert({
-      post_id: data.id,
+      post_id: id,
       actor_user_id: user.id,
       action:
         data.status === "published"
-          ? "created_published"
+          ? "published"
           : data.status === "scheduled"
-            ? "created_scheduled"
-            : "created",
+            ? "scheduled"
+            : "updated",
       details: {
         status: data.status,
         published_at: data.published_at || null,
@@ -176,12 +210,7 @@ export async function POST(req: Request) {
       },
     });
 
-    const discovery =
-      data.status === "published"
-        ? await notifyUpdatesDiscovery([data.slug], "publish")
-        : null;
-
-    return Response.json({ post: data, issues, discovery }, { status: 201 });
+    return Response.json({ post: data, issues });
   } catch (e: any) {
     return Response.json({ error: e.message }, { status: e.status || 500 });
   }

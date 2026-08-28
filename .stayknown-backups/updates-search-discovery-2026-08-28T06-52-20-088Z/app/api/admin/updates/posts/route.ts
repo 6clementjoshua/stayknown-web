@@ -3,7 +3,6 @@ import { randomUUID } from "node:crypto";
 import { adminClient, canonicalPath } from "@/lib/stayknown-updates";
 import { requireUpdatesAdmin } from "@/lib/stayknown-updates-auth";
 import { inspectSeo } from "@/lib/stayknown-updates-seo";
-import { notifyUpdatesDiscovery } from "@/lib/stayknown-updates-discovery";
 
 const VALID_SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
@@ -22,10 +21,7 @@ function slugBase(value: string): string {
     .replace(/-+$/g, "");
 }
 
-function resolveSlug(
-  input: Record<string, unknown>,
-  publishing: boolean,
-): string {
+function resolveSlug(input: Record<string, unknown>, publishing: boolean): string {
   const requested = stringValue(input.slug);
 
   if (publishing) return requested;
@@ -110,11 +106,7 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
-    const { user } = await requireUpdatesAdmin(req, [
-      "owner",
-      "admin",
-      "editor",
-    ]);
+    const { user } = await requireUpdatesAdmin(req, ["owner", "admin", "editor"]);
     const input = (await req.json()) as Record<string, any>;
     const scheduleError = validateSchedule(input);
     if (scheduleError) {
@@ -176,12 +168,7 @@ export async function POST(req: Request) {
       },
     });
 
-    const discovery =
-      data.status === "published"
-        ? await notifyUpdatesDiscovery([data.slug], "publish")
-        : null;
-
-    return Response.json({ post: data, issues, discovery }, { status: 201 });
+    return Response.json({ post: data, issues }, { status: 201 });
   } catch (e: any) {
     return Response.json({ error: e.message }, { status: e.status || 500 });
   }

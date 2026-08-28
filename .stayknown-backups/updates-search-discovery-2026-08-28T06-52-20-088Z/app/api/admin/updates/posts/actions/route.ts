@@ -1,21 +1,12 @@
-import { adminClient, isPublicPost } from "@/lib/stayknown-updates";
-import { notifyUpdatesDiscovery } from "@/lib/stayknown-updates-discovery";
+import { adminClient } from "@/lib/stayknown-updates";
 import { requireUpdatesAdmin } from "@/lib/stayknown-updates-auth";
 
-const UUID =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const MAX_BULK = 100;
 
 function idsFrom(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
-  return [
-    ...new Set(
-      value
-        .map(String)
-        .map((item) => item.trim())
-        .filter((item) => UUID.test(item)),
-    ),
-  ].slice(0, MAX_BULK);
+  return [...new Set(value.map(String).map((item) => item.trim()).filter((item) => UUID.test(item)))].slice(0, MAX_BULK);
 }
 
 function noStoreJson(body: unknown, init: ResponseInit = {}) {
@@ -35,27 +26,19 @@ export async function POST(req: Request) {
     const ids = idsFrom(input?.ids);
 
     if (!ids.length) {
-      return noStoreJson(
-        { ok: false, error: "Choose at least one publication." },
-        { status: 400 },
-      );
+      return noStoreJson({ ok: false, error: "Choose at least one publication." }, { status: 400 });
     }
 
     if (action === "permanent_delete") {
       const { user } = await requireUpdatesAdmin(req, ["owner", "admin"]);
       if (input?.confirmation !== "PERMANENTLY DELETE") {
-        return noStoreJson(
-          { ok: false, error: "Permanent deletion confirmation is required." },
-          { status: 409 },
-        );
+        return noStoreJson({ ok: false, error: "Permanent deletion confirmation is required." }, { status: 409 });
       }
 
       const sb = adminClient();
       const { data: rows, error: readError } = await sb
         .from("stayknown_updates_posts")
-        .select(
-          "id,title,slug,status,published_at,scheduled_for,created_at,deleted_at",
-        )
+        .select("id,title,status,deleted_at")
         .in("id", ids)
         .not("deleted_at", "is", null);
       if (readError) throw readError;
@@ -82,26 +65,17 @@ export async function POST(req: Request) {
       return noStoreJson({ ok: true, count: deletableIds.length });
     }
 
-    const { user } = await requireUpdatesAdmin(req, [
-      "owner",
-      "admin",
-      "editor",
-    ]);
+    const { user } = await requireUpdatesAdmin(req, ["owner", "admin", "editor"]);
     const sb = adminClient();
 
     if (action === "soft_delete") {
       if (input?.confirmation !== "DELETE") {
-        return noStoreJson(
-          { ok: false, error: "Deletion confirmation is required." },
-          { status: 409 },
-        );
+        return noStoreJson({ ok: false, error: "Deletion confirmation is required." }, { status: 409 });
       }
 
       const { data: rows, error: readError } = await sb
         .from("stayknown_updates_posts")
-        .select(
-          "id,title,slug,status,published_at,scheduled_for,created_at,deleted_at",
-        )
+        .select("id,title,status,deleted_at")
         .in("id", ids)
         .is("deleted_at", null);
       if (readError) throw readError;
@@ -110,9 +84,7 @@ export async function POST(req: Request) {
       if (!activeIds.length) return noStoreJson({ ok: true, count: 0 });
 
       const deletedAt = new Date();
-      const deleteAfter = new Date(
-        deletedAt.getTime() + 90 * 24 * 60 * 60 * 1000,
-      );
+      const deleteAfter = new Date(deletedAt.getTime() + 90 * 24 * 60 * 60 * 1000);
       const { error: updateError } = await sb
         .from("stayknown_updates_posts")
         .update({
@@ -137,27 +109,13 @@ export async function POST(req: Request) {
         })),
       );
 
-      const publicSlugs = (rows || [])
-        .filter((row: any) => isPublicPost({ ...row, deleted_at: null }))
-        .map((row: any) => row.slug);
-      const discovery = publicSlugs.length
-        ? await notifyUpdatesDiscovery(publicSlugs, "soft_delete")
-        : null;
-
-      return noStoreJson({
-        ok: true,
-        count: activeIds.length,
-        deleteAfter: deleteAfter.toISOString(),
-        discovery,
-      });
+      return noStoreJson({ ok: true, count: activeIds.length, deleteAfter: deleteAfter.toISOString() });
     }
 
     if (action === "restore") {
       const { data: rows, error: readError } = await sb
         .from("stayknown_updates_posts")
-        .select(
-          "id,title,slug,status,published_at,scheduled_for,created_at,deleted_at",
-        )
+        .select("id,title,status,deleted_at")
         .in("id", ids)
         .not("deleted_at", "is", null);
       if (readError) throw readError;
@@ -181,20 +139,10 @@ export async function POST(req: Request) {
         })),
       );
 
-      const publicSlugs = (rows || [])
-        .filter((row: any) => isPublicPost({ ...row, deleted_at: null }))
-        .map((row: any) => row.slug);
-      const discovery = publicSlugs.length
-        ? await notifyUpdatesDiscovery(publicSlugs, "restore")
-        : null;
-
-      return noStoreJson({ ok: true, count: restoreIds.length, discovery });
+      return noStoreJson({ ok: true, count: restoreIds.length });
     }
 
-    return noStoreJson(
-      { ok: false, error: "Unsupported publication action." },
-      { status: 400 },
-    );
+    return noStoreJson({ ok: false, error: "Unsupported publication action." }, { status: 400 });
   } catch (error) {
     const status = Number((error as { status?: number })?.status) || 500;
     console.error("updates_publication_action_failed", error);

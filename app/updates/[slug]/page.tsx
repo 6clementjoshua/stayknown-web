@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Script from "next/script";
+
 import { UpdateArticle } from "@/components/updates/UpdateArticle";
 import {
   canonicalPath,
@@ -10,42 +11,53 @@ import {
   publicDate,
   SITE_URL,
 } from "@/lib/stayknown-updates";
+
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
+
 export async function generateMetadata({
   params,
 }: {
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const p = await getPublicUpdate(slug);
-  if (!p)
+  const post = await getPublicUpdate(slug);
+
+  if (!post) {
     return {
       title: "Update not found",
       robots: { index: false, follow: false },
     };
-  const path = canonicalPath(p.slug);
-  const image = p.image_16_9_url || p.hero_image_url || undefined;
+  }
+
+  const path = canonicalPath(post.slug);
+  const image = post.image_16_9_url || post.hero_image_url || undefined;
+
   return {
-    title: p.seo_title || p.title,
-    description: p.seo_description || p.summary,
-    alternates: { canonical: path },
+    title: post.seo_title || post.title,
+    description: post.seo_description || post.summary,
+    alternates: {
+      canonical: path,
+      types: {
+        "application/rss+xml": `${SITE_URL}/updates/feed.xml`,
+      },
+    },
     openGraph: {
       type: "article",
       url: path,
       siteName: "StayKnown",
-      title: p.seo_title || p.title,
-      description: p.seo_description || p.summary,
+      title: post.seo_title || post.title,
+      description: post.seo_description || post.summary,
       images: image
-        ? [{ url: image, alt: p.hero_alt_text || p.title }]
+        ? [{ url: image, alt: post.hero_alt_text || post.title }]
         : undefined,
-      publishedTime: publicDate(p),
-      modifiedTime: p.updated_at,
+      publishedTime: publicDate(post),
+      modifiedTime: post.updated_at,
     },
     twitter: {
       card: "summary_large_image",
-      title: p.seo_title || p.title,
-      description: p.seo_description || p.summary,
+      title: post.seo_title || post.title,
+      description: post.seo_description || post.summary,
       images: image ? [image] : undefined,
     },
     robots: {
@@ -61,48 +73,91 @@ export async function generateMetadata({
     },
   };
 }
+
 export default async function Page({
   params,
 }: {
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const p = await getPublicUpdate(slug);
-  if (!p) notFound();
-  const views = await getRouteViews(canonicalPath(p.slug));
-  const images = [p.image_1_1_url, p.image_4_3_url, p.image_16_9_url].filter(
-    Boolean,
-  );
-  const ld = {
+  const post = await getPublicUpdate(slug);
+  if (!post) notFound();
+
+  const views = await getRouteViews(canonicalPath(post.slug));
+  const images = [
+    post.image_1_1_url,
+    post.image_4_3_url,
+    post.image_16_9_url,
+  ].filter((value): value is string => Boolean(value));
+
+  const firstVideo = Array.isArray(post.body)
+    ? (post.body as any[]).find(
+        (block) => block?.type === "video" && typeof block?.url === "string",
+      )
+    : null;
+  const videoThumbnail =
+    firstVideo?.poster_url ||
+    post.image_16_9_url ||
+    post.hero_image_url ||
+    null;
+
+  const articleUrl = canonicalUrl(post.slug);
+  const jsonLd: Record<string, any> = {
     "@context": "https://schema.org",
-    "@type": p.article_type || "Article",
-    headline: p.title,
-    description: p.summary,
+    "@type": post.article_type || "Article",
+    "@id": `${articleUrl}#article`,
+    url: articleUrl,
+    headline: post.title,
+    description: post.summary,
     image: images,
-    datePublished: publicDate(p),
-    dateModified: p.updated_at,
-    mainEntityOfPage: { "@type": "WebPage", "@id": canonicalUrl(p.slug) },
+    thumbnailUrl: post.image_16_9_url || post.hero_image_url || undefined,
+    datePublished: publicDate(post),
+    dateModified: post.updated_at,
+    inLanguage: "en",
+    isAccessibleForFree: true,
+    articleSection: post.category || undefined,
+    mainEntityOfPage: {
+      "@type": "WebPage",
+      "@id": articleUrl,
+    },
     author: {
-      "@type": p.author_name === "StayKnown" ? "Organization" : "Person",
-      name: p.author_name,
-      ...(p.author_url ? { url: p.author_url } : {}),
+      "@type": post.author_name === "StayKnown" ? "Organization" : "Person",
+      name: post.author_name,
+      ...(post.author_url ? { url: post.author_url } : {}),
     },
     publisher: {
       "@type": "Organization",
       name: "StayKnown",
       url: SITE_URL,
-      logo: { "@type": "ImageObject", url: `${SITE_URL}/favicon.png` },
+      logo: {
+        "@type": "ImageObject",
+        url: `${SITE_URL}/favicon.png`,
+      },
     },
   };
+
+  if (firstVideo && videoThumbnail) {
+    jsonLd.video = {
+      "@type": "VideoObject",
+      name: firstVideo.title || firstVideo.caption || post.title,
+      description: firstVideo.caption || post.summary,
+      contentUrl: firstVideo.url,
+      thumbnailUrl: [videoThumbnail],
+      uploadDate: publicDate(post),
+    };
+  }
+
   return (
     <>
       <Script
         id="stayknown-update-jsonld"
         type="application/ld+json"
         strategy="beforeInteractive"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(ld) }}
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c"),
+        }}
       />
-      <UpdateArticle post={p} views={views} />
+      <UpdateArticle post={post} views={views} />
     </>
   );
 }

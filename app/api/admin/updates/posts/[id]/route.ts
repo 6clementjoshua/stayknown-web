@@ -1,8 +1,13 @@
 import { randomUUID } from "node:crypto";
 
-import { adminClient, canonicalPath, isPublicPost } from "@/lib/stayknown-updates";
+import {
+  adminClient,
+  canonicalPath,
+  isPublicPost,
+} from "@/lib/stayknown-updates";
 import { requireUpdatesAdmin } from "@/lib/stayknown-updates-auth";
 import { inspectSeo } from "@/lib/stayknown-updates-seo";
+import { notifyUpdatesDiscovery } from "@/lib/stayknown-updates-discovery";
 
 const VALID_SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
@@ -21,7 +26,10 @@ function slugBase(value: string): string {
     .replace(/-+$/g, "");
 }
 
-function resolveSlug(input: Record<string, unknown>, publishing: boolean): string {
+function resolveSlug(
+  input: Record<string, unknown>,
+  publishing: boolean,
+): string {
   const requested = stringValue(input.slug);
 
   if (publishing) return requested;
@@ -82,7 +90,11 @@ export async function PUT(
 ) {
   try {
     const { id } = await params;
-    const { user } = await requireUpdatesAdmin(req, ["owner", "admin", "editor"]);
+    const { user } = await requireUpdatesAdmin(req, [
+      "owner",
+      "admin",
+      "editor",
+    ]);
     const input = (await req.json()) as Record<string, any>;
     const sb = adminClient();
 
@@ -210,7 +222,14 @@ export async function PUT(
       },
     });
 
-    return Response.json({ post: data, issues });
+    const discovery = isPublicPost(data as any)
+      ? await notifyUpdatesDiscovery(
+          [data.slug],
+          currentlyPublic ? "public_update_changed" : "publish",
+        )
+      : null;
+
+    return Response.json({ post: data, issues, discovery });
   } catch (e: any) {
     return Response.json({ error: e.message }, { status: e.status || 500 });
   }
