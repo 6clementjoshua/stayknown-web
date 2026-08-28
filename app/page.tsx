@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import StayKnownHomePage from "@/components/StayKnownHomePage";
 import { HOME_FAQS } from "@/lib/stayknown-home-content";
 
@@ -7,10 +7,10 @@ const GOOGLE_PLAY_URL =
   "https://play.google.com/store/apps/details?id=com.stayknown.app";
 
 const TITLE =
-  "StayKnown Safety & Secure Chat App | LIVE Visits, I’M SAFE & SOS";
+  "StayKnown Safety & Secure Chat App | LIVE Visits, Iâ€™M SAFE & SOS";
 
 const DESCRIPTION =
-  "StayKnown is a consent-first Android safety and secure chat app for approved contacts, active Visits, LIVE sharing, I’M SAFE check-ins, SOS, protected chat entry, translation, voice notes, and media.";
+  "StayKnown is a consent-first Android safety and secure chat app for approved contacts, active Visits, LIVE sharing, Iâ€™M SAFE check-ins, SOS, protected chat entry, translation, voice notes, and media.";
 
 export const metadata: Metadata = {
   title: TITLE,
@@ -94,7 +94,7 @@ function buildHomepageJsonLd() {
     },
     {
       "@type": "Offer",
-      name: "StayKnown Pro Monthly — Global",
+      name: "StayKnown Pro Monthly â€” Global",
       price: "14.99",
       priceCurrency: "USD",
       availability: "https://schema.org/InStock",
@@ -102,7 +102,7 @@ function buildHomepageJsonLd() {
     },
     {
       "@type": "Offer",
-      name: "StayKnown Pro Yearly — Global",
+      name: "StayKnown Pro Yearly â€” Global",
       price: "149.99",
       priceCurrency: "USD",
       availability: "https://schema.org/InStock",
@@ -110,7 +110,7 @@ function buildHomepageJsonLd() {
     },
     {
       "@type": "Offer",
-      name: "StayKnown Pro Max Monthly — Global",
+      name: "StayKnown Pro Max Monthly â€” Global",
       price: "24.99",
       priceCurrency: "USD",
       availability: "https://schema.org/InStock",
@@ -118,7 +118,7 @@ function buildHomepageJsonLd() {
     },
     {
       "@type": "Offer",
-      name: "StayKnown Pro Max Yearly — Global",
+      name: "StayKnown Pro Max Yearly â€” Global",
       price: "249.99",
       priceCurrency: "USD",
       availability: "https://schema.org/InStock",
@@ -126,7 +126,7 @@ function buildHomepageJsonLd() {
     },
     {
       "@type": "Offer",
-      name: "StayKnown Pro Monthly — Nigeria",
+      name: "StayKnown Pro Monthly â€” Nigeria",
       price: "9999",
       priceCurrency: "NGN",
       eligibleRegion: {
@@ -138,7 +138,7 @@ function buildHomepageJsonLd() {
     },
     {
       "@type": "Offer",
-      name: "StayKnown Pro Yearly — Nigeria",
+      name: "StayKnown Pro Yearly â€” Nigeria",
       price: "99999",
       priceCurrency: "NGN",
       eligibleRegion: {
@@ -150,7 +150,7 @@ function buildHomepageJsonLd() {
     },
     {
       "@type": "Offer",
-      name: "StayKnown Pro Max Monthly — Nigeria",
+      name: "StayKnown Pro Max Monthly â€” Nigeria",
       price: "14999",
       priceCurrency: "NGN",
       eligibleRegion: {
@@ -162,7 +162,7 @@ function buildHomepageJsonLd() {
     },
     {
       "@type": "Offer",
-      name: "StayKnown Pro Max Yearly — Nigeria",
+      name: "StayKnown Pro Max Yearly â€” Nigeria",
       price: "149999",
       priceCurrency: "NGN",
       eligibleRegion: {
@@ -191,7 +191,7 @@ function buildHomepageJsonLd() {
           "@id": productId,
         },
         keywords:
-          "personal safety app, secure chat app, approved contacts, LIVE Visit sharing, I’M SAFE check-ins, SOS alerts, biometric protected chat, multilingual message translation, voice notes",
+          "personal safety app, secure chat app, approved contacts, LIVE Visit sharing, Iâ€™M SAFE check-ins, SOS alerts, biometric protected chat, multilingual message translation, voice notes",
         hasPart: {
           "@id": chatId,
         },
@@ -360,3 +360,4 @@ export default function Page() {
     </>
   );
 }
+

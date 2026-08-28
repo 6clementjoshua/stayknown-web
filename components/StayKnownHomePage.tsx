@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Image from "next/image";
 import { useEffect, useState } from "react";
@@ -111,7 +111,7 @@ const APP_SLIDES: HeroSlide[] = [
     kind: "device",
     title: "Live Map for Approved Contacts",
     teaser:
-      "Approved contacts can open a safety map only from the user’s permitted Visit or SOS flow, with privacy notice, session context, and lawful-use boundaries.",
+      "Approved contacts can open a safety map only from the userâ€™s permitted Visit or SOS flow, with privacy notice, session context, and lawful-use boundaries.",
   },
   {
     id: "promax-shell",
@@ -149,7 +149,7 @@ const APP_SLIDES: HeroSlide[] = [
     id: "end-sos-verify",
     src: "/hero/end-sos-verify.png",
     kind: "device",
-    title: "End SOS — Verified Stop",
+    title: "End SOS â€” Verified Stop",
     teaser:
       "When protection is active, ending SOS can require a stronger confirmation so emergency protection is not stopped by mistake.",
   },
@@ -157,7 +157,7 @@ const APP_SLIDES: HeroSlide[] = [
     id: "end-visit-verify",
     src: "/hero/end-visit-verify.png",
     kind: "device",
-    title: "End Visit — Confirmed Finish",
+    title: "End Visit â€” Confirmed Finish",
     teaser:
       "Visit completion can use a confirmation-first flow so safety sessions end with intent, not accidental taps.",
   },
@@ -662,7 +662,7 @@ function StayKnownIntroSection() {
       icon: "consent" as const,
       eyebrow: "Consent first",
       title: "Care without permanent surveillance.",
-      body: "Approved contacts, intentional sharing, visible privacy boundaries, and revocable access keep safety support connected to the user’s choice.",
+      body: "Approved contacts, intentional sharing, visible privacy boundaries, and revocable access keep safety support connected to the userâ€™s choice.",
     },
     {
       icon: "visit" as const,
@@ -734,7 +734,7 @@ function HowItWorksSection() {
       icon: "visit" as const,
       number: "02",
       title: "Start the right flow",
-      body: "Choose a Visit, I’M SAFE check-in, Capture, or SOS based on the situation.",
+      body: "Choose a Visit, Iâ€™M SAFE check-in, Capture, or SOS based on the situation.",
     },
     {
       icon: "live" as const,
@@ -951,7 +951,7 @@ function ChatAwarenessSection() {
                       ? "/hero/chat-translation.png"
                       : "/hero/secure-chat-biometric.png"
                   }
-                  alt=""
+                  alt="StayKnown secure chat safety preview"
                   width={300}
                   height={620}
                   className="h-auto w-full object-contain drop-shadow-[0_28px_64px_rgba(0,0,0,0.82)]"
@@ -1126,12 +1126,12 @@ function PlansSection() {
       capacities: [
         "1 approved contact",
         "Core Visit access",
-        "Twice-daily I’M SAFE",
+        "Twice-daily Iâ€™M SAFE",
       ],
       features: [
         "Start and end Visits",
         "Add a destination and review Visit history",
-        "Twice-daily I’M SAFE check-ins",
+        "Twice-daily Iâ€™M SAFE check-ins",
         "Basic emergency-contact and safety flows",
         "Core safety map and navigation",
         "Basic account, profile, and safety-proof access",
@@ -1141,9 +1141,9 @@ function PlansSection() {
       name: "Pro",
       kicker: "Full safety system",
       featured: true,
-      pricePrimary: "Nigeria · ₦9,999 monthly",
+      pricePrimary: "Nigeria Â· â‚¦9,999 monthly",
       priceSecondary:
-        "₦99,999 yearly · Global $14.99 monthly or $149.99 yearly",
+        "â‚¦99,999 yearly Â· Global $14.99 monthly or $149.99 yearly",
       capacities: [
         "3 approved contacts",
         "6 SOS contacts",
@@ -1167,9 +1167,9 @@ function PlansSection() {
       name: "Pro Max",
       kicker: "Complete premium access",
       featured: false,
-      pricePrimary: "Nigeria · ₦14,999 monthly",
+      pricePrimary: "Nigeria Â· â‚¦14,999 monthly",
       priceSecondary:
-        "₦149,999 yearly · Global $24.99 monthly or $249.99 yearly",
+        "â‚¦149,999 yearly Â· Global $24.99 monthly or $249.99 yearly",
       capacities: [
         "6 approved contacts",
         "10 SOS contacts",
@@ -1338,7 +1338,7 @@ function TrustSection() {
     {
       icon: "shield" as const,
       title: "Misuse is prohibited",
-      body: "StayKnown’s safety policies address stalking, harassment, luring, unauthorized monitoring, abuse, and unsafe use.",
+      body: "StayKnownâ€™s safety policies address stalking, harassment, luring, unauthorized monitoring, abuse, and unsafe use.",
       href: "/trust-safety",
       link: "Open Trust & Safety",
     },
@@ -1368,7 +1368,7 @@ function TrustSection() {
         <SectionHeading
           eyebrow="Trust and responsibility"
           title="Clear policies for safer, more respectful use."
-          body="Explore StayKnown’s privacy, consent, anti-stalking, emergency, child-safety, billing, and security commitments before relying on the service."
+          body="Explore StayKnownâ€™s privacy, consent, anti-stalking, emergency, child-safety, billing, and security commitments before relying on the service."
         />
 
         <div className="mt-10 grid gap-4 md:grid-cols-3">
@@ -1456,7 +1456,7 @@ function FaqSection() {
         <SectionHeading
           eyebrow="Questions answered"
           title="Understand the safety boundary before depending on it."
-          body="These are the most important questions about StayKnown’s consent model, location access, plans, and emergency role."
+          body="These are the most important questions about StayKnownâ€™s consent model, location access, plans, and emergency role."
         />
 
         <div className="mx-auto mt-9 grid max-w-4xl gap-3">
@@ -1591,7 +1591,7 @@ function SiteFooter() {
           <div>
             <div className="inline-flex items-center gap-3">
               <span className="flex h-11 w-11 items-center justify-center rounded-[16px] border border-white bg-white shadow-[0_12px_28px_rgba(0,0,0,0.40),inset_0_1px_0_rgba(255,255,255,1),inset_0_-5px_12px_rgba(0,0,0,0.09)]">
-                <Image src="/6logo.png" alt="" width={24} height={24} />
+                <Image src="/6logo.png" alt="StayKnown logo" width={24} height={24} />
               </span>
               <span>
                 <span className="block text-[13px] font-black tracking-[0.2em] text-white">
@@ -1644,10 +1644,10 @@ function SiteFooter() {
         <div className="mt-10 flex flex-col gap-3 border-t border-white/[0.08] pt-6 text-center sm:flex-row sm:items-center sm:justify-between sm:text-left">
           <div className="text-[11px] font-semibold text-white/36">
             A 6 Clement Joshua service
-            <span className="ml-1 align-super text-[9px] text-white/22">™</span>
+            <span className="ml-1 align-super text-[9px] text-white/22">â„¢</span>
           </div>
           <div className="text-[11px] font-semibold text-white/28">
-            {new Date().getFullYear()} • stay-known.com
+            {new Date().getFullYear()} â€¢ stay-known.com
           </div>
         </div>
       </div>
@@ -1928,7 +1928,7 @@ export default function StayKnownHomePage() {
             aria-label="StayKnown homepage"
           >
             <span className="flex h-9 w-9 items-center justify-center rounded-[13px] border border-white bg-white shadow-[0_10px_24px_rgba(0,0,0,0.36),inset_0_1px_0_rgba(255,255,255,1),inset_0_-4px_10px_rgba(0,0,0,0.09)]">
-              <Image src="/6logo.png" alt="" width={20} height={20} priority />
+              <Image src="/6logo.png" alt="StayKnown logo" width={20} height={20} priority />
             </span>
             <span>
               <span className="block text-[12px] font-black tracking-[0.22em] text-white">
@@ -2016,3 +2016,4 @@ export default function StayKnownHomePage() {
     </main>
   );
 }
+
