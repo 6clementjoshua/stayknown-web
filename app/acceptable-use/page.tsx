@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Image from "next/image";
 import { useEffect, useMemo } from "react";
@@ -24,7 +24,7 @@ function useSeoMeta() {
     if (typeof document === "undefined") return;
 
     document.title =
-      "StayKnown Acceptable Use Policy | Anti-Stalking, SOS, Chat, Live Location & Safety Rules";
+      "StayKnown Acceptable Use Policy";
 
     const upsertMeta = (name: string, content: string) => {
       let tag = document.querySelector<HTMLMetaElement>(`meta[name="${name}"]`);
@@ -50,7 +50,7 @@ function useSeoMeta() {
 
     upsertMeta(
       "description",
-      "Read the StayKnown Acceptable Use Policy covering anti-stalking rules, approved contacts, live location sharing, SOS alerts, secure chat, media, stickers, minors, payments, abuse reporting, Nigeria and global safety use.",
+      "Read StayKnown rules for lawful, consent-based use of LIVE location, SOS, secure chat, minors, payments, anti-stalking, reporting and abuse prevention.",
     );
     upsertMeta(
       "keywords",
@@ -476,7 +476,7 @@ function LinkCard({
           </p>
         </div>
         <span className="text-white/35 transition group-hover:translate-x-0.5 group-hover:text-white/80">
-          →
+          â†’
         </span>
       </div>
     </a>
@@ -589,7 +589,7 @@ export default function AcceptableUsePage() {
     publisher: {
       "@type": "Organization",
       name: "StayKnown",
-      brand: "A 6 Clement Joshua service™",
+      brand: "A 6 Clement Joshua serviceâ„¢",
       url: "https://stay-known.com",
     },
     description:
@@ -839,8 +839,8 @@ export default function AcceptableUsePage() {
                         "Only add contacts you have permission, lawful basis, or a legitimate safety relationship to notify.",
                         "Tell contacts they may receive StayKnown safety emails, push alerts, map links, chat context, SOS alerts, or updates.",
                         "Do not add contacts to embarrass, scare, annoy, threaten, punish, pressure, monitor, or control them.",
-                        "Do not use another person’s email, phone, username, image, profile, or identity without permission.",
-                        "Respect a contact’s request to stop receiving alerts unless a lawful safety basis requires otherwise.",
+                        "Do not use another personâ€™s email, phone, username, image, profile, or identity without permission.",
+                        "Respect a contactâ€™s request to stop receiving alerts unless a lawful safety basis requires otherwise.",
                         "Do not bypass contact approval, invite, decline, expiration, removal, blocked-add, or consent rules.",
                       ]}
                     />
@@ -891,7 +891,7 @@ export default function AcceptableUsePage() {
                     <UL
                       items={[
                         "Do not impersonate a user, contact, guardian, responder, emergency official, medical worker, support agent, law enforcement officer, government official, or StayKnown staff.",
-                        "Do not create fake emergencies to cause panic, force attention, damage someone’s reputation, or manipulate people.",
+                        "Do not create fake emergencies to cause panic, force attention, damage someoneâ€™s reputation, or manipulate people.",
                         "Do not use safety alerts, chat, or contact requests to request money, extort, blackmail, threaten, deceive, or pressure anyone.",
                         "Do not forge, replay, tamper with, or misrepresent StayKnown emails, notifications, live links, receipts, chat messages, SOS alerts, or approval pages.",
                         "Do not create multiple accounts to avoid restrictions, bans, plan limits, payment controls, contact limits, or enforcement.",
@@ -937,7 +937,7 @@ export default function AcceptableUsePage() {
                         "Do not create false emergency alerts, misleading manual captures, fake Visit sessions, or false safety events.",
                         "Do not use SOS to force someone to respond, meet, send money, prove loyalty, or reveal information.",
                         "Do not misuse emergency language to scare contacts, family, support, employers, schools, police, or public agencies.",
-                        "Do not interfere with a user’s active SOS or pressure them to end protection.",
+                        "Do not interfere with a userâ€™s active SOS or pressure them to end protection.",
                         "If you are in immediate danger, contact local emergency services directly first.",
                       ]}
                     />
@@ -962,7 +962,7 @@ export default function AcceptableUsePage() {
                         "Start a Visit only for real safety-focused context.",
                         "Do not create fake Visit sessions to deceive, pressure, frame, threaten, or manipulate someone.",
                         "Do not share LIVE links with people who should not receive them.",
-                        "Do not access, guess, reuse, brute-force, scrape, or publish another person’s live link.",
+                        "Do not access, guess, reuse, brute-force, scrape, or publish another personâ€™s live link.",
                         "Do not spoof GPS, fake movement, or alter device location to mislead StayKnown or contacts.",
                         "Do not use fake GPS, emulators, modified apps, rooted/jailbroken manipulation, automation, or network tools to falsify safety context.",
                         "Do not use location data to threaten, expose, follow, shame, control, punish, or exploit a person.",
@@ -1045,7 +1045,7 @@ export default function AcceptableUsePage() {
                     <UL
                       items={[
                         "Upload only lawful images, videos, files, voice content, and media you have the right to use.",
-                        "Do not upload another person’s private image, likeness, voice, or personal content without permission or lawful basis.",
+                        "Do not upload another personâ€™s private image, likeness, voice, or personal content without permission or lawful basis.",
                         "Do not use Safety Gallery, profile images, stories, or media to impersonate, defame, shame, expose, blackmail, or target anyone.",
                         "Do not use recognition images for stalking, surveillance, intimidation, or doxxing.",
                         "Do not bypass file, sticker, duration, storage, moderation, safety, or plan-gate rules.",
@@ -1092,8 +1092,8 @@ export default function AcceptableUsePage() {
                     <UL
                       items={[
                         "Under 13 users are not permitted to create an account or use StayKnown.",
-                        "Ages 13–15 require active guardian permission and supervision where allowed.",
-                        "Ages 16–17 require guardian permission or consent and lawful safety use where required.",
+                        "Ages 13â€“15 require active guardian permission and supervision where allowed.",
+                        "Ages 16â€“17 require guardian permission or consent and lawful safety use where required.",
                         "Do not use StayKnown to facilitate grooming, trafficking, kidnapping, coercion, exploitation, or unsafe contact.",
                         "Do not use chat, stories, stickers, media, location, contact requests, or alerts to pressure a minor.",
                         "If a minor is in immediate danger, contact emergency services or the appropriate local authority first.",
@@ -1132,7 +1132,7 @@ export default function AcceptableUsePage() {
                       16) Security, API, storage, and platform interference
                     </H2>
                     <P>
-                      StayKnown’s systems must not be attacked, bypassed,
+                      StayKnownâ€™s systems must not be attacked, bypassed,
                       reverse engineered, scraped, or interfered with.
                     </P>
                     <UL
@@ -1311,7 +1311,7 @@ export default function AcceptableUsePage() {
                   </section>
 
                   <section className="space-y-3 rounded-[1.6rem] border border-white/10 bg-white/[0.032] p-5">
-                    <H2>Appendix A — In-app short acceptable-use notice</H2>
+                    <H2>Appendix A â€” In-app short acceptable-use notice</H2>
                     <P>
                       Use StayKnown only for lawful, safety-focused,
                       consent-based purposes. Do not use StayKnown for stalking,
@@ -1343,13 +1343,13 @@ export default function AcceptableUsePage() {
                       <div className="text-[12px] font-semibold text-white/55">
                         A 6 Clement Joshua service
                         <span className="ml-1 align-super text-[10px] text-white/28">
-                          ™
+                          â„¢
                         </span>
                       </div>
                     </div>
 
                     <div className="mt-2 text-[11px] font-semibold text-white/32">
-                      {new Date().getFullYear()} • stay-known.com
+                      {new Date().getFullYear()} â€¢ stay-known.com
                     </div>
 
                     <p className="mx-auto mt-3 max-w-2xl text-[11px] font-semibold leading-relaxed text-white/30">
@@ -1368,3 +1368,4 @@ export default function AcceptableUsePage() {
     </main>
   );
 }
+

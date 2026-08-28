@@ -2,7 +2,6 @@
 import type { ReactNode } from "react";
 
 const TITLE = "GET SAFE Safety Guidance";
-const OG_TITLE = "GET SAFE Safety Guidance | StayKnown";
 const DESCRIPTION = "Explore StayKnown GET SAFE guidance for safer Visits, trusted contacts, check-ins, secure communication, location awareness and emergency preparation.";
 const CANONICAL = "/learn/get-safe-guidance";
 
@@ -17,7 +16,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     url: CANONICAL,
-    title: OG_TITLE,
+    title: TITLE,
     description: DESCRIPTION,
     siteName: "StayKnown",
     locale: "en_NG",
@@ -25,7 +24,7 @@ export const metadata: Metadata = {
 
   twitter: {
     card: "summary_large_image",
-    title: OG_TITLE,
+    title: TITLE,
     description: DESCRIPTION,
   },
 

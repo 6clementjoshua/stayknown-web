@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Image from "next/image";
 import Link from "next/link";
@@ -22,7 +22,7 @@ function MobileNavLink({ href, label }: { href: string; label: string }) {
       "
     >
       <span>{label}</span>
-      <span className="opacity-60">›</span>
+      <span className="opacity-60">â€º</span>
       <span className="pointer-events-none absolute inset-0 opacity-0 active:opacity-100 transition duration-75 bg-white/[0.06]" />
     </Link>
   );
@@ -49,7 +49,7 @@ function CTA({ href, label }: { href: string; label: string }) {
     >
       <span className="pointer-events-none absolute inset-0 bg-[linear-gradient(110deg,transparent,rgba(255,255,255,0.14),transparent)] -translate-x-[120%] group-hover:translate-x-[120%] transition duration-700" />
       <span className="relative">{label}</span>
-      <span className="relative ml-2 opacity-70">→</span>
+      <span className="relative ml-2 opacity-70">â†’</span>
     </Link>
   );
 }
@@ -245,7 +245,7 @@ function TierBlock({
               key={i}
               className="flex gap-2.5 text-white/62 font-medium text-[12.6px] leading-relaxed"
             >
-              <span className="mt-[2px] text-white/42">•</span>
+              <span className="mt-[2px] text-white/42">â€¢</span>
               <span>{b}</span>
             </li>
           ))}
@@ -314,9 +314,9 @@ function SoliloquyBox() {
       <div className="p-5 sm:p-6">
         <SectionLabel>Scenario thinking</SectionLabel>
         <div className="mt-3 text-[19px] sm:text-[24px] font-black tracking-[-0.045em] leading-tight text-white">
-          “I am going somewhere. I want someone I trust to know I started
+          â€œI am going somewhere. I want someone I trust to know I started
           safely, see the Visit is active, and understand when it becomes
-          urgent.”
+          urgent.â€
         </div>
         <div className="mt-4 space-y-3 text-[12.7px] leading-relaxed text-white/58 font-medium">
           <p>
@@ -392,7 +392,7 @@ export default function LearnVisitLiveSosPage() {
               STAYKNOWN
             </div>
             <div className="text-white/40 font-semibold text-[11px]">
-              Learn • Live Visit + SOS
+              Learn â€¢ Live Visit + SOS
             </div>
           </div>
 
@@ -419,7 +419,7 @@ export default function LearnVisitLiveSosPage() {
           <div className="mx-auto max-w-4xl">
             <div className="order-1 lg:order-none lg:col-start-2">
               <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.045] px-3 py-1.5 text-[10.5px] font-black tracking-[0.20em] text-white/46 uppercase">
-                Visit → LIVE → SOS readiness
+                Visit â†’ LIVE â†’ SOS readiness
               </div>
 
               <h1 className="mt-4 text-white/95 font-black tracking-[-0.06em] text-[38px] sm:text-[54px] lg:text-[60px] leading-[0.94]">
@@ -541,7 +541,7 @@ export default function LearnVisitLiveSosPage() {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-6">
-            <FeatureCard glyph="▶" title="How a Visit works">
+            <FeatureCard glyph="â–¶" title="How a Visit works">
               <div className="space-y-2">
                 <div>
                   <span className="text-white/78 font-black">1)</span> The user
@@ -552,7 +552,7 @@ export default function LearnVisitLiveSosPage() {
                 <div>
                   <span className="text-white/78 font-black">2)</span> LIVE
                   context becomes active during that session, so trusted
-                  contacts can understand the user’s safety status.
+                  contacts can understand the userâ€™s safety status.
                 </div>
                 <div>
                   <span className="text-white/78 font-black">3)</span> When the
@@ -560,7 +560,7 @@ export default function LearnVisitLiveSosPage() {
                 </div>
               </div>
               <div className="mt-3 text-white/45">
-                Example: <em>“I’m leaving now. Keep an eye until I arrive.”</em>
+                Example: <em>â€œIâ€™m leaving now. Keep an eye until I arrive.â€</em>
               </div>
             </FeatureCard>
 
@@ -575,18 +575,18 @@ export default function LearnVisitLiveSosPage() {
               </div>
             </FeatureCard>
 
-            <FeatureCard glyph="▣" title="What trusted contacts understand">
-              A good safety alert should not be vague. StayKnown’s direction is
+            <FeatureCard glyph="â–£" title="What trusted contacts understand">
+              A good safety alert should not be vague. StayKnownâ€™s direction is
               to make messages understandable: who it is from, what state is
               active, and whether it is routine safety sharing or emergency
               escalation.
               <div className="mt-3 text-white/45">
-                Routine: <em>“Visit active.”</em> Emergency:{" "}
-                <em>“SOS triggered — please check immediately.”</em>
+                Routine: <em>â€œVisit active.â€</em> Emergency:{" "}
+                <em>â€œSOS triggered â€” please check immediately.â€</em>
               </div>
             </FeatureCard>
 
-            <FeatureCard glyph="⌁" title="Why this helps visitors trust it">
+            <FeatureCard glyph="âŒ" title="Why this helps visitors trust it">
               Visitors do not need technical language. They need to understand
               the basic safety promise: StayKnown lets a user tell trusted
               people where they are, when they are actively in a safety session,
@@ -597,7 +597,7 @@ export default function LearnVisitLiveSosPage() {
               </div>
             </FeatureCard>
 
-            <FeatureCard glyph="◌" title="Why this matters to investors">
+            <FeatureCard glyph="â—Œ" title="Why this matters to investors">
               The product is not just a map. It combines safety sessions, user
               identity, contact trust, profile recognition, chat context, plan
               tiers, and escalation logic into one retention-friendly platform.
@@ -607,7 +607,7 @@ export default function LearnVisitLiveSosPage() {
               </div>
             </FeatureCard>
 
-            <FeatureCard glyph="⚖" title="Why this matters to law enforcement">
+            <FeatureCard glyph="âš–" title="Why this matters to law enforcement">
               StayKnown should communicate clearly that it is a user safety
               tool, not a substitute for emergency services and not a tool for
               abuse. Clear session states, trusted-recipient intent, and policy
@@ -618,7 +618,7 @@ export default function LearnVisitLiveSosPage() {
               </div>
             </FeatureCard>
 
-            <FeatureCard glyph="✦" title="UI states are intentionally obvious">
+            <FeatureCard glyph="âœ¦" title="UI states are intentionally obvious">
               The app separates ordinary and urgent states visually:{" "}
               <span className="text-white/78 font-black">Idle</span>,{" "}
               <span className="text-white/78 font-black">LIVE</span>, and{" "}
@@ -630,7 +630,7 @@ export default function LearnVisitLiveSosPage() {
               </div>
             </FeatureCard>
 
-            <FeatureCard glyph="⟡" title="Plan gating made simple">
+            <FeatureCard glyph="âŸ¡" title="Plan gating made simple">
               <div className="space-y-2">
                 <div>
                   <span className="text-white/78 font-black">Starter:</span>{" "}
@@ -703,7 +703,7 @@ export default function LearnVisitLiveSosPage() {
               >
                 Privacy Policy
               </a>
-              <span className="text-white/18">•</span>
+              <span className="text-white/18">â€¢</span>
               <a
                 href="/terms"
                 target="_blank"
@@ -712,7 +712,7 @@ export default function LearnVisitLiveSosPage() {
               >
                 Terms of Service
               </a>
-              <span className="text-white/18">•</span>
+              <span className="text-white/18">â€¢</span>
               <a
                 href="/acceptable-use"
                 target="_blank"
@@ -721,7 +721,7 @@ export default function LearnVisitLiveSosPage() {
               >
                 Acceptable Use
               </a>
-              <span className="text-white/18">•</span>
+              <span className="text-white/18">â€¢</span>
               <a
                 href="/safety"
                 target="_blank"
@@ -730,7 +730,7 @@ export default function LearnVisitLiveSosPage() {
               >
                 Safety &amp; Anti-Stalking
               </a>
-              <span className="text-white/18">•</span>
+              <span className="text-white/18">â€¢</span>
               <a
                 href="/emergency"
                 target="_blank"
@@ -739,7 +739,7 @@ export default function LearnVisitLiveSosPage() {
               >
                 Emergency Disclaimer
               </a>
-              <span className="text-white/18">•</span>
+              <span className="text-white/18">â€¢</span>
               <a
                 href="/minors"
                 target="_blank"
@@ -748,7 +748,7 @@ export default function LearnVisitLiveSosPage() {
               >
                 Child Safety &amp; Minor Use
               </a>
-              <span className="text-white/18">•</span>
+              <span className="text-white/18">â€¢</span>
               <a
                 href="/abuse"
                 target="_blank"
@@ -757,7 +757,7 @@ export default function LearnVisitLiveSosPage() {
               >
                 Abuse Reporting
               </a>
-              <span className="text-white/18">•</span>
+              <span className="text-white/18">â€¢</span>
               <a
                 href="/retention"
                 target="_blank"
@@ -766,7 +766,7 @@ export default function LearnVisitLiveSosPage() {
               >
                 Data Retention
               </a>
-              <span className="text-white/18">•</span>
+              <span className="text-white/18">â€¢</span>
               <a
                 href="/law"
                 target="_blank"
@@ -775,7 +775,7 @@ export default function LearnVisitLiveSosPage() {
               >
                 Law Enforcement
               </a>
-              <span className="text-white/18">•</span>
+              <span className="text-white/18">â€¢</span>
               <a
                 href="/security"
                 target="_blank"
@@ -789,12 +789,12 @@ export default function LearnVisitLiveSosPage() {
             <div className="text-[12px] font-semibold text-white/50">
               A 6 Clement Joshua service
               <span className="text-white/25 ml-1 align-super text-[10px]">
-                ™
+                â„¢
               </span>
             </div>
 
             <div className="text-[11px] font-semibold text-white/30">
-              {new Date().getFullYear()} • stay-known.com
+              {new Date().getFullYear()} â€¢ stay-known.com
             </div>
           </div>
         </div>
@@ -802,3 +802,4 @@ export default function LearnVisitLiveSosPage() {
     </main>
   );
 }
+

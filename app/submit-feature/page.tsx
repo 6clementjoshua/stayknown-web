@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Image from "next/image";
 import { FormEvent, useEffect, useMemo, useState } from "react";
@@ -27,7 +27,7 @@ function useSeoMeta() {
     if (typeof document === "undefined") return;
 
     document.title =
-      "Submit an App Feature | StayKnown Product Ideas, Safety Features & App Improvements";
+      "Submit a StayKnown Feature";
 
     const upsertMeta = (name: string, content: string) => {
       let tag = document.querySelector<HTMLMetaElement>(`meta[name="${name}"]`);
@@ -53,7 +53,7 @@ function useSeoMeta() {
 
     upsertMeta(
       "description",
-      "Submit a StayKnown app feature idea for safety, SOS, live location, approved contacts, chat, translation, stickers, stories, wallet, privacy, accessibility, and security improvements.",
+      "Submit a StayKnown feature idea for safety, SOS, LIVE location, trusted contacts, chat, privacy, accessibility, wallet and future product improvements.",
     );
     upsertMeta(
       "keywords",
@@ -507,7 +507,7 @@ export default function SubmitFeaturePage() {
     publisher: {
       "@type": "Organization",
       name: "StayKnown",
-      brand: "A 6 Clement Joshua service™",
+      brand: "A 6 Clement Joshua serviceâ„¢",
       url: SITE_URL,
       logo: LOGO_URL,
     },
@@ -976,13 +976,13 @@ export default function SubmitFeaturePage() {
                       <div className="text-[12px] font-semibold text-white/55">
                         A 6 Clement Joshua service
                         <span className="ml-1 align-super text-[10px] text-white/28">
-                          ™
+                          â„¢
                         </span>
                       </div>
                     </div>
 
                     <div className="mt-2 text-[11px] font-semibold text-white/32">
-                      {new Date().getFullYear()} • stay-known.com
+                      {new Date().getFullYear()} â€¢ stay-known.com
                     </div>
                   </div>
                 </footer>
@@ -994,3 +994,4 @@ export default function SubmitFeaturePage() {
     </main>
   );
 }
+

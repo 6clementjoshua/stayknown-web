@@ -1,8 +1,7 @@
 ﻿import type { Metadata } from "next";
 import type { ReactNode } from "react";
 
-const TITLE = "Acceptable Use Policy";
-const OG_TITLE = "Acceptable Use Policy | StayKnown";
+const TITLE = "StayKnown Acceptable Use Policy";
 const DESCRIPTION = "Read StayKnown rules for lawful, consent-based use of LIVE location, SOS, secure chat, minors, payments, anti-stalking, reporting and abuse prevention.";
 const CANONICAL = "/acceptable-use";
 
@@ -17,7 +16,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     url: CANONICAL,
-    title: OG_TITLE,
+    title: TITLE,
     description: DESCRIPTION,
     siteName: "StayKnown",
     locale: "en_NG",
@@ -25,7 +24,7 @@ export const metadata: Metadata = {
 
   twitter: {
     card: "summary_large_image",
-    title: OG_TITLE,
+    title: TITLE,
     description: DESCRIPTION,
   },
 

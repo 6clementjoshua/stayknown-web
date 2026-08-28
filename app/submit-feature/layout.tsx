@@ -1,8 +1,7 @@
 ﻿import type { Metadata } from "next";
 import type { ReactNode } from "react";
 
-const TITLE = "Submit a Feature";
-const OG_TITLE = "Submit a Feature | StayKnown";
+const TITLE = "Submit a StayKnown Feature";
 const DESCRIPTION = "Submit a StayKnown feature idea for safety, SOS, LIVE location, trusted contacts, chat, privacy, accessibility, wallet and future product improvements.";
 const CANONICAL = "/submit-feature";
 
@@ -17,7 +16,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     url: CANONICAL,
-    title: OG_TITLE,
+    title: TITLE,
     description: DESCRIPTION,
     siteName: "StayKnown",
     locale: "en_NG",
@@ -25,7 +24,7 @@ export const metadata: Metadata = {
 
   twitter: {
     card: "summary_large_image",
-    title: OG_TITLE,
+    title: TITLE,
     description: DESCRIPTION,
   },
 

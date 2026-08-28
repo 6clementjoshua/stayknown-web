@@ -1,8 +1,7 @@
 ﻿import type { Metadata } from "next";
 import type { ReactNode } from "react";
 
-const TITLE = "Visit, LIVE \u0026 SOS Safety";
-const OG_TITLE = "Visit, LIVE \u0026 SOS Safety | StayKnown";
+const TITLE = "Visit, LIVE & SOS Safety";
 const DESCRIPTION = "Learn how StayKnown combines active Visits, LIVE safety sharing and SOS escalation so trusted contacts receive clearer context when support is needed.";
 const CANONICAL = "/learn/visit-live-sos";
 
@@ -17,7 +16,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     url: CANONICAL,
-    title: OG_TITLE,
+    title: TITLE,
     description: DESCRIPTION,
     siteName: "StayKnown",
     locale: "en_NG",
@@ -25,7 +24,7 @@ export const metadata: Metadata = {
 
   twitter: {
     card: "summary_large_image",
-    title: OG_TITLE,
+    title: TITLE,
     description: DESCRIPTION,
   },
 
