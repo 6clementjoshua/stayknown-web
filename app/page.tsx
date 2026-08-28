@@ -10,7 +10,7 @@ const TITLE =
   "StayKnown Safety & Secure Chat App | LIVE Visits, Iâ€™M SAFE & SOS";
 
 const DESCRIPTION =
-  "StayKnown is a consent-first Android safety and secure chat app for approved contacts, active Visits, LIVE sharing, Iâ€™M SAFE check-ins, SOS, protected chat entry, translation, voice notes, and media.";
+  "StayKnown is a consent-first safety app with LIVE Visits, I'M SAFE check-ins, SOS alerts, approved contacts, secure chat and location sharing.";
 
 export const metadata: Metadata = {
   title: TITLE,
