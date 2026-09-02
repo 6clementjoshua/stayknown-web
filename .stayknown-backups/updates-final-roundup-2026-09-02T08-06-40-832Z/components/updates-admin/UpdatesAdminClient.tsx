@@ -724,33 +724,6 @@ export default function UpdatesAdminClient() {
   const issues = useMemo(() => inspectSeo(post), [post]);
   const blockers = issues.filter((issue) => issue.level === "block").length;
 
-  // The header badge is contextual:
-  // - inside Posts, it reflects the Update currently being edited;
-  // - everywhere else, it reflects only persisted active drafts/scheduled posts.
-  // This prevents the untouched blank New Update template from reporting
-  // false global SEO blockers on Overview.
-  const persistedSeoBlockers = useMemo(
-    () =>
-      posts
-        .filter(
-          (item) =>
-            !item?.deleted_at &&
-            (item?.status === "draft" || item?.status === "scheduled"),
-        )
-        .reduce((total, item) => {
-          const normalized = normalizePost(item);
-          return (
-            total +
-            inspectSeo(normalized).filter(
-              (issue: SeoIssue) => issue.level === "block",
-            ).length
-          );
-        }, 0),
-    [posts],
-  );
-
-  const headerBlockers = tab === "Posts" ? blockers : persistedSeoBlockers;
-
   function set(key: string, value: any) {
     setPublishFeedback(null);
     setPost((current: any) => {
@@ -1488,13 +1461,13 @@ export default function UpdatesAdminClient() {
           <div className="flex items-center gap-2">
             <span
               className={`rounded-full border px-3 py-2 text-[9px] font-black ${
-                headerBlockers
+                blockers
                   ? "border-white/[0.22] text-white/[0.55]"
                   : "border-white/[0.15] text-white/[0.4]"
               }`}
             >
-              {headerBlockers
-                ? `${headerBlockers} SEO BLOCKER${headerBlockers > 1 ? "S" : ""}`
+              {blockers
+                ? `${blockers} SEO BLOCKER${blockers > 1 ? "S" : ""}`
                 : "SEO READY"}
             </span>
             <button
