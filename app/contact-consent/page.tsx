@@ -19,8 +19,7 @@ function useSeoMeta() {
   useEffect(() => {
     if (typeof document === "undefined") return;
 
-    document.title =
-      "StayKnown Contact Consent & Approved Contacts Policy";
+    document.title = "StayKnown Contact Consent & Approved Contacts Policy";
 
     const upsertMeta = (name: string, content: string) => {
       let tag = document.querySelector<HTMLMetaElement>(`meta[name="${name}"]`);
@@ -702,7 +701,7 @@ export default function ContactConsentPage() {
                       items={[
                         "To help trusted people know when a user has started, updated, or ended a safety session.",
                         "To help contacts understand location or map context during active Visit, SOS, manual capture, or chat safety flows.",
-                        "To make safety alerts more meaningful by showing the userâ€™s identity, profile, or safety gallery context where supported.",
+                        "To make safety alerts more meaningful by showing the user'™s identity, profile, or safety gallery context where supported.",
                         "To create a consent-based system that discourages stalking, harassment, hidden tracking, and unwanted monitoring.",
                         "To support lawful family, friend, workplace, community, travel, event, school, or personal safety arrangements where allowed.",
                       ]}
@@ -740,8 +739,8 @@ export default function ContactConsentPage() {
                     <H3>3.4 Visitors and map viewers</H3>
                     <P>
                       A map viewer may be able to open a permitted StayKnown map
-                      link only because the userâ€™s safety flow allowed it. A map
-                      viewer does not receive unlimited account access.
+                      link only because the user'™s safety flow allowed it. A
+                      map viewer does not receive unlimited account access.
                     </P>
 
                     <Example
@@ -807,7 +806,7 @@ export default function ContactConsentPage() {
                     <UL
                       items={[
                         "Use received safety information only for the safety purpose intended.",
-                        "Do not publish, sell, leak, shame, threaten, exploit, or misuse another personâ€™s location or safety data.",
+                        "Do not publish, sell, leak, shame, threaten, exploit, or misuse another person'™s location or safety data.",
                         "Do not use map access as permission to stalk, follow, control, harass, or confront someone unsafely.",
                         "If a safety alert appears urgent, contact the user where safe and use appropriate local emergency channels if danger is suspected.",
                         "If you no longer want the role, use available removal or support options.",
@@ -903,8 +902,8 @@ export default function ContactConsentPage() {
                     <UL
                       items={[
                         "Under 13 users are not permitted to create an account or use StayKnown.",
-                        "Ages 13â€“15 may use StayKnown only with active parent or legal guardian permission and supervision, where allowed.",
-                        "Ages 16â€“17 may use StayKnown with parent or legal guardian permission/consent and lawful safety purpose, where required.",
+                        "Ages 13'“15 may use StayKnown only with active parent or legal guardian permission and supervision, where allowed.",
+                        "Ages 16'“17 may use StayKnown with parent or legal guardian permission/consent and lawful safety purpose, where required.",
                         "If local law requires stricter age, guardian, school, workplace, or data rules, the stricter rule applies.",
                         "Adults must not use StayKnown to secretly monitor minors unless they have lawful authority and the use is consistent with applicable law and safety purpose.",
                         "Schools, organizations, churches, nonprofits, workplaces, and youth programs should use StayKnown only with proper notice, consent, and role clarity.",
@@ -1093,7 +1092,7 @@ export default function ContactConsentPage() {
                   </section>
 
                   <section className="space-y-3 rounded-[1.6rem] border border-white/10 bg-white/[0.032] p-5">
-                    <H2>Appendix A â€” In-app short contact consent notice</H2>
+                    <H2>Appendix A '” In-app short contact consent notice</H2>
                     <P>
                       StayKnown contact features are built for approved,
                       trusted, consent-based safety relationships. Do not add
@@ -1133,7 +1132,7 @@ export default function ContactConsentPage() {
                     </div>
 
                     <div className="mt-2 text-[11px] font-semibold text-white/32">
-                      {new Date().getFullYear()} â€¢ stay-known.com
+                      {new Date().getFullYear()} '¢ stay-known.com
                     </div>
 
                     <p className="mx-auto mt-3 max-w-2xl text-[11px] font-semibold leading-relaxed text-white/30">
@@ -1152,4 +1151,3 @@ export default function ContactConsentPage() {
     </main>
   );
 }
-

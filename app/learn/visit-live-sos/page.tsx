@@ -22,7 +22,7 @@ function MobileNavLink({ href, label }: { href: string; label: string }) {
       "
     >
       <span>{label}</span>
-      <span className="opacity-60">â€º</span>
+      <span className="opacity-60">'º</span>
       <span className="pointer-events-none absolute inset-0 opacity-0 active:opacity-100 transition duration-75 bg-white/[0.06]" />
     </Link>
   );
@@ -245,7 +245,7 @@ function TierBlock({
               key={i}
               className="flex gap-2.5 text-white/62 font-medium text-[12.6px] leading-relaxed"
             >
-              <span className="mt-[2px] text-white/42">â€¢</span>
+              <span className="mt-[2px] text-white/42">'¢</span>
               <span>{b}</span>
             </li>
           ))}
@@ -314,9 +314,9 @@ function SoliloquyBox() {
       <div className="p-5 sm:p-6">
         <SectionLabel>Scenario thinking</SectionLabel>
         <div className="mt-3 text-[19px] sm:text-[24px] font-black tracking-[-0.045em] leading-tight text-white">
-          â€œI am going somewhere. I want someone I trust to know I started
+          'œI am going somewhere. I want someone I trust to know I started
           safely, see the Visit is active, and understand when it becomes
-          urgent.â€
+          urgent.'
         </div>
         <div className="mt-4 space-y-3 text-[12.7px] leading-relaxed text-white/58 font-medium">
           <p>
@@ -392,7 +392,7 @@ export default function LearnVisitLiveSosPage() {
               STAYKNOWN
             </div>
             <div className="text-white/40 font-semibold text-[11px]">
-              Learn â€¢ Live Visit + SOS
+              Learn '¢ Live Visit + SOS
             </div>
           </div>
 
@@ -552,7 +552,7 @@ export default function LearnVisitLiveSosPage() {
                 <div>
                   <span className="text-white/78 font-black">2)</span> LIVE
                   context becomes active during that session, so trusted
-                  contacts can understand the userâ€™s safety status.
+                  contacts can understand the user'™s safety status.
                 </div>
                 <div>
                   <span className="text-white/78 font-black">3)</span> When the
@@ -560,7 +560,8 @@ export default function LearnVisitLiveSosPage() {
                 </div>
               </div>
               <div className="mt-3 text-white/45">
-                Example: <em>â€œIâ€™m leaving now. Keep an eye until I arrive.â€</em>
+                Example:{" "}
+                <em>'œI'™m leaving now. Keep an eye until I arrive.'</em>
               </div>
             </FeatureCard>
 
@@ -576,13 +577,13 @@ export default function LearnVisitLiveSosPage() {
             </FeatureCard>
 
             <FeatureCard glyph="â–£" title="What trusted contacts understand">
-              A good safety alert should not be vague. StayKnownâ€™s direction is
+              A good safety alert should not be vague. StayKnown'™s direction is
               to make messages understandable: who it is from, what state is
               active, and whether it is routine safety sharing or emergency
               escalation.
               <div className="mt-3 text-white/45">
-                Routine: <em>â€œVisit active.â€</em> Emergency:{" "}
-                <em>â€œSOS triggered â€” please check immediately.â€</em>
+                Routine: <em>'œVisit active.'</em> Emergency:{" "}
+                <em>'œSOS triggered '” please check immediately.'</em>
               </div>
             </FeatureCard>
 
@@ -607,7 +608,10 @@ export default function LearnVisitLiveSosPage() {
               </div>
             </FeatureCard>
 
-            <FeatureCard glyph="âš–" title="Why this matters to law enforcement">
+            <FeatureCard
+              glyph="âš–"
+              title="Why this matters to law enforcement"
+            >
               StayKnown should communicate clearly that it is a user safety
               tool, not a substitute for emergency services and not a tool for
               abuse. Clear session states, trusted-recipient intent, and policy
@@ -618,7 +622,10 @@ export default function LearnVisitLiveSosPage() {
               </div>
             </FeatureCard>
 
-            <FeatureCard glyph="âœ¦" title="UI states are intentionally obvious">
+            <FeatureCard
+              glyph="âœ¦"
+              title="UI states are intentionally obvious"
+            >
               The app separates ordinary and urgent states visually:{" "}
               <span className="text-white/78 font-black">Idle</span>,{" "}
               <span className="text-white/78 font-black">LIVE</span>, and{" "}
@@ -703,7 +710,7 @@ export default function LearnVisitLiveSosPage() {
               >
                 Privacy Policy
               </a>
-              <span className="text-white/18">â€¢</span>
+              <span className="text-white/18">'¢</span>
               <a
                 href="/terms"
                 target="_blank"
@@ -712,7 +719,7 @@ export default function LearnVisitLiveSosPage() {
               >
                 Terms of Service
               </a>
-              <span className="text-white/18">â€¢</span>
+              <span className="text-white/18">'¢</span>
               <a
                 href="/acceptable-use"
                 target="_blank"
@@ -721,7 +728,7 @@ export default function LearnVisitLiveSosPage() {
               >
                 Acceptable Use
               </a>
-              <span className="text-white/18">â€¢</span>
+              <span className="text-white/18">'¢</span>
               <a
                 href="/safety"
                 target="_blank"
@@ -730,7 +737,7 @@ export default function LearnVisitLiveSosPage() {
               >
                 Safety &amp; Anti-Stalking
               </a>
-              <span className="text-white/18">â€¢</span>
+              <span className="text-white/18">'¢</span>
               <a
                 href="/emergency"
                 target="_blank"
@@ -739,7 +746,7 @@ export default function LearnVisitLiveSosPage() {
               >
                 Emergency Disclaimer
               </a>
-              <span className="text-white/18">â€¢</span>
+              <span className="text-white/18">'¢</span>
               <a
                 href="/minors"
                 target="_blank"
@@ -748,7 +755,7 @@ export default function LearnVisitLiveSosPage() {
               >
                 Child Safety &amp; Minor Use
               </a>
-              <span className="text-white/18">â€¢</span>
+              <span className="text-white/18">'¢</span>
               <a
                 href="/abuse"
                 target="_blank"
@@ -757,7 +764,7 @@ export default function LearnVisitLiveSosPage() {
               >
                 Abuse Reporting
               </a>
-              <span className="text-white/18">â€¢</span>
+              <span className="text-white/18">'¢</span>
               <a
                 href="/retention"
                 target="_blank"
@@ -766,7 +773,7 @@ export default function LearnVisitLiveSosPage() {
               >
                 Data Retention
               </a>
-              <span className="text-white/18">â€¢</span>
+              <span className="text-white/18">'¢</span>
               <a
                 href="/law"
                 target="_blank"
@@ -775,7 +782,7 @@ export default function LearnVisitLiveSosPage() {
               >
                 Law Enforcement
               </a>
-              <span className="text-white/18">â€¢</span>
+              <span className="text-white/18">'¢</span>
               <a
                 href="/security"
                 target="_blank"
@@ -794,7 +801,7 @@ export default function LearnVisitLiveSosPage() {
             </div>
 
             <div className="text-[11px] font-semibold text-white/30">
-              {new Date().getFullYear()} â€¢ stay-known.com
+              {new Date().getFullYear()} '¢ stay-known.com
             </div>
           </div>
         </div>
@@ -802,4 +809,3 @@ export default function LearnVisitLiveSosPage() {
     </main>
   );
 }
-

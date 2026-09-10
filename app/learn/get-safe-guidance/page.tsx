@@ -25,7 +25,7 @@ function MobileNavLink({ href, label }: { href: string; label: string }) {
       "
     >
       <span>{label}</span>
-      <span className="opacity-60">â€º</span>
+      <span className="opacity-60">'º</span>
       <span className="pointer-events-none absolute inset-0 opacity-0 active:opacity-100 transition duration-75 bg-white/[0.06]" />
     </Link>
   );
@@ -243,7 +243,7 @@ function TierBlock({
               key={i}
               className="flex gap-2.5 text-white/62 font-medium text-[12.6px] leading-relaxed"
             >
-              <span className="mt-[2px] text-white/42">â€¢</span>
+              <span className="mt-[2px] text-white/42">'¢</span>
               <span>{b}</span>
             </li>
           ))}
@@ -342,8 +342,9 @@ function ScenarioBox() {
         <SectionLabel>Opening mission</SectionLabel>
 
         <div className="mt-3 text-[19px] sm:text-[24px] font-black tracking-[-0.045em] leading-tight text-white">
-          â€œWherever people go â€” to visit, meet, travel, work, commute, chat, or
-          check in â€” they deserve tools that help them get safe and stay known.â€
+          'œWherever people go '” to visit, meet, travel, work, commute, chat,
+          or check in '” they deserve tools that help them get safe and stay
+          known.'
         </div>
 
         <div className="mt-4 space-y-3 text-[12.7px] leading-relaxed text-white/58 font-medium">
@@ -450,7 +451,7 @@ export default function LearnGetSafeGuidancePage() {
               STAYKNOWN
             </div>
             <div className="text-white/40 font-semibold text-[11px]">
-              Learn â€¢ GET SAFE
+              Learn '¢ GET SAFE
             </div>
           </div>
 
@@ -502,7 +503,7 @@ export default function LearnGetSafeGuidancePage() {
                 This page introduces the mission before the visitor enters the
                 detailed slides.{" "}
                 <em>
-                  StayKnown is built for lawful, consent-aware, human safety â€”
+                  StayKnown is built for lawful, consent-aware, human safety '”
                   not stalking, pressure, secret tracking, or abuse.
                 </em>
               </TintedCallout>
@@ -623,7 +624,7 @@ export default function LearnGetSafeGuidancePage() {
               StayKnown starts with movement. A user can begin a Visit so
               trusted people understand that a safety session is active.
               <div className="mt-3 text-white/45">
-                LIVE sharing turns â€œI am going somewhereâ€ into a clearer safety
+                LIVE sharing turns 'œI am going somewhere' into a clearer safety
                 signal.
               </div>
             </FeatureCard>
@@ -706,7 +707,7 @@ export default function LearnGetSafeGuidancePage() {
 
                   <div className="mt-3 text-[21px] sm:text-[28px] font-black tracking-[-0.045em] leading-tight text-white">
                     GET SAFE should be the first slide because it explains the
-                    â€œwhyâ€ before the visitor sees the â€œhow.â€
+                    'œwhy' before the visitor sees the 'œhow.'
                   </div>
 
                   <p className="mt-3 text-[12.8px] leading-relaxed text-white/56 font-medium">
@@ -816,7 +817,7 @@ export default function LearnGetSafeGuidancePage() {
               >
                 Privacy Policy
               </a>
-              <span className="text-white/18">â€¢</span>
+              <span className="text-white/18">'¢</span>
 
               <a
                 href="/terms"
@@ -826,7 +827,7 @@ export default function LearnGetSafeGuidancePage() {
               >
                 Terms of Service
               </a>
-              <span className="text-white/18">â€¢</span>
+              <span className="text-white/18">'¢</span>
 
               <a
                 href="/acceptable-use"
@@ -836,7 +837,7 @@ export default function LearnGetSafeGuidancePage() {
               >
                 Acceptable Use
               </a>
-              <span className="text-white/18">â€¢</span>
+              <span className="text-white/18">'¢</span>
 
               <a
                 href="/safety"
@@ -846,7 +847,7 @@ export default function LearnGetSafeGuidancePage() {
               >
                 Safety &amp; Anti-Stalking
               </a>
-              <span className="text-white/18">â€¢</span>
+              <span className="text-white/18">'¢</span>
 
               <a
                 href="/emergency"
@@ -856,7 +857,7 @@ export default function LearnGetSafeGuidancePage() {
               >
                 Emergency Disclaimer
               </a>
-              <span className="text-white/18">â€¢</span>
+              <span className="text-white/18">'¢</span>
 
               <a
                 href="/minors"
@@ -866,7 +867,7 @@ export default function LearnGetSafeGuidancePage() {
               >
                 Child Safety &amp; Minor Use
               </a>
-              <span className="text-white/18">â€¢</span>
+              <span className="text-white/18">'¢</span>
 
               <a
                 href="/abuse"
@@ -876,7 +877,7 @@ export default function LearnGetSafeGuidancePage() {
               >
                 Abuse Reporting
               </a>
-              <span className="text-white/18">â€¢</span>
+              <span className="text-white/18">'¢</span>
 
               <a
                 href="/retention"
@@ -886,7 +887,7 @@ export default function LearnGetSafeGuidancePage() {
               >
                 Data Retention
               </a>
-              <span className="text-white/18">â€¢</span>
+              <span className="text-white/18">'¢</span>
 
               <a
                 href="/law"
@@ -896,7 +897,7 @@ export default function LearnGetSafeGuidancePage() {
               >
                 Law Enforcement
               </a>
-              <span className="text-white/18">â€¢</span>
+              <span className="text-white/18">'¢</span>
 
               <a
                 href="/security"
@@ -916,7 +917,7 @@ export default function LearnGetSafeGuidancePage() {
             </div>
 
             <div className="text-[11px] font-semibold text-white/30">
-              {new Date().getFullYear()} â€¢ stay-known.com
+              {new Date().getFullYear()} '¢ stay-known.com
             </div>
           </div>
         </div>
@@ -924,4 +925,3 @@ export default function LearnGetSafeGuidancePage() {
     </main>
   );
 }
-

@@ -26,8 +26,7 @@ function useSeoMeta() {
   useEffect(() => {
     if (typeof document === "undefined") return;
 
-    document.title =
-      "Submit a StayKnown Feature";
+    document.title = "Submit a StayKnown Feature";
 
     const upsertMeta = (name: string, content: string) => {
       let tag = document.querySelector<HTMLMetaElement>(`meta[name="${name}"]`);
@@ -982,7 +981,7 @@ export default function SubmitFeaturePage() {
                     </div>
 
                     <div className="mt-2 text-[11px] font-semibold text-white/32">
-                      {new Date().getFullYear()} â€¢ stay-known.com
+                      {new Date().getFullYear()} '¢ stay-known.com
                     </div>
                   </div>
                 </footer>
@@ -994,4 +993,3 @@ export default function SubmitFeaturePage() {
     </main>
   );
 }
-
