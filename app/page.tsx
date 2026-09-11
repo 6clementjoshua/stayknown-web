@@ -7,7 +7,7 @@ const GOOGLE_PLAY_URL =
   "https://play.google.com/store/apps/details?id=com.stayknown.app";
 
 const TITLE =
-  "StayKnown Safety & Secure Chat App | LIVE Visits, I'™M SAFE & SOS";
+  "StayKnown Safety & Secure Chat App | LIVE Visits, I'M SAFE & SOS";
 
 const DESCRIPTION =
   "StayKnown is a consent-first safety app with LIVE Visits, I'M SAFE check-ins, SOS alerts, approved contacts, secure chat and location sharing.";
