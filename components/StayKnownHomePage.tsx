@@ -111,7 +111,7 @@ const APP_SLIDES: HeroSlide[] = [
     kind: "device",
     title: "Live Map for Approved Contacts",
     teaser:
-      "Approved contacts can open a safety map only from the user'™s permitted Visit or SOS flow, with privacy notice, session context, and lawful-use boundaries.",
+      "Approved contacts can open a safety map only from the user's permitted Visit or SOS flow, with privacy notice, session context, and lawful-use boundaries.",
   },
   {
     id: "promax-shell",
@@ -662,7 +662,7 @@ function StayKnownIntroSection() {
       icon: "consent" as const,
       eyebrow: "Consent first",
       title: "Care without permanent surveillance.",
-      body: "Approved contacts, intentional sharing, visible privacy boundaries, and revocable access keep safety support connected to the user'™s choice.",
+      body: "Approved contacts, intentional sharing, visible privacy boundaries, and revocable access keep safety support connected to the user's choice.",
     },
     {
       icon: "visit" as const,
@@ -1126,12 +1126,12 @@ function PlansSection() {
       capacities: [
         "1 approved contact",
         "Core Visit access",
-        "Twice-daily I'™M SAFE",
+        "Twice-daily I'M SAFE",
       ],
       features: [
         "Start and end Visits",
         "Add a destination and review Visit history",
-        "Twice-daily I'™M SAFE check-ins",
+        "Twice-daily I'M SAFE check-ins",
         "Basic emergency-contact and safety flows",
         "Core safety map and navigation",
         "Basic account, profile, and safety-proof access",
@@ -1141,9 +1141,9 @@ function PlansSection() {
       name: "Pro",
       kicker: "Full safety system",
       featured: true,
-      pricePrimary: "Nigeria Â· â‚¦9,999 monthly",
+      pricePrimary: "Nigeria N9,999 monthly",
       priceSecondary:
-        "â‚¦99,999 yearly Â· Global $14.99 monthly or $149.99 yearly",
+        "N99,999 yearly · Global $14.99 monthly or $149.99 yearly",
       capacities: [
         "3 approved contacts",
         "6 SOS contacts",
@@ -1167,9 +1167,9 @@ function PlansSection() {
       name: "Pro Max",
       kicker: "Complete premium access",
       featured: false,
-      pricePrimary: "Nigeria Â· â‚¦14,999 monthly",
+      pricePrimary: "Nigeria N14,999 monthly",
       priceSecondary:
-        "â‚¦149,999 yearly Â· Global $24.99 monthly or $249.99 yearly",
+        "N149,999 yearly · Global $24.99 monthly or $249.99 yearly",
       capacities: [
         "6 approved contacts",
         "10 SOS contacts",
@@ -1338,7 +1338,7 @@ function TrustSection() {
     {
       icon: "shield" as const,
       title: "Misuse is prohibited",
-      body: "StayKnown'™s safety policies address stalking, harassment, luring, unauthorized monitoring, abuse, and unsafe use.",
+      body: "StayKnown's safety policies address stalking, harassment, luring, unauthorized monitoring, abuse, and unsafe use.",
       href: "/trust-safety",
       link: "Open Trust & Safety",
     },
@@ -1368,7 +1368,7 @@ function TrustSection() {
         <SectionHeading
           eyebrow="Trust and responsibility"
           title="Clear policies for safer, more respectful use."
-          body="Explore StayKnown'™s privacy, consent, anti-stalking, emergency, child-safety, billing, and security commitments before relying on the service."
+          body="Explore StayKnown's privacy, consent, anti-stalking, emergency, child-safety, billing, and security commitments before relying on the service."
         />
 
         <div className="mt-10 grid gap-4 md:grid-cols-3">
@@ -1456,7 +1456,7 @@ function FaqSection() {
         <SectionHeading
           eyebrow="Questions answered"
           title="Understand the safety boundary before depending on it."
-          body="These are the most important questions about StayKnown'™s consent model, location access, plans, and emergency role."
+          body="These are the most important questions about StayKnown's consent model, location access, plans, and emergency role."
         />
 
         <div className="mx-auto mt-9 grid max-w-4xl gap-3">
