@@ -70,7 +70,7 @@ const STORY_SLIDES: CinematicHeroSlide[] = [
   },
   {
     id: "family-farewell",
-    src: "/hero/stayknown-family-farewell.jpg",
+    src: "/hero/stayknown-family-farewell.png",
     alt: "A family saying goodbye to a loved one before a journey",
     eyebrow: "Trusted people",
     title: "When someone leaves, care should not stop.",
