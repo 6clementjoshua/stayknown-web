@@ -59,16 +59,6 @@ const HOME_NAV_ITEMS = [
 
 const STORY_SLIDES: CinematicHeroSlide[] = [
   {
-    id: "safe-journey-bus",
-    src: "/hero/stayknown-safe-journey-bus.png",
-    alt: "A Nigerian journey scene viewed from inside a bus",
-    eyebrow: "Consent-first safety",
-    title: "Safety when you choose it. Trusted people when you need them.",
-    body: "Start a Visit, share safety context with approved contacts, keep LIVE protection active, or raise an SOS without permanent family tracking.",
-    href: "/learn/safe-journey",
-    objectPosition: "center center",
-  },
-  {
     id: "family-farewell",
     src: "/hero/stayknown-family-farewell.png",
     alt: "A family saying goodbye to a loved one before a journey",
@@ -76,6 +66,16 @@ const STORY_SLIDES: CinematicHeroSlide[] = [
     title: "When someone leaves, care should not stop.",
     body: "StayKnown helps families support movement, visits, school, travel, ride-hailing, and uncertain moments without turning care into hidden surveillance.",
     href: "/learn/family-safety",
+    objectPosition: "center center",
+  },
+  {
+    id: "safe-journey-bus",
+    src: "/hero/stayknown-safe-journey-bus.png",
+    alt: "A Nigerian journey scene viewed from inside a bus",
+    eyebrow: "Consent-first safety",
+    title: "Safety when you choose it. Trusted people when you need them.",
+    body: "Start a Visit, share safety context with approved contacts, keep LIVE protection active, or raise an SOS without permanent family tracking.",
+    href: "/learn/safe-journey",
     objectPosition: "center center",
   },
 ];
